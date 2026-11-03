@@ -1,8 +1,11 @@
+import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { cloudflareTest, readD1Migrations } from '@cloudflare/vitest-pool-workers';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig(async () => {
+  // wrangler требует существующую папку ассетов; в свежем клоне мини-апп ещё не собран
+  mkdirSync(path.join(import.meta.dirname, '../miniapp/dist'), { recursive: true });
   const migrations = await readD1Migrations(path.join(import.meta.dirname, 'migrations'));
   return {
     plugins: [
