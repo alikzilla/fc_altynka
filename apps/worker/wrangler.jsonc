@@ -1,25 +1,52 @@
 {
-  "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "fc-altynka",
-  "main": "src/index.ts",
-  "compatibility_date": "2026-08-15",
-  "compatibility_flags": ["nodejs_compat"],
-  "d1_databases": [
-    { "binding": "DB", "database_name": "fc-altynka", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
-  ],
-  "durable_objects": {
-    "bindings": [{ "name": "EVENT_SYNC", "class_name": "EventSync" }]
-  },
-  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["EventSync"] }],
-  "assets": {
-    "directory": "../miniapp/dist",
-    "binding": "ASSETS",
-    "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api/*", "/tg/*"]
-  },
-  "vars": {
-    "BOT_USERNAME": "fc_altynka_bot",
-    "MINIAPP_SHORT_NAME": "app",
-    "ADMIN_TG_ID": "0"
-  }
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "fc-altynka",
+	"main": "src/index.ts",
+	"compatibility_date": "2026-08-15",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "fc-altynka",
+			"database_id": "836b706d-84ae-49a0-8afb-2b7d2c6097e3",
+			"migrations_dir": "migrations"
+		},
+		{
+			"binding": "fc_altynka",
+			"database_name": "fc-altynka",
+			"database_id": "836b706d-84ae-49a0-8afb-2b7d2c6097e3"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "EVENT_SYNC",
+				"class_name": "EventSync"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": [
+				"EventSync"
+			]
+		}
+	],
+	"assets": {
+		"directory": "../miniapp/dist",
+		"binding": "ASSETS",
+		"not_found_handling": "single-page-application",
+		"run_worker_first": [
+			"/api/*",
+			"/tg/*"
+		]
+	},
+	"vars": {
+		"BOT_USERNAME": "fc_altynka_bot",
+		"MINIAPP_SHORT_NAME": "app",
+		"ADMIN_TG_ID": "0"
+	}
 }
