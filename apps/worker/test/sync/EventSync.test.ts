@@ -109,3 +109,60 @@ test('reminder notice lists debtors with amounts due', async () => {
   expect(reminder.html).not.toContain(`tg://user?id=${a.tgId}`);
   expect(reminder.html).toContain('2 000 ₸');
 });
+
+/** Подменяет метод FakeTg: первый вызов ждёт release(), чтобы request() успел влезть посреди alarm. */
+function holdFirst(method: 'editMessage' | 'sendMessage') {
+  let release!: () => void;
+  let started!: () => void;
+  const startedP = new Promise<void>(r => (started = r));
+  const gate = new Promise<void>(r => (release = r));
+  const orig = tg[method].bind(tg) as (...a: unknown[]) => Promise<never>;
+  let held = false;
+  (tg as unknown as Record<string, unknown>)[method] = async (...args: unknown[]) => {
+    if (!held) {
+      held = true;
+      started();
+      await gate;
+    }
+    return orig(...args);
+  };
+  return { startedP, release, restore: () => ((tg as unknown as Record<string, unknown>)[method] = orig) };
+}
+
+test('a join that lands while the alarm is editing is not lost', async () => {
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  const [a, b] = await Promise.all([seedUser('Первый'), seedUser('Второй')]);
+  await joinEvent(d, ev, a.id);
+  await stub().request(ev, { parts: ['event'] });
+  const h = holdFirst('editMessage');
+  const alarmP = runDurableObjectAlarm(stub());
+  await h.startedP;
+  await joinEvent(d, ev, b.id);
+  await stub().request(ev, { parts: ['event'] });
+  h.release();
+  await alarmP;
+  h.restore();
+  await runDurableObjectAlarm(stub());
+  expect(tg.edited.at(-1)!.html).toContain('Второй');
+});
+
+test('a promotion queued while another notice is being sent is still sent', async () => {
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  const us = await Promise.all(Array.from({ length: 12 }, (_, i) => seedUser(`И${i + 1}`)));
+  for (const u of us) await joinEvent(d, ev, u.id);
+  await leaveEvent(d, ev, us[0].id); // И11 в основу
+  await stub().request(ev, d.sync.calls.at(-1)!.req);
+  const h = holdFirst('sendMessage');
+  const alarmP = runDurableObjectAlarm(stub());
+  await h.startedP;
+  await leaveEvent(d, ev, us[1].id); // И12 в основу
+  await stub().request(ev, d.sync.calls.at(-1)!.req);
+  h.release();
+  await alarmP;
+  h.restore();
+  await runDurableObjectAlarm(stub());
+  const notices = tg.sent.filter(m => m.html.includes('В основе'));
+  expect(notices.some(n => n.html.includes(`tg://user?id=${us[11].tgId}`))).toBe(true);
+});
