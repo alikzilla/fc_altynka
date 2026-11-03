@@ -12,11 +12,6 @@
 			"database_name": "fc-altynka",
 			"database_id": "836b706d-84ae-49a0-8afb-2b7d2c6097e3",
 			"migrations_dir": "migrations"
-		},
-		{
-			"binding": "fc_altynka",
-			"database_name": "fc-altynka",
-			"database_id": "836b706d-84ae-49a0-8afb-2b7d2c6097e3"
 		}
 	],
 	"durable_objects": {
