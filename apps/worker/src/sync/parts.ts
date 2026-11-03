@@ -8,6 +8,7 @@ import type { OutNotice } from '../render/notices';
 import type { MergedNotice } from './plan';
 import type { Part } from './port';
 import { renderTeamsPart } from './teamsPart';
+import { renderBillPart, resolveReminder } from './billPart';
 
 export async function usersById(db: Db, ids: number[]): Promise<Map<number, UserRow>> {
   const uniq = [...new Set(ids)];
@@ -58,7 +59,7 @@ const renderers: Record<Part, PartRenderer> = {
     return v ? renderEventMessage(v, env) : null;
   },
   teams: (db, _env, eventId) => renderTeamsPart(db, eventId),
-  bill: async () => null,
+  bill: (db, _env, eventId) => renderBillPart(db, eventId),
 };
 
 /** Tasks 10–11 подключают составы и счёт. */
@@ -83,7 +84,7 @@ export async function setMessageId(db: Db, eventId: number, part: Part, id: numb
 }
 
 type ReminderResolver = (db: Db, billId: number) => Promise<OutNotice>;
-let reminderResolver: ReminderResolver = async () => ({ kind: 'reminder', debtors: [], amountByTgId: {} });
+let reminderResolver: ReminderResolver = (db, billId) => resolveReminder(db, billId);
 
 /** Task 11 подключает должников. */
 export function registerReminderResolver(r: ReminderResolver): void {

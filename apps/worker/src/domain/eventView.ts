@@ -5,6 +5,7 @@ import { events, memberships, type EventRow, type SignupRow } from '../db/schema
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDto } from './teams';
+import { billDto, getBillByEvent } from './bills';
 
 const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
 const PAST: EventRow['status'][] = ['closed', 'cancelled'];
@@ -77,6 +78,9 @@ export async function eventDetail(
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),
     teams: await teamsDto(db, eventId, q.main.map(s => s.id)),
-    bill: null,
+    bill: await (async () => {
+      const b = await getBillByEvent(db, eventId);
+      return b ? billDto(db, b.id) : null;
+    })(),
   };
 }

@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';
 import type { UserRow } from '../db/schema';
+import { markPaid } from '../domain/bills';
 import { joinEvent, leaveEvent, type Deps } from '../domain/events';
 import { bindCommunity, ensureMembership, getCommunity, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
@@ -58,6 +59,11 @@ registerCallback('l', async ({ deps, user, arg }) => {
     case 'not_found':
       return 'Сбор не найден';
   }
+});
+
+registerCallback('p', async ({ deps, user, arg }) => {
+  const r = await markPaid(deps, Number(arg), user.id, user.id);
+  return { ok: 'Отметил ✅ Спасибо!', already: 'Уже отмечено', not_in_bill: 'Тебя нет в этом счёте', closed: 'Счёт закрыт' }[r];
 });
 
 export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot {

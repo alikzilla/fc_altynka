@@ -87,3 +87,25 @@ test('deleted event message is re-sent', async () => {
   expect(tg.sent).toHaveLength(1);
   expect((await eventRow()).eventMessageId).toBe(tg.sent[0].messageId);
 });
+
+test('reminder notice lists debtors with amounts due', async () => {
+  const { upsertBill } = await import('../../src/domain/bills');
+  const { users } = await import('../../src/db/schema');
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  const [a, b] = await Promise.all([seedUser('Азамат'), seedUser('Тимур')]);
+  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, a.id));
+  await joinEvent(d, ev, a.id);
+  await joinEvent(d, ev, b.id);
+  const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
+  const r = (await upsertBill(d, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
+  await stub().request(ev, { parts: ['bill'], notices: [{ kind: 'reminder', billId: r.billId }] });
+  await runDurableObjectAlarm(stub());
+  const billMsg = tg.sent.find(m => m.html.includes('Счёт'))!;
+  expect(billMsg.replyTo).toBe(tg.sent[0].messageId);
+  const reminder = tg.sent.at(-1)!;
+  expect(reminder.html).toContain('Напоминание');
+  expect(reminder.html).toContain(`tg://user?id=${b.tgId}`);
+  expect(reminder.html).not.toContain(`tg://user?id=${a.tgId}`);
+  expect(reminder.html).toContain('2 000 ₸');
+});

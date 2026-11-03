@@ -1,0 +1,29 @@
+import type { BillDto, EventDetailDto } from '@sbor/core';
+import { apiRequest } from '../helpers';
+import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
+
+let w: ApiWorld;
+beforeEach(async () => { w = await setupApiWorld(); });
+afterEach(teardownApiWorld);
+
+test('PUT bill validates amounts, creates bill visible in detail; player pays via API', async () => {
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  const body = { receiverUserId: w.orgUserId, receiverKaspiPhone: '87071234567', fieldAmount: 4000, extras: [], participantSignupIds: d.main.map(s => s.id) };
+  const put = (b: unknown, as = w.org) => apiRequest(`/api/events/${id}/bill`, { method: 'PUT', as, body: b });
+  expect((await put({ ...body, fieldAmount: -1 })).status).toBe(400);
+  expect((await put({ ...body, fieldAmount: 100.5 })).status).toBe(400);
+  expect((await put(body, w.player)).status).toBe(403);
+  const ok = await put(body);
+  expect(ok.status).toBe(200);
+  const bill = (await ok.json()) as BillDto;
+  expect(bill).toMatchObject({ share: 2000, status: 'open' });
+  const after = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  expect(after.bill!.id).toBe(bill.id);
+  expect((await apiRequest(`/api/bills/${bill.id}/paid`, { method: 'POST', as: w.player })).status).toBe(200);
+  const fin = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  expect(fin.bill!.status).toBe('closed');
+  expect(fin.status).toBe('closed');
+});

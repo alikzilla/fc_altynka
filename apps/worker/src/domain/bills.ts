@@ -1,0 +1,203 @@
+import { computeBill, lineStatus, normalizeKzPhone, type BillDto, type Extra, type Role } from '@sbor/core';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
+import type { Db } from '../db/client';
+import { billLines, bills, events, signups, users, type BillRow } from '../db/schema';
+import { usersById } from '../sync/parts';
+import { canManage, getEvent, type Deps } from './events';
+
+export type UpsertBillResult =
+  | { kind: 'ok'; billId: number }
+  | { kind: 'no_kaspi' }
+  | { kind: 'bad_phone' }
+  | { kind: 'invalid' }
+  | { kind: 'not_found' }
+  | { kind: 'closed' };
+
+export async function getBill(db: Db, billId: number): Promise<BillRow | null> {
+  return (await db.select().from(bills).where(eq(bills.id, billId)))[0] ?? null;
+}
+
+export async function getBillByEvent(db: Db, eventId: number): Promise<BillRow | null> {
+  return (await db.select().from(bills).where(eq(bills.eventId, eventId)))[0] ?? null;
+}
+
+export async function upsertBill(
+  d: Deps,
+  eventId: number,
+  v: { receiverUserId: number; receiverKaspiPhone?: string; fieldAmount: number; extras: Extra[]; participantSignupIds: number[] },
+): Promise<UpsertBillResult> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return { kind: 'not_found' };
+  if (ev.status === 'cancelled' || ev.status === 'closed') return { kind: 'closed' };
+  const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
+  if (!receiver || !v.participantSignupIds.length) return { kind: 'invalid' };
+  const parts = await d.db
+    .select()
+    .from(signups)
+    .where(and(eq(signups.eventId, eventId), isNull(signups.leftAt), inArray(signups.id, v.participantSignupIds)));
+  if (parts.length !== new Set(v.participantSignupIds).size) return { kind: 'invalid' };
+  let phone = receiver.kaspiPhone;
+  if (v.receiverKaspiPhone !== undefined && v.receiverKaspiPhone.trim() !== '') {
+    phone = normalizeKzPhone(v.receiverKaspiPhone);
+    if (!phone) return { kind: 'bad_phone' };
+    await d.db.update(users).set({ kaspiPhone: phone }).where(eq(users.id, receiver.id));
+  }
+  if (!phone) return { kind: 'no_kaspi' };
+
+  // Доля гостя висит на пригласившем.
+  const units = new Map<number, number>();
+  for (const s of parts) {
+    const who = s.userId ?? s.invitedBy;
+    if (who !== null) units.set(who, (units.get(who) ?? 0) + 1);
+  }
+  const calc = computeBill(v.fieldAmount, v.extras, [...units].map(([userId, u]) => ({ userId, units: u })));
+
+  const existing = await getBillByEvent(d.db, eventId);
+  let billId: number;
+  const fields = {
+    receiverUserId: receiver.id,
+    fieldAmount: v.fieldAmount,
+    extrasJson: JSON.stringify(v.extras),
+    share: calc.share,
+    status: 'open' as const,
+  };
+  if (existing) {
+    await d.db.update(bills).set(fields).where(eq(bills.id, existing.id));
+    billId = existing.id;
+  } else {
+    const [row] = await d.db.insert(bills).values({ ...fields, eventId, createdAt: d.now }).returning({ id: bills.id });
+    billId = row.id;
+  }
+  const old = new Map((await d.db.select().from(billLines).where(eq(billLines.billId, billId))).map(l => [l.userId, l]));
+  const keep = new Set(calc.lines.map(l => l.userId));
+  const stmts = [
+    ...[...old.values()].filter(l => !keep.has(l.userId)).map(l => d.db.delete(billLines).where(eq(billLines.id, l.id))),
+    ...calc.lines.map(l => {
+      const prev = old.get(l.userId);
+      const isReceiver = l.userId === receiver.id;
+      const wasAutoPaid = prev && existing && prev.userId === existing.receiverUserId && !isReceiver;
+      const paid = isReceiver
+        ? { paidAmount: l.amount, markedBy: receiver.id, paidAt: d.now }
+        : wasAutoPaid
+          ? { paidAmount: null, markedBy: null, paidAt: null }
+          : { paidAmount: prev?.paidAmount ?? null, markedBy: prev?.markedBy ?? null, paidAt: prev?.paidAt ?? null };
+      return prev
+        ? d.db.update(billLines).set({ units: l.units, amount: l.amount, ...paid }).where(eq(billLines.id, prev.id))
+        : d.db.insert(billLines).values({ billId, userId: l.userId, units: l.units, amount: l.amount, ...paid });
+    }),
+    d.db.update(events).set({ status: 'billing' }).where(eq(events.id, eventId)),
+  ];
+  await d.db.batch(stmts as [ (typeof stmts)[number], ...(typeof stmts)[number][] ]);
+  await closeIfAllPaid(d, billId);
+  await d.sync.request(eventId, { parts: ['bill', 'event'] });
+  return { kind: 'ok', billId };
+}
+
+async function closeIfAllPaid(d: Deps, billId: number): Promise<boolean> {
+  const lines = await d.db.select().from(billLines).where(eq(billLines.billId, billId));
+  if (!lines.length || lines.some(l => lineStatus(l.amount, l.paidAmount).state !== 'paid')) return false;
+  const bill = await getBill(d.db, billId);
+  if (!bill) return false;
+  await d.db.batch([
+    d.db.update(bills).set({ status: 'closed' }).where(eq(bills.id, billId)),
+    d.db.update(events).set({ status: 'closed' }).where(eq(events.id, bill.eventId)),
+  ]);
+  return true;
+}
+
+export async function markPaid(
+  d: Deps,
+  billId: number,
+  userId: number,
+  by: number,
+): Promise<'ok' | 'already' | 'not_in_bill' | 'closed'> {
+  const bill = await getBill(d.db, billId);
+  if (!bill) return 'not_in_bill';
+  if (bill.status === 'closed') return 'closed';
+  const [line] = await d.db
+    .select()
+    .from(billLines)
+    .where(and(eq(billLines.billId, billId), eq(billLines.userId, userId)));
+  if (!line) return 'not_in_bill';
+  if (lineStatus(line.amount, line.paidAmount).state === 'paid') return 'already';
+  await d.db.update(billLines).set({ paidAmount: line.amount, markedBy: by, paidAt: d.now }).where(eq(billLines.id, line.id));
+  const closed = await closeIfAllPaid(d, billId);
+  await d.sync.request(bill.eventId, { parts: closed ? ['bill', 'event'] : ['bill'] });
+  return 'ok';
+}
+
+export async function setLinePaid(
+  d: Deps,
+  lineId: number,
+  paid: boolean,
+  actor: { userId: number; role: Role },
+): Promise<'ok' | 'forbidden' | 'not_found'> {
+  const [line] = await d.db.select().from(billLines).where(eq(billLines.id, lineId));
+  const bill = line ? await getBill(d.db, line.billId) : null;
+  if (!line || !bill) return 'not_found';
+  if (!canManage(actor.role) && bill.receiverUserId !== actor.userId) return 'forbidden';
+  await d.db
+    .update(billLines)
+    .set(paid ? { paidAmount: line.amount, markedBy: actor.userId, paidAt: d.now } : { paidAmount: null, markedBy: null, paidAt: null })
+    .where(eq(billLines.id, lineId));
+  let parts: ('bill' | 'event')[] = ['bill'];
+  if (paid) {
+    if (await closeIfAllPaid(d, bill.id)) parts = ['bill', 'event'];
+  } else if (bill.status === 'closed') {
+    await d.db.batch([
+      d.db.update(bills).set({ status: 'open' }).where(eq(bills.id, bill.id)),
+      d.db.update(events).set({ status: 'billing' }).where(eq(events.id, bill.eventId)),
+    ]);
+    parts = ['bill', 'event'];
+  }
+  await d.sync.request(bill.eventId, { parts });
+  return 'ok';
+}
+
+export async function remindDebtors(d: Deps, billId: number): Promise<'ok' | 'nobody' | 'not_found'> {
+  const bill = await getBill(d.db, billId);
+  if (!bill) return 'not_found';
+  const lines = await d.db.select().from(billLines).where(eq(billLines.billId, billId));
+  if (lines.every(l => lineStatus(l.amount, l.paidAmount).state === 'paid')) return 'nobody';
+  await d.sync.request(bill.eventId, { parts: [], notices: [{ kind: 'reminder', billId }] });
+  return 'ok';
+}
+
+export async function closeBill(d: Deps, billId: number): Promise<'ok' | 'not_found'> {
+  const bill = await getBill(d.db, billId);
+  if (!bill) return 'not_found';
+  await d.db.batch([
+    d.db.update(bills).set({ status: 'closed' }).where(eq(bills.id, billId)),
+    d.db.update(events).set({ status: 'closed' }).where(eq(events.id, bill.eventId)),
+  ]);
+  await d.sync.request(bill.eventId, { parts: ['bill', 'event'] });
+  return 'ok';
+}
+
+export async function billDto(db: Db, billId: number): Promise<BillDto> {
+  const bill = (await getBill(db, billId))!;
+  const lines = await db.select().from(billLines).where(eq(billLines.billId, billId));
+  const byId = await usersById(db, [bill.receiverUserId, ...lines.map(l => l.userId)]);
+  const receiver = byId.get(bill.receiverUserId)!;
+  const extras = JSON.parse(bill.extrasJson) as Extra[];
+  return {
+    id: bill.id,
+    receiver: { userId: receiver.id, name: receiver.displayName, kaspiPhone: receiver.kaspiPhone ?? '' },
+    fieldAmount: bill.fieldAmount,
+    extras,
+    total: bill.fieldAmount + extras.reduce((s, x) => s + x.amount, 0),
+    share: bill.share,
+    status: bill.status,
+    lines: lines
+      .map(l => ({
+        id: l.id,
+        userId: l.userId,
+        name: byId.get(l.userId)?.displayName ?? '?',
+        units: l.units,
+        amount: l.amount,
+        paidAmount: l.paidAmount,
+        ...lineStatus(l.amount, l.paidAmount),
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+  };
+}
