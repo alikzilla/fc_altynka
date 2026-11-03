@@ -10,3 +10,6 @@ export function useMe(): MeDto {
 }
 
 export const canManage = (me: MeDto) => me.role === 'organizer' || me.role === 'admin';
+
+export const MeReloadContext = createContext<() => void>(() => {});
+export const useReloadMe = () => useContext(MeReloadContext);

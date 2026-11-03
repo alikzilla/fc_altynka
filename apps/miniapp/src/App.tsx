@@ -1,11 +1,14 @@
 import type { MeDto } from '@sbor/core';
 import { useEffect } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
-import { MeContext } from './me';
+import { MeContext, MeReloadContext } from './me';
+import { Nav } from './Nav';
 import { AddGuest } from './screens/AddGuest';
 import { Event } from './screens/Event';
 import { Home } from './screens/Home';
 import { NewEvent } from './screens/NewEvent';
+import { Players } from './screens/Players';
+import { Profile } from './screens/Profile';
 import { Schedule } from './screens/Schedule';
 import { routeForStartParam } from './startParam';
 import { ready, startParam } from './tg';
@@ -14,7 +17,7 @@ import { useResource } from './useResource';
 
 export function App() {
   const [, navigate] = useLocation();
-  const { data: me, error } = useResource<MeDto>('/api/me');
+  const { data: me, error, reload: reloadMe } = useResource<MeDto>('/api/me');
   useEffect(() => {
     ready();
     const r = routeForStartParam(startParam());
@@ -38,6 +41,7 @@ export function App() {
   if (!me) return <Loading />;
   return (
     <MeContext.Provider value={me}>
+      <MeReloadContext.Provider value={reloadMe}>
       <ToastProvider>
         <Switch>
           <Route path="/" component={Home} />
@@ -45,11 +49,15 @@ export function App() {
           <Route path="/event/:id/guest" component={AddGuest} />
           <Route path="/event/:id/schedule" component={Schedule} />
           <Route path="/event/:id" component={Event} />
+          <Route path="/players" component={Players} />
+          <Route path="/profile" component={Profile} />
           <Route>
             <Home />
           </Route>
         </Switch>
+        <Nav />
       </ToastProvider>
+      </MeReloadContext.Provider>
     </MeContext.Provider>
   );
 }

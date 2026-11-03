@@ -95,3 +95,9 @@ button { font: inherit; color: inherit; }
 .preview { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 12px; background: var(--accent-soft); }
 .pay .amount { font-size: 26px; font-weight: 700; }
 .person input[type='checkbox'] { width: 22px; height: 22px; accent-color: var(--accent); }
+
+.member { flex-direction: column; align-items: stretch; border-bottom: 1px solid var(--line); padding: 4px 0; }
+.member:last-child { border-bottom: 0; }
+.member .btn-plain, .member-row { width: 100%; min-height: 48px; }
+.editor { display: flex; flex-direction: column; gap: 8px; padding: 8px 0 12px; }
+.levels { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
