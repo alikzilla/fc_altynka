@@ -10,7 +10,6 @@ export function limitFor(duration: Duration | null): number {
 export interface QueueEntry {
   id: number;
   seq: number;
-  manual: boolean;
 }
 
 export interface QueueSplit<T extends QueueEntry> {
@@ -19,16 +18,10 @@ export interface QueueSplit<T extends QueueEntry> {
   limit: number;
 }
 
-/**
- * Основа = все вручную переведённые + первые `baseLimit` остальных по порядку записи.
- * Ручной перевод добавляет место сверх лимита.
- */
+/** Строго по очереди: основа — первые `baseLimit` по порядку записи, остальные в резерве. */
 export function splitQueue<T extends QueueEntry>(entries: T[], baseLimit: number): QueueSplit<T> {
   const sorted = [...entries].sort((a, b) => a.seq - b.seq);
-  const manual = sorted.filter(x => x.manual);
-  const regular = sorted.filter(x => !x.manual);
-  const main = [...manual, ...regular.slice(0, baseLimit)].sort((a, b) => a.seq - b.seq);
-  return { main, reserve: regular.slice(baseLimit), limit: baseLimit + manual.length };
+  return { main: sorted.slice(0, baseLimit), reserve: sorted.slice(baseLimit), limit: baseLimit };
 }
 
 /** Кто был в резерве и стал в основе. */

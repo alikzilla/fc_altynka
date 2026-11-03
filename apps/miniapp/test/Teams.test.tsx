@@ -10,7 +10,7 @@ vi.mock('../src/api');
 vi.mock('../src/tg');
 
 const s = (id: number, level: number): SignupDto => ({
-  id, seq: id, name: `Игрок${id}`, userId: id + 100, guestOfName: null, invitedByUserId: null, manual: false, level,
+  id, seq: id, name: `Игрок${id}`, userId: id + 100, guestOfName: null, invitedByUserId: null, level,
 });
 const main = Array.from({ length: 10 }, (_, i) => s(i + 1, 10 - i));
 const ev: EventDetailDto = {

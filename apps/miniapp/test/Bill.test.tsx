@@ -10,7 +10,7 @@ import { organizer, player, renderWithApp } from './render';
 vi.mock('../src/api', async orig => ({ ...(await orig<typeof import('../src/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/tg');
 
-const s = (id: number): SignupDto => ({ id, seq: id, name: `Игрок${id}`, userId: id === 1 ? organizer.userId : id + 100, guestOfName: null, invitedByUserId: null, manual: false });
+const s = (id: number): SignupDto => ({ id, seq: id, name: `Игрок${id}`, userId: id === 1 ? organizer.userId : id + 100, guestOfName: null, invitedByUserId: null });
 const evWith = (n: number, bill: BillDto | null = null): EventDetailDto => ({
   id: 5, date: '2026-11-07', status: bill ? 'billing' : 'scheduled', startTime: '21:00', durationHours: 2, place: null, comment: null,
   limit: 15, mainCount: n, reserveCount: 0, my: 'main', main: Array.from({ length: n }, (_, i) => s(i + 1)), reserve: [], teams: null, bill,

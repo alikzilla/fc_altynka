@@ -95,3 +95,11 @@ test('adding the same guest again answers 409 guest_exists', async () => {
   expect(again.status).toBe(409);
   expect(await again.json()).toEqual({ error: 'guest_exists' });
 });
+
+test('nobody can pull a reservist into main out of turn', async () => {
+  const id = await newEvent();
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  const r = await apiRequest(`/api/signups/${d.main[0].id}/promote`, { method: 'POST', as: w.org });
+  expect(r.status).toBe(404);
+});

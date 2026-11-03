@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import {
-  addGuest, cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, promoteSignup, removeSignup, scheduleEvent,
+  addGuest, cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, removeSignup, scheduleEvent,
 } from '../domain/events';
 import { eventDetail, listEvents } from '../domain/eventView';
 import { body, idParam, statusFor } from './validate';
@@ -107,11 +107,4 @@ eventsApi.delete('/signups/:id', async c => {
   if (id === null) return c.json({ error: 'not_found' }, 404);
   const r = await removeSignup(c.get('deps'), id, { userId: c.get('user').id, role: c.get('role') });
   return c.json({ kind: r }, statusFor(r));
-});
-
-eventsApi.post('/signups/:id/promote', requireRole('organizer'), async c => {
-  const id = idParam(c.req.param('id'));
-  if (id === null) return c.json({ error: 'not_found' }, 404);
-  const r = await promoteSignup(c.get('deps'), id);
-  return c.json({ kind: r }, r === 'not_reserve' ? 409 : statusFor(r));
 });

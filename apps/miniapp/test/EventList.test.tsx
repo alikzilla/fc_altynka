@@ -10,7 +10,7 @@ vi.mock('../src/api');
 vi.mock('../src/tg');
 
 const s = (id: number, name: string, extra: Partial<EventDetailDto['main'][number]> = {}) => ({
-  id, seq: id, name, userId: id + 100, guestOfName: null, invitedByUserId: null, manual: false, ...extra,
+  id, seq: id, name, userId: id + 100, guestOfName: null, invitedByUserId: null, ...extra,
 });
 
 const ev: EventDetailDto = {
@@ -59,10 +59,9 @@ test('EventList: remove needs two taps', async () => {
   expect(api.send).toHaveBeenCalledWith('DELETE', '/api/signups/1');
 });
 
-test('EventList: organizer promotes from reserve and sees schedule button', async () => {
+test('EventList: organizer cannot move a reservist out of turn and sees schedule button', async () => {
   const { history } = renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'В основу' }));
-  expect(api.send).toHaveBeenCalledWith('POST', '/api/signups/3/promote');
+  expect(screen.queryByRole('button', { name: 'В основу' })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Назначить игру' }));
   expect(history.at(-1)).toBe('/event/5/schedule');
 });

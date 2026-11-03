@@ -67,7 +67,6 @@ export async function eventDetail(
       userId: s.userId,
       guestOfName: s.userId === null && s.invitedBy !== null ? (byId.get(s.invitedBy)?.displayName ?? null) : null,
       invitedByUserId: s.userId === null ? s.invitedBy : null,
-      manual: s.manual,
     };
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
     return base;

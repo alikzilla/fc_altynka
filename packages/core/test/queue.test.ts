@@ -1,6 +1,6 @@
 import { canRestore, demotedIds, limitFor, promotedIds, splitQueue } from '../src';
 
-const e = (seq: number, manual = false) => ({ id: seq, seq, manual });
+const e = (seq: number) => ({ id: seq, seq });
 const ids = (xs: { id: number }[]) => xs.map(x => x.id);
 
 test('limitFor', () => {
@@ -16,17 +16,19 @@ test('first N by seq are main, rest reserve, input order ignored', () => {
   expect(s.limit).toBe(10);
 });
 
-test('manual promotion adds a seat over the limit', () => {
-  const list = Array.from({ length: 12 }, (_, i) => e(i + 1, i + 1 === 12));
+test('the queue is strict: an old manual flag neither jumps it nor adds a seat', () => {
+  const list = Array.from({ length: 12 }, (_, i) => ({ ...e(i + 1), manual: i + 1 === 12 }));
   const s = splitQueue(list, 10);
-  expect(ids(s.main)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12]);
-  expect(ids(s.reserve)).toEqual([11]);
-  expect(s.limit).toBe(11);
+  expect(ids(s.main)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  expect(ids(s.reserve)).toEqual([11, 12]);
+  expect(s.limit).toBe(10);
 });
 
-test('leaver from main is replaced by first reservist, manual keeps its seat', () => {
-  const list = Array.from({ length: 12 }, (_, i) => e(i + 1, i + 1 === 12)).filter(x => x.seq !== 3);
-  expect(ids(splitQueue(list, 10).main)).toEqual([1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+test('leaver from main is replaced by the first reservist', () => {
+  const list = Array.from({ length: 12 }, (_, i) => e(i + 1)).filter(x => x.seq !== 3);
+  const s = splitQueue(list, 10);
+  expect(ids(s.main)).toEqual([1, 2, 4, 5, 6, 7, 8, 9, 10, 11]);
+  expect(ids(s.reserve)).toEqual([12]);
 });
 
 test('2h -> 1h sends last non-manual back to reserve in order', () => {

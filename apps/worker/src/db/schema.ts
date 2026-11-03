@@ -62,6 +62,7 @@ export const signups = sqliteTable(
     guestName: text('guest_name'),
     invitedBy: integer('invited_by').references(() => users.id),
     seq: integer('seq').notNull(),
+    /** Не используется: очередь строгая, ручного перевода в основу нет. Колонка осталась от первой версии. */
     manual: integer('manual', { mode: 'boolean' }).notNull().default(false),
     leftAt: integer('left_at'),
     guestLevel: integer('guest_level'),

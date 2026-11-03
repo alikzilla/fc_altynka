@@ -17,7 +17,6 @@ export interface SignupDto {
   userId: number | null;
   guestOfName: string | null;
   invitedByUserId: number | null;
-  manual: boolean;
   /** Только для организатора и админа: уровень игрока или гостя (guestLevel ?? 5). */
   level?: number;
 }

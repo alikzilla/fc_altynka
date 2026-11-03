@@ -34,23 +34,17 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
     );
   const leave = () => run(() => api.send('POST', `/api/events/${ev.id}/leave`), () => 'Выписал. Передумаешь в течение 2 минут — место сохранится');
   const remove = (s: SignupDto) => run(() => api.send('DELETE', `/api/signups/${s.id}`), () => `${s.name} убран из списка`);
-  const promote = (s: SignupDto) => run(() => api.send('POST', `/api/signups/${s.id}/promote`), () => `${s.name} в основе`);
   const cancel = () => run(() => api.send('POST', `/api/events/${ev.id}/cancel`), () => 'Сбор отменён');
 
   const canRemove = (s: SignupDto) => open && (canManage(me) || (s.userId === null && s.invitedByUserId === me.userId));
 
-  const row = (s: SignupDto, i: number, reserve: boolean) => (
+  const row = (s: SignupDto, i: number) => (
     <li key={s.id} className={`person ${s.userId === me.userId ? 'me' : ''}`}>
       <span className="num">{i + 1}</span>
       <span className="name">
         {s.name}
         {s.guestOfName && <span className="muted"> {`(друг: ${s.guestOfName})`}</span>}
       </span>
-      {reserve && manage && (
-        <button className="btn-text" onClick={() => promote(s)}>
-          В основу
-        </button>
-      )}
       {canRemove(s) && <ConfirmButton label="Убрать" confirmLabel="Точно убрать?" onConfirm={() => remove(s)} />}
     </li>
   );
@@ -81,11 +75,11 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
       <h2 className="section">
         Основа · {ev.main.length}/{ev.limit}
       </h2>
-      <ul className="card list">{ev.main.length ? ev.main.map((s, i) => row(s, i, false)) : <li className="muted">Пока никого</li>}</ul>
+      <ul className="card list">{ev.main.length ? ev.main.map((s, i) => row(s, i)) : <li className="muted">Пока никого</li>}</ul>
       {ev.reserve.length > 0 && (
         <>
           <h2 className="section">Резерв</h2>
-          <ul className="card list">{ev.reserve.map((s, i) => row(s, i, true))}</ul>
+          <ul className="card list">{ev.reserve.map((s, i) => row(s, i))}</ul>
         </>
       )}
       {manage && <ConfirmButton className="btn-text danger-text" label="Отменить сбор" confirmLabel="Точно отменить сбор?" onConfirm={cancel} />}

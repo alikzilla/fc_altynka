@@ -205,20 +205,6 @@ export async function removeSignup(
   return 'ok';
 }
 
-export async function promoteSignup(d: Deps, signupId: number): Promise<'ok' | 'not_found' | 'not_reserve' | 'closed'> {
-  const [s] = await d.db.select().from(signups).where(eq(signups.id, signupId));
-  if (!s || s.leftAt !== null) return 'not_found';
-  const ev = await getEvent(d.db, s.eventId);
-  if (!ev) return 'not_found';
-  if (isClosed(ev)) return 'closed';
-  const before = await loadQueue(d.db, s.eventId);
-  if (!before.reserve.some(x => x.id === s.id)) return 'not_reserve';
-  await d.db.update(signups).set({ manual: true }).where(eq(signups.id, s.id));
-  const after = await loadQueue(d.db, s.eventId);
-  await syncEvent(d, s.eventId, movesNotices(before, after));
-  return 'ok';
-}
-
 export async function scheduleEvent(
   d: Deps,
   eventId: number,

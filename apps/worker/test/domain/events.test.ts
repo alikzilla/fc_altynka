@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { events } from '../../src/db/schema';
 import {
-  addGuest, cancelEvent, createEvent, joinEvent, leaveEvent, loadQueue, promoteSignup, removeSignup, scheduleEvent,
+  addGuest, cancelEvent, createEvent, joinEvent, leaveEvent, loadQueue, removeSignup, scheduleEvent,
   type Deps,
 } from '../../src/domain/events';
 import { FakeSync } from '../fakes/fakeSync';
@@ -101,18 +101,6 @@ test('schedule 2h promotes 11-15 in one notice; back to 1h demotes them', async 
   expect((lastReq().notices!.find(x => x.kind === 'demoted') as { signupIds: number[] }).signupIds).toHaveLength(5);
 });
 
-test('manual promotion adds a seat', async () => {
-  const ev = await seedEvent();
-  const us = await seedUsers(11);
-  for (const u of us) await joinEvent(d, ev, u.id);
-  const reservist = (await loadQueue(d.db, ev)).reserve[0];
-  expect(await promoteSignup(d, reservist.id)).toBe('ok');
-  const q = await loadQueue(d.db, ev);
-  expect(q.main).toHaveLength(11);
-  expect(q.reserve).toHaveLength(0);
-  expect(lastReq().notices).toEqual([{ kind: 'promoted', signupIds: [reservist.id] }]);
-  expect(await promoteSignup(d, q.main[0].id)).toBe('not_reserve');
-});
 
 test('guest queues like a player; inviter or organizer can remove, others cannot', async () => {
   const ev = await seedEvent();
