@@ -2,7 +2,7 @@ import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test'
 import { eq } from 'drizzle-orm';
 import { events } from '../../src/db/schema';
 import { createEvent, joinEvent, leaveEvent, loadQueue, type Deps } from '../../src/domain/events';
-import { __setTgClientForTests, TgRateLimited } from '../../src/telegram/client';
+import { __setTgClientForTests, TgRateLimited, TgRejected } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
 import { db, seedCommunity, seedUser } from '../helpers';
@@ -165,4 +165,24 @@ test('a promotion queued while another notice is being sent is still sent', asyn
   await runDurableObjectAlarm(stub());
   const notices = tg.sent.filter(m => m.html.includes('В основе'));
   expect(notices.some(n => n.html.includes(`tg://user?id=${us[11].tgId}`))).toBe(true);
+});
+
+test('a part Telegram rejects is dropped and does not block notices', async () => {
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  tg.failNextWith = new TgRejected('Bad Request: something permanent');
+  await stub().request(ev, { parts: ['event'], notices: [{ kind: 'scheduled' }] });
+  await runDurableObjectAlarm(stub());
+  expect(tg.sent.at(-1)!.html).toContain('Игра назначена');
+  expect(await runInDurableObject(stub(), (_i, st) => st.storage.get('dirty'))).toEqual([]);
+});
+
+test('a network error keeps the part for a retry and still sends notices', async () => {
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  tg.failNextWith = new Error('network down');
+  await stub().request(ev, { parts: ['event'], notices: [{ kind: 'scheduled' }] });
+  await runDurableObjectAlarm(stub()).catch(() => {});
+  expect(tg.sent.at(-1)!.html).toContain('Игра назначена');
+  expect(await runInDurableObject(stub(), (_i, st) => st.storage.get('dirty'))).toEqual(['event']);
 });

@@ -18,12 +18,20 @@ export class TgRateLimited extends Error {
 /** Сообщение, которое пытались отредактировать, удалено из чата. */
 export class TgMessageGone extends Error {}
 
+/** Telegram отклонил запрос (400/403): повтор не поможет. */
+export class TgRejected extends Error {}
+
+/** Ошибка Telegram → что с ней делать: подождать, отправить заново, бросить или повторить позже. */
+export function classifyTgError(e: unknown): unknown {
+  if (!(e instanceof GrammyError)) return e;
+  if (e.error_code === 429) return new TgRateLimited(e.parameters.retry_after ?? 5);
+  if (/message to edit not found|MESSAGE_ID_INVALID|message can't be edited/i.test(e.description)) return new TgMessageGone(e.description);
+  if (e.error_code === 400 || e.error_code === 403) return new TgRejected(e.description);
+  return e;
+}
+
 function translate(e: unknown): never {
-  if (e instanceof GrammyError) {
-    if (e.error_code === 429) throw new TgRateLimited(e.parameters.retry_after ?? 5);
-    if (/message to edit not found|MESSAGE_ID_INVALID/i.test(e.description)) throw new TgMessageGone(e.description);
-  }
-  throw e;
+  throw classifyTgError(e);
 }
 
 const isNotModified = (e: unknown) => e instanceof GrammyError && /message is not modified/i.test(e.description);

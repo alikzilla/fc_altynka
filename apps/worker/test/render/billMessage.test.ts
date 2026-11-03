@@ -27,3 +27,11 @@ test('closed bill has no buttons', () => {
   expect(r.keyboard).toBeUndefined();
   expect(r.html).toContain('закрыт');
 });
+
+test('bill without a receiver phone has no copy button and says so', () => {
+  const r = renderBillMessage({ ...base, receiver: { name: 'Азамат', kaspiPhone: '' } });
+  expect(r.html).toContain('Kaspi не указан');
+  const flat = r.keyboard!.inline_keyboard.flat();
+  expect(flat.some(b => 'copy_text' in b)).toBe(false);
+  expect(flat).toContainEqual(expect.objectContaining({ callback_data: 'p:3' }));
+});

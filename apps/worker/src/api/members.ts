@@ -4,7 +4,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import type { Db } from '../db/client';
-import { memberships, users } from '../db/schema';
+import { bills, memberships, users } from '../db/schema';
 import { effectiveRole } from '../domain/members';
 import type { Env } from '../env';
 import { body, idParam } from './validate';
@@ -23,7 +23,13 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
   const set: { displayName?: string; kaspiPhone?: string | null } = {};
   if (v.displayName !== undefined) set.displayName = v.displayName;
   if (v.kaspiPhone !== undefined) {
-    if (v.kaspiPhone === null || v.kaspiPhone.trim() === '') set.kaspiPhone = null;
+    if (v.kaspiPhone === null || v.kaspiPhone.trim() === '') {
+      // по открытому счёту ему переводят — без номера счёт сломается
+      const open = await c.get('deps').db.select({ id: bills.id }).from(bills)
+        .where(and(eq(bills.receiverUserId, c.get('user').id), eq(bills.status, 'open'))).limit(1);
+      if (open.length) return c.json({ error: 'receiver_needs_phone' }, 409);
+      set.kaspiPhone = null;
+    }
     else {
       const phone = normalizeKzPhone(v.kaspiPhone);
       if (!phone) return c.json({ error: 'bad_phone' }, 400);

@@ -1,6 +1,6 @@
 import { formatKzPhone, normalizeKzPhone } from '@sbor/core';
 import { useState } from 'react';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { useMe, useReloadMe } from '../me';
 import { haptic } from '../tg';
 import { Screen, useToast } from '../ui';
@@ -22,8 +22,9 @@ export function Profile() {
       haptic('success');
       toast('Сохранено');
       reloadMe();
-    } catch {
-      toast('Не получилось сохранить');
+    } catch (err) {
+      if (err instanceof ApiError && err.code === 'receiver_needs_phone') setPhoneError('Тебе переводят по открытому счёту — номер нужен');
+      else toast('Не получилось сохранить');
     }
   }
   return (

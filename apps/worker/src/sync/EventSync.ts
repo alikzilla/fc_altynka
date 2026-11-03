@@ -3,7 +3,7 @@ import { getDb } from '../db/client';
 import { getCommunity } from '../domain/members';
 import type { Env } from '../env';
 import { renderNotice } from '../render/notices';
-import { makeTgClient, TgMessageGone, TgRateLimited, type TgClient } from '../telegram/client';
+import { makeTgClient, TgMessageGone, TgRateLimited, TgRejected, type TgClient } from '../telegram/client';
 import { getMessageId, loadEventView, renderPart, resolveNotice, setMessageId } from './parts';
 import { mergeNotices, nextAlarmAt, unmerge } from './plan';
 import type { Notice, Part, SyncRequest } from './port';
@@ -15,17 +15,22 @@ interface Run {
   /** Неотправленное: вернётся в хранилище. */
   parts: Part[];
   notices: Notice[];
-  /** 429: когда можно повторить. */
+  /** 429: когда можно повторить; до тех пор чату больше ничего не шлём. */
   retryAt: number | null;
-  /** Другая ошибка: alarm упадёт, рантайм повторит его с отступом. */
+  /** Сбой сети или базы: остальное всё равно шлём, а alarm потом упадёт, и рантайм повторит его с отступом. */
   failure: unknown;
 }
 
-const stopped = (r: Run) => r.retryAt !== null || r.failure !== null;
+const stopped = (r: Run) => r.retryAt !== null;
 
-function noteError(r: Run, e: unknown): void {
+/** Запоминает ошибку; false — Telegram отклонил запрос насовсем, повторять незачем. */
+function noteError(r: Run, e: unknown): boolean {
   if (e instanceof TgRateLimited) r.retryAt = Date.now() + e.retryAfterSec * 1000;
-  else r.failure = e;
+  else if (e instanceof TgRejected) {
+    console.error('telegram rejected, dropping', e.message);
+    return false;
+  } else r.failure = e;
+  return true;
 }
 
 /**
@@ -64,18 +69,18 @@ export class EventSync extends DurableObject<Env> {
       try {
         await this.sendPart(tg, community.tgChatId, eventId, part);
       } catch (e) {
-        run.parts.push(part);
-        noteError(run, e);
+        if (noteError(run, e)) run.parts.push(part);
       }
     }
     if (stopped(run)) run.notices = pending;
     else await this.sendNotices(tg, community.tgChatId, eventId, pending, run);
 
     await this.putBack(run);
+    if (run.retryAt !== null) return void (await s.setAlarm(run.retryAt));
     if (run.failure !== null) throw run.failure;
     const more = ((await s.get<Part[]>('dirty')) ?? []).length > 0 || ((await s.get<Notice[]>('pending')) ?? []).length > 0;
     // Ставим будильник сами: тот, что request() поставил во время прогона, считал от старого lastSentAt.
-    if (more) await s.setAlarm(run.retryAt ?? nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
+    if (more) await s.setAlarm(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
   }
 
   /** Неотправленное — перед тем, что успело прийти за время прогона. */
@@ -116,8 +121,7 @@ export class EventSync extends DurableObject<Env> {
       view = await loadEventView(db, eventId);
       replyTo = (await getMessageId(db, eventId, 'event')) ?? undefined;
     } catch (e) {
-      run.notices = pending;
-      noteError(run, e);
+      if (noteError(run, e)) run.notices = pending;
       return;
     }
     if (!view) return;
@@ -132,8 +136,7 @@ export class EventSync extends DurableObject<Env> {
         await tg.sendMessage(chatId, html, { replyTo });
         await this.ctx.storage.put('lastSentAt', Date.now());
       } catch (e) {
-        run.notices.push(...unmerge(m));
-        noteError(run, e);
+        if (noteError(run, e)) run.notices.push(...unmerge(m));
       }
     }
   }

@@ -25,7 +25,8 @@ function lineText(l: BillView['lines'][number]): string {
 
 export function renderBillMessage(v: BillView): Rendered {
   const head = `💸 <b>Счёт${v.date ? ` · ${formatDateRu(v.date)}` : ''}</b>`;
-  const who = `С каждого по <b>${formatTenge(v.share)}</b> → ${escapeHtml(v.receiver.name)}, Kaspi ${formatKzPhone(v.receiver.kaspiPhone)}`;
+  const phone = v.receiver.kaspiPhone;
+  const who = `С каждого по <b>${formatTenge(v.share)}</b> → ${escapeHtml(v.receiver.name)}, ${phone ? `Kaspi ${formatKzPhone(phone)}` : 'Kaspi не указан'}`;
   const footer = v.status === 'closed' ? '\n✅ Все скинули, счёт закрыт' : '';
   const html = [head, who, '', ...v.lines.map(lineText)].join('\n') + footer;
   if (v.status === 'closed') return { html };
@@ -34,7 +35,8 @@ export function renderBillMessage(v: BillView): Rendered {
     keyboard: {
       inline_keyboard: [
         [
-          { text: '📋 Номер Kaspi', copy_text: { text: v.receiver.kaspiPhone } },
+          // copy_text с пустым текстом Telegram отклоняет
+          ...(phone ? [{ text: '📋 Номер Kaspi', copy_text: { text: phone } }] : []),
           { text: '✅ Я скинул', callback_data: `p:${v.billId}` },
         ],
       ],
