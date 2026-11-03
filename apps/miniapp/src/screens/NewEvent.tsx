@@ -1,4 +1,4 @@
-import { todayAlmaty } from '@sbor/core';
+import { todayAlmaty } from '@altynka/core';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { api } from '../api';

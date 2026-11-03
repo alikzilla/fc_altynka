@@ -1,5 +1,5 @@
 {
-  "name": "@sbor/worker",
+  "name": "@altynka/worker",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
-    "@sbor/core": "workspace:*",
+    "@altynka/core": "workspace:*",
     "@hono/zod-validator": "0.9.1",
     "drizzle-orm": "0.45.4",
     "grammy": "1.46.0",

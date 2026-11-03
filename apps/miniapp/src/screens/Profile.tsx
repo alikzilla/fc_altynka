@@ -1,4 +1,4 @@
-import { formatKzPhone, normalizeKzPhone } from '@sbor/core';
+import { formatKzPhone, normalizeKzPhone } from '@altynka/core';
 import { useState } from 'react';
 import { api, ApiError } from '../api';
 import { useMe, useReloadMe } from '../me';

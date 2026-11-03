@@ -1,4 +1,4 @@
-import type { EventsListDto, EventSummaryDto } from '@sbor/core';
+import type { EventsListDto, EventSummaryDto } from '@altynka/core';
 import { screen } from '@testing-library/react';
 import type { Mock } from 'vitest';
 import { api } from '../src/api';

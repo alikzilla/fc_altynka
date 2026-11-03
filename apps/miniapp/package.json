@@ -1,5 +1,5 @@
 {
-  "name": "@sbor/miniapp",
+  "name": "@altynka/miniapp",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@sbor/core": "workspace:*",
+    "@altynka/core": "workspace:*",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "wouter": "3.13.0"

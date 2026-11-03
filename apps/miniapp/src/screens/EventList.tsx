@@ -1,4 +1,4 @@
-import type { EventDetailDto, SignupDto } from '@sbor/core';
+import type { EventDetailDto, SignupDto } from '@altynka/core';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../api';
 import { isOpen } from '../labels';

@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type LineState } from '@sbor/core';
+import { escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type LineState } from '@altynka/core';
 import type { Rendered } from './eventMessage';
 
 export interface BillView {

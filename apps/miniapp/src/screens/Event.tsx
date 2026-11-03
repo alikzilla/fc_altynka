@@ -1,4 +1,4 @@
-import { formatDateRu, type EventDetailDto } from '@sbor/core';
+import { formatDateRu, type EventDetailDto } from '@altynka/core';
 import type { ReactNode } from 'react';
 import { useLocation, useParams, useSearch } from 'wouter';
 import { STATUS_LABEL, whenLine } from '../labels';

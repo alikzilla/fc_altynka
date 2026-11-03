@@ -1,4 +1,4 @@
-import type { EventDetailDto, EventsListDto } from '@sbor/core';
+import type { EventDetailDto, EventsListDto } from '@altynka/core';
 import { apiRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 

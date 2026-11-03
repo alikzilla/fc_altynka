@@ -1,4 +1,4 @@
-import { computeBill, lineStatus, normalizeKzPhone, type BillDto, type Extra, type Role } from '@sbor/core';
+import { computeBill, lineStatus, normalizeKzPhone, type BillDto, type Extra, type Role } from '@altynka/core';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { billLines, bills, events, signups, users, type BillRow } from '../db/schema';

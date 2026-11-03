@@ -1,4 +1,4 @@
-import { TEAMS } from '@sbor/core';
+import { TEAMS } from '@altynka/core';
 import type { Db } from '../db/client';
 import { getEvent } from '../domain/events';
 import { teamsDto } from '../domain/teams';

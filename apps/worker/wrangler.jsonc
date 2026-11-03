@@ -1,11 +1,11 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "sbor",
+  "name": "fc-altynka",
   "main": "src/index.ts",
   "compatibility_date": "2026-08-15",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
-    { "binding": "DB", "database_name": "sbor", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
+    { "binding": "DB", "database_name": "fc-altynka", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }
   ],
   "durable_objects": {
     "bindings": [{ "name": "EVENT_SYNC", "class_name": "EventSync" }]
@@ -18,7 +18,7 @@
     "run_worker_first": ["/api/*", "/tg/*"]
   },
   "vars": {
-    "BOT_USERNAME": "sbor_bot",
+    "BOT_USERNAME": "fc_altynka_bot",
     "MINIAPP_SHORT_NAME": "app",
     "ADMIN_TG_ID": "0"
   }

@@ -1,4 +1,4 @@
-import { defaultDisplayName, type Role } from '@sbor/core';
+import { defaultDisplayName, type Role } from '@altynka/core';
 import { and, eq, inArray } from 'drizzle-orm';
 import type { TgWebAppUser } from '../auth/initData';
 import type { Db } from '../db/client';

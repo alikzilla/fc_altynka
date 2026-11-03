@@ -1,4 +1,4 @@
-import type { MemberDto, Role } from '@sbor/core';
+import type { MemberDto, Role } from '@altynka/core';
 import { useState } from 'react';
 import { api, ApiError } from '../api';
 import { useMe } from '../me';

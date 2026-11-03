@@ -1,4 +1,4 @@
-import { escapeHtml } from '@sbor/core';
+import { escapeHtml } from '@altynka/core';
 import type { Env } from '../env';
 
 export type LinkEnv = Pick<Env, 'BOT_USERNAME' | 'MINIAPP_SHORT_NAME'>;

@@ -59,7 +59,7 @@ export async function apiRequest(
 ): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (o.as) headers.Authorization = `tma ${await signInitData(o.as, 'test-token', Math.floor((o.at ?? Date.now()) / 1000))}`;
-  return SELF.fetch(`https://sbor.test${path}`, {
+  return SELF.fetch(`https://altynka.test${path}`, {
     method: o.method ?? 'GET',
     headers,
     body: o.body === undefined ? undefined : JSON.stringify(o.body),

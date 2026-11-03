@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateRu, formatTenge, plural } from '@sbor/core';
+import { escapeHtml, formatDateRu, formatTenge, plural } from '@altynka/core';
 import { mention } from '../telegram/links';
 import type { EventView, PersonView } from './eventMessage';
 

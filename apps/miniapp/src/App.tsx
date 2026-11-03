@@ -1,4 +1,4 @@
-import type { MeDto } from '@sbor/core';
+import type { MeDto } from '@altynka/core';
 import { useEffect } from 'react';
 import { Route, Switch, useLocation } from 'wouter';
 import { MeContext, MeReloadContext } from './me';

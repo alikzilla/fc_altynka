@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Привязывает вебхук и кнопку меню бота к задеплоенному Worker'у.
-# Использование: BOT_TOKEN=... WEBHOOK_SECRET=... WORKER_URL=https://sbor.<you>.workers.dev ./scripts/set-webhook.sh
+# Использование: BOT_TOKEN=... WEBHOOK_SECRET=... WORKER_URL=https://fc-altynka.<you>.workers.dev ./scripts/set-webhook.sh
 set -euo pipefail
 : "${BOT_TOKEN:?нужен BOT_TOKEN}"
 : "${WEBHOOK_SECRET:?нужен WEBHOOK_SECRET}"

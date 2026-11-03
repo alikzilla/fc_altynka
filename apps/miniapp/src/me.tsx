@@ -1,4 +1,4 @@
-import type { MeDto } from '@sbor/core';
+import type { MeDto } from '@altynka/core';
 import { createContext, useContext } from 'react';
 
 export const MeContext = createContext<MeDto | null>(null);

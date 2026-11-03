@@ -1,4 +1,4 @@
-import type { BillDto, EventDetailDto } from '@sbor/core';
+import type { BillDto, EventDetailDto } from '@altynka/core';
 import { apiRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 

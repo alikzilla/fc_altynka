@@ -1,4 +1,4 @@
-import { formatDateRu, type EventsListDto, type EventSummaryDto } from '@sbor/core';
+import { formatDateRu, type EventsListDto, type EventSummaryDto } from '@altynka/core';
 import { Link, useLocation } from 'wouter';
 import { STATUS_LABEL, whenLine } from '../labels';
 import { canManage, useMe } from '../me';

@@ -1,4 +1,4 @@
-import { formatDateRu } from '@sbor/core';
+import { formatDateRu } from '@altynka/core';
 import type { Rendered } from './eventMessage';
 
 /** players — уже экранированные имена (см. plainName). Уровней здесь нет и быть не должно. */

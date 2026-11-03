@@ -1,4 +1,4 @@
-import type { EventDetailDto } from '@sbor/core';
+import type { EventDetailDto } from '@altynka/core';
 import { useEffect, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { api } from '../api';

@@ -1,4 +1,4 @@
-import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, type QueueSplit, type Role } from '@sbor/core';
+import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';

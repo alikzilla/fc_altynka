@@ -1,4 +1,4 @@
-import { alternativeSplit, balanceTeams, teamCountFor, TEAMS, type EventDetailDto, type SignupDto, type TeamCount } from '@sbor/core';
+import { alternativeSplit, balanceTeams, teamCountFor, TEAMS, type EventDetailDto, type SignupDto, type TeamCount } from '@altynka/core';
 import { useMemo, useState } from 'react';
 import { api } from '../api';
 import { isOpen } from '../labels';

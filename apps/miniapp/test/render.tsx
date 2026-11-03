@@ -1,4 +1,4 @@
-import type { MeDto } from '@sbor/core';
+import type { MeDto } from '@altynka/core';
 import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Router } from 'wouter';

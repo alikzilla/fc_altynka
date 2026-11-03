@@ -1,4 +1,4 @@
-import type { Role } from '@sbor/core';
+import type { Role } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';

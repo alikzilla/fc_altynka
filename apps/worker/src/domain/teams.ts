@@ -1,4 +1,4 @@
-import type { TeamCount, TeamsDto } from '@sbor/core';
+import type { TeamCount, TeamsDto } from '@altynka/core';
 import { asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, teamAssignments } from '../db/schema';

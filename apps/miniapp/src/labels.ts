@@ -1,4 +1,4 @@
-import type { EventStatus, EventSummaryDto } from '@sbor/core';
+import type { EventStatus, EventSummaryDto } from '@altynka/core';
 
 export const STATUS_LABEL: Record<EventStatus, string> = {
   collecting: 'Время уточняется',

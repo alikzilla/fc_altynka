@@ -1,4 +1,4 @@
-import { formatDateRu } from '@sbor/core';
+import { formatDateRu } from '@altynka/core';
 import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';

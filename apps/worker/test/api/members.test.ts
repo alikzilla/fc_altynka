@@ -1,4 +1,4 @@
-import type { MemberDto } from '@sbor/core';
+import type { MemberDto } from '@altynka/core';
 import { apiRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 

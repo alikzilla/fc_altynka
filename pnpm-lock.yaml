@@ -14,7 +14,7 @@ importers:
 
   apps/miniapp:
     dependencies:
-      '@sbor/core':
+      '@altynka/core':
         specifier: workspace:*
         version: link:../../packages/core
       react:
@@ -60,12 +60,12 @@ importers:
 
   apps/worker:
     dependencies:
+      '@altynka/core':
+        specifier: workspace:*
+        version: link:../../packages/core
       '@hono/zod-validator':
         specifier: 0.9.1
         version: 0.9.1(hono@4.13.16)(zod@4.6.7)
-      '@sbor/core':
-        specifier: workspace:*
-        version: link:../../packages/core
       drizzle-orm:
         specifier: 0.45.4
         version: 0.45.4(@cloudflare/workers-types@5.20261103.1)

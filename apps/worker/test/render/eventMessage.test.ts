@@ -1,6 +1,6 @@
 import { renderEventMessage, type EventView, type PersonView } from '../../src/render/eventMessage';
 
-const env = { BOT_USERNAME: 'sbor_bot', MINIAPP_SHORT_NAME: 'app' };
+const env = { BOT_USERNAME: 'fc_altynka_bot', MINIAPP_SHORT_NAME: 'app' };
 const person = (i: number, name = `Игрок${i}`): PersonView => ({ signupId: i, name, tgId: 100 + i, guestOf: null });
 export const base: EventView = {
   id: 5, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, comment: null,
@@ -17,7 +17,7 @@ test('collecting message: date, pending time, numbered lists, buttons', () => {
   expect(r.html).toContain('2/10');
   expect(r.html).toContain('Резерв');
   expect(targets(r)).toEqual([
-    'j:5', 'l:5', 'https://t.me/sbor_bot/app?startapp=g5', 'https://t.me/sbor_bot/app?startapp=e5',
+    'j:5', 'l:5', 'https://t.me/fc_altynka_bot/app?startapp=g5', 'https://t.me/fc_altynka_bot/app?startapp=e5',
   ]);
 });
 
@@ -30,7 +30,7 @@ test('scheduled shows time range and place, wraps past midnight', () => {
 test('cancelled has no join buttons', () => {
   const r = renderEventMessage({ ...base, status: 'cancelled' }, env);
   expect(r.html).toContain('Отменён');
-  expect(targets(r)).toEqual(['https://t.me/sbor_bot/app?startapp=e5']);
+  expect(targets(r)).toEqual(['https://t.me/fc_altynka_bot/app?startapp=e5']);
 });
 
 test('guest is labelled with inviter', () => {

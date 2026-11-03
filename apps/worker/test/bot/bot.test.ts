@@ -61,7 +61,7 @@ test('/start in private replies with an open button', async () => {
   const t = makeTestBot();
   await t.bot.handleUpdate(privateCommand(501, '/start'));
   const msg = t.calls.find(c => c.method === 'sendMessage')!;
-  expect(JSON.stringify(msg.payload.reply_markup)).toContain('https://t.me/sbor_bot/app');
+  expect(JSON.stringify(msg.payload.reply_markup)).toContain('https://t.me/fc_altynka_bot/app');
 });
 
 test('webhook rejects wrong secret', async () => {

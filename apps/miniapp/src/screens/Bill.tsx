@@ -1,4 +1,4 @@
-import { computeBill, formatKzPhone, formatTenge, type BillDto, type EventDetailDto, type Extra, type SignupDto } from '@sbor/core';
+import { computeBill, formatKzPhone, formatTenge, type BillDto, type EventDetailDto, type Extra, type SignupDto } from '@altynka/core';
 import { useMemo, useState } from 'react';
 import { api, ApiError } from '../api';
 import { transfer } from '../kaspi';

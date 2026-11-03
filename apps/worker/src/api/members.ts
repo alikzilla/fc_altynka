@@ -1,4 +1,4 @@
-import { normalizeKzPhone, type MeDto, type MemberDto } from '@sbor/core';
+import { normalizeKzPhone, type MeDto, type MemberDto } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';

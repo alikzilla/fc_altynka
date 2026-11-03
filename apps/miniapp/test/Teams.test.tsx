@@ -1,4 +1,4 @@
-import type { EventDetailDto, SignupDto } from '@sbor/core';
+import type { EventDetailDto, SignupDto } from '@altynka/core';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';

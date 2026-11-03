@@ -1,4 +1,4 @@
-# Сбор на футбол — Telegram-бот + мини-апп
+# FC Altynka — Telegram-бот + мини-апп
 
 Бот ведёт сбор на игру одним самообновляющимся сообщением в группе: запись кнопкой «Иду», резерв, назначение времени,
 составы и счёт. Мини-апп — для деталей, составов, счёта и админки.
@@ -24,8 +24,8 @@ pnpm build         # сборка мини-аппа
 ```
 
 Локально: `cp apps/worker/.dev.vars.example apps/worker/.dev.vars`, затем
-`cd apps/worker && pnpm exec wrangler d1 migrations apply sbor --local && pnpm exec wrangler dev`.
-Мини-апп в браузере: `pnpm --filter @sbor/miniapp dev` (проксирует `/api` на `localhost:8787`).
+`cd apps/worker && pnpm exec wrangler d1 migrations apply fc-altynka --local && pnpm exec wrangler dev`.
+Мини-апп в браузере: `pnpm --filter @altynka/miniapp dev` (проксирует `/api` на `localhost:8787`).
 Без Telegram мини-апп покажет «Открой мини-апп из Telegram» — это нормально.
 
 ## Переменные
@@ -45,8 +45,8 @@ pnpm build         # сборка мини-аппа
    ```bash
    cd apps/worker
    pnpm exec wrangler login
-   pnpm exec wrangler d1 create sbor          # id вписать в wrangler.jsonc → d1_databases[0].database_id
-   pnpm exec wrangler d1 migrations apply sbor --remote
+   pnpm exec wrangler d1 create fc-altynka          # id вписать в wrangler.jsonc → d1_databases[0].database_id
+   pnpm exec wrangler d1 migrations apply fc-altynka --remote
    pnpm exec wrangler secret put BOT_TOKEN
    pnpm exec wrangler secret put WEBHOOK_SECRET
    ```

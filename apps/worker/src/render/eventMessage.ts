@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateRu, type EventStatus } from '@sbor/core';
+import { escapeHtml, formatDateRu, type EventStatus } from '@altynka/core';
 import type { InlineKeyboardMarkup } from 'grammy/types';
 import { miniAppLink, type LinkEnv } from '../telegram/links';
 

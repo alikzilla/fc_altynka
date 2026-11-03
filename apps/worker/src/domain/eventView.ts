@@ -1,4 +1,4 @@
-import type { EventDetailDto, EventsListDto, EventSummaryDto, QueueSplit, Role, SignupDto } from '@sbor/core';
+import type { EventDetailDto, EventsListDto, EventSummaryDto, QueueSplit, Role, SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, memberships, type EventRow, type SignupRow } from '../db/schema';
