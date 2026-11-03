@@ -41,7 +41,7 @@
 	},
 	"vars": {
 		"BOT_USERNAME": "fc_altynka_bot",
-		"MINIAPP_SHORT_NAME": "app",
-		"ADMIN_TG_ID": "0"
+		"MINIAPP_SHORT_NAME": "fc_altynka_app",
+		"ADMIN_TG_ID": "1008342008"
 	}
 }

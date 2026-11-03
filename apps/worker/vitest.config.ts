@@ -17,6 +17,9 @@ export default defineConfig(async () => {
             BOT_TOKEN: 'test-token',
             WEBHOOK_SECRET: 'test-secret',
             ADMIN_TG_ID: '1',
+            // свои значения: тесты не должны зависеть от vars для деплоя в wrangler.jsonc
+            BOT_USERNAME: 'fc_altynka_bot',
+            MINIAPP_SHORT_NAME: 'app',
           },
         },
       }),
