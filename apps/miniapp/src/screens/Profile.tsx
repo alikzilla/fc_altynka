@@ -12,18 +12,21 @@ export function Profile() {
   const [name, setName] = useState(me.displayName);
   const [phone, setPhone] = useState(me.kaspiPhone ? formatKzPhone(me.kaspiPhone) : '');
   const [phoneError, setPhoneError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
   async function save(e: React.FormEvent) {
     e.preventDefault();
     const normalized = phone.trim() ? normalizeKzPhone(phone) : null;
     if (phone.trim() && !normalized) return setPhoneError('Проверь номер');
     setPhoneError(null);
+    setNameError(null);
     try {
       await api.send('PATCH', '/api/me', { displayName: name.trim(), kaspiPhone: normalized });
       haptic('success');
       toast('Сохранено');
       reloadMe();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'receiver_needs_phone') setPhoneError('Тебе переводят по открытому счёту — номер нужен');
+      if (err instanceof ApiError && err.code === 'name_taken') setNameError('Это имя уже занято — добавь букву фамилии или номер');
+      else if (err instanceof ApiError && err.code === 'receiver_needs_phone') setPhoneError('Тебе переводят по открытому счёту — номер нужен');
       else toast('Не получилось сохранить');
     }
   }
@@ -33,6 +36,7 @@ export function Profile() {
         <label>
           Имя в списках
           <input required maxLength={24} value={name} onChange={e => setName(e.target.value)} />
+          {nameError && <span className="field-error">{nameError}</span>}
         </label>
         <label>
           Номер Kaspi

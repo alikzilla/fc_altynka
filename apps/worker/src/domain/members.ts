@@ -31,16 +31,35 @@ export async function bindCommunity(db: Db, tgChatId: number, title: string): Pr
   return row;
 }
 
+const nameKey = (n: string) => n.trim().toLocaleLowerCase('ru');
+
+async function takenNames(db: Db, exceptUserId?: number): Promise<Set<string>> {
+  const rows = await db.select({ id: users.id, displayName: users.displayName }).from(users);
+  return new Set(rows.filter(r => r.id !== exceptUserId).map(r => nameKey(r.displayName)));
+}
+
+/** Имя уже у кого-то другого (без учёта регистра): в списках и счёте их было бы не различить. */
+export async function nameTaken(db: Db, name: string, exceptUserId?: number): Promise<boolean> {
+  return (await takenNames(db, exceptUserId)).has(nameKey(name));
+}
+
+/** 'Данияр' занято → 'Данияр 2', затем 'Данияр 3'… */
+function freeName(taken: Set<string>, base: string): string {
+  if (!taken.has(nameKey(base))) return base;
+  for (let n = 2; ; n++) if (!taken.has(nameKey(`${base} ${n}`))) return `${base} ${n}`;
+}
+
 /** Создаёт пользователя или обновляет данные Telegram; отображаемое имя задаётся только при создании. */
 export async function upsertTgUser(db: Db, u: TgWebAppUser, now: number): Promise<UserRow> {
+  const tg = { firstName: u.first_name, lastName: u.last_name ?? null, username: u.username ?? null };
+  const [known] = await db.select({ id: users.id }).from(users).where(eq(users.tgId, u.id));
+  if (known) return (await db.update(users).set(tg).where(eq(users.id, known.id)).returning())[0];
   const [row] = await db
     .insert(users)
     .values({
       tgId: u.id,
-      firstName: u.first_name,
-      lastName: u.last_name ?? null,
-      username: u.username ?? null,
-      displayName: defaultDisplayName(u.first_name, u.last_name),
+      ...tg,
+      displayName: freeName(await takenNames(db), defaultDisplayName(u.first_name, u.last_name)),
       createdAt: now,
     })
     .onConflictDoUpdate({

@@ -1,6 +1,6 @@
 import type { MemberDto, Role } from '@sbor/core';
 import { useState } from 'react';
-import { api } from '../api';
+import { api, ApiError } from '../api';
 import { useMe } from '../me';
 import { haptic } from '../tg';
 import { ErrorNote, Loading, Screen, useToast } from '../ui';
@@ -15,8 +15,8 @@ function Editor({ m, onSaved }: { m: MemberDto; onSaved: () => void }) {
     try {
       await api.send('PATCH', `/api/members/${m.userId}`, body);
       haptic('success');
-    } catch {
-      toast('Не получилось сохранить');
+    } catch (err) {
+      toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить');
     }
     onSaved();
   };

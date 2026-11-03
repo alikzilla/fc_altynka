@@ -32,3 +32,13 @@ test('only admin edits levels and roles', async () => {
   expect(r.status).toBe(200);
   expect(await r.json()).toMatchObject({ level: 8, role: 'organizer' });
 });
+
+test('a display name taken by someone else is refused', async () => {
+  const mine = await apiRequest('/api/me', { method: 'PATCH', as: w.player, body: { displayName: ' орг ' } });
+  expect(mine.status).toBe(409);
+  expect(await mine.json()).toEqual({ error: 'name_taken' });
+  expect((await apiRequest('/api/me', { method: 'PATCH', as: w.player, body: { displayName: 'Игрок' } })).status).toBe(200);
+  const byAdmin = await apiRequest(`/api/members/${w.playerUserId}`, { method: 'PATCH', as: w.admin, body: { displayName: 'Орг' } });
+  expect(byAdmin.status).toBe(409);
+  expect(await byAdmin.json()).toEqual({ error: 'name_taken' });
+});

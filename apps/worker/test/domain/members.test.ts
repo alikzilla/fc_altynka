@@ -21,3 +21,10 @@ test('ensureMembership creates player with level 5, effectiveRole honours ADMIN_
   expect(effectiveRole({ ADMIN_TG_ID: '1' }, user, m)).toBe('admin');
   expect(effectiveRole({ ADMIN_TG_ID: '999' }, user, m)).toBe('player');
 });
+
+test('a new user whose default name is taken gets a numbered one', async () => {
+  expect((await upsertTgUser(db(), { id: 7, first_name: 'Данияр' }, 1)).displayName).toBe('Данияр');
+  expect((await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 1)).displayName).toBe('данияр 2');
+  expect((await upsertTgUser(db(), { id: 9, first_name: 'Данияр' }, 1)).displayName).toBe('Данияр 3');
+  expect((await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 2)).displayName).toBe('данияр 2');
+});

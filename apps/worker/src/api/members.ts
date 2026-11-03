@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import type { Db } from '../db/client';
 import { bills, memberships, users } from '../db/schema';
-import { effectiveRole } from '../domain/members';
+import { effectiveRole, nameTaken } from '../domain/members';
 import type { Env } from '../env';
 import { body, idParam } from './validate';
 
@@ -21,7 +21,10 @@ membersApi.get('/me', c => {
 membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone: z.string().max(40).nullable().optional() })), async c => {
   const v = c.req.valid('json');
   const set: { displayName?: string; kaspiPhone?: string | null } = {};
-  if (v.displayName !== undefined) set.displayName = v.displayName;
+  if (v.displayName !== undefined) {
+    if (await nameTaken(c.get('deps').db, v.displayName, c.get('user').id)) return c.json({ error: 'name_taken' }, 409);
+    set.displayName = v.displayName;
+  }
   if (v.kaspiPhone !== undefined) {
     if (v.kaspiPhone === null || v.kaspiPhone.trim() === '') {
       // по открытому счёту ему переводят — без номера счёт сломается
@@ -69,6 +72,7 @@ membersApi.patch(
     const v = c.req.valid('json');
     const target = userId === null ? [] : await membersOf(db, c.env, communityId, userId);
     if (!target.length) return c.json({ error: 'not_found' }, 404);
+    if (v.displayName !== undefined && (await nameTaken(db, v.displayName, userId!))) return c.json({ error: 'name_taken' }, 409);
     const m: { level?: number; role?: 'organizer' | 'player' } = {};
     if (v.level !== undefined) m.level = v.level;
     if (v.role !== undefined) m.role = v.role;

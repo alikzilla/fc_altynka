@@ -2,11 +2,11 @@ import type { MemberDto } from '@sbor/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api } from '../src/api';
+import { api, ApiError } from '../src/api';
 import { Players } from '../src/screens/Players';
 import { admin, organizer, renderWithApp } from './render';
 
-vi.mock('../src/api');
+vi.mock('../src/api', async orig => ({ ...(await orig<typeof import('../src/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/tg');
 
 const members: MemberDto[] = [
@@ -34,4 +34,15 @@ test('organizer sees levels but no edit sheet', async () => {
   expect(screen.getByText('уровень 5')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Арман/ })).toBeNull();
   expect(screen.queryByRole('button', { name: '8' })).toBeNull();
+});
+
+test('admin renaming to a taken name sees why it failed', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'name_taken'));
+  renderWithApp(<Players />, { me: admin });
+  await userEvent.click(await screen.findByRole('button', { name: /Арман/ }));
+  const input = screen.getByLabelText('Имя в списках');
+  await userEvent.clear(input);
+  await userEvent.type(input, 'Орг');
+  await userEvent.click(screen.getByRole('button', { name: 'Имя' }));
+  expect(await screen.findByText('Это имя уже занято')).toBeInTheDocument();
 });

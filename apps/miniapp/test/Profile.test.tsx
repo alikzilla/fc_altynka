@@ -34,3 +34,10 @@ test('receiver of an open bill is told why the phone cannot be cleared', async (
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(await screen.findByText('Тебе переводят по открытому счёту — номер нужен')).toBeInTheDocument();
 });
+
+test('a taken name is shown next to the name field', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'name_taken'));
+  renderWithApp(<Profile />, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByText('Это имя уже занято — добавь букву фамилии или номер')).toBeInTheDocument();
+});
