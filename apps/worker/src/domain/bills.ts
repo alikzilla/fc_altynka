@@ -58,6 +58,7 @@ export async function upsertBill(
     receiverUserId: receiver.id,
     fieldAmount: v.fieldAmount,
     extrasJson: JSON.stringify(v.extras),
+    participantsJson: JSON.stringify([...new Set(v.participantSignupIds)].sort((a, b) => a - b)),
     share: calc.share,
     status: 'open' as const,
   };
@@ -199,5 +200,6 @@ export async function billDto(db: Db, billId: number): Promise<BillDto> {
         ...lineStatus(l.amount, l.paidAmount),
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'ru')),
+    participantSignupIds: JSON.parse(bill.participantsJson) as number[],
   };
 }

@@ -17,7 +17,7 @@ const evWith = (n: number, bill: BillDto | null = null): EventDetailDto => ({
 });
 const bill: BillDto = {
   id: 3, receiver: { userId: organizer.userId, name: 'Орг', kaspiPhone: '+77071234567' }, fieldAmount: 20000, extras: [],
-  total: 20000, share: 2000, status: 'open',
+  total: 20000, share: 2000, status: 'open', participantSignupIds: [1, 2],
   lines: [
     { id: 30, userId: organizer.userId, name: 'Орг', units: 1, amount: 2000, paidAmount: 2000, state: 'paid', due: 0 },
     { id: 31, userId: player.userId, name: 'Игрок', units: 1, amount: 2000, paidAmount: null, state: 'unpaid', due: 2000 },
@@ -93,4 +93,11 @@ test('receiver toggles a line and reminds debtors', async () => {
   await userEvent.click(remind);
   await userEvent.click(remind);
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/remind');
+});
+
+test('editing a bill keeps the people who were left out unchecked', async () => {
+  renderWithApp(<Bill ev={evWith(3, bill)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
+  expect(screen.getByRole('checkbox', { name: 'Игрок2' })).toBeChecked();
+  expect(screen.getByRole('checkbox', { name: 'Игрок3' })).not.toBeChecked();
 });

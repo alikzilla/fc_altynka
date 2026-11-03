@@ -41,3 +41,18 @@ test('receiver of an open bill cannot clear their Kaspi phone', async () => {
   expect(await r.json()).toEqual({ error: 'receiver_needs_phone' });
   expect(await (await apiRequest('/api/me', { as: w.org })).json()).toMatchObject({ kaspiPhone: '+77071234567' });
 });
+
+test('bill remembers who it was split between', async () => {
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  const orgSignup = d.main.find(s => s.userId === w.orgUserId)!.id;
+  const r = await apiRequest(`/api/events/${id}/bill`, {
+    method: 'PUT', as: w.org,
+    body: { receiverUserId: w.orgUserId, receiverKaspiPhone: '87071234567', fieldAmount: 4000, extras: [], participantSignupIds: [orgSignup] },
+  });
+  expect(((await r.json()) as BillDto).participantSignupIds).toEqual([orgSignup]);
+  const after = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  expect(after.bill!.participantSignupIds).toEqual([orgSignup]);
+});

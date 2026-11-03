@@ -62,6 +62,8 @@ export interface BillDto {
   share: number;
   status: 'open' | 'closed';
   lines: BillLineDto[];
+  /** Записи, между которыми поделен счёт: при правке галочки ставятся по ним. */
+  participantSignupIds: number[];
 }
 
 export interface EventDetailDto extends EventSummaryDto {

@@ -1,0 +1,1 @@
+ALTER TABLE `bills` ADD `participants_json` text DEFAULT '[]' NOT NULL;

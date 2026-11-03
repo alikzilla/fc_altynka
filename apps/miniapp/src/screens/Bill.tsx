@@ -24,7 +24,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   const [extras, setExtras] = useState<{ label: string; amount: string }[]>(
     initial?.extras.map(x => ({ label: x.label, amount: String(x.amount) })) ?? [],
   );
-  const [picked, setPicked] = useState<Set<number>>(() => new Set(ev.main.map(s => s.id)));
+  const [picked, setPicked] = useState<Set<number>>(() => new Set(initial ? initial.participantSignupIds : ev.main.map(s => s.id)));
   const [phoneError, setPhoneError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 

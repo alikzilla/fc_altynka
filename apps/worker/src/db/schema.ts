@@ -85,6 +85,7 @@ export const bills = sqliteTable('bills', {
   receiverUserId: integer('receiver_user_id').notNull().references(() => users.id),
   fieldAmount: integer('field_amount').notNull(),
   extrasJson: text('extras_json').notNull().default('[]'),
+  participantsJson: text('participants_json').notNull().default('[]'),
   share: integer('share').notNull(),
   status: text('status', { enum: ['open', 'closed'] }).notNull().default('open'),
   messageId: integer('message_id'),
