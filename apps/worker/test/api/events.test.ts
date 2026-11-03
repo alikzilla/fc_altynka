@@ -86,3 +86,12 @@ test('cancel by organizer, then join is 409', async () => {
   expect(list.active).toHaveLength(0);
   expect(list.past.map(e => e.id)).toEqual([id]);
 });
+
+test('adding the same guest again answers 409 guest_exists', async () => {
+  const id = await newEvent();
+  const add = () => apiRequest(`/api/events/${id}/guests`, { method: 'POST', as: w.player, body: { name: 'Ержан' } });
+  expect((await add()).status).toBe(200);
+  const again = await add();
+  expect(again.status).toBe(409);
+  expect(await again.json()).toEqual({ error: 'guest_exists' });
+});

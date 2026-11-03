@@ -154,3 +154,14 @@ test('cancel emits cancelled notice', async () => {
   expect(await cancelEvent(d, ev)).toBe('closed');
   expect(await joinEvent(d, 9999, organizerId)).toEqual({ kind: 'not_found' });
 });
+
+test('the same guest added twice by one inviter is kept once, even on a double tap', async () => {
+  const ev = await seedEvent();
+  const [inviter, other] = await seedUsers(2);
+  expect(await addGuest(d, ev, inviter.id, 'Ержан')).toMatchObject({ kind: 'main' });
+  expect(await addGuest(d, ev, inviter.id, 'Ержан')).toEqual({ kind: 'duplicate' });
+  const both = await Promise.all([addGuest(d, ev, inviter.id, 'Асет'), addGuest(d, ev, inviter.id, 'Асет')]);
+  expect(both.filter(r => r.kind === 'duplicate')).toHaveLength(1);
+  expect(await addGuest(d, ev, other.id, 'Ержан')).toMatchObject({ kind: 'main' });
+  expect((await loadQueue(d.db, ev)).main.map(s => s.guestName)).toEqual(['Ержан', 'Асет', 'Ержан']);
+});

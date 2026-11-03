@@ -65,6 +65,23 @@ async function insertSignup(
   return rows[0].id;
 }
 
+/**
+ * Гость встаёт в очередь, только если у пригласившего нет активного гостя с тем же именем.
+ * Проверка — в том же запросе, поэтому двойное нажатие не запишет двоих.
+ */
+async function insertGuest(db: Db, v: { eventId: number; invitedBy: number; name: string; now: number }): Promise<number | null> {
+  const rows = await db.all<{ id: number }>(sql`
+    INSERT INTO signups (event_id, user_id, guest_name, invited_by, seq, manual, created_at)
+    SELECT ${v.eventId}, NULL, ${v.name}, ${v.invitedBy}, next, 0, ${v.now}
+    FROM (SELECT COALESCE(MAX(seq), 0) + 1 AS next FROM signups WHERE event_id = ${v.eventId})
+    WHERE NOT EXISTS (
+      SELECT 1 FROM signups
+      WHERE event_id = ${v.eventId} AND user_id IS NULL AND invited_by = ${v.invitedBy}
+        AND guest_name = ${v.name} AND left_at IS NULL)
+    RETURNING id`);
+  return rows[0]?.id ?? null;
+}
+
 /** drizzle оборачивает ошибку D1, поэтому смотрим всю цепочку cause. */
 export function isUniqueViolation(e: unknown): boolean {
   for (let cur = e as { message?: string; cause?: unknown } | undefined; cur; cur = cur.cause as typeof cur) {
@@ -151,12 +168,15 @@ export async function addGuest(
   eventId: number,
   invitedBy: number,
   name: string,
-): Promise<{ kind: 'main' | 'reserve'; position: number; signupId: number } | { kind: 'closed' } | { kind: 'not_found' }> {
+): Promise<
+  { kind: 'main' | 'reserve'; position: number; signupId: number } | { kind: 'duplicate' } | { kind: 'closed' } | { kind: 'not_found' }
+> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
   if (isClosed(ev)) return { kind: 'closed' };
   const before = await loadQueue(d.db, eventId);
-  const signupId = await insertSignup(d.db, { eventId, userId: null, guestName: name, invitedBy, now: d.now });
+  const signupId = await insertGuest(d.db, { eventId, invitedBy, name, now: d.now });
+  if (signupId === null) return { kind: 'duplicate' };
   const after = await loadQueue(d.db, eventId);
   await syncEvent(d, eventId, movesNotices(before, after));
   const p = placeOf(after, signupId);
