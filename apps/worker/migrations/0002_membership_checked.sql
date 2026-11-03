@@ -1,0 +1,1 @@
+ALTER TABLE `memberships` ADD `checked_at` integer DEFAULT 0 NOT NULL;

@@ -1,3 +1,5 @@
+import { setDepsFactoryForTests } from '../../src/api/routes';
+import { getDb } from '../../src/db/client';
 import { apiRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
@@ -25,4 +27,17 @@ test('health check needs no auth', async () => {
   const r = await apiRequest('/api/health', { as: null });
   expect(r.status).toBe(200);
   expect(await r.json()).toEqual({ ok: true });
+});
+
+test('membership is re-checked after a day and refused once the user left the group', async () => {
+  const stranger = { id: 77, first_name: 'Чужой' };
+  w.tg.members.add(77);
+  expect((await apiRequest('/api/me', { as: stranger })).status).toBe(200);
+  w.tg.members.delete(77);
+  expect((await apiRequest('/api/me', { as: stranger })).status).toBe(200);
+  const later = Date.now() + 25 * 3600_000;
+  setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: later, sync: w.sync }));
+  expect((await apiRequest('/api/me', { as: stranger, at: later })).status).toBe(403);
+  w.tg.members.add(77);
+  expect((await apiRequest('/api/me', { as: stranger, at: later })).status).toBe(200);
 });

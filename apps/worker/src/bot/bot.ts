@@ -93,7 +93,7 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
       return;
     }
     const user = await upsertTgUser(deps.db, ctx.from, deps.now());
-    await ensureMembership(deps.db, community.id, user.id);
+    await ensureMembership(deps.db, community.id, user.id, deps.now());
     const text = await handler({
       env,
       deps: { db: deps.db, now: deps.now(), sync: deps.sync },

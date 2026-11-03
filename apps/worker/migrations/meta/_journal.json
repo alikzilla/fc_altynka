@@ -15,6 +15,13 @@
       "when": 1793729846452,
       "tag": "0001_teams_roster",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793731978445,
+      "tag": "0002_membership_checked",
+      "breakpoints": true
     }
   ]
 }

@@ -23,7 +23,7 @@ export async function seedUser(
   if (opts.communityId !== undefined) {
     await db()
       .insert(memberships)
-      .values({ communityId: opts.communityId, userId: u.id, role: opts.role ?? 'player', level: opts.level ?? 5 });
+      .values({ communityId: opts.communityId, userId: u.id, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
   }
   return u;
 }
@@ -55,10 +55,10 @@ import { SELF } from 'cloudflare:test';
 
 export async function apiRequest(
   path: string,
-  o: { method?: string; body?: unknown; as: TgWebAppUser | null },
+  o: { method?: string; body?: unknown; as: TgWebAppUser | null; at?: number },
 ): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
-  if (o.as) headers.Authorization = `tma ${await signInitData(o.as, 'test-token', Math.floor(Date.now() / 1000))}`;
+  if (o.as) headers.Authorization = `tma ${await signInitData(o.as, 'test-token', Math.floor((o.at ?? Date.now()) / 1000))}`;
   return SELF.fetch(`https://sbor.test${path}`, {
     method: o.method ?? 'GET',
     headers,

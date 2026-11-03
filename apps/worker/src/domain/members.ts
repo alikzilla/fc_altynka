@@ -40,8 +40,12 @@ export async function upsertTgUser(db: Db, u: TgWebAppUser, now: number): Promis
   return row;
 }
 
-export async function ensureMembership(db: Db, communityId: number, userId: number): Promise<MembershipRow> {
-  await db.insert(memberships).values({ communityId, userId }).onConflictDoNothing();
+/** checkedAt — членство только что подтверждено (Telegram ответил или человек нажал кнопку в группе). */
+export async function ensureMembership(db: Db, communityId: number, userId: number, checkedAt?: number): Promise<MembershipRow> {
+  const insert = db.insert(memberships).values({ communityId, userId, checkedAt: checkedAt ?? 0 });
+  await (checkedAt === undefined
+    ? insert.onConflictDoNothing()
+    : insert.onConflictDoUpdate({ target: [memberships.communityId, memberships.userId], set: { checkedAt } }));
   const [row] = await db
     .select()
     .from(memberships)

@@ -25,6 +25,8 @@ export const memberships = sqliteTable(
     userId: integer('user_id').notNull().references(() => users.id),
     role: text('role', { enum: ['organizer', 'player'] }).notNull().default('player'),
     level: integer('level').notNull().default(5),
+    /** Когда членство в группе последний раз подтвердил Telegram; 0 — ни разу. */
+    checkedAt: integer('checked_at').notNull().default(0),
   },
   t => [primaryKey({ columns: [t.communityId, t.userId] })],
 );
