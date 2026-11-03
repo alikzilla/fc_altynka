@@ -72,3 +72,17 @@ button { font: inherit; color: inherit; }
 .nav a.on { color: var(--accent); }
 
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.team { gap: 4px; }
+.team-red { box-shadow: inset 4px 0 0 #dc2626; }
+.team-blue { box-shadow: inset 4px 0 0 #2563eb; }
+.team-yellow { box-shadow: inset 4px 0 0 #eab308; }
+.list.bare { padding: 0; }
+.list.bare li { min-height: 44px; display: flex; align-items: center; border-bottom: 1px solid var(--line); }
+.list.bare li:last-child { border-bottom: 0; }
+.pick { width: 100%; }
+.pick.selected { background: var(--accent-soft); border-radius: 10px; }
+.btn-plain { border: 0; background: none; text-align: left; flex: 1; min-height: 44px; padding: 0 6px; cursor: pointer; }
+.level { color: var(--hint); font-variant-numeric: tabular-nums; padding: 0 8px; }
+.warn-note { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
+.pick select { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); min-height: 36px; }

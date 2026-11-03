@@ -5,6 +5,7 @@ import { STATUS_LABEL, whenLine } from '../labels';
 import { ErrorNote, Loading, Screen } from '../ui';
 import { useResource } from '../useResource';
 import { EventList } from './EventList';
+import { Teams } from './Teams';
 
 export type Tab = 'list' | 'teams' | 'bill';
 const TABS: [Tab, string][] = [
@@ -16,6 +17,7 @@ const TABS: [Tab, string][] = [
 /** Вкладки составов и счёта подключаются сюда (Tasks 13–14). */
 export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () => void }) => ReactNode>> = {
   list: p => <EventList {...p} />,
+  teams: p => <Teams {...p} />,
 };
 
 export function Event() {
