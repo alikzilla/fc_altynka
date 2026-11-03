@@ -50,3 +50,18 @@ export async function signInitData(user: TgWebAppUser, botToken: string, authDat
   params.set('hash', hex(await hmac(secret, dcs)));
   return params.toString();
 }
+
+import { SELF } from 'cloudflare:test';
+
+export async function apiRequest(
+  path: string,
+  o: { method?: string; body?: unknown; as: TgWebAppUser | null },
+): Promise<Response> {
+  const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (o.as) headers.Authorization = `tma ${await signInitData(o.as, 'test-token', Math.floor(Date.now() / 1000))}`;
+  return SELF.fetch(`https://sbor.test${path}`, {
+    method: o.method ?? 'GET',
+    headers,
+    body: o.body === undefined ? undefined : JSON.stringify(o.body),
+  });
+}

@@ -1,6 +1,7 @@
 import { webhookCallback } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
 import { Hono } from 'hono';
+import { api } from './api/routes';
 import { createBot } from './bot/bot';
 import { getDb } from './db/client';
 import type { Env } from './env';
@@ -11,6 +12,7 @@ export { EventSync } from './sync/EventSync';
 const app = new Hono<{ Bindings: Env }>();
 
 app.get('/api/health', c => c.json({ ok: true }));
+app.route('/api', api);
 
 let cachedBotInfo: UserFromGetMe | undefined;
 
