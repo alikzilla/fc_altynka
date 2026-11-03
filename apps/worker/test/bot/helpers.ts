@@ -23,9 +23,18 @@ export function makeTestBot(now = () => Date.now()) {
 }
 
 let uid = 1;
-export const tap = (fromId: number, data: string, firstName = 'Арман'): Update => ({
+/** Нажатие кнопки под сообщением бота в группе chatId (по умолчанию — привязанной в seedCommunity). */
+export const tap = (fromId: number, data: string, firstName = 'Арман', chatId = -100500): Update => ({
   update_id: uid++,
-  callback_query: { id: `q${uid}`, from: { id: fromId, is_bot: false, first_name: firstName }, chat_instance: 'ci', data },
+  callback_query: {
+    id: `q${uid}`, from: { id: fromId, is_bot: false, first_name: firstName }, chat_instance: 'ci', data,
+    message: { message_id: 1, date: 0, chat: { id: chatId, type: 'supergroup', title: 'Футбол' } } as never,
+  },
+});
+
+export const migrated = (fromChatId: number, toChatId: number): Update => ({
+  update_id: uid++,
+  message: { message_id: uid, date: 0, chat: { id: fromChatId, type: 'group', title: 'Футбол' }, migrate_to_chat_id: toChatId } as never,
 });
 
 export const groupCommand = (fromId: number, text: string): Update => ({

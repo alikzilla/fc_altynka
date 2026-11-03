@@ -1,10 +1,11 @@
+import { formatDateRu } from '@sbor/core';
 import { Bot } from 'grammy';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';
 import type { UserRow } from '../db/schema';
 import { markPaid } from '../domain/bills';
 import { joinEvent, leaveEvent, type Deps } from '../domain/events';
-import { bindCommunity, ensureMembership, getCommunity, upsertTgUser } from '../domain/members';
+import { bindCommunity, ensureMembership, getCommunity, moveCommunityChat, openEvents, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
 import { miniAppLink } from '../telegram/links';
@@ -71,10 +72,22 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
 
   bot.chatType(['group', 'supergroup']).command('bind', async ctx => {
     if (String(ctx.from.id) !== env.ADMIN_TG_ID) return;
+    const current = await getCommunity(deps.db);
+    const open = current && current.tgChatId !== ctx.chat.id ? await openEvents(deps.db, current.id) : [];
+    if (open.length) {
+      await ctx.reply(
+        `Сначала заверши открытые сборы в прежней группе — отмени их или закрой счёт в мини-аппе: ${open.map(e => formatDateRu(e.date)).join('; ')}`,
+      );
+      return;
+    }
     const c = await bindCommunity(deps.db, ctx.chat.id, ctx.chat.title);
     const admin = await upsertTgUser(deps.db, ctx.from, deps.now());
     await ensureMembership(deps.db, c.id, admin.id);
     await ctx.reply('Группа привязана ✅');
+  });
+
+  bot.on('message:migrate_to_chat_id', async ctx => {
+    await moveCommunityChat(deps.db, ctx.chat.id, ctx.message.migrate_to_chat_id);
   });
 
   bot.chatType('private').command('start', async ctx => {
@@ -90,6 +103,10 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     const community = handler ? await getCommunity(deps.db) : null;
     if (!handler || !community) {
       await ctx.answerCallbackQuery();
+      return;
+    }
+    if (ctx.callbackQuery.message?.chat.id !== community.tgChatId) {
+      await ctx.answerCallbackQuery({ text: 'Этот сбор ведётся в другой группе' });
       return;
     }
     const user = await upsertTgUser(deps.db, ctx.from, deps.now());
