@@ -43,6 +43,8 @@ export const events = sqliteTable('events', {
   baseLimit: integer('base_limit').notNull().default(10),
   teamCount: integer('team_count').$type<2 | 3>(),
   teamsPublishedAt: integer('teams_published_at'),
+  /** Снимок основы на момент сохранения составов: отличие = составы устарели. */
+  teamsRoster: text('teams_roster'),
   eventMessageId: integer('event_message_id'),
   teamsMessageId: integer('teams_message_id'),
   createdBy: integer('created_by').notNull().references(() => users.id),

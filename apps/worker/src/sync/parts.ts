@@ -7,6 +7,7 @@ import { renderEventMessage, type EventView, type PersonView, type Rendered } fr
 import type { OutNotice } from '../render/notices';
 import type { MergedNotice } from './plan';
 import type { Part } from './port';
+import { renderTeamsPart } from './teamsPart';
 
 export async function usersById(db: Db, ids: number[]): Promise<Map<number, UserRow>> {
   const uniq = [...new Set(ids)];
@@ -56,7 +57,7 @@ const renderers: Record<Part, PartRenderer> = {
     const v = await loadEventView(db, eventId);
     return v ? renderEventMessage(v, env) : null;
   },
-  teams: async () => null,
+  teams: (db, _env, eventId) => renderTeamsPart(db, eventId),
   bill: async () => null,
 };
 

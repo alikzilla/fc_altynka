@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `teams_roster` text;

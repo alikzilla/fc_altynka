@@ -4,6 +4,7 @@ import type { Db } from '../db/client';
 import { events, memberships, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
+import { teamsDto } from './teams';
 
 const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
 const PAST: EventRow['status'][] = ['closed', 'cancelled'];
@@ -75,7 +76,7 @@ export async function eventDetail(
     comment: ev.comment,
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),
-    teams: null,
+    teams: await teamsDto(db, eventId, q.main.map(s => s.id)),
     bill: null,
   };
 }
