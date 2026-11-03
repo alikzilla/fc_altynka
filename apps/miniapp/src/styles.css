@@ -86,3 +86,12 @@ button { font: inherit; color: inherit; }
 .level { color: var(--hint); font-variant-numeric: tabular-nums; padding: 0 8px; }
 .warn-note { background: var(--warn-soft); color: var(--warn); font-weight: 600; }
 .pick select { font: inherit; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--text); min-height: 36px; }
+
+.check { display: flex; align-items: center; gap: 10px; min-height: 44px; flex-direction: row !important; color: var(--text) !important; font-size: 16px !important; }
+.check input { width: 20px; height: 20px; min-height: 0 !important; accent-color: var(--accent); }
+.extra { display: grid; grid-template-columns: 1fr 110px 40px; gap: 8px; }
+.extra input { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 12px; min-height: 44px; padding: 0 10px; }
+.field-error { color: var(--danger); font-weight: 600; }
+.preview { display: flex; flex-direction: column; gap: 2px; padding: 12px; border-radius: 12px; background: var(--accent-soft); }
+.pay .amount { font-size: 26px; font-weight: 700; }
+.person input[type='checkbox'] { width: 22px; height: 22px; accent-color: var(--accent); }

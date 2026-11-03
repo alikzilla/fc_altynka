@@ -6,6 +6,7 @@ import { ErrorNote, Loading, Screen } from '../ui';
 import { useResource } from '../useResource';
 import { EventList } from './EventList';
 import { Teams } from './Teams';
+import { Bill } from './Bill';
 
 export type Tab = 'list' | 'teams' | 'bill';
 const TABS: [Tab, string][] = [
@@ -18,6 +19,7 @@ const TABS: [Tab, string][] = [
 export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () => void }) => ReactNode>> = {
   list: p => <EventList {...p} />,
   teams: p => <Teams {...p} />,
+  bill: p => <Bill {...p} />,
 };
 
 export function Event() {
