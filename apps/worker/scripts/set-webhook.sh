@@ -1,10 +1,18 @@
 #!/usr/bin/env bash
 # Привязывает вебхук и кнопку меню бота к задеплоенному Worker'у.
-# Использование: BOT_TOKEN=... WEBHOOK_SECRET=... WORKER_URL=https://fc-altynka.<you>.workers.dev ./scripts/set-webhook.sh
+# Значения берутся из apps/worker/.webhook.env (он в .gitignore) или из переменных окружения:
+#   BOT_TOKEN='...'
+#   WEBHOOK_SECRET='...'
+#   WORKER_URL='https://fc-altynka.<you>.workers.dev'
+# Запуск из корня: apps/worker/scripts/set-webhook.sh
 set -euo pipefail
+env_file="$(dirname "$0")/../.webhook.env"
+# shellcheck disable=SC1090
+[ -f "$env_file" ] && source "$env_file"
 : "${BOT_TOKEN:?нужен BOT_TOKEN}"
 : "${WEBHOOK_SECRET:?нужен WEBHOOK_SECRET}"
 : "${WORKER_URL:?нужен WORKER_URL}"
+WORKER_URL="${WORKER_URL%/}"
 
 api="https://api.telegram.org/bot${BOT_TOKEN}"
 

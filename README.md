@@ -54,10 +54,14 @@ pnpm build         # сборка мини-аппа
 3. **Деплой:** из корня `pnpm run deploy` (именно `run`: `pnpm deploy` — встроенная команда pnpm).
    Проверка: `https://<worker>.workers.dev/api/health` → `{"ok":true}`.
 4. **Мини-апп.** В @BotFather: `/newapp` → выбрать бота, URL = адрес воркера, short name = `MINIAPP_SHORT_NAME`.
-5. **Вебхук и кнопка меню:**
+5. **Вебхук и кнопка меню.** Создать `apps/worker/.webhook.env` (он в `.gitignore`, в git не попадёт) с теми же
+   значениями, что ушли в `wrangler secret put`:
    ```bash
-   BOT_TOKEN=... WEBHOOK_SECRET=... WORKER_URL=https://<worker>.workers.dev apps/worker/scripts/set-webhook.sh
+   BOT_TOKEN='...'
+   WEBHOOK_SECRET='...'
+   WORKER_URL='https://<worker>.workers.dev'
    ```
+   и запустить из корня `apps/worker/scripts/set-webhook.sh`. Токен и секрет не вписывать в сам скрипт.
    В выводе `getWebhookInfo` не должно быть `last_error_message`.
 6. **Группа.** Добавить бота в группу админом (с правом закреплять сообщения) и написать в группе `/bind`
    от аккаунта `ADMIN_TG_ID` → «Группа привязана ✅».
