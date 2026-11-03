@@ -1,0 +1,233 @@
+import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, type QueueSplit, type Role } from '@sbor/core';
+import { and, eq, isNull, sql } from 'drizzle-orm';
+import type { Db } from '../db/client';
+import { events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
+import type { Notice, SyncPort } from '../sync/port';
+
+export interface Deps {
+  db: Db;
+  now: number;
+  sync: SyncPort;
+}
+
+export type JoinResult =
+  | { kind: 'main' | 'reserve'; position: number; restored: boolean }
+  | { kind: 'already'; position: number; inMain: boolean }
+  | { kind: 'closed' }
+  | { kind: 'not_found' };
+
+const CLOSED: EventRow['status'][] = ['billing', 'closed', 'cancelled'];
+export const isClosed = (ev: EventRow) => CLOSED.includes(ev.status);
+export const canManage = (role: Role) => role === 'organizer' || role === 'admin';
+
+export async function getEvent(db: Db, eventId: number): Promise<EventRow | null> {
+  return (await db.select().from(events).where(eq(events.id, eventId)))[0] ?? null;
+}
+
+async function activeSignups(db: Db, eventId: number): Promise<SignupRow[]> {
+  return db.select().from(signups).where(and(eq(signups.eventId, eventId), isNull(signups.leftAt)));
+}
+
+export async function loadQueue(db: Db, eventId: number): Promise<QueueSplit<SignupRow>> {
+  const ev = await getEvent(db, eventId);
+  return splitQueue(await activeSignups(db, eventId), ev?.baseLimit ?? limitFor(null));
+}
+
+function placeOf(q: QueueSplit<SignupRow>, signupId: number): { inMain: boolean; position: number } {
+  const m = q.main.findIndex(s => s.id === signupId);
+  if (m >= 0) return { inMain: true, position: m + 1 };
+  return { inMain: false, position: q.reserve.findIndex(s => s.id === signupId) + 1 };
+}
+
+function movesNotices(before: QueueSplit<SignupRow>, after: QueueSplit<SignupRow>): Notice[] {
+  const out: Notice[] = [];
+  const up = promotedIds(before, after);
+  const down = demotedIds(before, after);
+  if (up.length) out.push({ kind: 'promoted', signupIds: up });
+  if (down.length) out.push({ kind: 'demoted', signupIds: down });
+  return out;
+}
+
+async function syncEvent(d: Deps, eventId: number, notices: Notice[]): Promise<void> {
+  await d.sync.request(eventId, notices.length ? { parts: ['event'], notices } : { parts: ['event'] });
+}
+
+/** Одна атомарная вставка: следующий номер очереди считается внутри того же запроса. */
+async function insertSignup(
+  db: Db,
+  v: { eventId: number; userId: number | null; guestName: string | null; invitedBy: number | null; now: number },
+): Promise<number> {
+  const rows = await db.all<{ id: number }>(sql`
+    INSERT INTO signups (event_id, user_id, guest_name, invited_by, seq, manual, created_at)
+    SELECT ${v.eventId}, ${v.userId}, ${v.guestName}, ${v.invitedBy}, COALESCE(MAX(seq), 0) + 1, 0, ${v.now}
+    FROM signups WHERE event_id = ${v.eventId}
+    RETURNING id`);
+  return rows[0].id;
+}
+
+/** drizzle оборачивает ошибку D1, поэтому смотрим всю цепочку cause. */
+export function isUniqueViolation(e: unknown): boolean {
+  for (let cur = e as { message?: string; cause?: unknown } | undefined; cur; cur = cur.cause as typeof cur) {
+    if (/UNIQUE constraint failed/i.test(String(cur.message ?? ''))) return true;
+  }
+  return false;
+}
+
+export async function createEvent(
+  d: Deps,
+  v: { communityId: number; date: string; comment: string | null; createdBy: number },
+): Promise<number> {
+  const [row] = await d.db
+    .insert(events)
+    .values({ communityId: v.communityId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
+    .returning({ id: events.id });
+  await syncEvent(d, row.id, []);
+  return row.id;
+}
+
+export async function joinEvent(d: Deps, eventId: number, userId: number): Promise<JoinResult> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return { kind: 'not_found' };
+  if (isClosed(ev)) return { kind: 'closed' };
+  const [existing] = await d.db
+    .select()
+    .from(signups)
+    .where(and(eq(signups.eventId, eventId), eq(signups.userId, userId)));
+  const before = await loadQueue(d.db, eventId);
+  if (existing && existing.leftAt === null) {
+    return { kind: 'already', ...placeOf(before, existing.id) };
+  }
+  let signupId: number;
+  let restored = false;
+  if (existing && canRestore(existing.leftAt, d.now)) {
+    await d.db.update(signups).set({ leftAt: null }).where(eq(signups.id, existing.id));
+    signupId = existing.id;
+    restored = true;
+  } else {
+    if (existing) await d.db.delete(signups).where(eq(signups.id, existing.id));
+    try {
+      signupId = await insertSignup(d.db, { eventId, userId, guestName: null, invitedBy: null, now: d.now });
+    } catch (e) {
+      if (!isUniqueViolation(e)) throw e;
+      const q = await loadQueue(d.db, eventId);
+      const [row] = await d.db
+        .select()
+        .from(signups)
+        .where(and(eq(signups.eventId, eventId), eq(signups.userId, userId)));
+      return { kind: 'already', ...placeOf(q, row.id) };
+    }
+  }
+  const after = await loadQueue(d.db, eventId);
+  await syncEvent(d, eventId, movesNotices(before, after));
+  const p = placeOf(after, signupId);
+  return { kind: p.inMain ? 'main' : 'reserve', position: p.position, restored };
+}
+
+export async function leaveEvent(
+  d: Deps,
+  eventId: number,
+  userId: number,
+): Promise<{ kind: 'left' | 'not_in' | 'closed' | 'not_found' }> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return { kind: 'not_found' };
+  if (isClosed(ev)) return { kind: 'closed' };
+  const [existing] = await d.db
+    .select()
+    .from(signups)
+    .where(and(eq(signups.eventId, eventId), eq(signups.userId, userId), isNull(signups.leftAt)));
+  if (!existing) return { kind: 'not_in' };
+  const before = await loadQueue(d.db, eventId);
+  await d.db.batch([
+    d.db.update(signups).set({ leftAt: d.now }).where(eq(signups.id, existing.id)),
+    d.db.delete(teamAssignments).where(eq(teamAssignments.signupId, existing.id)),
+  ]);
+  const after = await loadQueue(d.db, eventId);
+  await syncEvent(d, eventId, movesNotices(before, after));
+  return { kind: 'left' };
+}
+
+export async function addGuest(
+  d: Deps,
+  eventId: number,
+  invitedBy: number,
+  name: string,
+): Promise<{ kind: 'main' | 'reserve'; position: number; signupId: number } | { kind: 'closed' } | { kind: 'not_found' }> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return { kind: 'not_found' };
+  if (isClosed(ev)) return { kind: 'closed' };
+  const before = await loadQueue(d.db, eventId);
+  const signupId = await insertSignup(d.db, { eventId, userId: null, guestName: name, invitedBy, now: d.now });
+  const after = await loadQueue(d.db, eventId);
+  await syncEvent(d, eventId, movesNotices(before, after));
+  const p = placeOf(after, signupId);
+  return { kind: p.inMain ? 'main' : 'reserve', position: p.position, signupId };
+}
+
+export async function removeSignup(
+  d: Deps,
+  signupId: number,
+  actor: { userId: number; role: Role },
+): Promise<'ok' | 'forbidden' | 'not_found' | 'closed'> {
+  const [s] = await d.db.select().from(signups).where(eq(signups.id, signupId));
+  if (!s || s.leftAt !== null) return 'not_found';
+  const ev = await getEvent(d.db, s.eventId);
+  if (!ev) return 'not_found';
+  if (isClosed(ev)) return 'closed';
+  const allowed = canManage(actor.role) || (s.userId === null && s.invitedBy === actor.userId);
+  if (!allowed) return 'forbidden';
+  const before = await loadQueue(d.db, s.eventId);
+  await d.db.batch([
+    d.db.delete(teamAssignments).where(eq(teamAssignments.signupId, s.id)),
+    d.db.delete(signups).where(eq(signups.id, s.id)),
+  ]);
+  const after = await loadQueue(d.db, s.eventId);
+  await syncEvent(d, s.eventId, movesNotices(before, after));
+  return 'ok';
+}
+
+export async function promoteSignup(d: Deps, signupId: number): Promise<'ok' | 'not_found' | 'not_reserve' | 'closed'> {
+  const [s] = await d.db.select().from(signups).where(eq(signups.id, signupId));
+  if (!s || s.leftAt !== null) return 'not_found';
+  const ev = await getEvent(d.db, s.eventId);
+  if (!ev) return 'not_found';
+  if (isClosed(ev)) return 'closed';
+  const before = await loadQueue(d.db, s.eventId);
+  if (!before.reserve.some(x => x.id === s.id)) return 'not_reserve';
+  await d.db.update(signups).set({ manual: true }).where(eq(signups.id, s.id));
+  const after = await loadQueue(d.db, s.eventId);
+  await syncEvent(d, s.eventId, movesNotices(before, after));
+  return 'ok';
+}
+
+export async function scheduleEvent(
+  d: Deps,
+  eventId: number,
+  v: { startTime: string; durationHours: 1 | 2; place: string | null },
+): Promise<'ok' | 'not_found' | 'closed'> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return 'not_found';
+  if (isClosed(ev)) return 'closed';
+  const before = await loadQueue(d.db, eventId);
+  await d.db
+    .update(events)
+    .set({
+      startTime: v.startTime,
+      durationHours: v.durationHours,
+      place: v.place,
+      baseLimit: limitFor(v.durationHours),
+      status: 'scheduled',
+    })
+    .where(eq(events.id, eventId));
+  const after = await loadQueue(d.db, eventId);
+  await syncEvent(d, eventId, [{ kind: 'scheduled' }, ...movesNotices(before, after)]);
+  return 'ok';
+}
+
+export async function cancelEvent(d: Deps, eventId: number): Promise<'ok' | 'not_found' | 'closed'> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return 'not_found';
+  if (isClosed(ev)) return 'closed';
+  await d.db.update(events).set({ status: 'cancelled' }).where(eq(events.id, eventId));
+  await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
+  return 'ok';
+}
