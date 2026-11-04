@@ -58,8 +58,8 @@ const renderers: Record<Part, PartRenderer> = {
     const v = await loadEventView(db, eventId);
     return v ? renderEventMessage(v, env) : null;
   },
-  teams: (db, _env, eventId) => renderTeamsPart(db, eventId),
-  bill: (db, _env, eventId) => renderBillPart(db, eventId),
+  teams: (db, env, eventId) => renderTeamsPart(db, eventId, env),
+  bill: (db, env, eventId) => renderBillPart(db, eventId, env),
 };
 
 /** Tasks 10–11 подключают составы и счёт. */
@@ -96,5 +96,5 @@ export async function resolveNotice(db: Db, view: EventView, n: MergedNotice): P
   if (n.kind === 'reminder') return reminderResolver(db, n.billId);
   const all = [...view.main, ...view.reserve];
   const pick = (ids: number[]) => ids.map(id => all.find(p => p.signupId === id)).filter((p): p is PersonView => !!p);
-  return { kind: 'moves', promoted: pick(n.promoted), demoted: pick(n.demoted), scheduled: n.scheduled };
+  return { kind: 'moves', promoted: pick(n.promoted), demoted: pick(n.demoted), scheduled: n.scheduled && view.status === 'scheduled', ...(n.previous ? { previous: n.previous } : {}) };
 }

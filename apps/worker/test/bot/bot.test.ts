@@ -6,6 +6,8 @@ import { getCommunity } from '../../src/domain/members';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 import { groupCommand, makeTestBot, migrated, privateCommand, tap } from './helpers';
+import { __setTgClientForTests } from '../../src/telegram/client';
+import { FakeTg } from '../fakes/fakeTg';
 
 let ev: number;
 
@@ -18,7 +20,7 @@ beforeEach(async () => {
 test('j: answers with position and records signup', async () => {
   const t = makeTestBot();
   await t.bot.handleUpdate(tap(501, `j:${ev}`));
-  expect(t.answers()).toEqual(['Записал ✅ Ты №1 в основе']);
+  expect(t.answers()).toEqual(['Ты в основе · место 1']);
   expect((await loadQueue(db(), ev)).main).toHaveLength(1);
   expect(t.sync.calls.at(-1)).toEqual({ eventId: ev, req: { parts: ['event'] } });
 });
@@ -27,7 +29,7 @@ test('double tap on j: answers "already" and keeps one signup', async () => {
   const t = makeTestBot();
   await t.bot.handleUpdate(tap(501, `j:${ev}`));
   await t.bot.handleUpdate(tap(501, `j:${ev}`));
-  expect(t.answers()[1]).toBe('Ты уже в списке, №1');
+  expect(t.answers()[1]).toBe('Ты уже в основе · место 1');
   expect((await loadQueue(db(), ev)).main).toHaveLength(1);
 });
 
@@ -36,7 +38,7 @@ test('l: answers with restore hint, then not_in', async () => {
   await t.bot.handleUpdate(tap(501, `j:${ev}`));
   await t.bot.handleUpdate(tap(501, `l:${ev}`));
   await t.bot.handleUpdate(tap(501, `l:${ev}`));
-  expect(t.answers()[1]).toContain('в течение 2 минут');
+  expect(t.answers()[1]).toContain('В течение 2 минут');
   expect(t.answers()[2]).toBe('Тебя нет в списке');
 });
 
@@ -58,10 +60,13 @@ test('/bind from admin binds group, from others is ignored', async () => {
 });
 
 test('/start in private replies with an open button', async () => {
+  __setTgClientForTests(new FakeTg());
   const t = makeTestBot();
-  await t.bot.handleUpdate(privateCommand(501, '/start'));
+  try { await t.bot.handleUpdate(privateCommand(501, '/start')); }
+  finally { __setTgClientForTests(null); }
   const msg = t.calls.find(c => c.method === 'sendMessage')!;
-  expect(JSON.stringify(msg.payload.reply_markup)).toContain('https://t.me/fc_altynka_bot/app');
+  expect(msg.payload.text).toContain('<b>ФК Алтынка</b>');
+  expect(msg.payload.reply_markup).toEqual({ inline_keyboard: [[{ text: 'Открыть приложение', url: 'https://t.me/fc_altynka_bot/app' }]] });
 });
 
 test('webhook rejects wrong secret', async () => {

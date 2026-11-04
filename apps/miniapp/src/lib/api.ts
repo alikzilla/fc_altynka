@@ -14,6 +14,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   });
   const data = (await res.json().catch(() => ({}))) as { error?: string };
   if (!res.ok) throw new ApiError(res.status, data.error ?? 'error');
+  if (method !== 'GET') window.dispatchEvent(new Event('altynka:mutation'));
   return data as T;
 }
 

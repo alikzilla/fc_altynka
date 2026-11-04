@@ -72,7 +72,10 @@ export async function upsertTgUser(db: Db, u: TgWebAppUser, now: number): Promis
 
 /** Группу превратили в супергруппу: у чата новый id. */
 export async function moveCommunityChat(db: Db, fromChatId: number, toChatId: number): Promise<void> {
-  await db.update(communities).set({ tgChatId: toChatId }).where(eq(communities.tgChatId, fromChatId));
+  await db.batch([
+    db.update(communities).set({ tgChatId: toChatId }).where(eq(communities.tgChatId, fromChatId)),
+    db.update(events).set({ telegramChatId: toChatId }).where(eq(events.telegramChatId, fromChatId)),
+  ]);
 }
 
 /** checkedAt — членство только что подтверждено (Telegram ответил или человек нажал кнопку в группе). */

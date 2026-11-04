@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateRu, type EventStatus } from '@altynka/core';
+import { escapeHtml, formatDateRu, plural, type EventStatus } from '@altynka/core';
 import type { InlineKeyboardMarkup } from 'grammy/types';
 import { miniAppLink, type LinkEnv } from '../telegram/links';
 
@@ -36,19 +36,19 @@ export function timeRange(start: string, hours: number): string {
 
 /** Имя для списка: без отметок, с пометкой гостя. */
 export function plainName(p: PersonView): string {
-  return p.guestOf ? `${escapeHtml(p.name)} (друг: ${escapeHtml(p.guestOf.name)})` : escapeHtml(p.name);
+  return p.guestOf ? `${escapeHtml(p.name)} · приглашён: ${escapeHtml(p.guestOf.name)}` : escapeHtml(p.name);
 }
 
 function statusLine(v: EventView): string {
   switch (v.status) {
     case 'cancelled':
-      return '❌ <b>Отменён</b>';
+      return '<b>Матч отменён</b>';
     case 'collecting':
-      return '🕘 Время уточняется';
+      return 'Время и поле пока не назначены';
     default: {
-      const when = v.startTime && v.durationHours ? timeRange(v.startTime, v.durationHours) : 'Время уточняется';
-      const tail = v.status === 'billing' ? '\n💸 Идёт сбор денег' : v.status === 'closed' ? '\n✅ Игра прошла' : '';
-      return `🕘 ${when}${v.place ? ` · ${escapeHtml(v.place)}` : ''}${tail}`;
+      const when = v.startTime && v.durationHours ? timeRange(v.startTime, v.durationHours) : 'Время пока не назначено';
+      const tail = v.status === 'billing' ? '\nЗапись закрыта · доступна оплата' : v.status === 'closed' ? '\nСчёт закрыт' : '';
+      return `${when}${v.place ? ` · ${escapeHtml(v.place)}` : ''}${tail}`;
     }
   }
 }
@@ -56,20 +56,25 @@ function statusLine(v: EventView): string {
 const numbered = (ps: PersonView[]) => ps.map((p, i) => `${i + 1}. ${plainName(p)}`).join('\n');
 
 export function renderEventMessage(v: EventView, env: LinkEnv): Rendered {
-  const parts = [`⚽ <b>Футбол · ${formatDateRu(v.date)}</b>`, statusLine(v)];
-  if (v.comment) parts.push(`💬 ${escapeHtml(v.comment)}`);
-  parts.push('', `<b>Идут ${v.main.length}/${v.limit}</b>`, v.main.length ? numbered(v.main) : '—');
-  if (v.reserve.length) parts.push('', `<b>Резерв</b>`, numbered(v.reserve));
-  const open = { text: '📱 Открыть', url: miniAppLink(env, `e${v.id}`) };
+  const parts = [`<b>Футбол · ${formatDateRu(v.date)}</b>`, statusLine(v)];
+  const signupOpen = v.status === 'collecting' || v.status === 'scheduled';
+  if (v.main.length) {
+    parts.push('', `<b>${v.status === 'collecting' ? 'Записались' : 'Основа'} · ${v.main.length} из ${v.limit}</b>`, numbered(v.main));
+  } else if (signupOpen) {
+    parts.push('', `<b>Запись открыта · ${v.limit} ${plural(v.limit, 'место', 'места', 'мест')}</b>`);
+  }
+  if (v.reserve.length) parts.push('', `<b>Резерв · ${v.reserve.length}</b>`, numbered(v.reserve));
+  if (v.comment) parts.push('', escapeHtml(v.comment));
+  const open = { text: 'Открыть матч', url: miniAppLink(env, `e${v.id}`) };
   const keyboard: InlineKeyboardMarkup =
-    v.status === 'collecting' || v.status === 'scheduled'
+    signupOpen
       ? {
           inline_keyboard: [
             [
-              { text: '✅ Иду', callback_data: `j:${v.id}` },
-              { text: '❌ Не иду', callback_data: `l:${v.id}` },
+              { text: 'Иду', callback_data: `j:${v.id}` },
+              { text: 'Не иду', callback_data: `l:${v.id}` },
             ],
-            [{ text: '➕ Друг', url: miniAppLink(env, `g${v.id}`) }, open],
+            [{ text: 'Добавить друга', url: miniAppLink(env, `g${v.id}`) }, open],
           ],
         }
       : { inline_keyboard: [[open]] };

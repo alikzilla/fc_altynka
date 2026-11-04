@@ -7,6 +7,9 @@ import { makeTgClient, TgMessageGone, TgRateLimited, TgRejected, type TgClient }
 import { getMessageId, loadEventView, renderPart, resolveNotice, setMessageId } from './parts';
 import { mergeNotices, nextAlarmAt, unmerge } from './plan';
 import type { Notice, Part, SyncRequest } from './port';
+import { PersonalDelivery, type DeliveryReport } from './personal';
+import { miniAppLink } from '../telegram/links';
+import { getEvent } from '../domain/events';
 
 const PART_ORDER: Part[] = ['event', 'teams', 'bill'];
 
@@ -38,11 +41,16 @@ function noteError(r: Run, e: unknown): boolean {
  * актуальное состояние из базы; при 429 ждёт retry_after и повторяет.
  */
 export class EventSync extends DurableObject<Env> {
+  async deliveryReport(): Promise<DeliveryReport | null> { return (await this.ctx.storage.get<DeliveryReport>('deliveryReport')) ?? null; }
   async request(eventId: number, req: SyncRequest): Promise<void> {
     const s = this.ctx.storage;
     const dirty = new Set<Part>([...((await s.get<Part[]>('dirty')) ?? []), ...req.parts]);
     const pending = [...((await s.get<Notice[]>('pending')) ?? []), ...(req.notices ?? [])];
     await s.put({ eventId, dirty: [...dirty], pending });
+    if (req.notices?.some(n => n.kind === 'reminder')) await s.put({
+      deliveryReport: { at: Date.now(), sent: 0, unavailable: 0, skipped: 0, failed: 0, status: 'queued' } satisfies DeliveryReport,
+      reminderProgress: {},
+    });
     if ((await s.getAlarm()) === null) {
       await s.setAlarm(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
     }
@@ -54,6 +62,11 @@ export class EventSync extends DurableObject<Env> {
     if (eventId === undefined) return;
     const community = await getCommunity(getDb(this.env.DB));
     if (!community) return;
+    const event = await getEvent(getDb(this.env.DB), eventId);
+    if (!event || event.communityId !== community.id || event.telegramChatId !== null && event.telegramChatId !== community.tgChatId) {
+      await s.put({ dirty: [], pending: [] });
+      return;
+    }
     // Забираем накопленное сразу: request() во время отправки допишет новое, и оно не затрётся.
     const dirty = new Set((await s.get<Part[]>('dirty')) ?? []);
     const pending = (await s.get<Notice[]>('pending')) ?? [];
@@ -72,12 +85,20 @@ export class EventSync extends DurableObject<Env> {
         if (noteError(run, e)) run.parts.push(part);
       }
     }
+    if (dirty.has('bill')) {
+      if (stopped(run)) run.parts.push('bill');
+      else try { await new PersonalDelivery(getDb(this.env.DB), this.env, tg, s, community.tgChatId).payments(eventId); }
+      catch (e) { if (noteError(run, e)) run.parts.push('bill'); }
+    }
     if (stopped(run)) run.notices = pending;
     else await this.sendNotices(tg, community.tgChatId, eventId, pending, run);
 
     await this.putBack(run);
     if (run.retryAt !== null) return void (await s.setAlarm(run.retryAt));
-    if (run.failure !== null) throw run.failure;
+    if (run.failure !== null) {
+      await s.setAlarm(Date.now() + 5000);
+      throw run.failure;
+    }
     const more = ((await s.get<Part[]>('dirty')) ?? []).length > 0 || ((await s.get<Notice[]>('pending')) ?? []).length > 0;
     // Ставим будильник сами: тот, что request() поставил во время прогона, считал от старого lastSentAt.
     if (more) await s.setAlarm(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
@@ -131,11 +152,28 @@ export class EventSync extends DurableObject<Env> {
         continue;
       }
       try {
-        const html = renderNotice(await resolveNotice(db, view, m), view);
-        if (!html.trim()) continue;
-        await tg.sendMessage(chatId, html, { replyTo });
-        await this.ctx.storage.put('lastSentAt', Date.now());
+        const personal = new PersonalDelivery(db, this.env, tg, this.ctx.storage, chatId);
+        const notice = await personal.notice(await resolveNotice(db, view, m), view);
+        if (personal.error instanceof TgRateLimited) throw personal.error;
+        const html = notice.kind === 'reminder' && !notice.debtors.length ? '' : renderNotice(notice, view);
+        if (html.trim()) {
+          const keyboard = { inline_keyboard: [[{ text: notice.kind === 'reminder' ? 'Открыть оплату' : 'Открыть матч', url: miniAppLink(this.env, `${notice.kind === 'reminder' ? 'b' : 'e'}${eventId}`) }]] };
+          // Successful group sends are remembered while private failures retry the same notice.
+          const key = `groupNotice:${m.kind}`;
+          if (m.kind === 'reminder' || (await this.ctx.storage.get<string>(key)) !== html) {
+            await tg.sendMessage(chatId, html, { replyTo, keyboard });
+            await this.ctx.storage.put(key, html);
+            await personal.groupNoticeSent(notice);
+            await this.ctx.storage.put('lastSentAt', Date.now());
+          }
+        }
+        if (personal.error !== null) throw personal.error;
+        await personal.completeNotice(notice);
       } catch (e) {
+        if (m.kind === 'reminder') {
+          const report = await this.ctx.storage.get<DeliveryReport>('deliveryReport');
+          if (report) await this.ctx.storage.put('deliveryReport', { ...report, status: e instanceof TgRejected ? 'complete' : 'retrying', failed: Math.max(1, report.failed) });
+        }
         if (noteError(run, e)) run.notices.push(...unmerge(m));
       }
     }

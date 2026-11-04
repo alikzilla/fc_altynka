@@ -3,3 +3,4 @@ export * from './teams';
 export * from './bill';
 export * from './format';
 export * from './api';
+export * from './profile';

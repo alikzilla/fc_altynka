@@ -1,7 +1,7 @@
 import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
+import { communities, events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
 import type { Notice, SyncPort } from '../sync/port';
 
 export interface Deps {
@@ -94,9 +94,10 @@ export async function createEvent(
   d: Deps,
   v: { communityId: number; date: string; comment: string | null; createdBy: number },
 ): Promise<number> {
+  const [community] = await d.db.select().from(communities).where(eq(communities.id, v.communityId));
   const [row] = await d.db
     .insert(events)
-    .values({ communityId: v.communityId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
+    .values({ communityId: v.communityId, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
     .returning({ id: events.id });
   await syncEvent(d, row.id, []);
   return row.id;
@@ -213,6 +214,7 @@ export async function scheduleEvent(
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev)) return 'closed';
+  if (ev.status === 'scheduled' && ev.startTime === v.startTime && ev.durationHours === v.durationHours && ev.place === v.place) return 'ok';
   const before = await loadQueue(d.db, eventId);
   await d.db
     .update(events)
@@ -225,7 +227,7 @@ export async function scheduleEvent(
     })
     .where(eq(events.id, eventId));
   const after = await loadQueue(d.db, eventId);
-  await syncEvent(d, eventId, [{ kind: 'scheduled' }, ...movesNotices(before, after)]);
+  await syncEvent(d, eventId, [{ kind: 'scheduled', ...(ev.status === 'scheduled' ? { previous: { startTime: ev.startTime, durationHours: ev.durationHours, place: ev.place } } : {}) }, ...movesNotices(before, after)]);
   return 'ok';
 }
 

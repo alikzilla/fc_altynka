@@ -1,10 +1,12 @@
 import type { EventDetailDto, SignupDto } from '@altynka/core';
+import { useRef, useState } from 'react';
+import { Avatar, Icon } from '../components/Icon';
 import { useLocation } from 'wouter';
-import { api, ApiError } from '../api';
-import { isOpen } from '../labels';
-import { canManage, useMe } from '../me';
-import { haptic } from '../tg';
-import { ConfirmButton, useToast } from '../ui';
+import { api, ApiError } from '../lib/api';
+import { isOpen } from '../lib/labels';
+import { canManage, useMe } from '../state/me';
+import { haptic } from '../lib/tg';
+import { ConfirmButton, useToast } from '../components/ui';
 
 type JoinResult = { kind: 'main' | 'reserve' | 'already'; position: number; restored?: boolean; inMain?: boolean };
 
@@ -14,8 +16,13 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   const [, navigate] = useLocation();
   const open = isOpen(ev.status);
   const manage = canManage(me) && open;
+  const locked = useRef(false);
+  const [busy, setBusy] = useState(false);
 
   async function run<T>(fn: () => Promise<T>, ok?: (r: T) => string) {
+    if (locked.current) return;
+    locked.current = true;
+    setBusy(true);
     try {
       const r = await fn();
       haptic('success');
@@ -23,6 +30,9 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
     } catch (e) {
       haptic('error');
       toast(e instanceof ApiError && e.status === 409 ? 'Запись закрыта' : 'Не получилось, попробуй ещё раз');
+    } finally {
+      locked.current = false;
+      setBusy(false);
     }
     reload();
   }
@@ -41,35 +51,38 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   const row = (s: SignupDto, i: number) => (
     <li key={s.id} className={`person ${s.userId === me.userId ? 'me' : ''}`}>
       <span className="num">{i + 1}</span>
+      <Avatar name={s.name} />
       <span className="name">
         {s.name}
+        {s.userId === me.userId && <span className="you">ты</span>}
         {s.guestOfName && <span className="muted"> {`(друг: ${s.guestOfName})`}</span>}
       </span>
-      {canRemove(s) && <ConfirmButton label="Убрать" confirmLabel="Точно убрать?" onConfirm={() => remove(s)} />}
+      {canRemove(s) && <ConfirmButton label="Убрать" confirmLabel="Точно убрать?" disabled={busy} onConfirm={() => remove(s)} />}
     </li>
   );
 
   return (
     <>
+      {ev.my && open && <div className={`attendance-note ${ev.my === 'reserve' ? 'reserve' : ''}`} role="status"><Icon name={ev.my === 'main' ? 'check' : 'clock'} />{ev.my === 'main' ? 'Ты в основе. Увидимся на поле!' : 'Ты в резерве. Освободится место — бот сообщит.'}</div>}
       {open && (
         <div className="actions">
           {ev.my ? (
-            <button className="btn wide" onClick={leave}>
-              Не иду
+            <button className="btn wide" onClick={leave} disabled={busy}>
+              {busy ? 'Сохраняем…' : 'Не иду'}
             </button>
           ) : (
-            <button className="btn primary wide" onClick={join}>
-              Иду
+            <button className="btn primary wide" onClick={join} disabled={busy}>
+              {busy ? 'Записываем…' : 'Иду'}
             </button>
           )}
-          <button className="btn wide" onClick={() => navigate(`/event/${ev.id}/guest`)}>
+          <button className="btn wide" disabled={busy} onClick={() => navigate(`/event/${ev.id}/guest`)}>
             + Друг
           </button>
         </div>
       )}
       {manage && (
         <button className="btn wide" onClick={() => navigate(`/event/${ev.id}/schedule`)}>
-          Назначить игру
+          {ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}
         </button>
       )}
       <h2 className="section">
@@ -82,7 +95,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
           <ul className="card list">{ev.reserve.map((s, i) => row(s, i))}</ul>
         </>
       )}
-      {manage && <ConfirmButton className="btn-text danger-text" label="Отменить сбор" confirmLabel="Точно отменить сбор?" onConfirm={cancel} />}
+      {manage && <ConfirmButton className="btn-text danger-text" label="Отменить сбор" confirmLabel="Точно отменить сбор?" disabled={busy} onConfirm={cancel} />}
     </>
   );
 }

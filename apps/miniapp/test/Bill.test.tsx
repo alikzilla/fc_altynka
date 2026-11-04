@@ -2,13 +2,13 @@ import type { BillDto, EventDetailDto, SignupDto } from '@altynka/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api, ApiError } from '../src/api';
+import { api, ApiError } from '../src/lib/api';
 import { Bill } from '../src/screens/Bill';
-import { copy, openLink } from '../src/tg';
+import { copy, openLink } from '../src/lib/tg';
 import { organizer, player, renderWithApp } from './render';
 
-vi.mock('../src/api', async orig => ({ ...(await orig<typeof import('../src/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
-vi.mock('../src/tg');
+vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn().mockResolvedValue({ report: null }), send: vi.fn() } }));
+vi.mock('../src/lib/tg');
 
 const s = (id: number): SignupDto => ({ id, seq: id, name: `Игрок${id}`, userId: id === 1 ? organizer.userId : id + 100, guestOfName: null, invitedByUserId: null });
 const evWith = (n: number, bill: BillDto | null = null): EventDetailDto => ({

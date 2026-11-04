@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { users } from '../../src/db/schema';
 import { upsertBill } from '../../src/domain/bills';
-import { createEvent, joinEvent, loadQueue } from '../../src/domain/events';
+import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { upsertTgUser } from '../../src/domain/members';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
@@ -16,11 +16,12 @@ test('p: callback marks paid once', async () => {
   const payer = await upsertTgUser(db(), { id: 501, first_name: 'Арман' }, 1);
   await joinEvent(d, ev, org.id);
   await joinEvent(d, ev, payer.id);
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
   const r = (await upsertBill(d, ev, { receiverUserId: org.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
   const t = makeTestBot();
   await t.bot.handleUpdate(tap(501, `p:${r.billId}`));
   await t.bot.handleUpdate(tap(501, `p:${r.billId}`));
   await t.bot.handleUpdate(tap(777, `p:${r.billId}`));
-  expect(t.answers()).toEqual(['Отметил ✅ Спасибо!', 'Счёт закрыт', 'Счёт закрыт']);
+  expect(t.answers()).toEqual(['Ты отметил оплату', 'Счёт закрыт', 'Счёт закрыт']);
 });

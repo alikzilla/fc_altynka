@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <radialGradient id="pearl" cx="0" cy="0" r="1" gradientTransform="translate(22 15) rotate(65) scale(48)" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8F4FF"/>
+      <stop offset=".53" stop-color="#DED5F4"/>
+      <stop offset="1" stop-color="#8D83B1"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="18" y1="8" x2="46" y2="58" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#65415F"/>
+      <stop offset=".5" stop-color="#29182F"/>
+      <stop offset="1" stop-color="#0A1230"/>
+    </linearGradient>
+    <clipPath id="ball"><circle cx="32" cy="32" r="28"/></clipPath>
+  </defs>
+  <circle cx="32" cy="32" r="28" fill="url(#pearl)"/>
+  <g clip-path="url(#ball)" stroke="#635775" stroke-width="1.1" stroke-linejoin="round">
+    <path d="M32 20 44 29 39 43H25L20 29Z" fill="url(#panel)"/>
+    <path d="M25 2H39V12L32 17 25 12ZM51 12 64 20V32L53 31 46 23ZM57 44 55 60 43 64 39 53 44 44ZM7 44 20 44 25 53 21 64 9 60ZM0 20 13 12 18 23 11 31 0 32Z" fill="url(#panel)"/>
+    <path d="M32 17V20M44 29 46 23M39 43 44 44M25 43 20 44M20 29 18 23M25 12 13 12M39 12H51M53 31 57 44M39 53H25M7 44 11 31"/>
+  </g>
+  <circle cx="32" cy="32" r="27.5" stroke="#EDE6FA" stroke-opacity=".45"/>
+</svg>

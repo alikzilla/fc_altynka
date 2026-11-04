@@ -1,9 +1,10 @@
 export type Part = 'event' | 'teams' | 'bill';
+export interface ScheduleSnapshot { startTime: string | null; durationHours: 1 | 2 | null; place: string | null; }
 
 export type Notice =
   | { kind: 'promoted'; signupIds: number[] }
   | { kind: 'demoted'; signupIds: number[] }
-  | { kind: 'scheduled' }
+  | { kind: 'scheduled'; previous?: ScheduleSnapshot }
   | { kind: 'cancelled' }
   | { kind: 'reminder'; billId: number };
 

@@ -1,7 +1,7 @@
-import type { EventDetailDto, EventsListDto, EventSummaryDto, QueueSplit, Role, SignupDto } from '@altynka/core';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { splitQueue, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
+import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, memberships, type EventRow, type SignupRow } from '../db/schema';
+import { events, memberships, signups, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDto } from './teams';
@@ -40,6 +40,41 @@ export async function listEvents(db: Db, communityId: number, viewerUserId: numb
     .limit(5);
   const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId);
   return { active: await Promise.all(active.map(sum)), past: await Promise.all(past.map(sum)) };
+}
+
+export interface ArchiveCursor { date: string; id: number }
+
+/** Cursor is a complete descending (date, id) key, including same-day ties. */
+export function parseArchiveCursor(raw: string): ArchiveCursor | null {
+  const match = /^(\d{4}-\d{2}-\d{2}):([1-9]\d*)$/.exec(raw);
+  if (!match) return null;
+  const [, date, idText] = match;
+  const id = Number(idText);
+  const timestamp = Date.parse(`${date}T00:00:00Z`);
+  if (!Number.isSafeInteger(id) || !Number.isFinite(timestamp) || new Date(timestamp).toISOString().slice(0, 10) !== date) return null;
+  return { date, id };
+}
+
+export async function matchArchive(db: Db, communityId: number, viewerUserId: number, cursor: ArchiveCursor | null): Promise<MatchArchiveDto> {
+  const rows = await db.select().from(events).where(and(
+    eq(events.communityId, communityId),
+    inArray(events.status, ['billing', 'closed', 'cancelled']),
+    cursor ? or(lt(events.date, cursor.date), and(eq(events.date, cursor.date), lt(events.id, cursor.id))) : undefined,
+  )).orderBy(desc(events.date), desc(events.id)).limit(21);
+  const page = rows.slice(0, 20);
+  // All queue entries for the page are loaded together; no detail request/query per match.
+  const entries = page.length ? await db.select().from(signups).where(and(inArray(signups.eventId, page.map(e => e.id)), isNull(signups.leftAt))) : [];
+  const queues = new Map<number, SignupRow[]>();
+  for (const entry of entries) {
+    const queue = queues.get(entry.eventId) ?? [];
+    queue.push(entry);
+    queues.set(entry.eventId, queue);
+  }
+  const last = page.at(-1);
+  return {
+    events: page.map(ev => summary(ev, splitQueue(queues.get(ev.id) ?? [], ev.baseLimit), viewerUserId)),
+    nextCursor: rows.length > 20 && last ? `${last.date}:${last.id}` : null,
+  };
 }
 
 /** Деталь сбора; уровни — только для организатора и админа. Составы и счёт добавляют Tasks 10–11. */

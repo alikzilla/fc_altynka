@@ -1,14 +1,16 @@
 import { formatDateRu } from '@altynka/core';
 import { Bot } from 'grammy';
+import { eq } from 'drizzle-orm';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';
-import type { UserRow } from '../db/schema';
-import { markPaid } from '../domain/bills';
-import { joinEvent, leaveEvent, type Deps } from '../domain/events';
+import { users, type UserRow } from '../db/schema';
+import { billDto, getBill, markPaid } from '../domain/bills';
+import { getEvent, joinEvent, leaveEvent, type Deps } from '../domain/events';
 import { bindCommunity, ensureMembership, getCommunity, moveCommunityChat, openEvents, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
-import { miniAppLink } from '../telegram/links';
+import { makeTgClient } from '../telegram/client';
+import { registerPrivateCommands } from './private';
 
 export interface BotDeps {
   db: Db;
@@ -36,15 +38,15 @@ registerCallback('j', async ({ deps, user, arg }) => {
   const r = await joinEvent(deps, Number(arg), user.id);
   switch (r.kind) {
     case 'main':
-      return r.restored ? `Вернул тебя на твоё место №${r.position}` : `Записал ✅ Ты №${r.position} в основе`;
+      return `${r.restored ? 'Ты снова в основе' : 'Ты в основе'} · место ${r.position}`;
     case 'reserve':
-      return r.restored ? `Вернул тебя на твоё место в резерве, №${r.position}` : `Мест нет, ты в резерве №${r.position}`;
+      return `${r.restored ? 'Ты снова в резерве' : 'Ты в резерве'} · место ${r.position}`;
     case 'already':
-      return r.inMain ? `Ты уже в списке, №${r.position}` : `Ты уже в резерве, №${r.position}`;
+      return `Ты уже ${r.inMain ? 'в основе' : 'в резерве'} · место ${r.position}`;
     case 'closed':
-      return 'Запись закрыта';
+      return 'Запись на этот матч закрыта';
     case 'not_found':
-      return 'Сбор не найден';
+      return 'Матч не найден';
   }
 });
 
@@ -52,7 +54,7 @@ registerCallback('l', async ({ deps, user, arg }) => {
   const r = await leaveEvent(deps, Number(arg), user.id);
   switch (r.kind) {
     case 'left':
-      return 'Выписал. Передумал? Жми «Иду» в течение 2 минут — место сохранится';
+      return 'Запись отменена. В течение 2 минут можно вернуть прежнее место.';
     case 'not_in':
       return 'Тебя нет в списке';
     case 'closed':
@@ -64,11 +66,12 @@ registerCallback('l', async ({ deps, user, arg }) => {
 
 registerCallback('p', async ({ deps, user, arg }) => {
   const r = await markPaid(deps, Number(arg), user.id, user.id);
-  return { ok: 'Отметил ✅ Спасибо!', already: 'Уже отмечено', not_in_bill: 'Тебя нет в этом счёте', closed: 'Счёт закрыт' }[r];
+  return { ok: 'Ты отметил оплату', already: 'Оплата уже отмечена', not_in_bill: 'Этот счёт тебе недоступен', closed: 'Счёт закрыт', stale: 'Счёт изменился. Открой актуальную оплату.' }[r];
 });
 
 export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot {
   const bot = new Bot(env.BOT_TOKEN, { botInfo });
+  registerPrivateCommands(bot, env, deps);
 
   bot.chatType(['group', 'supergroup']).command('bind', async ctx => {
     if (String(ctx.from.id) !== env.ADMIN_TG_ID) return;
@@ -90,10 +93,28 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     await moveCommunityChat(deps.db, ctx.chat.id, ctx.message.migrate_to_chat_id);
   });
 
-  bot.chatType('private').command('start', async ctx => {
-    await ctx.reply('Сборы, составы и счёт — в мини-аппе 👇', {
-      reply_markup: { inline_keyboard: [[{ text: '📱 Открыть', url: miniAppLink(env) }]] },
-    });
+  bot.callbackQuery(/^pp:(\d+):(\d+):(\d+):(\d{11})$/, async ctx => {
+    const [, billId, due, receiverTgId, phoneDigits] = ctx.match;
+    const community = await getCommunity(deps.db);
+    const chat = ctx.callbackQuery.message?.chat;
+    const bill = await getBill(deps.db, Number(billId));
+    const event = bill ? await getEvent(deps.db, bill.eventId) : null;
+    if (chat?.type !== 'private' || chat.id !== ctx.from.id || !community || !bill || event?.communityId !== community.id
+      || !(await makeTgClient(env).isMember(community.tgChatId, ctx.from.id))) {
+      return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
+    }
+    if (bill.status === 'closed') return void await ctx.answerCallbackQuery({ text: 'Счёт закрыт' });
+    const user = await upsertTgUser(deps.db, ctx.from, deps.now());
+    const dto = await billDto(deps.db, bill.id);
+    const line = dto.lines.find(l => l.userId === user.id);
+    if (!line) return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
+    const [receiver] = await deps.db.select().from(users).where(eq(users.id, bill.receiverUserId));
+    if (line.due !== Number(due) || receiver?.tgId !== Number(receiverTgId) || receiver.kaspiPhone?.replace(/\D/g, '') !== phoneDigits) {
+      return void await ctx.answerCallbackQuery({ text: 'Счёт изменился. Открой актуальную оплату.' });
+    }
+    const result = await markPaid({ db: deps.db, now: deps.now(), sync: deps.sync }, bill.id, user.id, user.id,
+      { due: Number(due), receiverUserId: bill.receiverUserId, receiverPhone: receiver.kaspiPhone! });
+    await ctx.answerCallbackQuery({ text: { ok: 'Ты отметил оплату', already: 'Оплата уже отмечена', closed: 'Счёт закрыт', not_in_bill: 'Этот счёт тебе недоступен', stale: 'Счёт изменился. Открой актуальную оплату.' }[result] });
   });
 
   bot.on('callback_query:data', async ctx => {

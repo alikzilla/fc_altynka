@@ -62,6 +62,13 @@ billsApi.post('/bills/:id/remind', requireRole('organizer'), async c => {
   return c.json({ kind: r }, r === 'nobody' ? 409 : statusFor(r));
 });
 
+billsApi.get('/bills/:id/reminder-status', requireRole('organizer'), async c => {
+  const bill = await ownBill(c.get, c.req.param('id'));
+  if (!bill) return c.json({ error: 'not_found' }, 404);
+  const stub = c.env.EVENT_SYNC.get(c.env.EVENT_SYNC.idFromName(`event:${bill.eventId}`));
+  return c.json({ report: await stub.deliveryReport() });
+});
+
 billsApi.post('/bills/:id/close', requireRole('organizer'), async c => {
   const bill = await ownBill(c.get, c.req.param('id'));
   if (!bill) return c.json({ error: 'not_found' }, 404);

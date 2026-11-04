@@ -1,10 +1,13 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { todayAlmaty } from '@altynka/core';
+import { eq } from 'drizzle-orm';
+import { signups } from '../db/schema';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import {
   addGuest, cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, removeSignup, scheduleEvent,
 } from '../domain/events';
-import { eventDetail, listEvents } from '../domain/eventView';
+import { eventDetail, listEvents, matchArchive, parseArchiveCursor } from '../domain/eventView';
 import { body, idParam, statusFor } from './validate';
 
 const trimmed = (min: number, max: number) => z.string().trim().min(min).max(max);
@@ -16,12 +19,21 @@ eventsApi.get('/events', async c => {
   return c.json(await listEvents(db, c.get('community').id, c.get('user').id));
 });
 
+eventsApi.get('/matches', async c => {
+  const raw = c.req.query('cursor');
+  const cursor = raw === undefined ? null : parseArchiveCursor(raw);
+  if (raw !== undefined && !cursor) return c.json({ error: 'invalid_cursor' }, 400);
+  return c.json(await matchArchive(c.get('deps').db, c.get('community').id, c.get('user').id, cursor));
+});
+
 eventsApi.post(
   '/events',
   requireRole('organizer'),
-  body(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), comment: trimmed(0, 200).optional() })),
+  body(z.object({ date: z.iso.date(), communityId: z.number().int().positive().optional(), comment: trimmed(0, 200).optional() })),
   async c => {
     const v = c.req.valid('json');
+    if (v.communityId !== undefined && v.communityId !== c.get('community').id) return c.json({ error: 'forbidden' }, 403);
+    if (v.date < todayAlmaty(new Date(c.get('deps').now))) return c.json({ error: 'past_date' }, 400);
     const id = await createEvent(c.get('deps'), {
       communityId: c.get('community').id,
       date: v.date,
@@ -105,6 +117,9 @@ eventsApi.post('/events/:id/cancel', requireRole('organizer'), async c => {
 eventsApi.delete('/signups/:id', async c => {
   const id = idParam(c.req.param('id'));
   if (id === null) return c.json({ error: 'not_found' }, 404);
+  const [signup] = await c.get('deps').db.select().from(signups).where(eq(signups.id, id));
+  const event = signup ? await getEvent(c.get('deps').db, signup.eventId) : null;
+  if (!event || event.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
   const r = await removeSignup(c.get('deps'), id, { userId: c.get('user').id, role: c.get('role') });
   return c.json({ kind: r }, statusFor(r));
 });

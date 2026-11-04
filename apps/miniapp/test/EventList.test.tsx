@@ -2,12 +2,12 @@ import type { EventDetailDto } from '@altynka/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api } from '../src/api';
+import { api } from '../src/lib/api';
 import { EventList } from '../src/screens/EventList';
 import { organizer, player, renderWithApp } from './render';
 
-vi.mock('../src/api');
-vi.mock('../src/tg');
+vi.mock('../src/lib/api');
+vi.mock('../src/lib/tg');
 
 const s = (id: number, name: string, extra: Partial<EventDetailDto['main'][number]> = {}) => ({
   id, seq: id, name, userId: id + 100, guestOfName: null, invitedByUserId: null, ...extra,
@@ -70,4 +70,17 @@ test('EventList: closed list has no join buttons', () => {
   renderWithApp(<EventList ev={{ ...ev, status: 'billing' }} reload={() => {}} />, { me: organizer });
   expect(screen.queryByRole('button', { name: 'Иду' })).toBeNull();
   expect(screen.queryByText('Убрать')).toBeNull();
+});
+
+test('joining blocks repeated requests and recovers after a failure', async () => {
+  let fail!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, reject) => { fail = reject; }));
+  renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Иду' }));
+  const pending = screen.getByRole('button', { name: 'Записываем…' });
+  expect(pending).toBeDisabled();
+  await userEvent.click(pending);
+  expect(api.send).toHaveBeenCalledTimes(1);
+  fail(new Error('offline'));
+  expect(await screen.findByRole('button', { name: 'Иду' })).toBeEnabled();
 });

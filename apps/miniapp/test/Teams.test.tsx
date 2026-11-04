@@ -2,12 +2,12 @@ import type { EventDetailDto, SignupDto } from '@altynka/core';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api } from '../src/api';
+import { api } from '../src/lib/api';
 import { Teams } from '../src/screens/Teams';
 import { organizer, player, renderWithApp } from './render';
 
-vi.mock('../src/api');
-vi.mock('../src/tg');
+vi.mock('../src/lib/api');
+vi.mock('../src/lib/tg');
 
 const s = (id: number, level: number): SignupDto => ({
   id, seq: id, name: `Игрок${id}`, userId: id + 100, guestOfName: null, invitedByUserId: null, level,

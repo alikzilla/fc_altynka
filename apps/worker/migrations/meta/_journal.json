@@ -29,6 +29,34 @@
       "when": 1793732140551,
       "tag": "0003_bill_participants",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793797488535,
+      "tag": "0004_cultured_triton",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793797751118,
+      "tag": "0005_luxuriant_prodigy",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793800165147,
+      "tag": "0006_living_big_bertha",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793820643696,
+      "tag": "0007_grey_boomerang",
+      "breakpoints": true
     }
   ]
 }

@@ -39,9 +39,12 @@ export async function saveTeams(
   return 'ok';
 }
 
-export async function publishTeams(d: Deps, eventId: number): Promise<'ok' | 'no_teams' | 'not_found'> {
+export async function publishTeams(d: Deps, eventId: number): Promise<'ok' | 'no_teams' | 'not_found' | 'closed' | 'stale'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
+  if (isClosed(ev)) return 'closed';
+  const queue = await loadQueue(d.db, eventId);
+  if (ev.teamCount && rosterKey(queue.main.map(s => s.id)) !== ev.teamsRoster) return 'stale';
   const rows = await d.db.select().from(teamAssignments).where(eq(teamAssignments.eventId, eventId)).limit(1);
   if (!ev.teamCount || !rows.length) return 'no_teams';
   await d.db.update(events).set({ teamsPublishedAt: d.now }).where(eq(events.id, eventId));

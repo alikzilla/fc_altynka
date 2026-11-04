@@ -2,12 +2,12 @@ import type { MemberDto } from '@altynka/core';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api, ApiError } from '../src/api';
+import { api, ApiError } from '../src/lib/api';
 import { Players } from '../src/screens/Players';
 import { admin, organizer, renderWithApp } from './render';
 
-vi.mock('../src/api', async orig => ({ ...(await orig<typeof import('../src/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
-vi.mock('../src/tg');
+vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
+vi.mock('../src/lib/tg');
 
 const members: MemberDto[] = [
   { userId: 12, displayName: 'Арман', role: 'player', level: 5 },

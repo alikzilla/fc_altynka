@@ -1,8 +1,8 @@
-import type { Role } from '@altynka/core';
+import type { MeDto, Role } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';
-import { memberships } from '../db/schema';
+import { memberships, users } from '../db/schema';
 import type { Deps } from '../domain/events';
 import { effectiveRole, ensureMembership, getCommunity, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
@@ -11,7 +11,16 @@ import { verifyInitData } from './initData';
 
 export interface AppEnv {
   Bindings: Env;
-  Variables: { user: UserRow; role: Role; community: CommunityRow; deps: Deps };
+  Variables: { user: UserRow; role: Role; community: CommunityRow; deps: Deps; telegram: NonNullable<MeDto['telegram']> };
+}
+
+function httpsPhoto(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  try {
+    return new URL(value).protocol === 'https:' ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Раз в сутки спрашиваем Telegram, состоит ли человек ещё в группе. */
@@ -27,6 +36,10 @@ export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<
     const community = await getCommunity(deps.db);
     if (!community) return c.json({ error: 'not_bound' }, 503);
     const user = await upsertTgUser(deps.db, tgUser, deps.now);
+    if (tgUser.allows_write_to_pm === true && !user.pmAvailable) {
+      await deps.db.update(users).set({ pmAvailable: true }).where(eq(users.id, user.id));
+      user.pmAvailable = true;
+    }
     let [m] = await deps.db
       .select()
       .from(memberships)
@@ -40,6 +53,12 @@ export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<
     }
     if (!m) m = await ensureMembership(deps.db, community.id, user.id);
     c.set('user', user);
+    c.set('telegram', {
+      firstName: tgUser.first_name,
+      lastName: tgUser.last_name ?? null,
+      username: tgUser.username ?? null,
+      photoUrl: httpsPhoto(tgUser.photo_url),
+    });
     c.set('role', effectiveRole(c.env, user, m));
     c.set('community', community);
     c.set('deps', deps);

@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@altynka/core": "workspace:*",
+    "@fontsource-variable/onest": "^5.3.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "wouter": "3.13.0"

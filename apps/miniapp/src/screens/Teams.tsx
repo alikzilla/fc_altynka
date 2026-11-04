@@ -1,10 +1,11 @@
 import { alternativeSplit, balanceTeams, teamCountFor, TEAMS, type EventDetailDto, type SignupDto, type TeamCount } from '@altynka/core';
 import { useMemo, useState } from 'react';
-import { api } from '../api';
-import { isOpen } from '../labels';
-import { canManage, useMe } from '../me';
-import { haptic } from '../tg';
-import { useToast } from '../ui';
+import { Link } from 'wouter';
+import { api } from '../lib/api';
+import { isOpen } from '../lib/labels';
+import { canManage, useMe } from '../state/me';
+import { haptic } from '../lib/tg';
+import { EmptyState, useToast } from '../components/ui';
 
 type Props = { ev: EventDetailDto; reload: () => void };
 
@@ -12,12 +13,7 @@ function TeamBlock(p: { index: number; ids: number[]; byId: Map<number, SignupDt
   const t = TEAMS[p.index];
   return (
     <section className={`card team team-${t.key}`} role="group" aria-label={t.name}>
-      <div className="row between" onClick={p.onHeader}>
-        <b>
-          {t.emoji} {t.name}
-        </b>
-        {p.sum !== undefined && <span className="muted">Сумма {p.sum}</span>}
-      </div>
+      {p.onHeader ? <button type="button" className="team-heading" onClick={p.onHeader} aria-label={`Перенести выбранного игрока: ${t.name}`}><b><span className="team-dot" />{t.name}</b>{p.sum !== undefined && <span className="muted">Сумма {p.sum}</span>}</button> : <div className="team-heading"><b><span className="team-dot" />{t.name}</b></div>}
       <ul className="list bare">
         {p.ids.map(id => {
           const s = p.byId.get(id);
@@ -30,9 +26,10 @@ function TeamBlock(p: { index: number; ids: number[]; byId: Map<number, SignupDt
 
 function PublishedTeams({ ev }: Props) {
   const byId = new Map(ev.main.map(s => [s.id, s]));
-  if (!ev.teams?.publishedAt) return <div className="card muted center">Составы ещё не опубликованы</div>;
+  if (!ev.teams?.publishedAt) return <EmptyState title="Составы ещё не опубликованы" text="Организатор добавит команды перед игрой." />;
   return (
     <>
+      {ev.teams.stale && <p className="card warn-note">Участники изменились. Организатор обновит составы перед игрой.</p>}
       {ev.teams.teams.map((ids, i) => (
         <TeamBlock key={i} index={i} ids={ids} byId={byId} />
       ))}
@@ -79,6 +76,7 @@ function TeamEditor({ ev, reload }: Props) {
   }
 
   async function publish() {
+    if (busy) return;
     setBusy(true);
     try {
       const levels = Object.fromEntries(ev.main.filter(s => s.userId === null).map(s => [s.id, levelOf(s)]));
@@ -94,7 +92,7 @@ function TeamEditor({ ev, reload }: Props) {
     reload();
   }
 
-  if (!ev.main.length) return <div className="card muted center">В основе пока никого</div>;
+  if (!ev.main.length) return <EmptyState title="Нет игроков для составов" text="Сначала запиши участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">К списку участников</Link>} />;
 
   return (
     <>
@@ -157,5 +155,5 @@ function TeamEditor({ ev, reload }: Props) {
 
 export function Teams(p: Props) {
   const me = useMe();
-  return canManage(me) && isOpen(p.ev.status) ? <TeamEditor {...p} /> : <PublishedTeams {...p} />;
+  return canManage(me) && isOpen(p.ev.status) ? <TeamEditor key={p.ev.main.map(s => s.id).join(',')} {...p} /> : <PublishedTeams {...p} />;
 }
