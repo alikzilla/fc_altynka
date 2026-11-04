@@ -13,3 +13,5 @@ export const canManage = (me: MeDto) => me.role === 'organizer' || me.role === '
 
 export const MeReloadContext = createContext<() => void>(() => {});
 export const useReloadMe = () => useContext(MeReloadContext);
+export const MeUpdateContext = createContext<(me: MeDto | ((current: MeDto) => MeDto)) => void>(() => {});
+export const useUpdateMe = () => useContext(MeUpdateContext);

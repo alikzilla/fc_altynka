@@ -21,12 +21,16 @@ export class TgMessageGone extends Error {}
 /** Telegram отклонил запрос (400/403): повтор не поможет. */
 export class TgRejected extends Error {}
 
+/** The user blocked the bot or Telegram forbids this private destination. */
+export class TgForbidden extends TgRejected {}
+
 /** Ошибка Telegram → что с ней делать: подождать, отправить заново, бросить или повторить позже. */
 export function classifyTgError(e: unknown): unknown {
   if (!(e instanceof GrammyError)) return e;
   if (e.error_code === 429) return new TgRateLimited(e.parameters.retry_after ?? 5);
   if (/message to edit not found|MESSAGE_ID_INVALID|message can't be edited/i.test(e.description)) return new TgMessageGone(e.description);
-  if (e.error_code === 400 || e.error_code === 403) return new TgRejected(e.description);
+  if (e.error_code === 403) return new TgForbidden(e.description);
+  if (e.error_code === 400) return new TgRejected(e.description);
   return e;
 }
 
@@ -77,8 +81,9 @@ class GrammyTgClient implements TgClient {
     try {
       const m = await this.api.getChatMember(chatId, tgUserId);
       return m.status === 'creator' || m.status === 'administrator' || m.status === 'member' || (m.status === 'restricted' && m.is_member);
-    } catch {
-      return false;
+    } catch (e) {
+      if (e instanceof GrammyError && (e.error_code === 400 || e.error_code === 403)) return false;
+      translate(e);
     }
   }
 }

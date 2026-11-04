@@ -1,0 +1,50 @@
+import type { EventDetailDto } from '@altynka/core';
+import { eq } from 'drizzle-orm';
+import { bills, communities, events, signups, users } from '../../src/db/schema';
+import { apiRequest, db } from '../helpers';
+import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
+
+let w: ApiWorld;
+beforeEach(async () => { w = await setupApiWorld(); });
+afterEach(teardownApiWorld);
+const create = (body: unknown) => apiRequest('/api/events', { method: 'POST', as: w.org, body });
+const post = (path: string, body?: unknown) => apiRequest(path, { method: 'POST', as: w.org, body });
+
+test('a bill requires appointment; rejected requests leave signup, phone and bills unchanged', async () => {
+  const { id } = await (await create({ date: '2026-11-07' })).json() as { id: number };
+  await post(`/api/events/${id}/join`);
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  const detail = await (await apiRequest(`/api/events/${id}`, { as: w.org })).json() as EventDetailDto;
+  const body = { receiverUserId: w.orgUserId, receiverKaspiPhone: '87071234567', fieldAmount: 4000, extras: [], participantSignupIds: detail.main.map(s => s.id) };
+  const put = () => apiRequest(`/api/events/${id}/bill`, { method: 'PUT', as: w.org, body });
+  const rejected = await put();
+  expect(rejected.status).toBe(409);
+  expect(await rejected.json()).toEqual({ error: 'not_scheduled' });
+  expect(await db().select().from(bills)).toHaveLength(0);
+  expect((await db().select().from(users).where(eq(users.id, w.orgUserId)))[0].kaspiPhone).toBeNull();
+  expect((await db().select().from(events).where(eq(events.id, id)))[0].status).toBe('collecting');
+  expect((await post(`/api/events/${id}/schedule`, { startTime: '21:00', durationHours: 1 })).status).toBe(200);
+  expect((await put()).status).toBe(200);
+  expect((await post(`/api/events/${id}/schedule`, { startTime: '22:00', durationHours: 2 })).status).toBe(409);
+  expect((await post(`/api/events/${id}/cancel`)).status).toBe(409);
+});
+
+test('me exposes the real group and create rejects a foreign destination', async () => {
+  expect(await (await apiRequest('/api/me', { as: w.org })).json()).toMatchObject({ community: { id: w.communityId, title: 'Футбол' } });
+  expect((await create({ date: '2026-11-07', communityId: w.communityId + 1 })).status).toBe(403);
+  expect(await db().select().from(events)).toHaveLength(0);
+  expect((await create({ date: '2026-11-07', communityId: w.communityId, comment: '  Футболки  ' })).status).toBe(200);
+});
+
+test.each(['2026-02-30', '2026-13-01', '2026-11-00', '2000-01-01'])('create rejects invalid or past date %s', async date => {
+  expect((await create({ date })).status).toBe(400);
+  expect(await db().select().from(events)).toHaveLength(0);
+});
+
+test('organizer cannot delete another community signup by guessing its id', async () => {
+  const [community] = await db().insert(communities).values({ tgChatId: -100123, title: 'Другая' }).returning();
+  const [event] = await db().insert(events).values({ communityId: community.id, date: '2026-11-07', createdBy: w.orgUserId, createdAt: 0 }).returning();
+  const [signup] = await db().insert(signups).values({ eventId: event.id, userId: w.playerUserId, seq: 1, createdAt: 0 }).returning();
+  expect((await apiRequest(`/api/signups/${signup.id}`, { method: 'DELETE', as: w.org })).status).toBe(404);
+  expect(await db().select().from(signups).where(eq(signups.id, signup.id))).toHaveLength(1);
+});

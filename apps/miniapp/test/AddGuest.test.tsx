@@ -2,12 +2,12 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { Route } from 'wouter';
-import { api, ApiError } from '../src/api';
+import { api, ApiError } from '../src/lib/api';
 import { AddGuest } from '../src/screens/AddGuest';
 import { player, renderWithApp } from './render';
 
-vi.mock('../src/api', async orig => ({ ...(await orig<typeof import('../src/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
-vi.mock('../src/tg');
+vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
+vi.mock('../src/lib/tg');
 
 const renderForm = () => renderWithApp(<Route path="/event/:id/guest" component={AddGuest} />, { me: player, path: '/event/5/guest' });
 
@@ -16,8 +16,8 @@ test('«Записать» is disabled while the guest is being added', async ()
   renderForm();
   await userEvent.type(screen.getByLabelText('Имя друга'), 'Ержан');
   await userEvent.click(screen.getByRole('button', { name: 'Записать' }));
-  expect(screen.getByRole('button', { name: 'Записать' })).toBeDisabled();
-  await userEvent.click(screen.getByRole('button', { name: 'Записать' }));
+  expect(screen.getByRole('button', { name: 'Записываем…' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('button', { name: 'Записываем…' }));
   expect(api.send).toHaveBeenCalledTimes(1);
 });
 

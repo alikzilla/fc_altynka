@@ -1,5 +1,5 @@
 import { computeBill, lineStatus, normalizeKzPhone, type BillDto, type Extra, type Role } from '@altynka/core';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { billLines, bills, events, signups, users, type BillRow } from '../db/schema';
 import { usersById } from '../sync/parts';
@@ -11,6 +11,7 @@ export type UpsertBillResult =
   | { kind: 'bad_phone' }
   | { kind: 'invalid' }
   | { kind: 'not_found' }
+  | { kind: 'not_scheduled' }
   | { kind: 'closed' };
 
 export async function getBill(db: Db, billId: number): Promise<BillRow | null> {
@@ -29,6 +30,8 @@ export async function upsertBill(
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
   if (ev.status === 'cancelled' || ev.status === 'closed') return { kind: 'closed' };
+  const existing = await getBillByEvent(d.db, eventId);
+  if (ev.status === 'collecting' || (!existing && (ev.status !== 'scheduled' || !ev.startTime || !ev.durationHours))) return { kind: 'not_scheduled' };
   const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
   if (!receiver || !v.participantSignupIds.length) return { kind: 'invalid' };
   const parts = await d.db
@@ -40,7 +43,7 @@ export async function upsertBill(
   if (v.receiverKaspiPhone !== undefined && v.receiverKaspiPhone.trim() !== '') {
     phone = normalizeKzPhone(v.receiverKaspiPhone);
     if (!phone) return { kind: 'bad_phone' };
-    await d.db.update(users).set({ kaspiPhone: phone }).where(eq(users.id, receiver.id));
+    await d.db.update(users).set({ kaspiPhone: phone, profileCompletedAt: receiver.profileCompletedAt ?? d.now }).where(eq(users.id, receiver.id));
   }
   if (!phone) return { kind: 'no_kaspi' };
 
@@ -52,7 +55,6 @@ export async function upsertBill(
   }
   const calc = computeBill(v.fieldAmount, v.extras, [...units].map(([userId, u]) => ({ userId, units: u })));
 
-  const existing = await getBillByEvent(d.db, eventId);
   let billId: number;
   const fields = {
     receiverUserId: receiver.id,
@@ -111,7 +113,8 @@ export async function markPaid(
   billId: number,
   userId: number,
   by: number,
-): Promise<'ok' | 'already' | 'not_in_bill' | 'closed'> {
+  expected?: { due: number; receiverUserId: number; receiverPhone: string },
+): Promise<'ok' | 'already' | 'not_in_bill' | 'closed' | 'stale'> {
   const bill = await getBill(d.db, billId);
   if (!bill) return 'not_in_bill';
   if (bill.status === 'closed') return 'closed';
@@ -121,7 +124,13 @@ export async function markPaid(
     .where(and(eq(billLines.billId, billId), eq(billLines.userId, userId)));
   if (!line) return 'not_in_bill';
   if (lineStatus(line.amount, line.paidAmount).state === 'paid') return 'already';
-  await d.db.update(billLines).set({ paidAmount: line.amount, markedBy: by, paidAt: d.now }).where(eq(billLines.id, line.id));
+  const changed = await d.db.update(billLines).set({ paidAmount: line.amount, markedBy: by, paidAt: d.now })
+    .where(and(eq(billLines.id, line.id), expected ? and(
+      eq(billLines.amount, line.amount),
+      sql`${billLines.amount} - coalesce(${billLines.paidAmount}, 0) = ${expected.due}`,
+      sql`exists (select 1 from bills join users on users.id = bills.receiver_user_id where bills.id = ${billId} and bills.status = 'open' and bills.receiver_user_id = ${expected.receiverUserId} and users.kaspi_phone = ${expected.receiverPhone})`,
+    ) : undefined)).returning({ id: billLines.id });
+  if (!changed.length) return 'stale';
   const closed = await closeIfAllPaid(d, billId);
   await d.sync.request(bill.eventId, { parts: closed ? ['bill', 'event'] : ['bill'] });
   return 'ok';

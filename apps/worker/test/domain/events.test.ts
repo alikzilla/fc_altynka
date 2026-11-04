@@ -101,6 +101,17 @@ test('schedule 2h promotes 11-15 in one notice; back to 1h demotes them', async 
   expect((lastReq().notices!.find(x => x.kind === 'demoted') as { signupIds: number[] }).signupIds).toHaveLength(5);
 });
 
+test('saving the same schedule again emits no notice; editing carries the original details', async () => {
+  const ev = await seedEvent();
+  const first = { startTime: '21:00', durationHours: 1 as const, place: 'Поле' };
+  await scheduleEvent(d, ev, first);
+  const calls = d.sync.calls.length;
+  await scheduleEvent(d, ev, first);
+  expect(d.sync.calls).toHaveLength(calls);
+  await scheduleEvent(d, ev, { ...first, startTime: '22:00' });
+  expect(lastReq().notices).toContainEqual({ kind: 'scheduled', previous: first });
+});
+
 
 test('guest queues like a player; inviter or organizer can remove, others cannot', async () => {
   const ev = await seedEvent();

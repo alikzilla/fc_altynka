@@ -3,6 +3,8 @@ export interface TgWebAppUser {
   first_name: string;
   last_name?: string;
   username?: string;
+  photo_url?: string;
+  allows_write_to_pm?: boolean;
 }
 
 const enc = new TextEncoder();

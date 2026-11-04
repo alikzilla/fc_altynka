@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { signups } from '../../src/db/schema';
-import { addGuest, createEvent, joinEvent, leaveEvent, loadQueue, type Deps } from '../../src/domain/events';
+import { addGuest, cancelEvent, createEvent, joinEvent, leaveEvent, loadQueue, type Deps } from '../../src/domain/events';
 import { publishTeams, saveTeams, teamsDto } from '../../src/domain/teams';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
@@ -56,4 +56,12 @@ test('publish requests teams part sync', async () => {
   expect(await publishTeams(d, ev)).toBe('ok');
   expect(d.sync.calls.at(-1)).toEqual({ eventId: ev, req: { parts: ['teams'] } });
   expect((await teamsDto(d.db, ev, ids))!.publishedAt).toBe(5_000);
+});
+
+test('cannot publish stale teams or teams of a cancelled match', async () => {
+  await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} });
+  await leaveEvent(d, ev, userIds[0]);
+  expect(await publishTeams(d, ev)).toBe('stale');
+  await cancelEvent(d, ev);
+  expect(await publishTeams(d, ev)).toBe('closed');
 });

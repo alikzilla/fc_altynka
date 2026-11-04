@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { bills, events, users, type UserRow } from '../../src/db/schema';
 import { billDto, closeBill, markPaid, remindDebtors, setLinePaid, upsertBill } from '../../src/domain/bills';
-import { addGuest, createEvent, joinEvent, loadQueue, type Deps } from '../../src/domain/events';
+import { addGuest, createEvent, joinEvent, loadQueue, scheduleEvent, type Deps } from '../../src/domain/events';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 
@@ -23,6 +23,7 @@ beforeEach(async () => {
   for (const u of us) await joinEvent(d, ev, u.id);
   await addGuest(d, ev, timur.id, 'Ержан');
   await d.db.update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, us[0].id));
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Arena' });
   signupIds = (await loadQueue(d.db, ev)).main.map(s => s.id);
 });
 
@@ -31,6 +32,12 @@ const make = (o: Partial<Parameters<typeof upsertBill>[2]> = {}) =>
     receiverUserId: us[0].id, fieldAmount: 20000, extras: [{ label: 'Вода', amount: 1500 }], participantSignupIds: signupIds, ...o,
   });
 const billIdOf = async () => (await d.db.select().from(bills).where(eq(bills.eventId, ev)))[0].id;
+
+test('saving a receiver phone during billing also persists completed profile setup', async () => {
+  expect((await d.db.select().from(users).where(eq(users.id, us[0].id)))[0].profileCompletedAt).toBeNull();
+  expect((await make({ receiverKaspiPhone: '8 707 123 45 67' })).kind).toBe('ok');
+  expect((await d.db.select().from(users).where(eq(users.id, us[0].id)))[0]).toMatchObject({ kaspiPhone: '+77071234567', profileCompletedAt: d.now });
+});
 
 test('bill splits equally, guest share goes to inviter, receiver is pre-paid', async () => {
   const r = await make();

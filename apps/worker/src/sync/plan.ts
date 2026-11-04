@@ -1,11 +1,11 @@
-import type { Notice } from './port';
+import type { Notice, ScheduleSnapshot } from './port';
 
 export const MIN_GAP_MS = 3000;
 /** Первая правка после затишья ждёт чуть-чуть, чтобы собрать всплеск нажатий в одну. */
 export const BURST_MS = 300;
 
 export type MergedNotice =
-  | { kind: 'moves'; promoted: number[]; demoted: number[]; scheduled: boolean }
+  | { kind: 'moves'; promoted: number[]; demoted: number[]; scheduled: boolean; previous?: ScheduleSnapshot }
   | { kind: 'cancelled' }
   | { kind: 'reminder'; billId: number };
 
@@ -19,17 +19,18 @@ export function mergeNotices(pending: Notice[], mainIds: Set<number>): MergedNot
   const promoted = new Set<number>();
   const demoted = new Set<number>();
   let scheduled = false;
+  let previous: ScheduleSnapshot | undefined;
   const reminders: number[] = [];
   for (const n of pending) {
     if (n.kind === 'promoted') n.signupIds.forEach(id => promoted.add(id));
     else if (n.kind === 'demoted') n.signupIds.forEach(id => demoted.add(id));
-    else if (n.kind === 'scheduled') scheduled = true;
+    else if (n.kind === 'scheduled') { if (!scheduled) previous = n.previous; scheduled = true; }
     else if (n.kind === 'reminder' && !reminders.includes(n.billId)) reminders.push(n.billId);
   }
   const up = [...promoted].filter(id => mainIds.has(id) && !demoted.has(id));
   const down = [...demoted].filter(id => !mainIds.has(id) && !promoted.has(id));
   const out: MergedNotice[] = [];
-  if (scheduled || up.length || down.length) out.push({ kind: 'moves', promoted: up, demoted: down, scheduled });
+  if (scheduled || up.length || down.length) out.push({ kind: 'moves', promoted: up, demoted: down, scheduled, ...(previous ? { previous } : {}) });
   for (const billId of reminders) out.push({ kind: 'reminder', billId });
   return out;
 }
@@ -38,7 +39,7 @@ export function mergeNotices(pending: Notice[], mainIds: Set<number>): MergedNot
 export function unmerge(m: MergedNotice): Notice[] {
   if (m.kind !== 'moves') return [m];
   const out: Notice[] = [];
-  if (m.scheduled) out.push({ kind: 'scheduled' });
+  if (m.scheduled) out.push({ kind: 'scheduled', ...(m.previous ? { previous: m.previous } : {}) });
   if (m.promoted.length) out.push({ kind: 'promoted', signupIds: m.promoted });
   if (m.demoted.length) out.push({ kind: 'demoted', signupIds: m.demoted });
   return out;

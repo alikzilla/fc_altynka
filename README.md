@@ -5,6 +5,8 @@
 
 - Дизайн: `docs/superpowers/specs/2026-11-03-football-sbor-bot-design.md`
 - План: `docs/superpowers/plans/2026-11-03-football-sbor-bot.md`
+- Текущий интерфейс: [`DESIGN.md`](DESIGN.md), [план переноса Airofit](docs/superpowers/plans/2026-11-04-airofit-app.md).
+- Сообщения и команды бота: [сценарии](docs/bot-copy-draft.md), [реализация и доставка](docs/bot-delivery-review.md).
 
 ## Структура
 
@@ -14,6 +16,26 @@
 | `apps/worker`   | Cloudflare Worker: вебхук бота (grammY), API (Hono), D1 (Drizzle), Durable Object `EventSync` |
 | `apps/miniapp`  | Мини-апп на React + Vite; собирается в `apps/miniapp/dist` и раздаётся тем же Worker'ом       |
 
+```text
+apps/
+  miniapp/          # интерфейс мини-приложения
+    src/
+      components/  # общие компоненты, навигация и жесты
+      hooks/       # загрузка данных и поведение окон
+      lib/         # API, Telegram, платежные ссылки и тема
+      screens/     # экраны и их содержимое
+      state/       # общие React-контексты
+      styles/      # оформление и цветовые темы
+    test/          # компонентные и модульные тесты
+  worker/          # API, бот, база и доставка сообщений
+packages/core/     # общая предметная логика и типы
+tests/ui/          # браузерные сценарии Playwright
+scripts/           # обслуживание бота и коннекторов
+docs/              # документация, ревью и история решений
+```
+
+Подробнее: [устройство мини-приложения](apps/miniapp/README.md) и [карта документации](docs/README.md).
+
 ## Разработка
 
 ```bash
@@ -21,12 +43,39 @@ pnpm install
 pnpm test          # все тесты
 pnpm typecheck     # проверка типов
 pnpm build         # сборка мини-аппа
+pnpm test:ui       # production-сборка, мобильные экраны и доступность (Playwright/axe)
+pnpm test:connectors # локальные тесты Telegram MCP
+pnpm check:telegram # диагностика реального бота без отправки сообщений
+pnpm bot:profile   # показать план оформления бота без сетевых изменений
 ```
 
 Локально: `cp apps/worker/.dev.vars.example apps/worker/.dev.vars`, затем
 `cd apps/worker && pnpm exec wrangler d1 migrations apply fc-altynka --local && pnpm exec wrangler dev`.
 Мини-апп в браузере: `pnpm --filter @altynka/miniapp dev` (проксирует `/api` на `localhost:8787`).
 Без Telegram мини-апп покажет «Открой мини-апп из Telegram» — это нормально.
+
+В группе бот публикует общие объявления, составы и компактный счёт. Личные уведомления о месте в очереди и оплате
+игрок включает в `/settings` в личке бота или в профиле миниапки. По умолчанию они выключены.
+Команды в личке: `/start`, `/matches`, `/payments`, `/settings`, `/help`; организаторам дополнительно `/newmatch`.
+Для применения имени, описания, меню и областей команд после обновления обработчиков: `pnpm bot:profile --apply`.
+Скрипт не меняет вебхук и аватар. Диагностика `pnpm check:telegram` читает также команды для лички и группы;
+пустой default scope сам по себе не означает, что команды не настроены.
+
+Разбор архитектуры, обновление UI, состояние интеграций и ограничения проверки:
+[`docs/project-audit.md`](docs/project-audit.md). Визуальные правила: [`DESIGN.md`](DESIGN.md).
+
+## Коннекторы для Codex
+
+```bash
+codex mcp add cloudflare --url https://mcp.cloudflare.com/mcp
+codex mcp add playwright -- npx -y @playwright/mcp@latest --headless
+```
+
+Telegram: `codex mcp add telegram-altynka -- node /абсолютный/путь/к/проекту/scripts/mcp/telegram.mjs`.
+Коннектор читает `BOT_TOKEN` из существующего `apps/worker/.webhook.env` или окружения и предоставляет
+четыре команды только для чтения. Токен в команду регистрации не передавать.
+Cloudflare требует OAuth (`codex mcp login cloudflare`); после добавления открыть новый сеанс Codex.
+Для локальных UI-тестов при отсутствии браузера: `pnpm exec playwright install chromium`.
 
 ## Переменные
 

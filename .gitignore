@@ -5,3 +5,10 @@ dist
 .superpowers
 .webhook.env
 .archify/
+test-results/
+playwright-report/
+artifacts/
+.taste-skill/
+.playwright-mcp/
+.pnpm-store/
+.DS_Store

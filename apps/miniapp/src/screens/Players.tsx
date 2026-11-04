@@ -1,10 +1,11 @@
 import type { MemberDto, Role } from '@altynka/core';
 import { useState } from 'react';
-import { api, ApiError } from '../api';
-import { useMe } from '../me';
-import { haptic } from '../tg';
-import { ErrorNote, Loading, Screen, useToast } from '../ui';
-import { useResource } from '../useResource';
+import { api, ApiError } from '../lib/api';
+import { useMe } from '../state/me';
+import { haptic } from '../lib/tg';
+import { EmptyState, ErrorNote, Loading, Screen, useToast } from '../components/ui';
+import { useResource } from '../hooks/useResource';
+import { Avatar } from '../components/Icon';
 
 const ROLE_LABEL: Record<Role, string> = { admin: 'Админ', organizer: 'Организатор', player: 'Игрок' };
 
@@ -51,23 +52,24 @@ export function Players() {
   const [open, setOpen] = useState<number | null>(null);
   const isAdmin = me.role === 'admin';
   return (
-    <Screen title="Игроки">
+    <Screen title="Игроки" back="/profile">
       {loading && !data && <Loading />}
-      {error && <ErrorNote text="Не получилось загрузить игроков" />}
-      {data && (
+      {error && <ErrorNote text="Не получилось загрузить игроков" retry={reload} />}
+      {data && !data.length && <EmptyState title="В списке пока никого" text="Участники появятся после открытия приложения из группы." />}
+      {data && data.length > 0 && (
         <ul className="card list">
           {data.map(m => (
             <li key={m.userId} className="member">
               {isAdmin ? (
                 <button type="button" className="btn-plain row between" aria-expanded={open === m.userId} onClick={() => setOpen(open === m.userId ? null : m.userId)}>
-                  <span>{m.displayName}</span>
+                  <span className="member-name"><Avatar name={m.displayName} /><span>{m.displayName}</span></span>
                   <span className="muted">
                     {ROLE_LABEL[m.role]} · уровень {m.level}
                   </span>
                 </button>
               ) : (
                 <div className="row between member-row">
-                  <span>{m.displayName}</span>
+                  <span className="member-name"><Avatar name={m.displayName} /><span>{m.displayName}</span></span>
                   <span className="muted">
                     {ROLE_LABEL[m.role]} · <span>уровень {m.level}</span>
                   </span>

@@ -15,6 +15,12 @@ export const users = sqliteTable('users', {
   username: text('username'),
   displayName: text('display_name').notNull(),
   kaspiPhone: text('kaspi_phone'),
+  profileCompletedAt: integer('profile_completed_at'),
+  playingPosition: text('playing_position', { enum: ['goalkeeper', 'defender', 'midfielder', 'forward', 'universal'] }),
+  dominantFoot: text('dominant_foot', { enum: ['right', 'left', 'both'] }),
+  theme: text('theme', { enum: ['dark', 'light'] }).notNull().default('dark'),
+  notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
+  pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),
 });
 
@@ -34,6 +40,7 @@ export const memberships = sqliteTable(
 export const events = sqliteTable('events', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   communityId: integer('community_id').notNull().references(() => communities.id),
+  telegramChatId: integer('telegram_chat_id'),
   date: text('date').notNull(),
   comment: text('comment'),
   startTime: text('start_time'),

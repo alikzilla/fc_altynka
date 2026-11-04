@@ -1,4 +1,5 @@
 import type { Extra, LineState } from './bill';
+import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'billing' | 'closed' | 'cancelled';
@@ -8,6 +9,18 @@ export interface MeDto {
   displayName: string;
   role: Role;
   kaspiPhone: string | null;
+  profileCompleted?: boolean;
+  playingPosition?: PlayingPosition | null;
+  dominantFoot?: DominantFoot | null;
+  theme?: AppTheme;
+  notifications?: { enabled: boolean; available: boolean };
+  community?: { id: number; title: string };
+  telegram?: {
+    firstName: string;
+    lastName: string | null;
+    username: string | null;
+    photoUrl: string | null;
+  };
 }
 
 export interface SignupDto {
@@ -83,4 +96,17 @@ export interface MemberDto {
 export interface EventsListDto {
   active: EventSummaryDto[];
   past: EventSummaryDto[];
+}
+
+export interface MatchArchiveDto {
+  events: EventSummaryDto[];
+  nextCursor: string | null;
+}
+
+export type NotificationTaskDto =
+  | { kind: 'payment'; id: string; eventId: number; date: string; place: string | null; due: number; receiverName: string }
+  | { kind: 'schedule'; id: string; eventId: number; date: string; place: string | null };
+
+export interface NotificationsDto {
+  tasks: NotificationTaskDto[];
 }

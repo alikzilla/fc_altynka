@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useParams } from 'wouter';
-import { api, ApiError } from '../api';
-import { Screen, useToast } from '../ui';
+import { api, ApiError } from '../lib/api';
+import { Screen, useToast } from '../components/ui';
 
 export function AddGuest() {
   const { id } = useParams<{ id: string }>();
@@ -32,7 +32,7 @@ export function AddGuest() {
         </label>
         <p className="muted">Друг встанет в очередь как все. Его долю в счёте повесим на тебя.</p>
         <button className="btn primary wide" disabled={busy || !name.trim()}>
-          Записать
+          {busy ? 'Записываем…' : 'Записать'}
         </button>
       </form>
     </Screen>

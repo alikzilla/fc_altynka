@@ -8,6 +8,7 @@ import { eventsApi } from './events';
 import { membersApi } from './members';
 import { teamsApi } from './teams';
 import { billsApi } from './bills';
+import { notificationsApi } from './notifications';
 
 const defaultDeps = (env: Env): Deps => ({ db: getDb(env.DB), now: Date.now(), sync: doSyncPort(env) });
 let depsFactory: (env: Env) => Deps = defaultDeps;
@@ -22,3 +23,4 @@ api.route('/', eventsApi);
 api.route('/', membersApi);
 api.route('/', teamsApi);
 api.route('/', billsApi);
+api.route('/', notificationsApi);

@@ -1,7 +1,7 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { events } from '../../src/db/schema';
-import { createEvent, joinEvent, leaveEvent, loadQueue, type Deps } from '../../src/domain/events';
+import { createEvent, joinEvent, leaveEvent, loadQueue, scheduleEvent, type Deps } from '../../src/domain/events';
 import { __setTgClientForTests, TgRateLimited, TgRejected } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
@@ -68,6 +68,7 @@ test('promotion notice is a reply to the event message and mentions the user', a
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
   const us = await Promise.all(Array.from({ length: 11 }, (_, i) => seedUser(`И${i + 1}`)));
+  tg.members.add(us[10].tgId);
   for (const u of us) await joinEvent(d, ev, u.id);
   await leaveEvent(d, ev, us[0].id);
   await stub().request(ev, d.sync.calls.at(-1)!.req);
@@ -94,20 +95,23 @@ test('reminder notice lists debtors with amounts due', async () => {
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
   const [a, b] = await Promise.all([seedUser('Азамат'), seedUser('Тимур')]);
+  tg.members.add(b.tgId);
   await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, a.id));
   await joinEvent(d, ev, a.id);
   await joinEvent(d, ev, b.id);
+  const { scheduleEvent } = await import('../../src/domain/events');
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
   const r = (await upsertBill(d, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
   await stub().request(ev, { parts: ['bill'], notices: [{ kind: 'reminder', billId: r.billId }] });
   await runDurableObjectAlarm(stub());
-  const billMsg = tg.sent.find(m => m.html.includes('Счёт'))!;
+  const billMsg = tg.sent.find(m => m.html.includes('<b>Оплата'))!;
   expect(billMsg.replyTo).toBe(tg.sent[0].messageId);
   const reminder = tg.sent.at(-1)!;
   expect(reminder.html).toContain('Напоминание');
   expect(reminder.html).toContain(`tg://user?id=${b.tgId}`);
   expect(reminder.html).not.toContain(`tg://user?id=${a.tgId}`);
-  expect(reminder.html).toContain('2 000 ₸');
+  expect(reminder.html).not.toContain('2 000 ₸');
 });
 
 /** Подменяет метод FakeTg: первый вызов ждёт release(), чтобы request() успел влезть посреди alarm. */
@@ -151,6 +155,8 @@ test('a promotion queued while another notice is being sent is still sent', asyn
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
   const us = await Promise.all(Array.from({ length: 12 }, (_, i) => seedUser(`И${i + 1}`)));
+  tg.members.add(us[10].tgId);
+  tg.members.add(us[11].tgId);
   for (const u of us) await joinEvent(d, ev, u.id);
   await leaveEvent(d, ev, us[0].id); // И11 в основу
   await stub().request(ev, d.sync.calls.at(-1)!.req);
@@ -168,6 +174,7 @@ test('a promotion queued while another notice is being sent is still sent', asyn
 });
 
 test('a part Telegram rejects is dropped and does not block notices', async () => {
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
   tg.failNextWith = new TgRejected('Bad Request: something permanent');
@@ -178,6 +185,7 @@ test('a part Telegram rejects is dropped and does not block notices', async () =
 });
 
 test('a network error keeps the part for a retry and still sends notices', async () => {
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
   tg.failNextWith = new Error('network down');

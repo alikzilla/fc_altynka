@@ -4,14 +4,15 @@ import { getEvent } from '../domain/events';
 import { renderBillMessage } from '../render/billMessage';
 import type { Rendered } from '../render/eventMessage';
 import type { OutNotice } from '../render/notices';
+import type { LinkEnv } from '../telegram/links';
 import { usersById } from './parts';
 
-export async function renderBillPart(db: Db, eventId: number): Promise<Rendered | null> {
+export async function renderBillPart(db: Db, eventId: number, env?: LinkEnv): Promise<Rendered | null> {
   const bill = await getBillByEvent(db, eventId);
   const ev = await getEvent(db, eventId);
   if (!bill || !ev) return null;
   const dto = await billDto(db, bill.id);
-  return renderBillMessage({ billId: dto.id, date: ev.date, share: dto.share, status: dto.status, receiver: dto.receiver, lines: dto.lines });
+  return renderBillMessage({ billId: dto.id, date: ev.date, share: dto.share, status: dto.status, receiver: dto.receiver, lines: dto.lines }, eventId, env);
 }
 
 export async function resolveReminder(db: Db, billId: number): Promise<OutNotice> {

@@ -3,8 +3,8 @@ import { render } from '@testing-library/react';
 import type { ReactElement } from 'react';
 import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
-import { MeContext } from '../src/me';
-import { ToastProvider } from '../src/ui';
+import { MeContext } from '../src/state/me';
+import { ToastProvider } from '../src/components/ui';
 
 export const player: MeDto = { userId: 2, displayName: 'Игрок', role: 'player', kaspiPhone: null };
 export const organizer: MeDto = { userId: 1, displayName: 'Орг', role: 'organizer', kaspiPhone: '+77071234567' };
