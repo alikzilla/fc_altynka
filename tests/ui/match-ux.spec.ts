@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [draft], past: [] } : path === '/api/matches' ? { events: [{ ...draft, id: 2, status: 'closed', date: '2026-10-31' }], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : path === '/api/members' ? [] : draft });
+    return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [draft], past: [] } : path === '/api/matches' ? { events: [{ ...draft, id: 2, status: 'closed', date: '2026-10-31' }], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : (path === '/api/members' || path === '/api/players') ? [] : draft });
   });
 });
 
@@ -205,7 +205,7 @@ for (const width of [320, 390]) {
       // Reinstall fixtures removed with the temporary delay route.
       await page.route('**/api/**', route => {
         const resource = new URL(route.request().url()).pathname;
-        return route.fulfill({ json: resource === '/api/me' ? identity : resource === '/api/events' ? { active: [draft], past: [] } : resource === '/api/matches' ? { events: [], nextCursor: null } : resource === '/api/notifications' ? { tasks: [] } : resource === '/api/members' ? [] : draft });
+        return route.fulfill({ json: resource === '/api/me' ? identity : resource === '/api/events' ? { active: [draft], past: [] } : resource === '/api/matches' ? { events: [], nextCursor: null } : resource === '/api/notifications' ? { tasks: [] } : (resource === '/api/members' || resource === '/api/players') ? [] : draft });
       });
     }
   });

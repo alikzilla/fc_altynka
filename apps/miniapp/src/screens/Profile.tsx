@@ -1,4 +1,4 @@
-import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto } from '@altynka/core';
+import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Avatar, Icon } from '../components/Icon';
@@ -6,10 +6,13 @@ import { api, ApiError } from '../lib/api';
 import { canManage, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { Screen, useToast } from '../components/ui';
+import { InlineRating, RatingHistory } from '../components/PlayerRating';
+import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
 
 export function Profile() {
   const me = useMe();
+  const sportingProfile = useResource<PlayerProfileDto>(me.rating ? `/api/players/${me.userId}` : null);
   const telegramName = me.telegram ? [me.telegram.firstName, me.telegram.lastName].filter(Boolean).join(' ') : me.displayName;
   const reloadMe = useReloadMe();
   const updateMe = useUpdateMe();
@@ -58,11 +61,14 @@ export function Profile() {
           <span className="profile-role">{me.role === 'admin' ? 'Администратор' : me.role === 'organizer' ? 'Организатор' : 'Игрок'} · FC Altynka</span>
         </div>
         </div>
+        {me.rating && <InlineRating rating={me.rating} />}
           <dl className="profile-card-football">
             <div><dt>Позиция на поле</dt><dd>{me.playingPosition ? playingPositionLabel[me.playingPosition] : 'Не указана'}</dd></div>
             <div><dt>Рабочая нога</dt><dd>{me.dominantFoot ? dominantFootLabel[me.dominantFoot] : 'Не указана'}</dd></div>
           </dl>
       </section>
+      {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
+      {sportingProfile.data && <RatingHistory history={sportingProfile.data.history} />}
       {!completed && <><h2 className="section">В команде</h2>
       <form className="card material-blue form profile-form" onSubmit={save} aria-busy={busy}>
         <fieldset className="form-fields" disabled={busy}>
@@ -89,7 +95,8 @@ export function Profile() {
         <Link className="card task-preview material-graphite" href="/profile/settings/football"><span className="task-icon"><Icon name="ball" /></span><span className="task-copy"><b>Изменить футбольные данные</b><small>Позиция на поле и рабочая нога</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
-      {canManage(me) && <><h2 className="section" id="profile-management">Управление</h2><nav className="profile-management" aria-labelledby="profile-management"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки команды</b><small>Состав, роли и уровень</small></span><Icon name="back" className="chevron-right" /></Link></nav></>}
+      <h2 className="section" id="profile-team">{canManage(me) ? 'Управление' : 'Команда'}</h2>
+      <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки команды</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
     </Screen>
   );
 }

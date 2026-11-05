@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
+    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/players' ? [{ userId: 1, displayName: me.displayName, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } }] : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
   });
 });
 
@@ -42,7 +42,7 @@ for (const width of [280, 320, 390, 430]) {
         await page.getByRole('spinbutton', { name: 'Сумма расхода 1' }).fill('10000000');
       }
       if (path.includes('tab=teams')) await page.getByRole('button', { name: 'Поделить', exact: true }).click();
-      if (path === '/players') await page.getByRole('button', { name: /Организатор/ }).click();
+      if (path === '/players') await page.getByRole('button', { name: 'Управление: Организатор', exact: true }).click();
       const issues = await scope.evaluate(root => [...root.querySelectorAll<HTMLElement>('input, select, textarea')].flatMap(el => {
         const box = el.getBoundingClientRect();
         const parent = el.parentElement!;

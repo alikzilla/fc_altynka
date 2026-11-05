@@ -84,11 +84,12 @@ test('notifications return only current user remaining open debt and disappear a
   expect(body.tasks).toEqual([
     { kind: 'payment', id: expect.any(String), eventId: partial.id, date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг' },
     { kind: 'payment', id: expect.any(String), eventId: unpaid.id, date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг' },
+    { kind: 'skills', id: 'skills' },
   ]);
-  expect(new Set(body.tasks.map(t => t.id)).size).toBe(2);
+  expect(new Set(body.tasks.map(t => t.id)).size).toBe(3);
   expect(await (await get()).json()).toEqual(body);
   await db().update(billLines).set({ paidAmount: 3000 }).where(eq(billLines.id, line.id));
-  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0]] });
+  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0], { kind: 'skills', id: 'skills' }] });
 });
 
 test('only organizers and admins receive collecting scheduling duties in their group', async () => {
@@ -102,8 +103,8 @@ test('only organizers and admins receive collecting scheduling duties in their g
   await event('collecting', '2026-11-06', other.id);
   const playerResponse = await apiRequest('/api/notifications', { as: w.player });
   expect(playerResponse.status).toBe(200);
-  expect(await playerResponse.json()).toEqual({ tasks: [] });
-  const expected = { tasks: [first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак' })) };
+  expect(await playerResponse.json()).toEqual({ tasks: [{ kind: 'skills', id: 'skills' }] });
+  const expected = { tasks: [{ kind: 'skills', id: 'skills' }, ...[first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак' }))] };
   for (const as of [w.org, w.admin]) {
     const response = await apiRequest('/api/notifications', { as });
     expect(response.status).toBe(200);

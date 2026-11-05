@@ -8,6 +8,7 @@ import '@fontsource-variable/onest';
 import './styles/app.css';
 import './styles/themes.css';
 import './styles/match.css';
+import './styles/ratings.css';
 
 initializeTheme();
 createRoot(document.getElementById('root')!).render(

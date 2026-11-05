@@ -96,7 +96,7 @@ export async function createEvent(
   const [community] = await d.db.select().from(communities).where(eq(communities.id, v.communityId));
   const [row] = await d.db
     .insert(events)
-    .values({ communityId: v.communityId, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
+    .values({ communityId: v.communityId, ratingEnabled: true, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
     .returning({ id: events.id });
   await syncEvent(d, row.id, []);
   return row.id;
@@ -236,7 +236,8 @@ export async function cancelEvent(d: Deps, eventId: number): Promise<'ok' | 'not
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
-  await d.db.update(events).set({ status: 'cancelled' }).where(eq(events.id, eventId));
+  const changed = await d.db.update(events).set({ status: 'cancelled' }).where(and(eq(events.id, eventId), sql`not exists (select 1 from match_reviews where event_id = ${eventId})`)).returning({ id: events.id });
+  if (!changed.length) return 'closed';
   await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
   return 'ok';
 }

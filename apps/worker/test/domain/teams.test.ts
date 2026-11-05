@@ -28,7 +28,7 @@ test('saveTeams rejects missing or duplicated players', async () => {
   expect(await saveTeams(d, ev, { teamCount: 2, teams: [ids.slice(0, 5), [...ids.slice(5, 9), ids[0]]], guestLevels: {} })).toBe('invalid');
   expect(await saveTeams(d, ev, { teamCount: 3, teams: split(ids), guestLevels: {} })).toBe('invalid');
   expect(await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} })).toBe('ok');
-  expect(await teamsDto(d.db, ev, ids)).toEqual({ teamCount: 2, teams: split(ids), publishedAt: null, stale: false });
+  expect(await teamsDto(d.db, ev, ids)).toEqual({ teamCount: 2, teams: split(ids), publishedAt: null, stale: false, ratingSnapshot: Object.fromEntries(ids.map(id => [id, 5])) });
 });
 
 test('guest level is stored for this event only; levels outside 1..10 are invalid', async () => {

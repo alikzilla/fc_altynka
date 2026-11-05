@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
+import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
 export const communities = sqliteTable('communities', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -38,6 +38,8 @@ export const memberships = sqliteTable(
 );
 
 export const events = sqliteTable('events', {
+  ratingEnabled: integer('rating_enabled', { mode: 'boolean' }).notNull().default(false),
+  ratingSnapshot: text('rating_snapshot'),
   id: integer('id').primaryKey({ autoIncrement: true }),
   communityId: integer('community_id').notNull().references(() => communities.id),
   telegramChatId: integer('telegram_chat_id'),
@@ -122,3 +124,54 @@ export type EventRow = typeof events.$inferSelect;
 export type SignupRow = typeof signups.$inferSelect;
 export type BillRow = typeof bills.$inferSelect;
 export type BillLineRow = typeof billLines.$inferSelect;
+
+export const skillAssessments = sqliteTable('skill_assessments', {
+  communityId: integer('community_id').notNull().references(() => communities.id),
+  userId: integer('user_id').notNull().references(() => users.id),
+  version: integer('version').notNull().default(1),
+  teamwork: integer('teamwork').notNull(), dribbling: integer('dribbling').notNull(),
+  technique: integer('technique').notNull(), shooting: integer('shooting').notNull(),
+  stamina: integer('stamina').notNull(), physical: integer('physical').notNull(),
+  passing: integer('passing').notNull(), defending: integer('defending').notNull(),
+  createdAt: integer('created_at').notNull(),
+}, t => [primaryKey({ columns: [t.communityId, t.userId] }), ...[
+  t.teamwork, t.dribbling, t.technique, t.shooting, t.stamina, t.physical, t.passing, t.defending,
+].map(column => check(`skill_${column.name}_range`, sql`typeof(${column}) = 'integer' and ${column} between 1 and 10`))]);
+
+export const matchReviews = sqliteTable('match_reviews', {
+  eventId: integer('event_id').primaryKey().references(() => events.id),
+  completedAt: integer('completed_at').notNull(),
+  completedBy: integer('completed_by').notNull().references(() => users.id),
+  closesAt: integer('closes_at').notNull(),
+  rosterJson: text('roster_json').notNull(),
+}, t => [check('review_deadline', sql`${t.closesAt} > ${t.completedAt}`),
+  check('review_roster_json', sql`json_valid(${t.rosterJson}) and json_array_length(${t.rosterJson}) > 0`), index('match_reviews_deadline').on(t.closesAt)]);
+export const matchParticipants = sqliteTable('match_participants', {
+  eventId: integer('event_id').notNull().references(() => matchReviews.eventId),
+  signupId: integer('signup_id').notNull().references(() => signups.id),
+  userId: integer('user_id').references(() => users.id),
+  name: text('name').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.signupId] }), uniqueIndex('match_participants_user').on(t.eventId, t.userId)]);
+export const reviewSubmissions = sqliteTable('review_submissions', {
+  eventId: integer('event_id').notNull().references(() => matchReviews.eventId),
+  userId: integer('user_id').notNull().references(() => users.id),
+  payloadJson: text('payload_json').notNull(),
+  skipped: integer('skipped', { mode: 'boolean' }).notNull(),
+  gameScore: integer('game_score'),
+  createdAt: integer('created_at').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.userId] }),
+  foreignKey({ columns: [t.eventId, t.userId], foreignColumns: [matchParticipants.eventId, matchParticipants.userId] }),
+  check('submission_payload_json', sql`json_valid(${t.payloadJson})`),
+  check('submission_game_score', sql`${t.gameScore} is null or (typeof(${t.gameScore}) = 'integer' and ${t.gameScore} between 1 and 10)`),
+  check('submission_skipped', sql`${t.skipped} in (0, 1)`),
+  check('submission_answers', sql`(${t.skipped} = 1 and ${t.gameScore} is null and json_array_length(${t.payloadJson}, '$.scores') = 0) or (${t.skipped} = 0 and (${t.gameScore} is not null or json_array_length(${t.payloadJson}, '$.scores') > 0))`)]);
+export const playerVotes = sqliteTable('player_votes', {
+  eventId: integer('event_id').notNull().references(() => matchReviews.eventId),
+  authorId: integer('author_id').notNull().references(() => users.id),
+  recipientId: integer('recipient_id').notNull().references(() => users.id),
+  score: integer('score').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.authorId, t.recipientId] }),
+  foreignKey({ columns: [t.eventId, t.authorId], foreignColumns: [reviewSubmissions.eventId, reviewSubmissions.userId] }),
+  foreignKey({ columns: [t.eventId, t.recipientId], foreignColumns: [matchParticipants.eventId, matchParticipants.userId] }),
+  check('player_vote_score', sql`typeof(${t.score}) = 'integer' and ${t.score} between 1 and 10`),
+  check('player_vote_other', sql`${t.authorId} <> ${t.recipientId}`), index('player_votes_recipient').on(t.recipientId, t.eventId)]);

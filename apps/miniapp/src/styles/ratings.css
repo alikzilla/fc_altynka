@@ -1,0 +1,110 @@
+.rating-summary { gap: 8px; }
+.rating-summary-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.rating-summary h2, .skill-breakdown h2, .rating-history h2, .match-rating-entry h2 { font-size: 18px; line-height: 1.3; font-weight: 550; letter-spacing: -.025em; }
+.rating-number { display: block; font-size: 64px; line-height: 1.08; font-weight: 500; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.rating-small { font-size: 20px; font-weight: 550; letter-spacing: -.025em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.skill-meters { display: grid; gap: 16px; margin: 4px 0 0; }
+.skill-meters > div { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 0 12px; font-size: 14px; }
+.skill-meters dd { margin: 0; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.skill-meter-track { grid-column: 1 / -1; }
+.skill-meters meter { display: block; width: 100%; height: 6px; margin-top: 7px; border: 0; border-radius: 8px; background: var(--line); }
+.skill-meters meter::-webkit-meter-bar { background: var(--line); border: 0; border-radius: 8px; }
+.skill-meters meter::-webkit-meter-optimum-value { background: var(--accent); border-radius: 8px; }
+.skill-meters meter::-moz-meter-bar { background: var(--accent); border-radius: 8px; }
+.rating-history { display: flex; flex-direction: column; gap: 14px; }
+.rating-history-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 60px; }
+.rating-history-row small { display: block; margin-top: 3px; }
+.rating-insufficient { max-width: 120px; text-align: right; line-height: 1.4; }
+.skills-progress { display: flex; align-items: center; gap: 16px; }
+.skills-progress span { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.skills-progress progress { flex: 1; min-width: 0; height: 5px; appearance: none; border: 0; border-radius: 8px; background: var(--line); }
+.skills-progress progress::-webkit-progress-bar { background: var(--line); border-radius: 8px; }
+.skills-progress progress::-webkit-progress-value { background: var(--accent); border-radius: 8px; }
+.skills-progress progress::-moz-progress-bar { background: var(--accent); border-radius: 8px; }
+.skill-question { gap: 20px; padding-block: 24px; }
+.skill-question h2 { font-size: 26px; line-height: 1.15; letter-spacing: -.03em; font-weight: 550; }
+.skill-question h2:focus, .rating-summary h2:focus { outline: none; }
+.skills-prompt-actions { display: flex; flex-direction: column; gap: 8px; }
+.player-profile-content { display: flex; flex-direction: column; gap: 20px; }
+.player-profile-identity { display: flex; align-items: center; gap: 16px; }
+.player-profile-identity > div { min-width: 0; }
+.player-profile-identity h3 { font-size: 23px; font-weight: 550; line-height: 1.2; overflow-wrap: anywhere; }
+.player-profile-identity p { margin-top: 6px; }
+.player-directory-row { display: flex; align-items: center; gap: 12px; min-height: 80px; width: 100%; text-align: left; }
+.player-directory-row > svg { width: 14px; height: 14px; color: var(--hint); }
+.player-directory-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.player-directory-name b { font-size: 15px; font-weight: 550; }
+.player-directory-name small { display: block; margin-top: 4px; }
+.player-directory > li { display: block; }
+.player-management-toggle { padding-left: 0; }
+.player-profile-link { text-align: left; font-weight: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+.finish-roster { gap: 2px; }
+.finish-person { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; }
+.finish-person input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--accent); }
+.finish-person span { min-width: 0; overflow-wrap: anywhere; }
+.finish-person small { display: inline; }
+.profile-inline-rating { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 8px; }
+.profile-inline-rating > div > span { font-size: 14px; }
+.profile-inline-rating small { display: block; margin-top: 3px; color: #ded0e0; font-size: 12px; }
+.profile-inline-rating > strong { white-space: nowrap; font-size: 38px; font-weight: 500; line-height: 1.1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.profile-inline-rating > strong > .rating-denominator { font-size: 12px; font-weight: 400; letter-spacing: 0; color: #ded0e0; }
+.player-profile-identity { flex-direction: column; align-items: stretch; }
+.player-profile-person { display: flex; align-items: center; gap: 16px; }
+.player-profile-person > div { min-width: 0; }
+.skills-screen:has(.match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
+.skill-question { gap: 14px; }
+.rating-slider { min-width: 0; width: 100%; }
+.score-display { position: relative; display: flex; align-items: baseline; justify-content: center; gap: 7px; margin-top: 8px; }
+.score-reel { position: relative; display: block; width: 128px; height: 112px; overflow: hidden; perspective: 400px; font-size: 88px; font-weight: 450; line-height: 112px; letter-spacing: -.06em; font-variant-numeric: tabular-nums; }
+.score-reel-digits { position: absolute; inset: 0; }
+.score-reel-digits > span { position: absolute; inset: 0; display: block; text-align: center; backface-visibility: hidden; transform-origin: center; }
+.score-reel[data-empty] .score-reel-digits { visibility: hidden; }
+.score-reel-empty { position: absolute; inset: 0; text-align: center; color: #c8cce4; }
+.score-reel:not([data-empty]) .score-reel-empty { display: none; }
+.score-out-of { position: absolute; left: calc(50% + 66px); bottom: 22px; color: #c8cce4; font-size: 13px; white-space: nowrap; }
+.score-description { min-height: 24px; margin-top: 3px; text-align: center; color: #ded5f4; font-size: 15px; font-weight: 500; }
+.rating-slider-control { position: relative; height: 52px; margin-top: 18px; }
+.rating-slider-track { position: absolute; left: 16px; right: 16px; top: 23px; height: 6px; border-radius: 10px; overflow: hidden; background: #434a6b; }
+.rating-slider-track > span { display: block; height: 100%; border-radius: inherit; background: #ded5f4; transform: scaleX(var(--score-fill)); transform-origin: left; }
+.rating-slider[data-unset] .rating-slider-track > span { opacity: .35; }
+.rating-slider input[type='range'] { position: relative; z-index: 1; display: block; width: 100%; height: 52px; min-height: 52px; margin: 0; padding: 0; border: 0; border-radius: 0; background: transparent; appearance: none; -webkit-appearance: none; cursor: ew-resize; touch-action: pan-y; accent-color: #ded5f4; }
+.rating-slider input[type='range']::-webkit-slider-runnable-track { height: 6px; border: 0; background: transparent; }
+.rating-slider input[type='range']::-webkit-slider-thumb { appearance: none; -webkit-appearance: none; width: 32px; height: 32px; margin-top: -13px; border: 5px solid #ded5f4; border-radius: 50%; background: #f5f1fb; box-shadow: 0 2px 7px #0004; }
+.rating-slider input[type='range']::-moz-range-track { height: 6px; background: transparent; border: 0; }
+.rating-slider input[type='range']::-moz-range-thumb { box-sizing: border-box; width: 32px; height: 32px; border: 5px solid #ded5f4; border-radius: 50%; background: #f5f1fb; box-shadow: 0 2px 7px #0004; }
+.rating-slider input[type='range']:focus-visible { outline: 3px solid #ded5f4; outline-offset: 4px; border-radius: 16px; }
+.rating-slider input[type='range']:disabled { cursor: default; }
+.rating-slider-ends { margin-top: 8px; display: flex; justify-content: space-between; padding-inline: 10px; color: #c8cce4; font-size: 12px; font-variant-numeric: tabular-nums; }
+.slider-scale { display: grid; gap: 6px; margin-top: 22px; }
+.slider-scale > p { display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 12px; color: #c8cce4; font-size: 12px; line-height: 1.5; }
+.slider-scale > p[data-active] { color: #fff; }
+.slider-scale > p > span { font-variant-numeric: tabular-nums; }
+.review-entry-card h2 { font-size: 18px; font-weight: 550; letter-spacing: -.025em; }
+.review-entry-players { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.review-entry-players > .avatar + .avatar { margin-left: -10px; }
+.review-entry-players > span:last-child { margin-left: 6px; }
+.review-rater-footer { display: flex; flex-direction: column; gap: 8px; }
+.review-step-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.review-step-actions > button { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-size: 13px; padding-inline: 0; }
+.review-step-actions svg { width: 14px; height: 14px; }
+.review-progress { margin-bottom: 16px; }
+.review-step-window { overflow: hidden; margin-inline: -4px; padding-inline: 4px; }
+.review-step { min-height: 466px; gap: 12px; opacity: 1; transform: translateX(0); animation: review-step-in 240ms cubic-bezier(.22, 1, .36, 1) both; transition: transform 180ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease-out; }
+.review-step.is-leaving { animation: none; transform: translateX(calc(var(--step-direction) * 36px)); opacity: 0; }
+.review-person { display: flex; align-items: center; gap: 12px; min-height: 62px; }
+.review-person > div { min-width: 0; }
+.review-person h3 { font-size: 23px; line-height: 1.2; font-weight: 550; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.review-person h3:focus { outline: none; }
+.review-person .muted { margin-top: 5px; font-size: 12px; }
+.review-rater-note { margin-top: 14px; }
+@keyframes review-step-in { from { transform: translateX(calc(var(--step-direction) * -36px)); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .review-step, .review-step.is-leaving { animation: none; transition: none; transform: none; }
+}
+@media (max-width: 359px) {
+  .rating-number { font-size: 56px; }
+  .player-directory-row { gap: 9px; }
+}
+@media (prefers-contrast: more) {
+  .skill-meters meter, .skills-progress progress { outline: 1px solid var(--hint); }
+}

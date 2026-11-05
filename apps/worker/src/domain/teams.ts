@@ -2,6 +2,7 @@ import type { TeamCount, TeamsDto } from '@altynka/core';
 import { asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, teamAssignments } from '../db/schema';
+import { playerRatings } from './ratings';
 import { getEvent, isClosed, loadQueue, type Deps } from './events';
 
 const rosterKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(',');
@@ -9,8 +10,8 @@ const rosterKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(',');
 export async function saveTeams(
   d: Deps,
   eventId: number,
-  v: { teamCount: TeamCount; teams: number[][]; guestLevels: Record<number, number> },
-): Promise<'ok' | 'invalid' | 'not_found' | 'closed'> {
+  v: { teamCount: TeamCount; teams: number[][]; guestLevels: Record<number, number>; refreshRatings?: boolean; ratingSnapshot?: Record<number, number> },
+): Promise<'ok' | 'invalid' | 'not_found' | 'closed' | 'stale'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
@@ -27,11 +28,19 @@ export async function saveTeams(
       return s !== undefined && s.userId === null && Number.isInteger(lvl) && lvl >= 1 && lvl <= 10;
     });
   if (!valid) return 'invalid';
+  const ratings = await playerRatings(d.db, ev.communityId, d.now);
+  const savedSnapshot: Record<number, number> | null = v.refreshRatings === false && ev.teamsRoster === rosterKey(flat) && ev.ratingSnapshot
+    ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : null;
+  const ratingSnapshot = Object.fromEntries([...main.values()].map(s => [s.id, s.userId === null
+    ? (v.guestLevels[s.id] ?? s.guestLevel ?? 5)
+    : (savedSnapshot?.[s.id] ?? ratings.get(s.userId)?.rating.value ?? 5)]));
+  // Never silently publish a balance different from the numbers reviewed by the organizer.
+  if (v.ratingSnapshot && (Object.keys(v.ratingSnapshot).length !== main.size || flat.some(id => v.ratingSnapshot![id] !== ratingSnapshot[id]))) return 'stale';
   const rows = v.teams.flatMap((ids, teamIndex) => ids.map(signupId => ({ signupId, eventId, teamIndex })));
   await d.db.batch([
     d.db.delete(teamAssignments).where(eq(teamAssignments.eventId, eventId)),
     ...(rows.length ? [d.db.insert(teamAssignments).values(rows)] : []),
-    d.db.update(events).set({ teamCount: v.teamCount, teamsRoster: rosterKey(flat) }).where(eq(events.id, eventId)),
+    d.db.update(events).set({ teamCount: v.teamCount, teamsRoster: rosterKey(flat), ratingSnapshot: JSON.stringify(ratingSnapshot) }).where(eq(events.id, eventId)),
     ...Object.entries(v.guestLevels).map(([id, lvl]) =>
       d.db.update(signups).set({ guestLevel: lvl }).where(eq(signups.id, Number(id))),
     ),
@@ -65,5 +74,5 @@ export async function teamsDto(db: Db, eventId: number, mainIds: number[]): Prom
   const teams: number[][] = Array.from({ length: ev.teamCount }, () => []);
   rows.forEach(r => teams[r.teamIndex]?.push(r.signupId));
   const stale = rosterKey(mainIds) !== ev.teamsRoster;
-  return { teamCount: ev.teamCount, teams, publishedAt: ev.teamsPublishedAt, stale };
+  return { ratingSnapshot: ev.ratingSnapshot ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : undefined, teamCount: ev.teamCount, teams, publishedAt: ev.teamsPublishedAt, stale };
 }

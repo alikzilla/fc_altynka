@@ -23,14 +23,15 @@ test('only organizers list members', async () => {
   expect(list.find(m => m.displayName === 'Админ')!.role).toBe('admin');
 });
 
-test('only admin edits levels and roles', async () => {
+test('only admin edits roles and calculated levels cannot be overridden', async () => {
   const patch = (as: typeof w.org, body: unknown) =>
     apiRequest(`/api/members/${w.playerUserId}`, { method: 'PATCH', as, body });
   expect((await patch(w.org, { level: 8 })).status).toBe(403);
   expect((await patch(w.admin, { level: 11 })).status).toBe(400);
-  const r = await patch(w.admin, { level: 8, role: 'organizer' });
+  expect((await patch(w.admin, { level: 8 })).status).toBe(400);
+  const r = await patch(w.admin, { role: 'organizer' });
   expect(r.status).toBe(200);
-  expect(await r.json()).toMatchObject({ level: 8, role: 'organizer' });
+  expect(await r.json()).toMatchObject({ level: 5, role: 'organizer' });
 });
 
 test('a display name taken by someone else is refused', async () => {
