@@ -65,11 +65,16 @@ test('amount changes notify again, mark paid/close edit the last message and rem
 });
 
 test('manual closing with unpaid people does not tell them their payment was received', async () => {
-  const w = await world(); await billSync(w); await closeBill(w.d, w.billId); await billSync(w);
-  const last = tg.edited.filter(m => m.chatId === 501).at(-1)!;
-  expect(last.html).toContain('Счёт закрыт организатором');
-  expect(last.html).not.toContain('Оплата отмечена');
-  expect(last.keyboard?.inline_keyboard.flat().some(b => 'callback_data' in b)).toBe(false);
+  const w = await world(); await billSync(w);
+  // The runtime may already be running the alarm when the manual alarm helper returns.
+  await vi.waitFor(() => expect(tg.sent.filter(m => m.chatId === 501)).toHaveLength(1));
+  await closeBill(w.d, w.billId); await billSync(w);
+  await vi.waitFor(() => {
+    const last = tg.edited.filter(m => m.chatId === 501).at(-1);
+    expect(last?.html).toContain('Счёт закрыт организатором');
+    expect(last?.html).not.toContain('Оплата отмечена');
+    expect(last?.keyboard?.inline_keyboard.flat().some(b => 'callback_data' in b)).toBe(false);
+  });
 });
 
 test('blocked private destination stops retries and is marked unavailable', async () => {
