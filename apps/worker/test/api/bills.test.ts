@@ -1,8 +1,9 @@
 import type { BillDto, EventDetailDto } from '@altynka/core';
-import { apiRequest } from '../helpers';
+import { apiRequest as rawRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
+const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now });
 beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 
@@ -11,6 +12,8 @@ test('PUT bill validates amounts, creates bill visible in detail; player pays vi
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
+  w.clock.now = Date.parse('2026-11-07T16:00:00Z');
+  w.tg.members.add(w.org.id); w.tg.members.add(w.player.id);
   const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
   const body = { receiverUserId: w.orgUserId, receiverKaspiPhone: '87071234567', fieldAmount: 4000, extras: [], participantSignupIds: d.main.map(s => s.id) };
   const put = (b: unknown, as = w.org) => apiRequest(`/api/events/${id}/bill`, { method: 'PUT', as, body: b });
@@ -33,6 +36,8 @@ test('receiver of an open bill cannot clear their Kaspi phone', async () => {
   const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
+  w.clock.now = Date.parse('2026-11-07T16:00:00Z');
+  w.tg.members.add(w.org.id); w.tg.members.add(w.player.id);
   const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
   await apiRequest(`/api/events/${id}/bill`, {
     method: 'PUT', as: w.org,
@@ -49,6 +54,8 @@ test('bill remembers who it was split between', async () => {
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
+  w.clock.now = Date.parse('2026-11-07T16:00:00Z');
+  w.tg.members.add(w.org.id); w.tg.members.add(w.player.id);
   const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
   const orgSignup = d.main.find(s => s.userId === w.orgUserId)!.id;
   const r = await apiRequest(`/api/events/${id}/bill`, {

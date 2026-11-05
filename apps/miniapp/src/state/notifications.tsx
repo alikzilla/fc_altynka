@@ -10,26 +10,13 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const resource = useResource<NotificationsDto>('/api/notifications');
   const [path] = useLocation();
   const previousPath = useRef(path);
-  const { reload } = resource;
   useEffect(() => {
     if (previousPath.current !== path) {
       const wasSheet = previousPath.current === '/new';
       previousPath.current = path;
-      reload();
       if (path !== '/new' && !wasSheet) window.scrollTo(0, 0);
     }
-  }, [path, reload]);
-  useEffect(() => {
-    const visible = () => { if (document.visibilityState === 'visible') reload(); };
-    window.addEventListener('altynka:mutation', reload);
-    window.addEventListener('focus', reload);
-    document.addEventListener('visibilitychange', visible);
-    return () => {
-      window.removeEventListener('altynka:mutation', reload);
-      window.removeEventListener('focus', reload);
-      document.removeEventListener('visibilitychange', visible);
-    };
-  }, [reload]);
+  }, [path]);
   return <NotificationsContext.Provider value={resource}>{children}</NotificationsContext.Provider>;
 }
 

@@ -1,10 +1,11 @@
 import type { EventDetailDto } from '@altynka/core';
 import { eq } from 'drizzle-orm';
 import { bills, communities, events, signups, users } from '../../src/db/schema';
-import { apiRequest, db } from '../helpers';
+import { apiRequest as rawRequest, db } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
+const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now });
 beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 const create = (body: unknown) => apiRequest('/api/events', { method: 'POST', as: w.org, body });
@@ -24,6 +25,14 @@ test('a bill requires appointment; rejected requests leave signup, phone and bil
   expect((await db().select().from(users).where(eq(users.id, w.orgUserId)))[0].kaspiPhone).toBeNull();
   expect((await db().select().from(events).where(eq(events.id, id)))[0].status).toBe('collecting');
   expect((await post(`/api/events/${id}/schedule`, { startTime: '21:00', durationHours: 1 })).status).toBe(200);
+  const early = await put();
+  expect(early.status).toBe(409);
+  expect(await early.json()).toEqual({ error: 'not_started' });
+  w.clock.now = Date.parse('2026-11-07T16:00:00Z');
+  w.tg.members.add(w.org.id); w.tg.members.add(w.player.id);
+  expect((await post(`/api/events/${id}/join`)).status).toBe(409);
+  expect((await post(`/api/events/${id}/leave`)).status).toBe(409);
+  expect((await post(`/api/events/${id}/guests`, { name: 'Друг' })).status).toBe(409);
   expect((await put()).status).toBe(200);
   expect((await post(`/api/events/${id}/schedule`, { startTime: '22:00', durationHours: 2 })).status).toBe(409);
   expect((await post(`/api/events/${id}/cancel`)).status).toBe(409);

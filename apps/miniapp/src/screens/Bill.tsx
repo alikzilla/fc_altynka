@@ -1,5 +1,5 @@
-import { computeBill, formatKzPhone, formatTenge, type BillDto, type EventDetailDto, type Extra, type SignupDto } from '@altynka/core';
-import { useMemo, useState } from 'react';
+import { computeBill, formatDateRu, formatKzPhone, formatTenge, type BillDto, type EventDetailDto, type Extra, type SignupDto } from '@altynka/core';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { transfer } from '../lib/kaspi';
@@ -7,15 +7,21 @@ import { canManage, useMe } from '../state/me';
 import { copy, haptic } from '../lib/tg';
 import { ConfirmButton, EmptyState, useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
+import { MatchAction } from '../components/MatchAction';
+import { ActionSheet } from '../components/ActionSheet';
 import { ReminderDelivery } from './ReminderDelivery';
 
-type Props = { ev: EventDetailDto; reload: () => void };
+type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
 const responsible = (s: SignupDto) => s.userId ?? s.invitedByUserId;
 
-function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; onDone?: () => void }) {
+function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; onDone: () => void }) {
   const me = useMe();
   const toast = useToast();
+  const formId = useId();
+  const locked = useRef(false);
+  const live = useRef(true);
+  useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
   const people = useMemo(() => {
     const m = new Map<number, string>([[me.userId, me.displayName]]);
     ev.main.forEach(s => s.userId !== null && m.set(s.userId, s.name));
@@ -54,7 +60,8 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy || !amountsValid || !selectedIds.length) return;
+    if (locked.current || !amountsValid || !selectedIds.length) return;
+    locked.current = true;
     setPhoneError(null);
     setFormError(null);
     setBusy(true);
@@ -66,17 +73,20 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
         extras: extrasClean,
         participantSignupIds: selectedIds,
       });
+      if (!live.current) return;
       haptic('success');
       toast('Счёт отправлен в группу');
-      onDone?.();
+      onDone();
       reload();
     } catch (err) {
+      if (!live.current) return;
       haptic('error');
       if (err instanceof ApiError && err.code === 'bad_phone') setPhoneError('Проверь номер');
       else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError('Нужен номер Kaspi получателя');
-      else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность игры' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
+      else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность игры' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала игры' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
     }
-    setBusy(false);
+    locked.current = false;
+    if (live.current) setBusy(false);
   }
 
   const checkbox = (s: SignupDto) => (
@@ -92,7 +102,8 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   );
 
   return (
-    <form className="card form" onSubmit={submit}>
+    <ActionSheet title={initial ? 'Изменить счёт' : 'Выставить счёт'} onClose={onDone} busy={busy} footer={<button type="submit" form={formId} className="btn primary wide" disabled={busy || !selectedIds.length || !amountsValid}>{busy ? 'Отправляем счёт…' : initial ? 'Сохранить счёт' : 'Выставить счёт'}</button>}>
+    <form id={formId} className="form bill-form" onSubmit={submit}>
       <p className="muted">Проверь, кто играл и кто оплатил аренду. После отправки запись на матч закроется, а участники получат свои суммы.</p>
       <fieldset className="form-fields" disabled={busy}>
       <label>
@@ -153,11 +164,8 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       {!selectedIds.length && <p className="muted">Выбери хотя бы одного участника</p>}
       </fieldset>
       {formError && <p className="field-error" role="alert">{formError}</p>}
-      <button className="btn primary wide" disabled={busy || !selectedIds.length || !amountsValid}>
-        {busy ? 'Отправляем счёт…' : initial ? 'Сохранить счёт' : 'Выставить счёт'}
-      </button>
-      {initial && <button type="button" className="btn wide" disabled={busy} onClick={onDone}>Отмена</button>}
     </form>
+    </ActionSheet>
   );
 }
 
@@ -165,42 +173,29 @@ function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
   const me = useMe();
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const locked = useRef(false);
   const line = bill.lines.find(l => l.userId === me.userId);
   if (!line || bill.receiver.userId === me.userId) return null;
+  const closed = bill.status === 'closed';
+  const amount = line.state === 'underpaid' ? line.due : line.amount;
   async function paid() {
-    if (busy) return;
-    setBusy(true);
+    if (locked.current || closed || line?.state === 'paid') return;
+    locked.current = true; setBusy(true);
     try {
       await api.send('POST', `/api/bills/${bill.id}/paid`);
-      haptic('success');
-      toast('Ты отметил оплату');
-    } catch {
-      toast('Не получилось отметить');
-    } finally {
-      setBusy(false);
-    }
-    reload();
+      haptic('success'); toast('Ты отметил оплату');
+    } catch { toast('Не получилось отметить'); }
+    finally { locked.current = false; setBusy(false); reload(); }
   }
-  if (line.state === 'paid') return <div className="attendance-note"><Icon name="check" />Ты скинул {formatTenge(line.amount)}</div>;
-  return (
-    <div className="card material-coral pay">
-      <div className="amount">{line.state === 'underpaid' ? `Доплатить ${formatTenge(line.due)}` : `С тебя ${formatTenge(line.amount)}`}</div>
-      <div className="muted">
-        {bill.receiver.name} · Kaspi {formatKzPhone(bill.receiver.kaspiPhone)}
-      </div>
-      <div className="actions">
-        <button className="btn primary wide" onClick={() => transfer(bill.receiver.kaspiPhone)}>
-          Перевести
-        </button>
-        <button className="btn wide" onClick={() => copy(String(line.due)).then(ok => toast(ok ? 'Сумма скопирована' : 'Не получилось скопировать. Сумма указана выше.'))}>
-          Скопировать сумму
-        </button>
-      </div>
-      <button className="btn wide" onClick={paid} disabled={busy || bill.status === 'closed'}>
-        {busy ? 'Отмечаем…' : 'Я скинул'}
-      </button>
-    </div>
-  );
+  return <section className="card material-coral pay" aria-label="Твоя оплата">
+    <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
+    <button className="payment-amount" aria-label={`Скопировать сумму ${formatTenge(amount)}`} onClick={() => copy(String(amount)).then(ok => toast(ok ? 'Сумма скопирована' : 'Не получилось скопировать. Сумма указана выше.'))}>{formatTenge(amount)}<Icon name="copy" /></button>
+    <p className="payment-person">{bill.receiver.name}</p>
+    {!closed && line.state !== 'paid' && <>
+      <button className="btn primary wide" onClick={() => transfer(bill.receiver.kaspiPhone)}>Перевести в Kaspi<Icon name="arrow" /></button>
+      <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>
+    </>}
+  </section>;
 }
 
 function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; reload: () => void }) {
@@ -231,18 +226,19 @@ function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; r
   );
 }
 
-export function Bill({ ev, reload }: Props) {
+export function Bill({ ev, reload, actionBlocked }: Props) {
   const me = useMe();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const manage = canManage(me);
   const bill = ev.bill;
-  const canBill = manage && (ev.status === 'scheduled' && !!ev.startTime && !!ev.durationHours || ev.status === 'billing' && !!bill);
-  if (!bill && ev.status === 'collecting') return <div className="card material-blue"><h2 className="section">{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && <Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link>}</div>;
-  if (!bill || editing && canBill) {
+  const canBill = manage && (ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
+  if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction>}</div>;
+  if (!bill) {
+    if (ev.status === 'scheduled') return <EmptyState title="Счёт будет доступен после начала игры" text={`Начало — ${formatDateRu(ev.date)}${ev.startTime ? `, ${ev.startTime}` : ''}. До этого идёт набор игроков.`} />;
     if (!canBill) return <EmptyState title="Счёт ещё не выставлен" />;
     if (!bill && !ev.main.length && !ev.reserve.length) return <EmptyState title="Некому выставить счёт" text="Сначала добавь участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">Перейти к участникам</Link>} />;
-    return <BillForm ev={ev} reload={reload} initial={bill ?? undefined} onDone={() => setEditing(false)} />;
+    return <><EmptyState title="Счёт пока не выставлен" text="Укажи расходы и получателя. После отправки счёта запись закроется." action={actionBlocked ? <button className="btn" onClick={() => setEditing(true)}>Выставить счёт</button> : <MatchAction><button className="btn primary wide" onClick={() => setEditing(true)}>Выставить счёт</button></MatchAction>} />{editing && <BillForm key="bill-editor" ev={ev} reload={reload} onDone={() => setEditing(false)} />}</>;
   }
   const isReceiver = bill.receiver.userId === me.userId;
   const post = async (path: string, ok: string) => {
@@ -256,17 +252,16 @@ export function Bill({ ev, reload }: Props) {
   };
   return (
     <>
-      <div className="card">
-        <b>
-          С каждого по {formatTenge(bill.share)} → {bill.receiver.name}
-        </b>
-        <span className="muted">
-          Kaspi {formatKzPhone(bill.receiver.kaspiPhone)} · итого {formatTenge(bill.total)}
-          {bill.status === 'closed' ? ' · закрыт' : ''}
-        </span>
-      </div>
       <MyPayment bill={bill} reload={reload} />
-      <Lines bill={bill} editable={(manage || isReceiver) && bill.status === 'open'} reload={reload} />
+      <section className="card material-graphite bill-summary">
+        <h2>Общие расходы</h2>
+        <dl><div><dt>Аренда поля</dt><dd>{formatTenge(bill.fieldAmount)}</dd></div>{bill.extras.map((extra, i) => <div key={i}><dt>{extra.label}</dt><dd>{formatTenge(extra.amount)}</dd></div>)}<div className="bill-total"><dt>Итого</dt><dd>{formatTenge(bill.total)}</dd></div></dl>
+        <p className="muted">По {formatTenge(bill.share)} за игрока</p>
+        <p className="muted">Оплату отметили {bill.lines.filter(line => line.state === 'paid').length} из {bill.lines.length}</p>
+        {isReceiver && <p className="muted">Получатель — ты · Kaspi {formatKzPhone(bill.receiver.kaspiPhone)}</p>}
+        {bill.status === 'closed' && <p className="muted">Счёт закрыт</p>}
+      </section>
+      <section><div className="section-heading"><h2>Участники расчёта</h2></div><Lines bill={bill} editable={(manage || isReceiver) && bill.status === 'open'} reload={reload} /></section>
       {manage && bill.status === 'open' && (
         <>
           <ConfirmButton className="btn wide" label="Напомнить должникам" confirmLabel="Отправить личные напоминания?" onConfirm={() => post(`/api/bills/${bill.id}/remind`, 'Напоминания поставлены в очередь')} />
@@ -279,6 +274,7 @@ export function Bill({ ev, reload }: Props) {
           </div>
         </>
       )}
+      {editing && canBill && <BillForm key="bill-editor" ev={ev} reload={reload} initial={bill} onDone={() => setEditing(false)} />}
     </>
   );
 }

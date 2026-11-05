@@ -6,8 +6,9 @@ import { isOpen } from '../lib/labels';
 import { canManage, useMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { EmptyState, useToast } from '../components/ui';
+import { MatchAction } from '../components/MatchAction';
 
-type Props = { ev: EventDetailDto; reload: () => void };
+type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
 function TeamBlock(p: { index: number; ids: number[]; byId: Map<number, SignupDto>; children?: (s: SignupDto) => React.ReactNode; sum?: number; onHeader?: () => void }) {
   const t = TEAMS[p.index];
@@ -25,19 +26,23 @@ function TeamBlock(p: { index: number; ids: number[]; byId: Map<number, SignupDt
 }
 
 function PublishedTeams({ ev }: Props) {
+  const me = useMe();
   const byId = new Map(ev.main.map(s => [s.id, s]));
+  const ownSignup = ev.main.find(s => s.userId === me.userId);
+  const ownTeam = ownSignup ? ev.teams?.teams.findIndex(ids => ids.includes(ownSignup.id)) : -1;
   if (!ev.teams?.publishedAt) return <EmptyState title="Составы ещё не опубликованы" text="Организатор добавит команды перед игрой." />;
   return (
     <>
+      {ownTeam !== undefined && ownTeam >= 0 && <p className="team-own">Твоя команда — {TEAMS[ownTeam].name.toLocaleLowerCase('ru')}</p>}
       {ev.teams.stale && <p className="card warn-note">Участники изменились. Организатор обновит составы перед игрой.</p>}
       {ev.teams.teams.map((ids, i) => (
-        <TeamBlock key={i} index={i} ids={ids} byId={byId} />
+        <TeamBlock key={i} index={i} ids={ids} byId={byId}>{s => <span className={s.userId === me.userId ? 'team-self' : ''}>{s.name}{s.userId === me.userId && <span className="you">ты</span>}</span>}</TeamBlock>
       ))}
     </>
   );
 }
 
-function TeamEditor({ ev, reload }: Props) {
+function TeamEditor({ ev, reload, actionBlocked }: Props) {
   const toast = useToast();
   const byId = useMemo(() => new Map(ev.main.map(s => [s.id, s])), [ev.main]);
   const [count, setCount] = useState<TeamCount>(ev.teams?.teamCount ?? teamCountFor(ev.main.length));
@@ -114,9 +119,7 @@ function TeamEditor({ ev, reload }: Props) {
         ))}
       </div>
       <div className="actions">
-        <button className="btn primary wide" onClick={() => divide()}>
-          Поделить
-        </button>
+        {split.length > 0 || actionBlocked ? <button className="btn wide" onClick={() => divide()} disabled={busy}>Поделить</button> : <MatchAction><button className="btn primary wide" onClick={() => divide()} disabled={busy}>Поделить</button></MatchAction>}
         <button className="btn wide" disabled={!split.length} onClick={() => setSplit(alternativeSplit(rated, count, split))}>
           Ещё вариант
         </button>
@@ -145,9 +148,7 @@ function TeamEditor({ ev, reload }: Props) {
         </TeamBlock>
       ))}
       {split.length > 0 && (
-        <button className="btn primary wide" disabled={busy} onClick={publish}>
-          Сохранить и опубликовать
-        </button>
+        actionBlocked ? <button className="btn wide" disabled={busy} onClick={publish}>Опубликовать составы</button> : <MatchAction><button className="btn primary wide" disabled={busy} onClick={publish}>Опубликовать составы</button></MatchAction>
       )}
     </>
   );

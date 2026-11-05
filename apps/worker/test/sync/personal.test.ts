@@ -24,6 +24,7 @@ async function world(enabled = true) {
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Шанырак' });
   const ids = (await loadQueue(d.db, ev)).main.map(s => s.id);
   const input = { receiverUserId: org.id, fieldAmount: 4000, extras: [], participantSignupIds: ids };
+  d.now = Date.parse('2026-11-07T16:00:00Z');
   const r = await upsertBill(d, ev, input);
   if (r.kind !== 'ok') throw new Error(r.kind);
   const stub = env.EVENT_SYNC.get(env.EVENT_SYNC.idFromName(`event:${ev}`));

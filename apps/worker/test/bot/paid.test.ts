@@ -17,6 +17,7 @@ test('p: callback marks paid once', async () => {
   await joinEvent(d, ev, org.id);
   await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
+  d.now = Date.parse('2026-11-07T16:00:00Z');
   const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
   const r = (await upsertBill(d, ev, { receiverUserId: org.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
   const t = makeTestBot();

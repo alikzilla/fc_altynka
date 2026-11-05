@@ -1,4 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
+import { matchStartsAt } from '@altynka/core';
 import { getDb } from '../db/client';
 import { getCommunity } from '../domain/members';
 import type { Env } from '../env';
@@ -51,9 +52,10 @@ export class EventSync extends DurableObject<Env> {
       deliveryReport: { at: Date.now(), sent: 0, unavailable: 0, skipped: 0, failed: 0, status: 'queued' } satisfies DeliveryReport,
       reminderProgress: {},
     });
-    if ((await s.getAlarm()) === null) {
-      await s.setAlarm(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
-    }
+    const next = Math.max(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null), (await s.get<number>('retryNotBefore')) ?? 0);
+    const alarm = await s.getAlarm();
+    // A kickoff alarm may be days away; new edits still flush promptly. A 429 keeps priority.
+    if (alarm === null || next < alarm) await s.setAlarm(next);
   }
 
   async alarm(): Promise<void> {
@@ -69,6 +71,11 @@ export class EventSync extends DurableObject<Env> {
     }
     // Забираем накопленное сразу: request() во время отправки допишет новое, и оно не затрётся.
     const dirty = new Set((await s.get<Part[]>('dirty')) ?? []);
+    const kickoff = event.status === 'scheduled' ? matchStartsAt(event) : null;
+    if (kickoff !== null && kickoff <= Date.now() && (await s.get<number>('kickoffHandled')) !== kickoff) {
+      dirty.add('event');
+      await s.put('kickoffHandled', kickoff);
+    }
     const pending = (await s.get<Notice[]>('pending')) ?? [];
     await s.put({ dirty: [], pending: [] });
 
@@ -94,7 +101,10 @@ export class EventSync extends DurableObject<Env> {
     else await this.sendNotices(tg, community.tgChatId, eventId, pending, run);
 
     await this.putBack(run);
-    if (run.retryAt !== null) return void (await s.setAlarm(run.retryAt));
+    if (run.retryAt !== null) {
+      await s.put('retryNotBefore', run.retryAt);
+      return void (await s.setAlarm(run.retryAt));
+    }
     if (run.failure !== null) {
       await s.setAlarm(Date.now() + 5000);
       throw run.failure;
@@ -102,6 +112,12 @@ export class EventSync extends DurableObject<Env> {
     const more = ((await s.get<Part[]>('dirty')) ?? []).length > 0 || ((await s.get<Notice[]>('pending')) ?? []).length > 0;
     // Ставим будильник сами: тот, что request() поставил во время прогона, считал от старого lastSentAt.
     if (more) await s.setAlarm(nextAlarmAt(Date.now(), (await s.get<number>('lastSentAt')) ?? null));
+    else {
+      await s.delete('retryNotBefore');
+      const latest = await getEvent(getDb(this.env.DB), eventId);
+      const nextKickoff = latest?.status === 'scheduled' ? matchStartsAt(latest) : null;
+      if (nextKickoff !== null && nextKickoff > Date.now()) await s.setAlarm(nextKickoff);
+    }
   }
 
   /** Неотправленное — перед тем, что успело прийти за время прогона. */

@@ -7,16 +7,15 @@ import { canManage, useMe } from '../state/me';
 import { useNotifications } from '../state/notifications';
 import { TaskCard } from '../components/TaskCard';
 import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
-import { useResource, useResourceRefresh } from '../hooks/useResource';
+import { useResource } from '../hooks/useResource';
 
 export function Home() {
   const me = useMe();
   const { data, error, loading, reload } = useResource<EventsListDto>('/api/events');
-  useResourceRefresh(reload);
   const notifications = useNotifications();
   const carousel = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
-  const upcoming = data?.active.filter(e => e.status === 'collecting' || e.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
+  const upcoming = data?.active.filter(e => e.status === 'collecting' || e.status === 'scheduled' || e.status === 'playing').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
   const tasks = notifications.data?.tasks ?? [];
   const latest = data ? [...data.active.filter(e => e.status === 'billing'), ...data.past].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 1) : [];
   function go(direction: number) {

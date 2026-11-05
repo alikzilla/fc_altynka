@@ -53,7 +53,7 @@ test('publish sends PUT then POST', async () => {
   const reload = vi.fn();
   renderWithApp(<Teams ev={ev} reload={reload} />, { me: organizer });
   await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Сохранить и опубликовать' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
   const calls = (api.send as Mock).mock.calls;
   expect(calls[0][0]).toBe('PUT');
   expect(calls[0][1]).toBe('/api/events/5/teams');

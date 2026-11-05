@@ -2,7 +2,7 @@ import type { Extra, LineState } from './bill';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 
 export type Role = 'admin' | 'organizer' | 'player';
-export type EventStatus = 'collecting' | 'scheduled' | 'billing' | 'closed' | 'cancelled';
+export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
 
 export interface MeDto {
   userId: number;
@@ -35,6 +35,8 @@ export interface SignupDto {
 }
 
 export interface EventSummaryDto {
+  /** Server snapshot used to keep kickoff behavior independent of the phone's clock. */
+  serverNow?: number;
   id: number;
   date: string;
   status: EventStatus;

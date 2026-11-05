@@ -82,7 +82,7 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
         <p id="group-hint" className="muted">Сообщение о сборе появится в этой группе.</p>
         <label>Комментарий · необязательно<textarea maxLength={200} rows={3} placeholder="Например, берём светлые и тёмные футболки" value={comment} onChange={e => setComment(e.target.value)} /></label>
       </fieldset>
-      <p className="muted">После сбора участников назначь время и длительность игры. Затем можно будет выставить счёт.</p>
+      <p className="muted">Игроки могут записываться сразу. Назначь время и длительность игры. Счёт станет доступен после её начала.</p>
       {error && <p className="field-error" role="alert">{error}</p>}
       <button className="btn primary wide" disabled={busy || closing}>{busy ? 'Создаём матч…' : 'Создать матч'}<Icon name="plus" /></button>
     </form>

@@ -24,6 +24,7 @@ beforeEach(async () => {
   await addGuest(d, ev, timur.id, 'Ержан');
   await d.db.update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, us[0].id));
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Arena' });
+  d.now = Date.parse('2026-11-07T16:00:00Z');
   signupIds = (await loadQueue(d.db, ev)).main.map(s => s.id);
 });
 

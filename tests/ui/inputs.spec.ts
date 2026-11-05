@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : event });
+    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
   });
 });
 
@@ -18,7 +18,7 @@ for (const width of [280, 320, 390, 430]) {
     await page.setViewportSize({ width, height: 740 });
     for (const path of ['/new', '/event/1/schedule', '/profile/settings/name', '/profile/settings/payment', '/profile/settings/football', '/event/1/guest', '/event/1?tab=bill', '/event/1?tab=teams', '/players']) {
       await page.goto(path);
-      const scope = path === '/new' ? page.getByRole('dialog') : page.locator('main');
+      let scope = path === '/new' ? page.getByRole('dialog') : page.locator('main');
       await expect(scope).toBeVisible();
       await expect(page.locator('.loading')).toHaveCount(0);
       if (path === '/new') {
@@ -35,6 +35,8 @@ for (const width of [280, 320, 390, 430]) {
         await page.getByLabel('Рабочая нога').selectOption('both');
       }
       if (path.includes('tab=bill')) {
+        await page.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
+        scope = page.getByRole('dialog', { name: 'Выставить счёт' });
         await page.getByRole('button', { name: '+ Расход' }).click();
         await page.getByRole('textbox', { name: 'Расход 1', exact: true }).fill('Дополнительные расходы');
         await page.getByRole('spinbutton', { name: 'Сумма расхода 1' }).fill('10000000');

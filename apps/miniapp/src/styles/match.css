@@ -1,0 +1,83 @@
+/* Approved match composition; existing Airofit materials remain in app.css. */
+.match-screen { gap: 16px; }
+.match-screen .screen-heading { min-height: 50px; }
+.match-screen .subtitle { margin-top: 3px; text-transform: capitalize; }
+.match-screen:has(.match-action), .screen:has(form .match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
+.match-screen .event-summary { padding: 20px; border-radius: 32px; display: block; }
+.match-detail-time { font-size: 32px; font-weight: 550; letter-spacing: -.045em; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.match-detail-time.unknown { font-size: 25px; letter-spacing: -.025em; }
+.match-detail-place { display: flex; align-items: flex-start; gap: 8px; margin-top: 10px; font-size: 14px; line-height: 1.45; color: #e2d3e5; }
+.match-detail-place svg { width: 16px; height: 16px; margin-top: 2px; }
+.match-detail-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 5px 8px; margin-top: 12px; color: #e0cbe1; font-size: 13px; }
+.match-detail-meta i { width: 3px; height: 3px; background: #b594b7; border-radius: 50%; }
+.match-personal { margin-top: 16px; padding-top: 12px; border-top: 1px solid #ebc9ed2a; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 69px; }
+.match-personal-status { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 550; }
+.match-personal-status svg { width: 19px; height: 19px; color: #e4cbea; }
+.match-personal-detail { color: #e0cbe1; font-size: 13px; }
+.match-personal > .btn-text { color: #e6d1ee; padding-inline: 8px; flex-shrink: 0; }
+.match-menu-button, .player-menu-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--text); border-radius: 50%; }
+.player-menu-button { color: var(--hint); margin-right: -8px; }
+.match-list-heading { min-height: 28px; }
+.match-list-heading > a { margin-block: -8px; }
+.match-count { font-size: 15px; font-weight: 400; color: var(--hint); margin-left: 5px; }
+.match-comment { font-size: 13px; color: var(--hint); line-height: 1.5; margin-bottom: 12px; overflow-wrap: anywhere; }
+.match-guest { display: block; font-size: 12px; }
+.match-empty-row { padding-block: 16px; }
+.match-screen .person .name { font-size: 15px; }
+.match-action { position: fixed; z-index: 6; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(110px + var(--safe-bottom)); display: flex; justify-content: center; pointer-events: none; }
+.match-action > .btn { width: 100%; max-width: 400px; min-height: 54px; font-size: 16px; pointer-events: auto; box-shadow: var(--rim), 0 4px 18px #0005; }
+.sheet-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 54px; padding: 12px 0; background: none; border: 0; border-bottom: 1px solid var(--line); font-size: 15px; text-align: left; }
+.sheet-action:last-child { border-bottom: 0; }
+.action-sheet .sheet-heading { align-items: center; }
+.action-sheet .sheet-content > .muted { margin-bottom: 12px; }
+.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
+.action-sheet:has(.sheet-footer) .sheet-content { padding-bottom: 20px; }
+.bill-form { gap: 18px; }
+.action-sheet .sheet-heading h2 { font-size: 22px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.sheet-action[aria-disabled='true'] { opacity: .45; pointer-events: none; }
+.match-cancelled { background: #24212a; }
+.match-cancelled :is(.match-detail-time, .match-detail-place, .match-detail-meta) { color: #c5bacc; }
+.team-own { font-size: 14px; font-weight: 500; }
+.team-self { font-weight: 600; }
+.match-screen .team { padding: 18px; }
+.match-screen .team .list { padding: 0; }
+.pay { display: block; padding: 20px; }
+.payment-label { color: #f1d5cc; font-size: 14px; line-height: 21px; min-height: 21px; }
+.payment-amount { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; background: none; border: 0; padding: 0; margin-top: 4px; color: inherit; text-align: left; font-size: 36px; line-height: 1.2; font-weight: 550; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.payment-amount svg { width: 17px; height: 17px; color: #f1d5cc; }
+.payment-person { color: #f1d5cc; font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.pay > .btn { margin-top: 16px; }
+.payment-mark { display: block; width: 100%; margin-top: 6px; color: #ffe6de; }
+.bill-summary h2 { font-size: 17px; font-weight: 550; }
+.bill-summary dl { margin: 0; }
+.bill-summary dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; font-size: 14px; }
+.bill-summary dt { color: var(--hint); overflow-wrap: anywhere; }
+.bill-summary dd { margin: 0; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.bill-summary .bill-total { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; font-weight: 550; }
+.bill-total dt { color: var(--text); }
+/* Toasts belong at the safe top, clear of the contextual action and navigation. */
+.toast { top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; z-index: 30; width: auto; border: 0; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; }
+:root[data-theme='light'] .match-cancelled { background: #e9e3ef; }
+:root[data-theme='light'] .match-cancelled :is(.match-detail-time, .match-detail-place, .match-detail-meta) { color: #655c71; }
+:root[data-theme='light'] .match-action > .btn { box-shadow: inset 0 1px 1px #ffffff38, 0 4px 18px #44324f26; }
+@media (max-width: 359px) {
+  .match-screen { padding-top: calc(22px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); }
+  .match-screen .event-summary { padding: 18px; border-radius: 29px; }
+  .match-detail-time { font-size: 30px; }
+  .match-detail-time.unknown { font-size: 23px; }
+  .match-detail-place { font-size: 13px; }
+  .match-personal-status { font-size: 14px; }
+  .match-personal > .btn-text { padding-inline: 4px; font-size: 13px; }
+  .match-personal-detail { font-size: 12px; }
+  .match-screen .tabs button { font-size: 13px; }
+  .match-list-heading h2 { font-size: 17px; }
+  .match-list-heading > a { font-size: 12px; }
+  .match-screen .person .name { font-size: 14px; }
+  .match-screen .person .num { width: 16px; }
+  .payment-amount { font-size: 34px; }
+  .match-action { left: calc(16px + var(--safe-left)); right: calc(16px + var(--safe-right)); }
+}
+@media (prefers-contrast: more) {
+  .match-cancelled { background: var(--card); }
+  .match-action > .btn { box-shadow: none; }
+}

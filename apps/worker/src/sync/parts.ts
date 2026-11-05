@@ -1,3 +1,4 @@
+import { matchPhase } from '@altynka/core';
 import { eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { bills, events, users, type SignupRow, type UserRow } from '../db/schema';
@@ -40,7 +41,7 @@ export async function loadEventView(db: Db, eventId: number): Promise<EventView 
   return {
     id: ev.id,
     date: ev.date,
-    status: ev.status,
+    status: matchPhase(ev),
     startTime: ev.startTime,
     durationHours: ev.durationHours,
     place: ev.place,

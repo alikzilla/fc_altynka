@@ -3,6 +3,7 @@ import type { EventStatus, EventSummaryDto } from '@altynka/core';
 export const STATUS_LABEL: Record<EventStatus, string> = {
   collecting: 'Время уточняется',
   scheduled: 'Игра назначена',
+  playing: 'Игра началась',
   billing: 'Сбор денег',
   closed: 'Прошёл',
   cancelled: 'Отменён',

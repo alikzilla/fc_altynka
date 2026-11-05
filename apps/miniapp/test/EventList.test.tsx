@@ -4,7 +4,10 @@ import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
 import { EventList } from '../src/screens/EventList';
+import { MatchParticipation } from '../src/screens/MatchParticipation';
 import { organizer, player, renderWithApp } from './render';
+
+function MatchList(p: { ev: EventDetailDto; reload: () => void }) { return <><MatchParticipation {...p} /><EventList {...p} /></>; }
 
 vi.mock('../src/lib/api');
 vi.mock('../src/lib/tg');
@@ -26,7 +29,7 @@ beforeEach(() => {
 });
 
 test('EventList shows numbered main, guest label and reserve', () => {
-  renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: player });
+  renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: player });
   expect(screen.getByText('Азамат')).toBeInTheDocument();
   expect(screen.getByText('(друг: Тимур)')).toBeInTheDocument();
   expect(screen.getByText('Резерв')).toBeInTheDocument();
@@ -35,23 +38,25 @@ test('EventList shows numbered main, guest label and reserve', () => {
 
 test('EventList: "Иду" posts join and reloads', async () => {
   const reload = vi.fn();
-  renderWithApp(<EventList ev={ev} reload={reload} />, { me: player });
+  renderWithApp(<MatchList ev={ev} reload={reload} />, { me: player });
   await userEvent.click(screen.getByRole('button', { name: 'Иду' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events/5/join');
   expect(reload).toHaveBeenCalled();
-  expect(await screen.findByText('Ты №3 в основе')).toBeInTheDocument();
+  expect(await screen.findByText('Ты в основе')).toBeInTheDocument();
 });
 
 test('EventList: "Не иду" when signed up', async () => {
-  renderWithApp(<EventList ev={{ ...ev, my: 'main' }} reload={() => {}} />, { me: player });
+  renderWithApp(<MatchList ev={{ ...ev, my: 'main' }} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Иду' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
   await userEvent.click(screen.getByRole('button', { name: 'Не иду' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events/5/leave');
 });
 
 test('EventList: remove needs two taps', async () => {
-  renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: organizer });
-  const first = screen.getAllByRole('button', { name: 'Убрать' })[0];
+  renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(screen.getByRole('button', { name: 'Действия: Азамат' }));
+  const first = screen.getByRole('button', { name: 'Убрать из списка' });
   await userEvent.click(first);
   expect(first).toHaveTextContent('Точно убрать?');
   expect(api.send).not.toHaveBeenCalled();
@@ -60,14 +65,14 @@ test('EventList: remove needs two taps', async () => {
 });
 
 test('EventList: organizer cannot move a reservist out of turn and sees schedule button', async () => {
-  const { history } = renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: organizer });
+  const { history } = renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: organizer });
   expect(screen.queryByRole('button', { name: 'В основу' })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('button', { name: 'Назначить игру' }));
+  await userEvent.click(screen.getByRole('link', { name: 'Назначить игру' }));
   expect(history.at(-1)).toBe('/event/5/schedule');
 });
 
 test('EventList: closed list has no join buttons', () => {
-  renderWithApp(<EventList ev={{ ...ev, status: 'billing' }} reload={() => {}} />, { me: organizer });
+  renderWithApp(<MatchList ev={{ ...ev, status: 'billing' }} reload={() => {}} />, { me: organizer });
   expect(screen.queryByRole('button', { name: 'Иду' })).toBeNull();
   expect(screen.queryByText('Убрать')).toBeNull();
 });
@@ -75,7 +80,7 @@ test('EventList: closed list has no join buttons', () => {
 test('joining blocks repeated requests and recovers after a failure', async () => {
   let fail!: (error: Error) => void;
   (api.send as Mock).mockImplementationOnce(() => new Promise((_, reject) => { fail = reject; }));
-  renderWithApp(<EventList ev={ev} reload={() => {}} />, { me: player });
+  renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: player });
   await userEvent.click(screen.getByRole('button', { name: 'Иду' }));
   const pending = screen.getByRole('button', { name: 'Записываем…' });
   expect(pending).toBeDisabled();

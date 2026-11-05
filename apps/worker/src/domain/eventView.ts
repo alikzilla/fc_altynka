@@ -1,4 +1,4 @@
-import { splitQueue, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
+import { matchPhase, splitQueue, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, memberships, signups, type EventRow, type SignupRow } from '../db/schema';
@@ -10,12 +10,13 @@ import { billDto, getBillByEvent } from './bills';
 const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
 const PAST: EventRow['status'][] = ['closed', 'cancelled'];
 
-function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number): EventSummaryDto {
+function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number, now: number): EventSummaryDto {
   const my = q.main.some(s => s.userId === viewerUserId) ? 'main' : q.reserve.some(s => s.userId === viewerUserId) ? 'reserve' : null;
   return {
     id: ev.id,
     date: ev.date,
-    status: ev.status,
+    status: matchPhase(ev, now),
+    serverNow: now,
     startTime: ev.startTime,
     durationHours: ev.durationHours,
     place: ev.place,
@@ -26,7 +27,7 @@ function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number): 
   };
 }
 
-export async function listEvents(db: Db, communityId: number, viewerUserId: number): Promise<EventsListDto> {
+export async function listEvents(db: Db, communityId: number, viewerUserId: number, now = Date.now()): Promise<EventsListDto> {
   const active = await db
     .select()
     .from(events)
@@ -38,7 +39,7 @@ export async function listEvents(db: Db, communityId: number, viewerUserId: numb
     .where(and(eq(events.communityId, communityId), inArray(events.status, PAST)))
     .orderBy(desc(events.date), desc(events.id))
     .limit(5);
-  const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId);
+  const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId, now);
   return { active: await Promise.all(active.map(sum)), past: await Promise.all(past.map(sum)) };
 }
 
@@ -55,7 +56,7 @@ export function parseArchiveCursor(raw: string): ArchiveCursor | null {
   return { date, id };
 }
 
-export async function matchArchive(db: Db, communityId: number, viewerUserId: number, cursor: ArchiveCursor | null): Promise<MatchArchiveDto> {
+export async function matchArchive(db: Db, communityId: number, viewerUserId: number, cursor: ArchiveCursor | null, now = Date.now()): Promise<MatchArchiveDto> {
   const rows = await db.select().from(events).where(and(
     eq(events.communityId, communityId),
     inArray(events.status, ['billing', 'closed', 'cancelled']),
@@ -72,7 +73,7 @@ export async function matchArchive(db: Db, communityId: number, viewerUserId: nu
   }
   const last = page.at(-1);
   return {
-    events: page.map(ev => summary(ev, splitQueue(queues.get(ev.id) ?? [], ev.baseLimit), viewerUserId)),
+    events: page.map(ev => summary(ev, splitQueue(queues.get(ev.id) ?? [], ev.baseLimit), viewerUserId, now)),
     nextCursor: rows.length > 20 && last ? `${last.date}:${last.id}` : null,
   };
 }
@@ -82,6 +83,7 @@ export async function eventDetail(
   db: Db,
   eventId: number,
   viewer: { userId: number; role: Role; communityId: number },
+  now = Date.now(),
 ): Promise<EventDetailDto | null> {
   const ev = await getEvent(db, eventId);
   if (!ev || ev.communityId !== viewer.communityId) return null;
@@ -107,7 +109,7 @@ export async function eventDetail(
     return base;
   };
   return {
-    ...summary(ev, q, viewer.userId),
+    ...summary(ev, q, viewer.userId, now),
     comment: ev.comment,
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),

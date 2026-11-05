@@ -34,7 +34,7 @@ export function App() {
     if (r !== '/') navigate(r, { replace: true });
     return cleanup;
   }, [navigate]);
-  if (error) {
+  if (error && (!me || error.status === 401 || error.status === 403 || error.status === 503)) {
     const text =
       error.status === 403
         ? 'Мини-апп доступен только участникам группы'

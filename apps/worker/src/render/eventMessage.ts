@@ -47,7 +47,7 @@ function statusLine(v: EventView): string {
       return 'Время и поле пока не назначены';
     default: {
       const when = v.startTime && v.durationHours ? timeRange(v.startTime, v.durationHours) : 'Время пока не назначено';
-      const tail = v.status === 'billing' ? '\nЗапись закрыта · доступна оплата' : v.status === 'closed' ? '\nСчёт закрыт' : '';
+      const tail = v.status === 'playing' ? '\nИгра началась · запись закрыта' : v.status === 'billing' ? '\nЗапись закрыта · доступна оплата' : v.status === 'closed' ? '\nСчёт закрыт' : '';
       return `${when}${v.place ? ` · ${escapeHtml(v.place)}` : ''}${tail}`;
     }
   }

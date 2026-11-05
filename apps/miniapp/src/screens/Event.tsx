@@ -1,82 +1,81 @@
-import { formatDateRu, type EventDetailDto } from '@altynka/core';
-import { useEffect, type ReactNode } from 'react';
-import { useLocation, useParams } from 'wouter';
+import type { EventDetailDto } from '@altynka/core';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Link, useLocation, useParams } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
-import { STATUS_LABEL, timeRange } from '../lib/labels';
+import { canManage, useMe } from '../state/me';
+import { isOpen, timeRange } from '../lib/labels';
+import { api } from '../lib/api';
 import { Icon } from '../components/Icon';
-import { ErrorNote, Loading, Screen } from '../components/ui';
+import { ActionSheet } from '../components/ActionSheet';
+import { ConfirmButton, ErrorNote, Loading, Screen, useToast } from '../components/ui';
 import { useResource } from '../hooks/useResource';
+import { useMatchPhase } from '../hooks/useMatchPhase';
+import { MatchParticipation } from './MatchParticipation';
 import { EventList } from './EventList';
 import { Teams } from './Teams';
 import { Bill } from './Bill';
 
 export type Tab = 'list' | 'teams' | 'bill';
-const TABS: [Tab, string][] = [
-  ['list', 'Список'],
-  ['teams', 'Составы'],
-  ['bill', 'Счёт'],
-];
-
-/** Вкладки составов и счёта подключаются сюда (Tasks 13–14). */
-export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () => void }) => ReactNode>> = {
-  list: p => <EventList {...p} />,
-  teams: p => <Teams {...p} />,
-  bill: p => <Bill {...p} />,
+const TABS: [Tab, string][] = [['list', 'Участники'], ['teams', 'Составы'], ['bill', 'Оплата']];
+export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean }) => ReactNode>> = {
+  list: p => <EventList {...p} />, teams: p => <Teams {...p} />, bill: p => <Bill {...p} />,
 };
+const STATUS = { collecting: 'Набираем игроков', scheduled: 'Игра назначена', playing: 'Игра началась', billing: 'Собираем оплату', closed: 'Игра завершена', cancelled: 'Отменена' };
 
 export function Event() {
   const { id } = useParams<{ id: string }>();
+  const me = useMe();
+  const toast = useToast();
   const search = useScreenSearch();
   const [, navigate] = useLocation();
   const requestedTab = new URLSearchParams(search).get('tab');
   const tab: Tab = TABS.some(([key]) => key === requestedTab) ? requestedTab as Tab : 'list';
-  const { data: ev, error, loading, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
+  const { data, error, loading, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
+  const ev = useMatchPhase(data, reload);
+  const [menu, setMenu] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const locked = useRef(false);
   useEffect(() => {
     const visible = () => { if (document.visibilityState === 'visible') reload(); };
     window.addEventListener('focus', reload);
     document.addEventListener('visibilitychange', visible);
-    return () => {
-      window.removeEventListener('focus', reload);
-      document.removeEventListener('visibilitychange', visible);
-    };
+    return () => { window.removeEventListener('focus', reload); document.removeEventListener('visibilitychange', visible); };
   }, [reload]);
+  async function cancel() {
+    if (!ev || !isOpen(ev.status) || locked.current) return;
+    locked.current = true; setBusy(true);
+    try { await api.send('POST', `/api/events/${ev.id}/cancel`); toast('Матч отменён'); setMenu(false); }
+    catch { toast('Не получилось отменить матч'); }
+    finally { locked.current = false; setBusy(false); reload(); }
+  }
+  const date = ev ? new Date(`${ev.date}T12:00:00Z`) : null;
+  const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
+  const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
+  const manage = canManage(me) && ev && isOpen(ev.status);
+  const actionBlocked = !!ev && isOpen(ev.status) && (canManage(me) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
-  return (
-    <Screen title={ev ? formatDateRu(ev.date) : 'Сбор'} back="/matches">
-      {loading && !ev && <Loading variant="detail" />}
-      {error && <ErrorNote text={error.status === 404 ? 'Сбор не найден' : 'Не получилось загрузить сбор'} retry={reload} />}
-      {ev && (
-        <>
-          <div className="card material-plum event-summary">
-            <div className="row between">
-              <b>Игра · {ev.mainCount}/{ev.limit}</b>
-              <span className={`chip status-${ev.status}`}>{STATUS_LABEL[ev.status]}</span>
-            </div>
-            <div className="event-meta"><Icon name="clock" /><span>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</span></div>
-            <div className="event-meta"><Icon name="pin" /><span>{ev.place || 'Поле уточняется'}</span></div>
-            {ev.comment && <div className="muted">{ev.comment}</div>}
-          </div>
-          {ev.status !== 'cancelled' && <ol className="match-progress" aria-label="Этапы матча">{['Сбор', 'Игра назначена', 'Счёт', 'Завершён'].map((label, index) => {
-            const current = ['collecting', 'scheduled', 'billing', 'closed'].indexOf(ev.status);
-            return <li key={label} aria-current={index === current ? 'step' : undefined} className={index <= current ? 'done' : ''}><span aria-hidden="true">{index < current ? <Icon name="check" /> : index + 1}</span>{label}</li>;
-          })}</ol>}
-          <div className="tabs" role="tablist" aria-label="Детали сбора">
-            {TABS.map(([k, label]) => (
-              <button key={k} id={`tab-${k}`} role="tab" aria-controls={`panel-${k}`} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {
-                const index = TABS.findIndex(([key]) => key === k);
-                const next = e.key === 'ArrowRight' ? (index + 1) % TABS.length : e.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
-                if (next < 0) return;
-                e.preventDefault();
-                navigate(`/event/${id}?tab=${TABS[next][0]}`, { replace: true });
-                document.getElementById(`tab-${TABS[next][0]}`)?.focus();
-              }}>
-                {label}
-              </button>
-            ))}
-          </div>
-          <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="tab-panel">{View && <View key={`${id}-${tab}`} ev={ev} reload={reload} />}</div>
-        </>
-      )}
-    </Screen>
-  );
+  return <Screen title={title} subtitle={weekday} back="/matches" className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
+    {loading && !ev && <Loading variant="detail" />}
+    {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
+    {ev && <>
+      <section className={`card material-plum event-summary ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Игра и твоё участие">
+        <p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p>
+        <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
+        <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS[ev.status]}</span></p>
+        <MatchParticipation key={ev.id} ev={ev} reload={reload} />
+      </section>
+      <div className="tabs" role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={`panel-${k}`} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {
+        const index = TABS.findIndex(([key]) => key === k);
+        const next = e.key === 'ArrowRight' ? (index + 1) % TABS.length : e.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
+        if (next < 0) return;
+        e.preventDefault(); navigate(`/event/${id}?tab=${TABS[next][0]}`, { replace: true });
+        document.getElementById(`tab-${TABS[next][0]}`)?.focus();
+      }}>{label}</button>)}</div>
+      <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="tab-panel">{View && <View key={`${id}-${tab}`} ev={ev} reload={reload} actionBlocked={actionBlocked} />}</div>
+      {menu && manage && <ActionSheet title="Действия матча" onClose={() => setMenu(false)} busy={busy}>
+        <Link className="sheet-action" href={`/event/${ev.id}/schedule`} aria-disabled={busy} tabIndex={busy ? -1 : 0} onClick={e => { if (busy) e.preventDefault(); }}>{ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}<Icon name="arrow" /></Link>
+        <ConfirmButton className="sheet-action danger-text" label="Отменить матч" confirmLabel="Точно отменить матч?" disabled={busy} onConfirm={cancel} />
+      </ActionSheet>}
+    </>}
+  </Screen>;
 }

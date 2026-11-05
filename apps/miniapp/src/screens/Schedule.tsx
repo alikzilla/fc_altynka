@@ -6,13 +6,15 @@ import { canManage, useMe } from '../state/me';
 import { EmptyState, ErrorNote, Loading, Screen, useToast } from '../components/ui';
 import { useResource } from '../hooks/useResource';
 import { TemporalInput } from '../components/TemporalInput';
+import { useMatchPhase } from '../hooks/useMatchPhase';
 
 export function Schedule() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const toast = useToast();
   const me = useMe();
-  const { data: ev, error, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
+  const { data, error, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
+  const ev = useMatchPhase(data, reload);
   const [busy, setBusy] = useState(false);
   const [startTime, setStartTime] = useState('21:00');
   const [hours, setHours] = useState<1 | 2>(1);
@@ -35,7 +37,7 @@ export function Schedule() {
       toast('Игра назначена, группа получила уведомление');
       navigate(`/event/${id}`, { replace: true });
     } catch (err) {
-      setSaveError(err instanceof ApiError && err.status === 409 ? 'Матч уже закрыт для изменений. Вернись к матчу, чтобы увидеть его состояние.' : 'Не получилось назначить игру. Данные сохранены — попробуй ещё раз.');
+      setSaveError(err instanceof ApiError && err.code === 'past_start' ? 'Выбери будущее время начала игры' : err instanceof ApiError && err.status === 409 ? 'Матч уже закрыт для изменений. Вернись к матчу, чтобы увидеть его состояние.' : 'Не получилось назначить игру. Данные сохранены — попробуй ещё раз.');
     } finally {
       setBusy(false);
     }

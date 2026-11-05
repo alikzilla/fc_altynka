@@ -11,7 +11,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await page.route('**/api/**', async route => {
     const path = new URL(route.request().url()).pathname;
-    const body = path === '/api/me' ? me : path === '/api/events' ? { active: [event], past: [{ ...event, id: 2, date: '2026-10-31', status: 'closed' }] } : path === '/api/notifications' ? { tasks: [{ kind: 'payment', id: 'payment:1', eventId: 2, date: '2026-10-31', place: 'Arena', due: 2500, receiverName: 'Данияр' }] } : path === '/api/matches' ? { events: [{ ...event, id: 2, date: '2026-10-31', status: 'billing' }], nextCursor: null } : path === '/api/members' ? main.map(p => ({ userId: p.userId, displayName: p.name, role: 'player', level: 5 })) : event;
+    const body = path === '/api/me' ? me : path === '/api/events' ? { active: [event], past: [{ ...event, id: 2, date: '2026-10-31', status: 'closed' }] } : path === '/api/notifications' ? { tasks: [{ kind: 'payment', id: 'payment:1', eventId: 2, date: '2026-10-31', place: 'Arena', due: 2500, receiverName: 'Данияр' }] } : path === '/api/matches' ? { events: [{ ...event, id: 2, date: '2026-10-31', status: 'billing' }], nextCursor: null } : path === '/api/members' ? main.map(p => ({ userId: p.userId, displayName: p.name, role: 'player', level: 5 })) : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status };
     await route.fulfill({ json: body });
   });
 });
@@ -46,7 +46,7 @@ for (const width of [320, 390, 768, 1440]) {
 
 test('tabs support keyboard navigation and unknown tabs recover to the list', async ({ page }) => {
   await page.goto('/event/1?tab=unknown');
-  const list = page.getByRole('tab', { name: 'Список' });
+  const list = page.getByRole('tab', { name: 'Участники' });
   await expect(list).toHaveAttribute('aria-selected', 'true');
   await list.focus();
   await page.keyboard.press('ArrowRight');
@@ -86,9 +86,9 @@ test('payment obligation opens the real bill and clears after the member marks p
   } } }));
   await page.goto('/notifications');
   await page.getByRole('link', { name: 'Перейти к оплате' }).click();
-  await expect(page.getByRole('button', { name: 'Перевести', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Перевести в Kaspi', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Я скинул' }).click();
-  await expect(page.getByText('Ты отметил оплату')).toBeVisible();
+  await expect(page.locator('.payment-label')).toHaveText('Ты отметил оплату');
   await page.getByRole('navigation').getByRole('link', { name: 'Задачи' }).click();
   await expect(page.getByRole('heading', { name: 'Новых задач нет' })).toBeVisible();
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
@@ -115,7 +115,7 @@ test('dark theme, safe areas and payment are accessible on a narrow phone', asyn
     lines: main.map(p => ({ id: p.id, userId: p.userId, name: p.name, units: 1, amount: 2500, paidAmount: p.id === 1 ? 2500 : null, state: p.id === 1 ? 'paid' : 'unpaid', due: p.id === 1 ? 0 : 2500 })),
   } } }));
   await page.goto('/event/1?tab=bill');
-  await expect(page.getByRole('button', { name: 'Перевести', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Перевести в Kaspi', exact: true })).toBeVisible();
   await page.evaluate(() => {
     document.documentElement.style.setProperty('--tg-safe-area-inset-top', '24px');
     document.documentElement.style.setProperty('--tg-content-safe-area-inset-top', '36px');
@@ -131,11 +131,12 @@ test('dark theme, safe areas and payment are accessible on a narrow phone', asyn
 
 test('long names, venue and expense editor fit a 320px screen', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
-  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, place: 'А'.repeat(80), main: main.map(p => ({ ...p, name: 'ОченьДлинноеИмяУчастника' })) } }));
+  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, status: 'playing', place: 'А'.repeat(80), main: main.map(p => ({ ...p, name: 'ОченьДлинноеИмяУчастника' })) } }));
   await page.goto('/event/1');
   await expect(page.getByText('ОченьДлинноеИмяУчастника').first()).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);
-  await page.getByRole('tab', { name: 'Счёт', exact: true }).click();
+  await page.getByRole('tab', { name: 'Оплата', exact: true }).click();
+  await page.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
   await page.getByRole('button', { name: '+ Расход', exact: true }).click();
   await page.getByRole('textbox', { name: 'Расход 1', exact: true }).fill('Питьевая вода и дополнительные расходы');
   expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(320);

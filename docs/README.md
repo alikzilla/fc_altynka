@@ -12,6 +12,8 @@
 
 - [Перенос Airofit](airofit-implementation-review.md)
 - [Матчи и навигация](match-ux-review.md)
+- [Страница матча: исследование и план редизайна](superpowers/plans/2026-11-05-match-page-redesign.md) — предложение без реализации.
+- [Страница матча: утверждённый дизайн](superpowers/specs/2026-11-05-match-page-approved-design.md) и [реализация](superpowers/plans/2026-11-05-match-page-implementation.md) — учтены правки макета и уведомления сверху.
 - [Нижние окна и пустые состояния](bottom-sheet-review.md)
 - [Поля ввода](input-sizing-review.md)
 - [Настройки профиля](profile-settings-review.md)

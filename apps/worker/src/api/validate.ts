@@ -13,6 +13,6 @@ export const idParam = (raw: string): number | null => (/^\d+$/.test(raw) ? Numb
 export function statusFor(kind: string): 200 | 403 | 404 | 409 {
   if (kind === 'not_found') return 404;
   if (kind === 'forbidden') return 403;
-  if (kind === 'closed' || kind === 'not_scheduled' || kind === 'stale') return 409;
+  if (kind === 'closed' || kind === 'not_scheduled' || kind === 'not_started' || kind === 'past_start' || kind === 'stale') return 409;
   return 200;
 }

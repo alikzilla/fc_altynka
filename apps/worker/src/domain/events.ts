@@ -1,4 +1,4 @@
-import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, type QueueSplit, type Role } from '@altynka/core';
+import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { communities, events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
@@ -16,8 +16,7 @@ export type JoinResult =
   | { kind: 'closed' }
   | { kind: 'not_found' };
 
-const CLOSED: EventRow['status'][] = ['billing', 'closed', 'cancelled'];
-export const isClosed = (ev: EventRow) => CLOSED.includes(ev.status);
+export const isClosed = (ev: EventRow, now = Date.now()) => !registrationOpen(ev, now);
 export const canManage = (role: Role) => role === 'organizer' || role === 'admin';
 
 export async function getEvent(db: Db, eventId: number): Promise<EventRow | null> {
@@ -106,7 +105,7 @@ export async function createEvent(
 export async function joinEvent(d: Deps, eventId: number, userId: number): Promise<JoinResult> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
-  if (isClosed(ev)) return { kind: 'closed' };
+  if (isClosed(ev, d.now)) return { kind: 'closed' };
   const [existing] = await d.db
     .select()
     .from(signups)
@@ -148,7 +147,7 @@ export async function leaveEvent(
 ): Promise<{ kind: 'left' | 'not_in' | 'closed' | 'not_found' }> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
-  if (isClosed(ev)) return { kind: 'closed' };
+  if (isClosed(ev, d.now)) return { kind: 'closed' };
   const [existing] = await d.db
     .select()
     .from(signups)
@@ -174,7 +173,7 @@ export async function addGuest(
 > {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
-  if (isClosed(ev)) return { kind: 'closed' };
+  if (isClosed(ev, d.now)) return { kind: 'closed' };
   const before = await loadQueue(d.db, eventId);
   const signupId = await insertGuest(d.db, { eventId, invitedBy, name, now: d.now });
   if (signupId === null) return { kind: 'duplicate' };
@@ -193,7 +192,7 @@ export async function removeSignup(
   if (!s || s.leftAt !== null) return 'not_found';
   const ev = await getEvent(d.db, s.eventId);
   if (!ev) return 'not_found';
-  if (isClosed(ev)) return 'closed';
+  if (isClosed(ev, d.now)) return 'closed';
   const allowed = canManage(actor.role) || (s.userId === null && s.invitedBy === actor.userId);
   if (!allowed) return 'forbidden';
   const before = await loadQueue(d.db, s.eventId);
@@ -210,11 +209,13 @@ export async function scheduleEvent(
   d: Deps,
   eventId: number,
   v: { startTime: string; durationHours: 1 | 2; place: string | null },
-): Promise<'ok' | 'not_found' | 'closed'> {
+): Promise<'ok' | 'not_found' | 'closed' | 'past_start'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
-  if (isClosed(ev)) return 'closed';
+  if (isClosed(ev, d.now)) return 'closed';
   if (ev.status === 'scheduled' && ev.startTime === v.startTime && ev.durationHours === v.durationHours && ev.place === v.place) return 'ok';
+  const start = matchStartsAt({ date: ev.date, startTime: v.startTime });
+  if (start === null || start <= d.now) return 'past_start';
   const before = await loadQueue(d.db, eventId);
   await d.db
     .update(events)
@@ -234,7 +235,7 @@ export async function scheduleEvent(
 export async function cancelEvent(d: Deps, eventId: number): Promise<'ok' | 'not_found' | 'closed'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
-  if (isClosed(ev)) return 'closed';
+  if (isClosed(ev, d.now)) return 'closed';
   await d.db.update(events).set({ status: 'cancelled' }).where(eq(events.id, eventId));
   await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
   return 'ok';

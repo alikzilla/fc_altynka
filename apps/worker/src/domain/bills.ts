@@ -1,4 +1,4 @@
-import { computeBill, lineStatus, normalizeKzPhone, type BillDto, type Extra, type Role } from '@altynka/core';
+import { computeBill, lineStatus, normalizeKzPhone, matchPhase, type BillDto, type Extra, type Role } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { billLines, bills, events, signups, users, type BillRow } from '../db/schema';
@@ -12,6 +12,7 @@ export type UpsertBillResult =
   | { kind: 'invalid' }
   | { kind: 'not_found' }
   | { kind: 'not_scheduled' }
+  | { kind: 'not_started' }
   | { kind: 'closed' };
 
 export async function getBill(db: Db, billId: number): Promise<BillRow | null> {
@@ -32,6 +33,7 @@ export async function upsertBill(
   if (ev.status === 'cancelled' || ev.status === 'closed') return { kind: 'closed' };
   const existing = await getBillByEvent(d.db, eventId);
   if (ev.status === 'collecting' || (!existing && (ev.status !== 'scheduled' || !ev.startTime || !ev.durationHours))) return { kind: 'not_scheduled' };
+  if (!existing && matchPhase(ev, d.now) !== 'playing') return { kind: 'not_started' };
   const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
   if (!receiver || !v.participantSignupIds.length) return { kind: 'invalid' };
   const parts = await d.db

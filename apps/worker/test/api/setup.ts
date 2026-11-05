@@ -6,6 +6,7 @@ import { FakeTg } from '../fakes/fakeTg';
 import { seedCommunity, seedUser } from '../helpers';
 
 export interface ApiWorld {
+  clock: { now: number };
   tg: FakeTg;
   sync: FakeSync;
   communityId: number;
@@ -20,13 +21,14 @@ export async function setupApiWorld(): Promise<ApiWorld> {
   const tg = new FakeTg();
   const sync = new FakeSync();
   __setTgClientForTests(tg);
-  setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: Date.now(), sync }));
+  const clock = { now: Date.now() };
+  setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: clock.now, sync }));
   const c = await seedCommunity();
   await seedUser('Админ', { communityId: c.id, tgId: 1 });
   const o = await seedUser('Орг', { communityId: c.id, tgId: 2001, role: 'organizer' });
   const p = await seedUser('Игрок', { communityId: c.id, tgId: 2002 });
   return {
-    tg, sync, communityId: c.id,
+    clock, tg, sync, communityId: c.id,
     admin: { id: 1, first_name: 'Админ' },
     org: { id: 2001, first_name: 'Орг' },
     player: { id: 2002, first_name: 'Игрок' },

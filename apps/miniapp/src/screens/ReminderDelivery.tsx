@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useResource, useResourceRefresh } from '../hooks/useResource';
+import { useResource } from '../hooks/useResource';
 
 type ReminderReport = {
   at: number;
@@ -12,7 +12,6 @@ type ReminderReport = {
 
 export function ReminderDelivery({ billId }: { billId: number }) {
   const { data, error, loading, reload } = useResource<{ report: ReminderReport | null }>(`/api/bills/${billId}/reminder-status`);
-  useResourceRefresh(reload);
   const [stopped, setStopped] = useState(false);
   const [cycle, setCycle] = useState(0);
   const report = data?.report;

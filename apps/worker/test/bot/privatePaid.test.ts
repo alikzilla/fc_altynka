@@ -19,6 +19,7 @@ async function world() {
   const eventId = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
   await joinEvent(d, eventId, org.id); await joinEvent(d, eventId, payer.id);
   await scheduleEvent(d, eventId, { startTime: '21:00', durationHours: 1, place: 'Поле' });
+  d.now = Date.parse('2026-11-07T16:00:00Z');
   const ids = (await loadQueue(d.db, eventId)).main.map(s => s.id);
   const result = await upsertBill(d, eventId, { receiverUserId: org.id, fieldAmount: 4000, extras: [], participantSignupIds: ids });
   if (result.kind !== 'ok') throw new Error(result.kind);

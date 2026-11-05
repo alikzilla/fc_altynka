@@ -16,14 +16,14 @@ export const eventsApi = new Hono<AppEnv>();
 
 eventsApi.get('/events', async c => {
   const { db } = c.get('deps');
-  return c.json(await listEvents(db, c.get('community').id, c.get('user').id));
+  return c.json(await listEvents(db, c.get('community').id, c.get('user').id, c.get('deps').now));
 });
 
 eventsApi.get('/matches', async c => {
   const raw = c.req.query('cursor');
   const cursor = raw === undefined ? null : parseArchiveCursor(raw);
   if (raw !== undefined && !cursor) return c.json({ error: 'invalid_cursor' }, 400);
-  return c.json(await matchArchive(c.get('deps').db, c.get('community').id, c.get('user').id, cursor));
+  return c.json(await matchArchive(c.get('deps').db, c.get('community').id, c.get('user').id, cursor, c.get('deps').now));
 });
 
 eventsApi.post(
@@ -62,7 +62,7 @@ eventsApi.get('/events/:id', async c => {
           userId: c.get('user').id,
           role: c.get('role'),
           communityId: c.get('community').id,
-        });
+        }, c.get('deps').now);
   return dto ? c.json(dto) : c.json({ error: 'not_found' }, 404);
 });
 

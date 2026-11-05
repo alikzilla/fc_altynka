@@ -28,7 +28,7 @@ beforeEach(() => {
     }
     if (path === '/api/events') return Response.json({ active: created ? [{ ...match, id: 2, date: '2026-11-08' }] : [match], past: [] });
     if (path === '/api/matches') return Response.json({ events: [{ ...match, id: 9, date: '2026-10-31', status: 'closed' }], nextCursor: null });
-    if (path === '/api/events/1') return Response.json({ ...match, status, main: roster, startTime: status === 'scheduled' ? '21:00' : null, durationHours: status === 'scheduled' ? 1 : null });
+    if (path === '/api/events/1') return Response.json({ ...match, status, main: roster, startTime: ['scheduled', 'playing'].includes(status) ? '21:00' : null, durationHours: ['scheduled', 'playing'].includes(status) ? 1 : null });
     if (path === '/api/events/1/bill') { billSubmissions.push(JSON.parse(String(init?.body))); return Response.json({ id: 1 }); }
     throw new Error(`Unexpected ${path}`);
   }));
@@ -106,16 +106,17 @@ test('player cannot edit appointment through a direct URL', async () => {
 });
 
 test('bill form retains entered amounts and excludes a participant who left during app return', async () => {
-  status = 'scheduled';
+  status = 'playing';
   roster = [signup, { ...signup, id: 2, userId: 2, seq: 2, name: 'Второй' }];
   open('/event/1?tab=bill');
+  await userEvent.click(await screen.findByRole('button', { name: 'Выставить счёт' }));
   await userEvent.type(await screen.findByLabelText('Аренда поля, ₸'), '4000');
   expect(screen.getByRole('checkbox', { name: 'Второй' })).toBeChecked();
   roster = [signup];
   act(() => window.dispatchEvent(new Event('focus')));
   await waitFor(() => expect(screen.queryByRole('checkbox', { name: 'Второй' })).not.toBeInTheDocument());
   expect(screen.getByLabelText('Аренда поля, ₸')).toHaveValue(4000);
-  await userEvent.click(screen.getByRole('button', { name: 'Выставить счёт' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Выставить счёт' })).getByRole('button', { name: 'Выставить счёт' }));
   await waitFor(() => expect(billSubmissions).toHaveLength(1));
   expect(billSubmissions[0].participantSignupIds).toEqual([1]);
 });

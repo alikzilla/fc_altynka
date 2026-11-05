@@ -38,6 +38,34 @@ test('first sync sends and pins, next edits', async () => {
   expect(tg.edited).toHaveLength(1);
 });
 
+test('kickoff alarm refreshes the Telegram card and removes signup buttons', async () => {
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
+  await stub().request(ev, { parts: ['event'] });
+  await runDurableObjectAlarm(stub());
+  const kickoff = Date.parse('2026-11-07T16:00:00Z');
+  expect(await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm())).toBe(kickoff);
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(kickoff);
+  try {
+    await runDurableObjectAlarm(stub());
+    expect(tg.edited.at(-1)!.html).toContain('Игра началась');
+    expect(JSON.stringify(tg.edited.at(-1)!.keyboard)).not.toContain('callback_data');
+    expect(await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm())).toBeNull();
+  } finally { clock.mockRestore(); }
+});
+
+test('signup updates do not wait for a future kickoff and do not bypass a Telegram retry', async () => {
+  await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
+  await stub().request(ev, { parts: ['event'] }); await runDurableObjectAlarm(stub());
+  await stub().request(ev, { parts: ['event'] });
+  const alarm = await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm());
+  expect(alarm as number).toBeLessThan(Date.now() + 10_000);
+  tg.failNextWith = new TgRateLimited(30);
+  await runDurableObjectAlarm(stub());
+  const retry = await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm());
+  await stub().request(ev, { parts: ['event'] });
+  expect(await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm())).toBe(retry);
+});
+
 test('many requests within the window schedule one alarm and one edit', async () => {
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
@@ -102,7 +130,7 @@ test('reminder notice lists debtors with amounts due', async () => {
   const { scheduleEvent } = await import('../../src/domain/events');
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
-  const r = (await upsertBill(d, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
+  const r = (await upsertBill({ ...d, now: Date.parse('2026-11-07T16:00:00Z') }, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
   await stub().request(ev, { parts: ['bill'], notices: [{ kind: 'reminder', billId: r.billId }] });
   await runDurableObjectAlarm(stub());
   const billMsg = tg.sent.find(m => m.html.includes('<b>Оплата'))!;

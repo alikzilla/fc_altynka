@@ -8,6 +8,7 @@ const ToastCtx = createContext<(text: string) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [text, setText] = useState<string | null>(null);
+  const toast = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const show = useCallback((t: string) => {
     setText(t);
@@ -15,11 +16,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timer.current = setTimeout(() => setText(null), 2500);
   }, []);
   useEffect(() => () => clearTimeout(timer.current), []);
+  useEffect(() => {
+    const node = toast.current;
+    if (!text || !node?.showPopover) return;
+    // A manual popover paints above native dialogs without taking their focus.
+    node.showPopover();
+    return () => { if (node.matches(':popover-open')) node.hidePopover(); };
+  }, [text]);
   return (
     <ToastCtx.Provider value={show}>
       {children}
       {text && (
-        <div className="toast" role="status">
+        <div ref={toast} className="toast" role="status" popover="manual">
           {text}
         </div>
       )}
@@ -55,12 +63,12 @@ export function ConfirmButton(p: { label: string; confirmLabel: string; onConfir
 }
 
 /** Экран с заголовком; back — куда вести системной кнопкой «Назад». */
-export function Screen({ title, back, subtitle, action, children }: { title: string; back?: string; subtitle?: string; action?: ReactNode; children: ReactNode }) {
+export function Screen({ title, back, subtitle, action, className = '', children }: { title: string; back?: string; subtitle?: string; action?: ReactNode; className?: string; children: ReactNode }) {
   const [, navigate] = useLocation();
   const onBack = useCallback(() => back && navigate(back), [back, navigate]);
   useBackButton(back ? onBack : null);
   return (
-    <main className="screen">
+    <main className={`screen ${className}`}>
       <EdgeBackGesture onBack={back ? onBack : null} />
       <header className="screen-heading">
         {back && <Link href={back} className="back-link" aria-label="Назад"><Icon name="back" /></Link>}

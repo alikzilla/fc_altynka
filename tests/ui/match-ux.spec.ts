@@ -101,7 +101,7 @@ test('matches keyboard tabs separate upcoming games from past matches', async ({
 test('sheet preserves past matches and bill query in its background', async ({ page }) => {
   for (const path of ['/matches?view=past', '/event/7?tab=bill']) {
     await page.goto(path);
-    const tab = page.getByRole('tab', { name: path.startsWith('/matches') ? 'Прошлые' : 'Счёт', exact: true });
+    const tab = page.getByRole('tab', { name: path.startsWith('/matches') ? 'Прошлые' : 'Оплата', exact: true });
     await expect(tab).toHaveAttribute('aria-selected', 'true');
     await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
@@ -139,7 +139,8 @@ test('a late create response cannot pull a person away after browser Back', asyn
 
 test('appointment is the prerequisite for billing; assigning time unlocks the bill form', async ({ page }) => {
   let scheduled = false;
-  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Arena' } : draft }));
+  let started = false;
+  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Arena' } : draft }));
   await page.route('**/api/events/7/schedule', route => {
     expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Arena' });
     scheduled = true;
@@ -154,15 +155,21 @@ test('appointment is the prerequisite for billing; assigning time unlocks the bi
   await page.getByRole('button', { name: 'Назначить игру', exact: true }).click();
   await expect(page).toHaveURL('/event/7');
   await expect(page.getByText('20:00–22:00')).toBeVisible();
-  await page.getByRole('tab', { name: 'Счёт', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Выставить счёт' })).toBeDisabled();
+  await page.getByRole('tab', { name: 'Оплата', exact: true }).click();
+  await expect(page.getByText('Счёт будет доступен после начала игры')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Выставить счёт' })).toHaveCount(0);
+  started = true;
+  await page.evaluate(() => dispatchEvent(new Event('focus')));
+  await page.getByRole('button', { name: 'Выставить счёт' }).click();
+  const billSheet = page.getByRole('dialog', { name: 'Выставить счёт' });
+  await expect(billSheet.getByRole('button', { name: 'Выставить счёт' })).toBeDisabled();
   await page.getByLabel('Аренда поля, ₸').fill('20000');
-  await expect(page.getByRole('button', { name: 'Выставить счёт' })).toBeEnabled();
+  await expect(billSheet.getByRole('button', { name: 'Выставить счёт' })).toBeEnabled();
   await page.getByRole('button', { name: '+ Расход' }).click();
-  await expect(page.getByRole('button', { name: 'Выставить счёт' })).toBeDisabled();
+  await expect(billSheet.getByRole('button', { name: 'Выставить счёт' })).toBeDisabled();
   await page.getByRole('textbox', { name: 'Расход 1', exact: true }).fill('Вода');
   await page.getByRole('spinbutton', { name: 'Сумма расхода 1' }).fill('1500');
-  await expect(page.getByRole('button', { name: 'Выставить счёт' })).toBeEnabled();
+  await expect(billSheet.getByRole('button', { name: 'Выставить счёт' })).toBeEnabled();
 });
 
 for (const width of [320, 390]) {

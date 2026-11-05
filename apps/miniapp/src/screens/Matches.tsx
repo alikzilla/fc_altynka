@@ -6,13 +6,12 @@ import { api } from '../lib/api';
 import { datePart, MatchRow } from '../components/MatchCard';
 import { canManage, useMe } from '../state/me';
 import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
-import { useResource, useResourceRefresh } from '../hooks/useResource';
+import { useResource } from '../hooks/useResource';
 
 function ActiveMatches() {
   const me = useMe();
   const { data, loading, error, reload } = useResource<EventsListDto>('/api/events');
-  useResourceRefresh(reload);
-  const events = data?.active.filter(event => event.status === 'collecting' || event.status === 'scheduled').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
+  const events = data?.active.filter(event => event.status === 'collecting' || event.status === 'scheduled' || event.status === 'playing').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
   return <>
     {loading && !data && <Loading />}
     {error && <ErrorNote text="Не получилось загрузить активные матчи" retry={reload} />}
@@ -22,7 +21,6 @@ function ActiveMatches() {
 
 function PastMatches() {
   const { data, loading, error, reload } = useResource<MatchArchiveDto>('/api/matches');
-  useResourceRefresh(reload);
   const [pages, setPages] = useState<MatchArchiveDto[]>([]);
   const [busy, setBusy] = useState(false);
   const [moreError, setMoreError] = useState(false);
@@ -61,12 +59,19 @@ function PastMatches() {
   </>;
 }
 
+// The chosen tab outlives the screen: coming back from a match (back arrow or bottom nav) must not reset it.
+const VIEW_KEY = 'altynka:matches-view';
+const readPast = () => { try { return sessionStorage.getItem(VIEW_KEY) === 'past'; } catch { return false; } };
+const rememberPast = (past: boolean) => { try { sessionStorage.setItem(VIEW_KEY, past ? 'past' : 'active'); } catch { /* storage unavailable */ } };
+
 export function Matches() {
   const search = useScreenSearch();
   const [, navigate] = useLocation();
-  const past = new URLSearchParams(search).get('view') === 'past';
+  const view = new URLSearchParams(search).get('view');
+  const past = view ? view === 'past' : readPast();
   function choose(value: boolean, focus = false) {
-    navigate(value ? '/matches?view=past' : '/matches', { replace: true });
+    rememberPast(value);
+    navigate(value ? '/matches?view=past' : '/matches?view=active', { replace: true });
     if (focus) document.getElementById(value ? 'matches-past' : 'matches-active')?.focus();
   }
   return <Screen title="Матчи">
