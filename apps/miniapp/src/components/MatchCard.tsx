@@ -38,7 +38,6 @@ export function MatchCard({
         </span>
         <span>{datePart(e.date, { weekday: "long" })}</span>
       </div>
-      <GroupTag community={e.community} />
       <h2 className="match-date" aria-label={formatDateRu(e.date)}>
         <span>{e.date.slice(8)}</span>
         <small>{month}</small>

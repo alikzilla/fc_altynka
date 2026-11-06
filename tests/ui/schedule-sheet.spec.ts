@@ -2,7 +2,7 @@ import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
-const draft = { id: 7, date: '2026-11-08', serverNow: Date.parse('2026-11-06T08:00:00Z'), status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null };
+const draft = { id: 7, date: '2026-11-08', serverNow: Date.parse('2026-11-06T08:00:00Z'), status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null, community: { id: 1, title: 'FC Altynka' } };
 async function setup(page: Page, theme = 'dark') {
   const submissions: unknown[] = [];
   let value: Record<string, unknown> = { ...draft };

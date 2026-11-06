@@ -83,16 +83,13 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
     <form className="form new-event-form" onSubmit={submit} aria-busy={busy}>
       <fieldset disabled={busy || closing} className="form-fields">
         <label>Дата<TemporalInput type="date" required min={todayAlmaty(new Date())} value={date} onChange={e => setDate(e.target.value)} /></label>
-        {groups.length > 1 && <>
-          <div className="group-picker" role="radiogroup" aria-labelledby="group-label" aria-describedby="group-hint">
-            <span id="group-label" className="group-picker-label">Группа</span>
-            {groups.map(g => <label key={g.id} className={`group-row ${picked === g.id ? 'on' : ''}`}>
-              <input type="radio" name="group" value={g.id} checked={picked === g.id} onChange={() => setPicked(g.id)} />
-              <span className="group-dot" aria-hidden="true" /><span className="group-name">{g.title}</span>
-            </label>)}
-          </div>
-          <p id="group-hint" className="muted">Сообщение о сборе появится в выбранной группе.</p>
-        </>}
+        {groups.length > 1 && <label>Группа
+          <select required aria-describedby="group-hint" value={picked ?? ''} onChange={e => setPicked(e.target.value ? Number(e.target.value) : null)}>
+            <option value="" disabled>Выбери группу</option>
+            {groups.map(g => <option key={g.id} value={g.id}>{g.title}</option>)}
+          </select>
+        </label>}
+        {groups.length > 1 && <p id="group-hint" className="muted">Сообщение о сборе появится в выбранной группе.</p>}
         <label>Комментарий · необязательно<textarea maxLength={200} rows={3} placeholder="Например, берём светлые и тёмные футболки" value={comment} onChange={e => setComment(e.target.value)} /></label>
       </fieldset>
       <p className="muted">Игроки могут записываться сразу. Назначь время и длительность игры. Счёт станет доступен после её начала.</p>

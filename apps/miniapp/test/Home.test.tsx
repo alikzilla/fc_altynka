@@ -47,12 +47,12 @@ test('empty home has one contextual action without decorative tiles or an empty 
   expect(screen.queryByRole('heading', { name: 'Нужно сделать' })).not.toBeInTheDocument();
 });
 
-test('two groups tag every match card with its group; one group shows no tag', async () => {
+test('the big match cards carry no group tag, even with two groups', async () => {
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [ev, { ...ev, id: 6, community: { id: 2, title: 'Футбол по средам' } }], past: [] }));
   const { unmount } = renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });
   const cards = await screen.findAllByRole('article');
-  expect(within(cards[0]).getByText('FC Altynka')).toBeInTheDocument();
-  expect(within(cards[1]).getByText('Футбол по средам')).toBeInTheDocument();
+  expect(within(cards[0]).queryByText('FC Altynka')).toBeNull();
+  expect(within(cards[1]).queryByText('Футбол по средам')).toBeNull();
   unmount();
   renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
   await screen.findAllByRole('article');

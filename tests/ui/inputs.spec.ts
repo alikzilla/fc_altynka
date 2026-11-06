@@ -17,7 +17,7 @@ test.beforeEach(async ({ page }) => {
 for (const width of [280, 320, 390, 430]) {
   test(`form controls stay inside their content frame at ${width}px`, async ({ page }, info) => {
     await page.setViewportSize({ width, height: 740 });
-    for (const path of ['/new', '/event/1/schedule', '/profile/settings/name', '/profile/settings/payment', '/profile/settings/football', '/event/1/guest', '/event/1?tab=bill', '/event/1?tab=teams', '/players']) {
+    for (const path of ['/new', '/event/1/schedule', '/profile/settings/name', '/profile/settings/payment', '/profile/settings/football', '/event/1?tab=list', '/event/1?tab=bill', '/event/1?tab=teams', '/players']) {
       await page.goto(path);
       let scope = path === '/new' || path.endsWith('/schedule') ? page.getByRole('dialog') : page.locator('main');
       await expect(scope).toBeVisible();
@@ -42,6 +42,11 @@ for (const width of [280, 320, 390, 430]) {
         await page.getByRole('button', { name: '+ Расход' }).click();
         await page.getByRole('textbox', { name: 'Расход 1', exact: true }).fill('Дополнительные расходы');
         await page.getByRole('spinbutton', { name: 'Сумма расхода 1' }).fill('10000000');
+      }
+      if (path.includes('tab=list')) {
+        await page.getByRole('button', { name: 'Добавить друга', exact: true }).click();
+        scope = page.getByRole('dialog', { name: 'Привести друга' });
+        await page.getByLabel('Имя друга').fill('ДругСОченьДлиннымИменем');
       }
       if (path.includes('tab=teams')) await page.getByRole('button', { name: 'Поделить', exact: true }).click();
       if (path === '/players') await page.getByRole('button', { name: 'Управление: Организатор', exact: true }).click();

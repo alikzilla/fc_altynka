@@ -32,7 +32,7 @@ for (const width of [320, 390, 768, 1440]) {
       await writeFile('artifacts/review/home.html', html.replace('</head>', `<style>${css}</style></head>`));
     }
     expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-    for (const path of ['/matches', '/matches?view=past', '/notifications', '/event/1', '/event/1?tab=teams', '/event/1?tab=bill', '/profile', '/players', '/new', '/event/1/schedule', '/event/1/guest']) {
+    for (const path of ['/matches', '/matches?view=past', '/notifications', '/event/1', '/event/1?tab=teams', '/event/1?tab=bill', '/profile', '/players', '/new', '/event/1/schedule']) {
       await page.goto(path);
       await expect(page.locator('main')).toBeVisible();
       await expect(page.getByText('Загрузка…', { exact: true })).toHaveCount(0);

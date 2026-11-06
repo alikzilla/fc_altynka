@@ -1,40 +1,39 @@
-import { useState } from 'react';
-import { useLocation, useParams } from 'wouter';
+import { useId, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
-import { Screen, useToast } from '../components/ui';
+import { ActionSheet } from '../components/ActionSheet';
+import { useToast } from '../components/ui';
 
-export function AddGuest() {
-  const { id } = useParams<{ id: string }>();
-  const [, navigate] = useLocation();
+/** Bottom sheet for bringing a friend to the match: one name field, the friend joins the queue like everyone else. */
+export function AddGuestSheet({ eventId, onClose, onAdded }: { eventId: number; onClose: () => void; onAdded: () => void }) {
   const toast = useToast();
+  const formId = useId();
+  const locked = useRef(false);
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (busy) return;
-    setBusy(true);
+    const guest = name.trim();
+    if (locked.current || !guest) return;
+    locked.current = true; setBusy(true);
     try {
-      const r = await api.send<{ kind: 'main' | 'reserve'; position: number }>('POST', `/api/events/${id}/guests`, { name: name.trim() });
+      const r = await api.send<{ kind: 'main' | 'reserve'; position: number }>('POST', `/api/events/${eventId}/guests`, { name: guest });
       toast(r.kind === 'main' ? `Друг в основе, №${r.position}` : `Мест нет, друг в резерве №${r.position}`);
-      navigate(`/event/${id}`, { replace: true });
+      onAdded();
+      locked.current = false; setBusy(false);
+      onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'guest_exists') toast(`${name.trim()} уже в списке`);
+      if (err instanceof ApiError && err.code === 'guest_exists') toast(`${guest} уже в списке`);
       else toast(err instanceof ApiError && err.status === 409 ? 'Запись закрыта' : 'Не получилось добавить');
-      setBusy(false);
+      locked.current = false; setBusy(false);
     }
   }
-  return (
-    <Screen title="Привести друга" back={`/event/${id}`}>
-      <form className="card form" onSubmit={submit}>
-        <label>
-          Имя друга
-          <input required autoFocus maxLength={24} value={name} onChange={e => setName(e.target.value)} />
-        </label>
-        <p className="muted">Друг встанет в очередь как все. Его долю в счёте повесим на тебя.</p>
-        <button className="btn primary wide" disabled={busy || !name.trim()}>
-          {busy ? 'Записываем…' : 'Записать'}
-        </button>
-      </form>
-    </Screen>
-  );
+  return <ActionSheet title="Привести друга" onClose={onClose} busy={busy} footer={<button type="submit" form={formId} className="btn primary wide" disabled={busy || !name.trim()}>{busy ? 'Записываем…' : 'Записать'}</button>}>
+    <form id={formId} className="form" onSubmit={submit}>
+      <label>
+        Имя друга
+        <input required maxLength={24} enterKeyHint="done" autoComplete="off" value={name} onChange={e => setName(e.target.value)} disabled={busy} />
+      </label>
+      <p className="muted">Друг встанет в очередь как все. Его долю в счёте повесим на тебя.</p>
+    </form>
+  </ActionSheet>;
 }
