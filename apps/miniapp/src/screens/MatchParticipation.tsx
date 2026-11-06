@@ -12,7 +12,7 @@ import { useToast } from '../components/ui';
 
 type JoinResult = { kind: 'main' | 'reserve' | 'already'; position: number };
 
-export function MatchParticipation({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
+export function MatchParticipation({ ev, reload, suppressAction = false }: { ev: EventDetailDto; reload: () => void; suppressAction?: boolean }) {
   const me = useMe();
   const toast = useToast();
   const locked = useRef(false);
@@ -42,9 +42,9 @@ export function MatchParticipation({ ev, reload }: { ev: EventDetailDto; reload:
   return <>
     <div className="match-personal">
       <span className="match-personal-status">{ev.my && <Icon name={ev.my === 'main' ? 'check' : 'clock'} />}{status}</span>
-      {ev.my ? <button className="btn-text" onClick={() => setEditing(true)} disabled={busy}>Изменить</button> : schedule ? <button className="btn-text" onClick={() => change(true)} disabled={busy}>{joinLabel}</button> : null}
+      {ev.my ? <button className="btn-text" onClick={() => setEditing(true)} disabled={busy}>Изменить</button> : schedule || suppressAction ? <button className="btn-text" onClick={() => change(true)} disabled={busy}>{joinLabel}</button> : null}
     </div>
-    {schedule ? <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction> : !ev.my && <MatchAction><button className="btn primary wide" onClick={() => change(true)} disabled={busy}>{joinLabel}</button></MatchAction>}
+    {schedule ? <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction> : !ev.my && !suppressAction && <MatchAction><button className="btn primary wide" onClick={() => change(true)} disabled={busy}>{joinLabel}</button></MatchAction>}
     {editing && <ActionSheet title="Твоё участие" onClose={() => setEditing(false)} busy={busy}>
       <p className="muted">{status}</p>
       <button className="sheet-action danger-text" onClick={() => change(false)} disabled={busy}>{busy ? 'Сохраняем…' : 'Не иду'}</button>

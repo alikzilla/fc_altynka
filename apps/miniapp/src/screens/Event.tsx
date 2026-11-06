@@ -16,11 +16,12 @@ import { EventList } from './EventList';
 import { Teams } from './Teams';
 import { Bill } from './Bill';
 import { MatchRatings } from './MatchRatings';
+import { MatchGames } from './MatchGames';
 
-export type Tab = 'list' | 'teams' | 'bill';
-const TABS: [Tab, string][] = [['list', 'Участники'], ['teams', 'Составы'], ['bill', 'Оплата']];
+export type Tab = 'list' | 'teams' | 'games' | 'bill';
+const BASE_TABS: [Tab, string][] = [['list', 'Участники'], ['teams', 'Составы'], ['bill', 'Оплата']];
 export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean }) => ReactNode>> = {
-  list: p => <EventList {...p} />, teams: p => <Teams {...p} />, bill: p => <Bill {...p} />,
+  list: p => <EventList {...p} />, teams: p => <Teams {...p} />, games: p => <MatchGames {...p} />, bill: p => <Bill {...p} />,
 };
 const STATUS = { collecting: 'Набираем игроков', scheduled: 'Игра назначена', playing: 'Игра началась', billing: 'Собираем оплату', closed: 'Игра завершена', cancelled: 'Отменена' };
 
@@ -30,9 +31,10 @@ export function Event() {
   const search = useScreenSearch();
   const [, navigate] = useLocation();
   const requestedTab = new URLSearchParams(search).get('tab');
-  const tab: Tab = TABS.some(([key]) => key === requestedTab) ? requestedTab as Tab : 'list';
   const { data, error, loading, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
   const ev = useMatchPhase(data, reload);
+  const TABS: [Tab,string][] = ev?.protocolVersion===1 ? [['list','Участники'],['teams','Составы'],['games','Игра'],['bill','Оплата']] : BASE_TABS;
+  const tab: Tab = TABS.some(([key]) => key === requestedTab) ? requestedTab as Tab : 'list';
   const [menu, setMenu] = useState(false);
   const [busy, setBusy] = useState(false);
   const locked = useRef(false);
@@ -53,7 +55,8 @@ export function Event() {
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
   const manage = ev && canManageEvent(ev) && isOpen(ev.status);
-  const actionBlocked = !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
+  const gamePrimary = !!ev && ev.protocolVersion===1 && canManageEvent(ev) && (tab==='teams' && !!ev.gameProtocol?.canStart || tab==='games' && !!ev.gameProtocol?.canRecord);
+  const actionBlocked = !gamePrimary && !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
   return <Screen title={title} subtitle={weekday} back="/matches" className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
     {loading && !ev && <Loading variant="detail" />}
@@ -64,7 +67,7 @@ export function Event() {
         <p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p>
         <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
         <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS[ev.status]}</span></p>
-        <MatchParticipation key={ev.id} ev={ev} reload={reload} />
+        <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />
       <div className="tabs" role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={`panel-${k}`} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {
