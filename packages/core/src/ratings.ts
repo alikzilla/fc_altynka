@@ -43,7 +43,7 @@ export interface PlayerSummaryDto {
   rating: PlayerRatingDto;
 }
 export interface PlayerProfileDto extends PlayerSummaryDto {
-  history: { eventId: number; date: string; place: string | null; score: number | null }[];
+  history: { eventId: number; date: string; place: string | null; score: number | null; community: { id: number; title: string } }[];
 }
 export interface ReviewInput {
   scores: { userId: number; score: number }[];

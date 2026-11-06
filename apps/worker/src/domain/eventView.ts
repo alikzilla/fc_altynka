@@ -94,7 +94,7 @@ export async function eventDetail(
   const showLevels = viewer.role !== 'player';
   const levels = new Map<number, number>();
   if (showLevels) {
-    const ratings = await playerRatings(db, ev.communityId, now);
+    const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now);
     ratings.forEach(p => levels.set(p.userId, p.rating.value));
   }
   const dto = (s: SignupRow): SignupDto => {
