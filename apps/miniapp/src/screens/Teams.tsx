@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { isOpen } from '../lib/labels';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { EmptyState, useToast } from '../components/ui';
 import { MatchAction } from '../components/MatchAction';
@@ -167,5 +167,5 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
 
 export function Teams(p: Props) {
   const me = useMe();
-  return canManage(me) && isOpen(p.ev.status) ? <TeamEditor key={p.ev.main.map(s => s.id).join(',')} {...p} /> : <PublishedTeams {...p} />;
+  return creatableCommunities(me).length > 0 && isOpen(p.ev.status) ? <TeamEditor key={p.ev.main.map(s => s.id).join(',')} {...p} /> : <PublishedTeams {...p} />;
 }

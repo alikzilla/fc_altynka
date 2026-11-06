@@ -42,12 +42,6 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
    Surface gradients and inset light are explicitly approved Airofit references. */
 .screen { width: 100%; max-width: 440px; min-height: 100svh; margin: 0 auto; padding: calc(28px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) calc(148px + var(--safe-bottom)) calc(20px + var(--safe-left)); display: flex; flex-direction: column; gap: 20px; }
 .screen { position: relative; }
-.community-bar { width: 100%; max-width: 440px; margin: 0 auto; padding: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) 0 calc(20px + var(--safe-left)); }
-.community-switch { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 44px; padding: 8px 0; color: var(--text); background: transparent; border: 0; font: inherit; text-align: left; cursor: pointer; }
-.community-switch > span:first-of-type { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.community-switch-action { color: var(--hint); font-size: 13px; }
-.community-choice { width: 100%; border: 0; text-align: left; }
-.community-choice .task-copy b { font-size: 15px; }
 .edge-back-cue { position: absolute; z-index: 20; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }
 .edge-back-cue[data-active] { opacity: 1; }
 .edge-back-cue[data-ready] { background: var(--accent); color: var(--on-accent); }
@@ -353,3 +347,15 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
   .material-coral .btn.primary { background: #e5def5; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
+
+/* Group picker in the create-match sheet: list rows with a radio dot. */
+.group-picker { display: flex; flex-direction: column; gap: 6px; border: 0; padding: 0; margin: 0; }
+.group-picker-label { font-size: 14px; font-weight: 500; margin-bottom: 2px; }
+.form .group-row { position: relative; flex-direction: row; align-items: center; gap: 10px; min-height: 48px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 16px; font-size: 15px; font-weight: 400; cursor: pointer; }
+.form .group-row.on { border-color: var(--accent); background: var(--accent-soft); }
+.form .group-row:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
+.form .group-row input { position: absolute; opacity: 0; width: 1px; min-height: 0; height: 1px; padding: 0; pointer-events: none; }
+.group-dot { flex: none; width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); box-sizing: border-box; }
+.group-row.on .group-dot { border: 5px solid var(--accent); }
+.group-name { min-width: 0; overflow-wrap: anywhere; }
+.empty-sheet { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }

@@ -2,18 +2,16 @@ import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { api, ApiError } from "../lib/api";
 import { queryClient, resourceKey } from "../lib/queryClient";
-import { useCommunityId } from '../state/community';
 
 export function useResource<T>(path: string | null) {
-  const communityId = useCommunityId();
-  const key = resourceKey(path, communityId);
+  const key = resourceKey(path);
   const query = useQuery<T, ApiError>(
     {
       queryKey: key,
       enabled: !!path,
       queryFn: async ({ signal }) => {
         try {
-          return await api.get<T>(path!, { communityId, signal });
+          return await api.get<T>(path!, { signal });
         } catch (error) {
           throw error instanceof ApiError ? error : new ApiError(0, "network");
         }
@@ -30,19 +28,19 @@ export function useResource<T>(path: string | null) {
     (data: T | ((current: T) => T)) => {
       if (!path) return;
       void queryClient
-        .cancelQueries({ queryKey: resourceKey(path, communityId) })
+        .cancelQueries({ queryKey: resourceKey(path) })
         .then(() => {
-          const current = queryClient.getQueryData<T>(resourceKey(path, communityId));
+          const current = queryClient.getQueryData<T>(resourceKey(path));
           if (typeof data === "function" && current === undefined) return;
           queryClient.setQueryData<T>(
-            resourceKey(path, communityId),
+            resourceKey(path),
             typeof data === "function"
               ? (data as (current: T) => T)(current as T)
               : data,
           );
         });
     },
-    [path, communityId],
+    [path],
   );
   return {
     data: path ? query.data : undefined,

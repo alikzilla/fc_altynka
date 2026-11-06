@@ -10,7 +10,7 @@ vi.mock('../src/lib/api');
 vi.mock('../src/lib/tg');
 
 const ev: EventSummaryDto = {
-  id: 5, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null,
   limit: 10, mainCount: 9, reserveCount: 2, my: 'reserve',
 };
 

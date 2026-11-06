@@ -14,11 +14,9 @@ let release: (() => void) | undefined;
 let delay: boolean;
 beforeEach(() => {
   attempts = []; fail = false; delay = false; release = undefined;
-  event = { id: 7, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null };
+  event = { id: 7, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null };
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
-    if (path === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
-    if (path.startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
-    if (path === '/api/me') return Response.json({ userId: 1, displayName: 'Организатор', role: 'organizer', profileCompleted: true });
+    if (path === '/api/me') return Response.json({ userId: 1, displayName: 'Организатор', communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }], profileCompleted: true });
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events') return Response.json({ active: [event], past: [] });
     if (path === '/api/events/7/schedule') {

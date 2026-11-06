@@ -13,12 +13,10 @@ let requests: string[];
 let finishJoin: (() => void) | undefined;
 let delayJoin: boolean;
 beforeEach(() => {
-  me = { userId: 2, displayName: 'Айдос Нуспеков', role: 'player', kaspiPhone: null };
-  ev = { id: 7, date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
+  me = { userId: 2, displayName: 'Айдос Нуспеков', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }] };
+  ev = { id: 7, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'player', date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
   requests = []; delayJoin = false; finishJoin = undefined;
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
-    if (path === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
-    if (String(path).startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
     if (path === '/api/me') return Response.json(me);
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events/7') return Response.json(ev);
@@ -88,7 +86,7 @@ test('participation request stays locked when changing tabs', async () => {
 });
 
 test('organizer scheduling has priority over own signup', async () => {
-  me.role = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
   open();
   const schedule = await screen.findByRole('link', { name: 'Назначить игру' });
   expect(schedule.closest('.match-action')).not.toBeNull();
@@ -97,7 +95,7 @@ test('organizer scheduling has priority over own signup', async () => {
 });
 
 test('organizer menu owns match cancellation and keeps it separate from participation', async () => {
-  me.role = 'organizer'; ev.my = 'main'; ev.main = [signup];
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.my = 'main'; ev.main = [signup];
   open();
   await userEvent.click(await screen.findByRole('button', { name: 'Действия матча' }));
   const dialog = screen.getByRole('dialog', { name: 'Действия матча' });
@@ -115,13 +113,11 @@ test('player does not see organizer actions', async () => {
 });
 
 test('failed background profile refresh preserves the open bill draft', async () => {
-  me.role = 'organizer'; ev.status = 'playing'; ev.main = [signup]; ev.mainCount = 1;
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'playing'; ev.main = [signup]; ev.mainCount = 1;
   open('bill');
   await userEvent.click(await screen.findByRole('button', { name: 'Выставить счёт' }));
   await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
   vi.mocked(fetch).mockImplementation(async path => {
-    if (path === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
-    if (String(path).startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
     if (path === '/api/me') throw new Error('offline');
     if (path === '/api/events/7') return Response.json(ev);
     return Response.json({ tasks: [] });

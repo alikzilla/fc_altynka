@@ -1,5 +1,4 @@
 import { QueryClient } from '@tanstack/react-query';
-import { getCommunityId } from '../state/community';
 
 // Keep the monotonic receipt time with cached match snapshots, including list entries.
 const receivedAt = new WeakMap<object, number>();
@@ -28,7 +27,7 @@ queryClient.getQueryCache().subscribe(event => {
   }
 });
 
-export const resourceKey = (path: string | null, communityId = getCommunityId()) => ['api', communityId, path] as const;
+export const resourceKey = (path: string | null) => ['api', path] as const;
 
 // Any successful write may change lists, tasks and details: mark everything stale, refetch what is on screen.
 if (typeof window !== 'undefined') window.addEventListener('altynka:mutation', () => { void queryClient.invalidateQueries({ queryKey: ['api'] }); });

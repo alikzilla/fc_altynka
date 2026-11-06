@@ -4,7 +4,7 @@ import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import { App } from '../src/App';
 
-const me = { userId: 1, displayName: 'Орг', role: 'organizer', kaspiPhone: '+77071234567', community: { id: 3, title: 'Футбол по субботам' } };
+const me = { userId: 1, displayName: 'Орг', kaspiPhone: '+77071234567' };
 const signup = { id: 1, seq: 1, userId: 1, name: 'Орг', guestOfName: null, invitedByUserId: null };
 const match = { id: 1, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', main: [signup], reserve: [], teams: null, bill: null, comment: null };
 let role: string;
@@ -18,9 +18,7 @@ beforeEach(() => {
   role = 'organizer'; status = 'collecting'; createFails = false; created = false; submissions = [];
   roster = [signup]; billSubmissions = [];
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
-    if (path === '/api/communities') return Response.json({ communities: [{ id: 3, title: 'Футбол по субботам' }] });
-    if (path.startsWith('/api/context?')) return Response.json({ community: { id: 3, title: 'Футбол по субботам' } });
-    if (path === '/api/me') return Response.json({ ...me, role });
+    if (path === '/api/me') return Response.json({ ...me, communities: [{ id: 3, title: 'Футбол по субботам', role }] });
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events' && init?.method === 'POST') {
       submissions.push(JSON.parse(String(init.body)));
@@ -47,7 +45,7 @@ test('creation opens over the current screen; failure preserves fields; success 
   await userEvent.click(screen.getByRole('link', { name: 'Создать матч' }));
   const dialog = await screen.findByRole('dialog', { name: 'Новый матч' });
   expect(screen.getByRole('heading', { name: 'Профиль' })).toBeInTheDocument();
-  expect(within(dialog).getByLabelText('Группа')).toHaveValue('3');
+  expect(within(dialog).queryByRole('radiogroup')).toBeNull();
   await userEvent.clear(within(dialog).getByLabelText('Дата'));
   await userEvent.type(within(dialog).getByLabelText('Дата'), '2026-11-08');
   await userEvent.type(within(dialog).getByLabelText(/Комментарий/), 'Берём мяч');

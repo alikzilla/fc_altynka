@@ -1,7 +1,7 @@
 import type { MeDto } from '@altynka/core';
 import { useEffect, useRef } from 'react';
 import { Route, Switch, useLocation, useSearch } from 'wouter';
-import { canManage, MeContext, MeReloadContext, MeUpdateContext } from './state/me';
+import { creatableCommunities, MeContext, MeReloadContext, MeUpdateContext } from './state/me';
 import { NotificationsProvider } from './state/notifications';
 import { Nav } from './components/Nav';
 import { AddGuest } from './screens/AddGuest';
@@ -16,23 +16,30 @@ import { ProfileSettings } from './screens/ProfileSettings';
 import { Schedule } from './screens/Schedule';
 import { Matches } from './screens/Matches';
 import { Notifications } from './screens/Notifications';
-import { routeForStartParam } from './lib/startParam';
+import { contextForStartParam } from './lib/startParam';
+import { api } from './lib/api';
+import { queryClient } from './lib/queryClient';
 import { ScreenSearchContext } from './state/screenSearch';
 import { ready, startParam } from './lib/tg';
-import { EmptyState, ErrorNote, Loading, Screen, ToastProvider } from './components/ui';
+import { ErrorNote, Loading, ToastProvider } from './components/ui';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
-import { CommunityGate } from './screens/CommunityGate';
 
 export function App() {
   const [, navigate] = useLocation();
   useEffect(() => {
     const cleanup = ready();
-    const route = routeForStartParam(startParam());
+    const { route, joinCommunityId } = contextForStartParam(startParam());
     if (route !== '/') navigate(route, { replace: true });
+    // Joining validates membership server-side; a failure just leaves the user without that group.
+    if (joinCommunityId) {
+      void api.send('POST', `/api/communities/${joinCommunityId}/join`)
+        .catch(() => {})
+        .then(() => queryClient.invalidateQueries({ queryKey: ['api'] }));
+    }
     return cleanup;
   }, [navigate]);
-  return <CommunityGate>{community => <TeamApp key={community.id} />}</CommunityGate>;
+  return <TeamApp />;
 }
 
 function TeamApp() {
@@ -61,7 +68,7 @@ function TeamApp() {
     );
   }
   if (!me) return <main className="screen"><h1 className="title">FC Altynka</h1><Loading variant="detail" /></main>;
-  const overlayBackground = canManage(me) ? path === '/new' ? background.current : scheduleId ? scheduleParent : null : null;
+  const overlayBackground = path === '/new' ? background.current : scheduleId && creatableCommunities(me).length > 0 ? scheduleParent : null;
   return (
     <MeContext.Provider value={me}>
       <MeReloadContext.Provider value={reloadMe}>
@@ -73,11 +80,6 @@ function TeamApp() {
                   <Route path="/" component={Home} />
                   <Route path="/matches" component={Matches} />
                   <Route path="/notifications" component={Notifications} />
-                  <Route path="/new">
-                    <Screen title="Новый матч" back="/">
-                      <EmptyState title="Матчи создают организаторы" text="Записаться на ближайшую игру можно на главной." />
-                    </Screen>
-                  </Route>
                   <Route path="/event/:id/guest" component={AddGuest} />
                   <Route path="/event/:id/schedule"><Schedule /></Route>
                   <Route path="/event/:id/review"><MatchReview /></Route>
@@ -93,10 +95,10 @@ function TeamApp() {
               </ScreenSearchContext.Provider>
               <Nav />
               <SkillsPrompt />
-              {path === '/new' && canManage(me) && (
+              {path === '/new' && (
                 <NewEvent onClose={() => navigate(background.current, { replace: true })} />
               )}
-              {scheduleId && canManage(me) && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
+              {scheduleId && creatableCommunities(me).length > 0 && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
             </NotificationsProvider>
           </ToastProvider>
         </MeUpdateContext.Provider>

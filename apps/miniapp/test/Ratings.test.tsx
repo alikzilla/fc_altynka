@@ -34,7 +34,7 @@ test('skills have no preselected answers, show a summary and send all eight valu
 });
 
 test('public profile sheet places the rating with identity and keeps match history', async () => {
-  const profile: PlayerProfileDto = { userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, date: '2026-11-04', place: null, score: null }] };
+  const profile: PlayerProfileDto = { userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: null }] };
   (api.get as Mock).mockResolvedValue(profile);
   renderWithApp(<PlayerProfileSheet userId={12} onClose={vi.fn()} />, { me: player });
   const dialog = screen.getByRole('dialog');

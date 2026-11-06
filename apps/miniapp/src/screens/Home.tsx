@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Icon } from '../components/Icon';
 import { MatchCard, MatchRow } from '../components/MatchCard';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { useNotifications } from '../state/notifications';
 import { TaskCard } from '../components/TaskCard';
 import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
@@ -33,7 +33,7 @@ export function Home() {
         if (first) setIndex(Math.min(upcoming.length - 1, Math.round(el.scrollLeft / (first.offsetWidth + 12))));
       }}>{upcoming.map((event, i) => <MatchCard key={event.id} event={event} index={i} />)}</div>
       {upcoming.length > 1 && <div className="carousel-controls"><button className="carousel-arrow" onClick={() => go(-1)} disabled={index === 0} aria-label="Предыдущий матч"><Icon name="back" /></button><span aria-live="polite">{index + 1} из {upcoming.length}</span><button className="carousel-arrow" onClick={() => go(1)} disabled={index === upcoming.length - 1} aria-label="Следующий матч"><Icon name="back" className="chevron-right" /></button></div>}
-    </> : <EmptyState title="Нет ближайших матчей" text={canManage(me) ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={canManage(me) && <Link className="btn primary" href="/new">Создать матч</Link>} />)}
+    </> : <EmptyState title="Нет ближайших матчей" text={creatableCommunities(me).length > 0 ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={creatableCommunities(me).length > 0 && <Link className="btn primary" href="/new">Создать матч</Link>} />)}
     {(notifications.loading && !notifications.data || notifications.error || tasks.length > 0) && <section className="home-section" aria-labelledby="home-tasks"><div className="section-heading"><h2 id="home-tasks">Нужно сделать</h2><Link href="/notifications">Все задачи<Icon name="arrow" /></Link></div>
       {notifications.loading && !notifications.data && <Loading inline />}
       {notifications.error && <ErrorNote text="Не получилось обновить задачи" retry={notifications.reload} />}

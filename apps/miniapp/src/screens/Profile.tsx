@@ -3,7 +3,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Avatar, Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
-import { canManage, useMe, useReloadMe, useUpdateMe } from '../state/me';
+import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { Screen, useToast } from '../components/ui';
 import { InlineRating, RatingHistory } from '../components/PlayerRating';
@@ -58,7 +58,7 @@ export function Profile() {
         <div className="profile-card-details">
           <h2>{telegramName}</h2>
           {me.telegram?.username && <span className="profile-handle">@{me.telegram.username}</span>}
-          <span className="profile-role">{me.role === 'admin' ? 'Администратор' : me.role === 'organizer' ? 'Организатор' : 'Игрок'} · {me.community?.title ?? 'Команда'}</span>
+          <span className="profile-role">{/* TEMP (Task 7): per-group roles */}{(r => r === 'admin' ? 'Администратор' : r === 'organizer' ? 'Организатор' : 'Игрок')(me.communities[0]?.role)} · {me.communities[0]?.title ?? 'Без группы'}</span>
         </div>
         </div>
         {me.rating && <InlineRating rating={me.rating} />}
@@ -95,7 +95,7 @@ export function Profile() {
         <Link className="card task-preview material-graphite" href="/profile/settings/football"><span className="task-icon"><Icon name="ball" /></span><span className="task-copy"><b>Изменить футбольные данные</b><small>Позиция на поле и рабочая нога</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
-      <h2 className="section" id="profile-team">{canManage(me) ? 'Управление' : 'Команда'}</h2>
+      <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Команда'}</h2>
       <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки команды</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
     </Screen>
   );

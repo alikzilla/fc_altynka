@@ -2,7 +2,7 @@ import type { EventDetailDto } from '@altynka/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { Icon } from '../components/Icon';
@@ -52,8 +52,8 @@ export function Event() {
   const date = ev ? new Date(`${ev.date}T12:00:00Z`) : null;
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
-  const manage = canManage(me) && ev && isOpen(ev.status);
-  const actionBlocked = !!ev && isOpen(ev.status) && (canManage(me) && ev.status === 'collecting' || !ev.my);
+  const manage = creatableCommunities(me).length > 0 && ev && isOpen(ev.status);
+  const actionBlocked = !!ev && isOpen(ev.status) && (creatableCommunities(me).length > 0 && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
   return <Screen title={title} subtitle={weekday} back="/matches" className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
     {loading && !ev && <Loading variant="detail" />}

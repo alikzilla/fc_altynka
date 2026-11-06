@@ -22,10 +22,8 @@ export function routeForStartParam(p: string | undefined): string {
   return `/event/${id}`;
 }
 
-export function contextForStartParam(p: string | undefined): { communityId?: number; eventId?: number; route: string } {
+export function contextForStartParam(p: string | undefined): { joinCommunityId?: number; route: string } {
   const route = routeForStartParam(p);
   const team = /^c([1-9]\d*)_(matches|payments|settings|newmatch)$/.exec(p ?? '');
-  if (team && route !== '/') return { communityId: Number(team[1]), route };
-  const event = /^[egbtr]([1-9]\d*)$/.exec(p ?? '');
-  return event && route !== '/' ? { eventId: Number(event[1]), route } : { route };
+  return team && route !== '/' ? { joinCommunityId: Number(team[1]), route } : { route };
 }

@@ -13,7 +13,7 @@ vi.mock('../src/lib/tg');
 
 const s = (id: number): SignupDto => ({ id, seq: id, name: `Игрок${id}`, userId: id === 1 ? organizer.userId : id + 100, guestOfName: null, invitedByUserId: null });
 const evWith = (n: number, bill: BillDto | null = null): EventDetailDto => ({
-  id: 5, date: '2026-11-07', status: bill ? 'billing' : 'playing', startTime: '21:00', durationHours: 2, place: null, comment: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: bill ? 'billing' : 'playing', startTime: '21:00', durationHours: 2, place: null, comment: null,
   limit: 15, mainCount: n, reserveCount: 0, my: 'main', main: Array.from({ length: n }, (_, i) => s(i + 1)), reserve: [], teams: null, bill,
 });
 const bill: BillDto = {

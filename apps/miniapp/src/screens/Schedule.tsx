@@ -4,7 +4,7 @@ import { useLocation, useParams } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { openLink } from '../lib/tg';
 import { findVenue, venueRate } from '../lib/venues';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { EmptyState, ErrorNote, Loading, Screen, useToast } from '../components/ui';
 import { ActionSheet } from '../components/ActionSheet';
 import { Icon } from '../components/Icon';
@@ -21,7 +21,7 @@ export function Schedule({ eventId, onClose }: { eventId?: string; onClose?: () 
   const { data, error, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
   const ev = useMatchPhase(data, reload);
   const close = onClose ?? (() => navigate(`/event/${id}`, { replace: true }));
-  if (!canManage(me)) return <Screen title="Назначить игру" back={`/event/${id}`}><EmptyState title="Игру назначает организатор" text="Время и место появятся в карточке матча после назначения." /></Screen>;
+  if (creatableCommunities(me).length === 0) return <Screen title="Назначить игру" back={`/event/${id}`}><EmptyState title="Игру назначает организатор" text="Время и место появятся в карточке матча после назначения." /></Screen>;
   const title = ev?.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру';
   if (!ev || ev.status !== 'collecting' && ev.status !== 'scheduled') return <ActionSheet title={title} onClose={close}>
     {error && <ErrorNote text="Не получилось загрузить сбор" retry={reload} />}

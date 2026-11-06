@@ -15,7 +15,7 @@ import { api } from "../src/lib/api";
 const me = {
   userId: 2,
   displayName: "Саша",
-  role: "organizer",
+  communities: [{ id: 1, title: "FC Altynka", role: "organizer" }],
   kaspiPhone: null,
   telegram: {
     firstName: "Александр",
@@ -61,8 +61,6 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       requested.push(input);
-    if (input === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
-    if (input.startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
       if (input === "/api/me") return Response.json(identity);
       if (input === "/api/notifications") return Response.json({ tasks });
       if (input === "/api/events")
@@ -162,16 +160,13 @@ test("organizer reaches creation from the central action; a billed match does no
   expect(location.history?.at(-1)).toBe("/new");
 });
 
-test("player has four destinations and cannot open the creation form by URL", async () => {
-  identity = { ...me, role: "player" };
+test("player sees the creation sheet with an explanation instead of a form", async () => {
+  identity = { ...me, communities: [{ id: 1, title: "FC Altynka", role: "player" }] };
   open("/new");
-  await screen.findByText("Матчи создают организаторы");
+  await screen.findByText(/Создавать матчи может организатор группы/);
   expect(screen.queryByLabelText("Дата")).not.toBeInTheDocument();
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-  expect(within(nav).getAllByRole("link")).toHaveLength(4);
-  expect(
-    within(nav).queryByRole("link", { name: "Создать матч" }),
-  ).not.toBeInTheDocument();
+  expect(within(nav).getAllByRole("link")).toHaveLength(5);
 });
 
 test("the latest played match remains on home while its bill is open", async () => {

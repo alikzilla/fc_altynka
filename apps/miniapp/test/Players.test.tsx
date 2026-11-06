@@ -11,7 +11,7 @@ vi.mock('../src/lib/tg');
 const members: MemberDto[] = [{ userId: 12, displayName: 'Арман', role: 'player', level: 5 }, { userId: 1, displayName: 'Орг', role: 'organizer', level: 7 }];
 const players: PlayerSummaryDto[] = members.map(m => ({ userId: m.userId, displayName: m.displayName, playingPosition: null, dominantFoot: null, rating: { value: m.level, initial: m.level, selfAssessment: null, matchesCount: 0 } }));
 beforeEach(() => {
-  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members' ? members : players));
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members?communityId=1' ? members : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role: 'admin', players }] }));
   (api.send as Mock).mockResolvedValue(members[0]);
 });
 
@@ -20,7 +20,7 @@ test('admin edits roles separately from the calculated rating', async () => {
   await userEvent.click(await screen.findByRole('button', { name: 'Управление: Арман' }));
   expect(screen.queryByRole('button', { name: '8' })).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Сделать организатором' }));
-  expect(api.send).toHaveBeenCalledWith('PATCH', '/api/members/12', { role: 'organizer' });
+  expect(api.send).toHaveBeenCalledWith('PATCH', '/api/members/12?communityId=1', { role: 'organizer' });
 });
 
 test.each([organizer, player])('all members see decimal ratings and can search players ($role)', async me => {

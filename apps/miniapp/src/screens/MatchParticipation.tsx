@@ -4,7 +4,7 @@ import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { isOpen } from '../lib/labels';
 import { haptic } from '../lib/tg';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
 import { MatchAction } from '../components/MatchAction';
@@ -18,7 +18,7 @@ export function MatchParticipation({ ev, reload }: { ev: EventDetailDto; reload:
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(false);
-  const schedule = canManage(me) && ev.status === 'collecting';
+  const schedule = creatableCommunities(me).length > 0 && ev.status === 'collecting';
   const open = isOpen(ev.status);
   const reserveIndex = ev.reserve.findIndex(s => s.userId === me.userId);
   const status = ev.my === 'main' ? 'Ты в основе' : ev.my === 'reserve' ? `Ты в резерве${reserveIndex >= 0 ? ` · №${reserveIndex + 1}` : ''}` : 'Ты пока не записан';

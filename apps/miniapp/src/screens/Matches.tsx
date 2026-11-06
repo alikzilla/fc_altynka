@@ -4,7 +4,7 @@ import { Link, useLocation } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
 import { api } from '../lib/api';
 import { datePart, MatchRow } from '../components/MatchCard';
-import { canManage, useMe } from '../state/me';
+import { creatableCommunities, useMe } from '../state/me';
 import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
 import { useResource } from '../hooks/useResource';
 
@@ -15,7 +15,7 @@ function ActiveMatches() {
   return <>
     {loading && !data && <Loading />}
     {error && <ErrorNote text="Не получилось загрузить активные матчи" retry={reload} />}
-    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные игры</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={canManage(me) ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={canManage(me) && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
+    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные игры</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={creatableCommunities(me).length > 0 ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={creatableCommunities(me).length > 0 && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
   </>;
 }
 

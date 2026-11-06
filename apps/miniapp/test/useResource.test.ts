@@ -10,7 +10,7 @@ vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/
 test('reopening a fresh cached match after kickoff uses elapsed server time even with a wrong phone clock', async () => {
   let elapsed = 1000;
   const clock = vi.spyOn(performance, 'now').mockImplementation(() => elapsed);
-  const event: EventSummaryDto = { id: 7, date: '2026-11-08', startTime: '20:00', durationHours: 2, status: 'scheduled', serverNow: Date.parse('2026-11-08T14:59:59Z'), place: null, limit: 15, mainCount: 0, reserveCount: 0, my: null };
+  const event: EventSummaryDto = { id: 7, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-08', startTime: '20:00', durationHours: 2, status: 'scheduled', serverNow: Date.parse('2026-11-08T14:59:59Z'), place: null, limit: 15, mainCount: 0, reserveCount: 0, my: null };
   (api.get as Mock).mockResolvedValue({ upcoming: [event] });
   try {
     const first = renderHook(() => {

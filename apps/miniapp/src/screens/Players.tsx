@@ -1,4 +1,4 @@
-import { formatRating, playingPositionLabel, type MemberDto, type PlayerSummaryDto } from '@altynka/core';
+import { formatRating, playingPositionLabel, type MemberDto, type PlayersDto } from '@altynka/core';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
@@ -8,14 +8,14 @@ import { useResource } from '../hooks/useResource';
 import { Avatar, Icon } from '../components/Icon';
 import { PlayerProfileSheet } from './PlayerProfile';
 
-function MemberEditor({ member, onSaved }: { member: MemberDto; onSaved: () => void }) {
+function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; communityId: number; onSaved: () => void }) {
   const [name, setName] = useState(member.displayName);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
   async function patch(body: { displayName?: string; role?: 'organizer' | 'player' }) {
     if (busy) return;
     setBusy(true);
-    try { await api.send('PATCH', `/api/members/${member.userId}`, body); onSaved(); }
+    try { await api.send('PATCH', `/api/members/${member.userId}?communityId=${communityId}`, body); onSaved(); }
     catch (err) { toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить'); }
     finally { setBusy(false); }
   }
@@ -29,8 +29,11 @@ function MemberEditor({ member, onSaved }: { member: MemberDto; onSaved: () => v
 export function Players({ selectedUserId }: { selectedUserId?: number } = {}) {
   const me = useMe();
   const [, navigate] = useLocation();
-  const { data, error, loading, reload } = useResource<PlayerSummaryDto[]>('/api/players');
-  const management = useResource<MemberDto[]>(me.role === 'admin' ? '/api/members' : null);
+  const { data: directory, error, loading, reload } = useResource<PlayersDto>('/api/players');
+  // TEMP (Task 7): flattened across groups; management limited to the first group the user administers.
+  const data = directory && [...new Map(directory.groups.flatMap(g => g.players).map(p => [p.userId, p])).values()];
+  const adminCommunityId = me.communities.find(c => c.role === 'admin')?.id;
+  const management = useResource<MemberDto[]>(adminCommunityId ? `/api/members?communityId=${adminCommunityId}` : null);
   const [search, setSearch] = useState('');
   const [managing, setManaging] = useState<number | null>(null);
   const filtered = data?.filter(p => p.displayName.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru')));
@@ -46,7 +49,7 @@ export function Players({ selectedUserId }: { selectedUserId?: number } = {}) {
           <span className="rating-small">{formatRating(person.rating.value)}</span><Icon name="back" className="chevron-right" />
         </button>
         {member && <><button className="btn-text player-management-toggle" aria-expanded={managing === person.userId} aria-label={`Управление: ${person.displayName}`} onClick={() => setManaging(managing === person.userId ? null : person.userId)}>Управление</button>
-          {managing === person.userId && <MemberEditor member={member} onSaved={() => { reload(); management.reload(); }} />}</>}
+          {managing === person.userId && adminCommunityId && <MemberEditor member={member} communityId={adminCommunityId} onSaved={() => { reload(); management.reload(); }} />}</>}
       </li>;
     })}</ul>}
     <p className="muted">Рейтинг помогает собирать равные команды. Сначала он основан на анкете, затем уточняется оценками матчей.</p>

@@ -12,8 +12,9 @@ test('routeForStartParam', () => {
 test('team section links preserve explicit team context', () => {
   expect(routeForStartParam('c7_matches')).toBe('/matches');
   expect(routeForStartParam('c7_payments')).toBe('/notifications');
-  expect(contextForStartParam('c7_settings')).toEqual({ communityId: 7, route: '/profile' });
-  expect(contextForStartParam('b12')).toEqual({ eventId: 12, route: '/event/12?tab=bill' });
+  expect(contextForStartParam('c7_settings')).toEqual({ joinCommunityId: 7, route: '/profile' });
+  expect(contextForStartParam('c7_matches')).toEqual({ joinCommunityId: 7, route: '/matches' });
+  expect(contextForStartParam('b12')).toEqual({ route: '/event/12?tab=bill' });
   expect(contextForStartParam('c0_matches')).toEqual({ route: '/' });
 });
 

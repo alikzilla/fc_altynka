@@ -9,7 +9,8 @@ export function useMe(): MeDto {
   return me;
 }
 
-export const canManage = (me: MeDto) => me.role === 'organizer' || me.role === 'admin';
+export const creatableCommunities = (me: MeDto) => me.communities.filter(c => c.role !== 'player');
+export const showGroups = (me: MeDto) => me.communities.length > 1;
 
 export const MeReloadContext = createContext<() => void>(() => {});
 export const useReloadMe = () => useContext(MeReloadContext);

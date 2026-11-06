@@ -14,7 +14,7 @@ const s = (id: number, level: number): SignupDto => ({
 });
 const main = Array.from({ length: 10 }, (_, i) => s(i + 1, 10 - i));
 const ev: EventDetailDto = {
-  id: 5, date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: null, comment: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: null, comment: null,
   limit: 10, mainCount: 10, reserveCount: 0, my: 'main', main, reserve: [], teams: null, bill: null,
 };
 const team = (name: string) => screen.getByRole('group', { name });
