@@ -1,5 +1,5 @@
 import { matchPhase, splitQueue, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
-import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
+import { and, asc, desc, eq, getTableColumns, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
@@ -7,14 +7,17 @@ import { getEvent, loadQueue } from './events';
 import { teamsDto } from './teams';
 import { matchReview, playerRatings } from './ratings';
 import { billDto, getBillByEvent } from './bills';
+import { getGameProtocol } from './gameStart';
+import { activeEventFilter, pastEventFilter } from './eventPhase';
 
-const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
-const PAST: EventRow['status'][] = ['closed', 'cancelled'];
+const { gameStateJson: _protocolJson, ...summaryColumns } = getTableColumns(events);
+type SummaryEvent = Omit<EventRow, 'gameStateJson'>;
 
-function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number, now: number, community: CommunityDto): EventSummaryDto {
+function summary(ev: SummaryEvent, q: QueueSplit<SignupRow>, viewerUserId: number, now: number, community: CommunityDto): EventSummaryDto {
   const my = q.main.some(s => s.userId === viewerUserId) ? 'main' : q.reserve.some(s => s.userId === viewerUserId) ? 'reserve' : null;
   return {
     id: ev.id,
+    protocolVersion: ev.protocolVersion, startedAt: ev.startedAt, completedAt: ev.completedAt,
     date: ev.date,
     status: matchPhase(ev, now),
     serverNow: now,
@@ -37,18 +40,24 @@ export async function listEvents(db: Db, groups: CommunityDto[], viewerUserId: n
   const byId = groupsById(groups);
   const ids = [...byId.keys()];
   const active = await db
-    .select()
+    .select(summaryColumns)
     .from(events)
-    .where(and(inArray(events.communityId, ids), inArray(events.status, ACTIVE)))
+    .where(and(inArray(events.communityId, ids), activeEventFilter()))
     .orderBy(asc(events.date), asc(events.id));
   const past = await db
-    .select()
+    .select(summaryColumns)
     .from(events)
-    .where(and(inArray(events.communityId, ids), inArray(events.status, PAST)))
+    .where(and(inArray(events.communityId, ids), pastEventFilter(false)))
     .orderBy(desc(events.date), desc(events.id))
     .limit(5);
-  const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId, now, byId.get(ev.communityId)!);
-  return { active: await Promise.all(active.map(sum)), past: await Promise.all(past.map(sum)) };
+  const queues = new Map<number, SignupRow[]>();
+  const eventIds = [...new Set([...active, ...past].map(ev => ev.id))];
+  for (let offset = 0; offset < eventIds.length; offset += 50) {
+    const rows = await db.select().from(signups).where(and(inArray(signups.eventId,eventIds.slice(offset,offset+50)),isNull(signups.leftAt)));
+    for (const row of rows) queues.set(row.eventId,[...(queues.get(row.eventId) ?? []),row]);
+  }
+  const sum = (ev: SummaryEvent) => summary(ev, splitQueue(queues.get(ev.id) ?? [],ev.baseLimit), viewerUserId, now, byId.get(ev.communityId)!);
+  return { active: active.map(sum), past: past.map(sum) };
 }
 
 export interface ArchiveCursor { date: string; id: number }
@@ -68,9 +77,9 @@ export function parseArchiveCursor(raw: string): ArchiveCursor | null {
 export async function matchArchive(db: Db, groups: CommunityDto[], viewerUserId: number, cursor: ArchiveCursor | null, now = Date.now()): Promise<MatchArchiveDto> {
   if (!groups.length) return { events: [], nextCursor: null };
   const byId = groupsById(groups);
-  const rows = await db.select().from(events).where(and(
+  const rows = await db.select(summaryColumns).from(events).where(and(
     inArray(events.communityId, [...byId.keys()]),
-    inArray(events.status, ['billing', 'closed', 'cancelled']),
+    pastEventFilter(),
     cursor ? or(lt(events.date, cursor.date), and(eq(events.date, cursor.date), lt(events.id, cursor.id))) : undefined,
   )).orderBy(desc(events.date), desc(events.id)).limit(21);
   const page = rows.slice(0, 20);
@@ -123,6 +132,7 @@ export async function eventDetail(
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);
   return {
     review: { state, canFinish, completedAt, closesAt, gameScore },
+    gameProtocol: (await getGameProtocol({db,now,sync:{request:async()=>{}}},eventId,showLevels)) ?? undefined,
     ...summary(ev, q, viewer.userId, now, viewer.community),
     viewerRole: viewer.role,
     comment: ev.comment,

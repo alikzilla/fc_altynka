@@ -280,7 +280,7 @@ test('a global account cannot be selected as foreign bill receiver', async () =>
   const event = await createEvent(deps(), { communityId: w.communityId, createdBy: w.orgUserId, date: '2026-11-06', comment: null });
   // A direct domain call must also reject another team's receiver.
   const { upsertBill } = await import('../../src/domain/bills');
-  await db().update(events).set({ status: 'scheduled', startTime: '00:00', durationHours: 1 }).where(eq(events.id, event));
+  await db().update(events).set({ protocolVersion: 0, status: 'scheduled', startTime: '00:00', durationHours: 1 }).where(eq(events.id, event));
   const result = await upsertBill(deps(), event, { receiverUserId: outsider.id, receiverKaspiPhone: '+77011234567', fieldAmount: 1000, extras: [], participantSignupIds: [999] });
   expect(result.kind).toBe('invalid');
 });

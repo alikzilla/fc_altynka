@@ -17,7 +17,7 @@ const request = (path: string, as = w.player, body?: unknown, method = body === 
 
 async function playedMatch() {
   const eventId = await createEvent({ db: db(), now: w.clock.now - 3600000, sync: w.sync }, { communityId: w.communityId, date: '2026-11-05', comment: null, createdBy: w.orgUserId });
-  await db().update(events).set({ status: 'scheduled', startTime: '19:00', durationHours: 1 }).where(eq(events.id, eventId));
+  await db().update(events).set({ protocolVersion: 0, status: 'scheduled', startTime: '19:00', durationHours: 1 }).where(eq(events.id, eventId));
   const extra = await Promise.all([10, 11, 12].map(tgId => seedUser(`Партнёр ${tgId}`, { tgId, communityId: w.communityId })));
   const people = [w.playerUserId, w.orgUserId, ...extra.map(u => u.id)];
   const roster = await db().insert(signups).values(people.map((userId, seq) => ({ eventId, userId, seq: seq + 1, createdAt: 1 }))).returning();

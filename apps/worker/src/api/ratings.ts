@@ -52,6 +52,7 @@ ratingsApi.post('/events/:id/finish', requireRole('organizer'), body(z.object({ 
   const id = idParam(c.req.param('id'));
   const ev = id === null ? null : await getEvent(c.get('deps').db, id);
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
+  if (ev.protocolVersion === 1) return c.json({ error: 'use_game_finish' }, 409);
   const result = await finishMatch(c.get('deps'), ev, c.get('user').id, c.req.valid('json').participantSignupIds);
   if (result !== 'ok') return c.json({ error: result }, result === 'invalid' ? 400 : 409);
   return c.json(await matchReview(c.get('deps').db, ev, c.get('user').id, true, c.get('deps').now));

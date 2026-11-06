@@ -22,6 +22,7 @@ beforeEach(async () => {
   const c = await seedCommunity();
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer' });
   ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
 });
 afterEach(() => __setTgClientForTests(null));
 
@@ -51,6 +52,20 @@ test('kickoff alarm refreshes the Telegram card and removes signup buttons', asy
     expect(tg.edited.at(-1)!.html).toContain('Игра началась');
     expect(JSON.stringify(tg.edited.at(-1)!.keyboard)).not.toContain('callback_data');
     expect(await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm())).toBeNull();
+  } finally { clock.mockRestore(); }
+});
+
+test('manual session does not schedule automatic kickoff or close Telegram registration at appointment', async () => {
+  await d.db.update(events).set({protocolVersion:1}).where(eq(events.id,ev));
+  await scheduleEvent(d,ev,{startTime:'21:00',durationHours:1,place:null});
+  await stub().request(ev,{parts:['event']}); await runDurableObjectAlarm(stub());
+  expect(await runInDurableObject(stub(),(_i,state)=>state.storage.getAlarm())).toBeNull();
+  const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2026-11-07T17:00:00Z'));
+  try {
+    await stub().request(ev,{parts:['event']}); await runDurableObjectAlarm(stub());
+    const message=tg.edited.at(-1)!;
+    expect(message.html).not.toContain('Игра началась');
+    expect(JSON.stringify(message.keyboard)).toContain(`j:${ev}`);
   } finally { clock.mockRestore(); }
 });
 

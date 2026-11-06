@@ -2,6 +2,8 @@ import { nextGamePair, resolveFirstRest, type GameMutationMeta, type GameResultI
 import { getEvent, type Deps } from './events';
 import { commitGameCommand, parseGameState, previousGameCommand } from './gameStore';
 import { gameCommandResponse, type GameCommandResult } from './gameStart';
+import { getBillByEvent } from './bills';
+import { ensureGameReview } from './ratings';
 
 function resultFingerprint(action: string, input?: GameResultInput, gameId?: string): string {
   return JSON.stringify({ action, gameId: gameId ?? null, ...(input ? { score: input.score, scorers: [...input.scorers].sort((a, b) => a.signupId - b.signupId), firstRestTeamIndex: input.firstRestTeamIndex ?? null } : {}) });
@@ -75,3 +77,31 @@ async function mutateGames(d: Deps, eventId: number, actorId: number, meta: Game
 export const recordGameResult = (d: Deps, eventId: number, actorId: number, meta: GameMutationMeta, input: GameResultInput): Promise<GameCommandResult> => mutateGames(d, eventId, actorId, meta, { kind: 'record', input });
 export const editGameResult = (d: Deps, eventId: number, gameId: string, actorId: number, meta: GameMutationMeta, input: GameResultInput): Promise<GameCommandResult> => mutateGames(d, eventId, actorId, meta, { kind: 'edit', gameId, input });
 export const undoLastGame = (d: Deps, eventId: number, actorId: number, meta: GameMutationMeta): Promise<GameCommandResult> => mutateGames(d, eventId, actorId, meta, { kind: 'undo' });
+
+export async function finishGameSession(d: Deps, eventId: number, actorId: number, meta: GameMutationMeta, participantSignupIds: number[]): Promise<GameCommandResult> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return { kind: 'not_found' };
+  const ids = [...participantSignupIds].sort((a, b) => a - b);
+  const fingerprint = JSON.stringify({ action: 'finish', participantSignupIds: ids });
+  const previous = previousGameCommand(ev, meta, fingerprint);
+  if (previous) {
+    if (previous.kind === 'ok') { await d.sync.request(eventId, { parts: ['event'], review: true }); await ensureGameReview(d, eventId); }
+    return gameCommandResponse(d, eventId, previous);
+  }
+  if (ev.protocolVersion !== 1 || ev.status === 'cancelled') return { kind: 'closed' };
+  const state = parseGameState(ev);
+  if (!state || ev.startedAt === null) return { kind: 'not_started' };
+  if (ev.completedAt !== null) return { kind: 'completed' };
+  if (new Set(ids).size !== ids.length || ids.some(id => !state.roster.some(p => p.signupId === id)) || state.games.length > 0 && !ids.length) return { kind: 'invalid' };
+  const bill = await getBillByEvent(d.db, eventId);
+  const result = await commitGameCommand(d, ev, meta, {
+    fingerprint, state: { ...state, finishParticipants: ids, finishedBy: actorId },
+    startedAt: ev.startedAt, completedAt: Math.max(d.now, ev.startedAt), status: bill?.status === 'open' ? 'billing' : 'closed',
+  });
+  if (result.kind === 'ok') {
+    // Queue durable recovery before creating the review: a DB failure must not lose that work.
+    await d.sync.request(eventId, { parts: ['event'], review: true });
+    await ensureGameReview(d, eventId);
+  }
+  return gameCommandResponse(d, eventId, result);
+}

@@ -41,7 +41,7 @@ export class AutomaticNotifications {
       tasks.push(task);
     };
 
-    const kickoff = event.status === 'scheduled' ? matchStartsAt(event) : null;
+    const kickoff = event.status === 'scheduled' && (event.protocolVersion === 0 || event.startedAt === null) ? matchStartsAt(event) : null;
     if (kickoff !== null && kickoff > now) {
       const recipients = new Map<number, { playing: boolean; guests: string[] }>();
       for (const person of view.main) {

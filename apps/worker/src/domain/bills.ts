@@ -49,10 +49,16 @@ export async function upsertBill(
 ): Promise<UpsertBillResult> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
-  if (ev.status === 'cancelled' || ev.status === 'closed') return { kind: 'closed' };
+  if (ev.status === 'cancelled' || ev.protocolVersion !== 1 && ev.status === 'closed') return { kind: 'closed' };
   const existing = await getBillByEvent(d.db, eventId);
-  if (ev.status === 'collecting' || (!existing && (ev.status !== 'scheduled' || !ev.startTime || !ev.durationHours))) return { kind: 'not_scheduled' };
-  if (!existing && matchPhase(ev, d.now) !== 'playing') return { kind: 'not_started' };
+  if (existing?.status === 'closed') return { kind: 'closed' };
+  if (ev.protocolVersion === 1) {
+    if (ev.status === 'collecting' || !ev.startTime || !ev.durationHours) return { kind: 'not_scheduled' };
+    if (ev.startedAt === null) return { kind: 'not_started' };
+  } else {
+    if (ev.status === 'collecting' || (!existing && (ev.status !== 'scheduled' || !ev.startTime || !ev.durationHours))) return { kind: 'not_scheduled' };
+    if (!existing && matchPhase(ev, d.now) !== 'playing') return { kind: 'not_started' };
+  }
   const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
   const [receiverMembership] = await d.db.select().from(memberships).where(and(eq(memberships.communityId, ev.communityId), eq(memberships.userId, v.receiverUserId), eq(memberships.active, true)));
   if (!receiver || !receiverMembership || !v.participantSignupIds.length) return { kind: 'invalid' };

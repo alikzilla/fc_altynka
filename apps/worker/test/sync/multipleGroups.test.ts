@@ -1,6 +1,6 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
-import { communities } from '../../src/db/schema';
+import { events, communities } from '../../src/db/schema';
 import { bindCommunity, ensureMembership } from '../../src/domain/members';
 import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { upsertBill } from '../../src/domain/bills';
@@ -27,6 +27,8 @@ test('two-team delivery uses each match chat, local receiver and local subscript
     const org = await seedUser(`Получатель ${c.id}`, { communityId: c.id });
     await setMemberProfile(org.id, { kaspiPhone: phone });
     const eventId = await createEvent(d, { communityId: c.id, date: '2026-12-01', comment: null, createdBy: org.id });
+    // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
+    await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,eventId));
     await joinEvent(d, eventId, org.id); await joinEvent(d, eventId, payer.id);
     await scheduleEvent(d, eventId, { startTime: '21:00', durationHours: 1, place: c.title });
     const result = await upsertBill({ ...d, now: Date.parse('2026-12-01T16:00:00Z') }, eventId, { receiverUserId: org.id, fieldAmount, extras: [], participantSignupIds: (await loadQueue(db(), eventId)).main.map(s => s.id) });

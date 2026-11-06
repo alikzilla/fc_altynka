@@ -18,6 +18,8 @@ beforeEach(async () => {
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer' });
   orgId = org.id;
   ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   us = await Promise.all(Array.from({ length: 9 }, (_, i) => seedUser(`И${i + 1}`, { communityId: c.id })));
   timur = us[8];
   for (const u of us) await joinEvent(d, ev, u.id);

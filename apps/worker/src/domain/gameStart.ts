@@ -44,9 +44,15 @@ export async function startGameSession(d: Deps, eventId: number, actorId: number
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
   const duplicate = previousGameCommand(ev, meta, 'start');
-  if (duplicate) return gameCommandResponse(d, eventId, duplicate);
+  if (duplicate) {
+    if (duplicate.kind === 'ok') await d.sync.request(eventId, { parts: ['event', 'teams'] });
+    return gameCommandResponse(d, eventId, duplicate);
+  }
   if (ev.protocolVersion !== 1 || ev.status === 'cancelled') return { kind: 'closed' };
-  if (ev.startedAt !== null) return gameCommandResponse(d, eventId, { kind: 'ok', duplicate: true, appliedRevision: 1 });
+  if (ev.startedAt !== null) {
+    await d.sync.request(eventId, { parts: ['event', 'teams'] });
+    return gameCommandResponse(d, eventId, { kind: 'ok', duplicate: true, appliedRevision: 1 });
+  }
   if (ev.status !== 'scheduled' || ev.date > todayAlmaty(new Date(d.now))) return { kind: 'closed' };
   if (meta.expectedRevision !== ev.gameRevision) return { kind: 'conflict' };
   const q = await loadQueue(d.db, eventId);

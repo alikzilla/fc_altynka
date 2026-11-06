@@ -12,6 +12,7 @@ import { PersonalDelivery, type DeliveryReport } from './personal';
 import { miniAppLink } from '../telegram/links';
 import { getEvent } from '../domain/events';
 import { AutomaticNotifications } from './automatic';
+import { ensureGameReview } from '../domain/ratings';
 
 const PART_ORDER: Part[] = ['event', 'teams', 'bill'];
 
@@ -77,9 +78,11 @@ export class EventSync extends DurableObject<Env> {
       await s.put({ dirty: [], pending: [] });
       return;
     }
+    try { await ensureGameReview({db:getDb(this.env.DB),now:Date.now(),sync:{request:async()=>{}}},eventId); }
+    catch (error) { await s.setAlarm(Date.now()+5000); throw error; }
     // Забираем накопленное сразу: request() во время отправки допишет новое, и оно не затрётся.
     const dirty = new Set((await s.get<Part[]>('dirty')) ?? []);
-    const kickoff = event.status === 'scheduled' ? matchStartsAt(event) : null;
+    const kickoff = event.protocolVersion === 0 && event.status === 'scheduled' ? matchStartsAt(event) : null;
     if (kickoff !== null && kickoff <= Date.now() && (await s.get<number>('kickoffHandled')) !== kickoff) {
       dirty.add('event');
       await s.put('kickoffHandled', kickoff);
@@ -129,7 +132,7 @@ export class EventSync extends DurableObject<Env> {
     else {
       await s.delete('retryNotBefore');
       const latest = await getEvent(getDb(this.env.DB), eventId);
-      const nextKickoff = latest?.status === 'scheduled' ? matchStartsAt(latest) : null;
+      const nextKickoff = latest?.protocolVersion === 0 && latest.status === 'scheduled' ? matchStartsAt(latest) : null;
       const nextAutomatic = await automatic.nextAt(eventId);
       const deadlines = [nextKickoff !== null && nextKickoff > Date.now() ? nextKickoff : null, nextAutomatic]
         .filter((at): at is number => at !== null);

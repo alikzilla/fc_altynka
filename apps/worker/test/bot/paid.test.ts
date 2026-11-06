@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { users } from '../../src/db/schema';
+import { events, users } from '../../src/db/schema';
 import { upsertBill } from '../../src/domain/bills';
 import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { upsertTgUser } from '../../src/domain/members';
@@ -18,6 +18,8 @@ test('p: callback marks paid once', async () => {
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer', tgId: 3001 });
   await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   const payer = await upsertTgUser(db(), { id: 501, first_name: 'Арман' }, 1);
   await ensureMembership(db(), c.id, payer.id, d.now);
   const tg = new FakeTg(); tg.members.add(501); tg.members.add(777); __setTgClientForTests(tg);

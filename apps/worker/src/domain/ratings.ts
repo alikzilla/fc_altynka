@@ -8,6 +8,8 @@ import type { Db } from '../db/client';
 import { events, memberships, matchParticipants, matchReviews, reviewSubmissions, signups, skillAssessments, users, type EventRow } from '../db/schema';
 import type { Deps } from './events';
 import { peerUserIds } from './members';
+import { getEvent } from './events';
+import { parseGameState } from './gameStore';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
@@ -78,11 +80,13 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
 }
 
 export function canFinishMatch(ev: EventRow, now: number): boolean {
+  if (ev.protocolVersion === 1) return false;
   const startsAt = matchStartsAt(ev);
   return ev.ratingEnabled && ev.status !== 'cancelled' && ev.status !== 'collecting' && startsAt !== null && now >= startsAt;
 }
 
 export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, participantSignupIds: number[]): Promise<'ok' | 'invalid' | 'closed' | 'conflict'> {
+  if (ev.protocolVersion === 1) return 'closed';
   const [existing] = await d.db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
   const ids = [...participantSignupIds].sort((a, b) => a - b);
   const sameRoster = (json: string) => JSON.stringify((JSON.parse(json) as { signupId: number }[]).map(p => p.signupId).sort((a, b) => a - b)) === JSON.stringify(ids);
@@ -113,6 +117,10 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
 export async function matchReview(db: Db, ev: EventRow, userId: number, manage: boolean, now: number): Promise<MatchReviewDto> {
   const [review] = await db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
   const empty: MatchReviewDto = { state: ev.ratingEnabled ? 'pending' : 'legacy', canFinish: manage && canFinishMatch(ev, now), completedAt: null, closesAt: null, gameScore: null, serverNow: now, participants: [], ownSubmission: null };
+  if (!review && ev.protocolVersion === 1 && ev.completedAt !== null) {
+    const state = parseGameState(ev);
+    return { ...empty, state: state?.finishParticipants?.length ? 'pending' : 'ineligible', canFinish: false, completedAt: ev.completedAt };
+  }
   if (!review || ev.status === 'cancelled') return { ...empty, canFinish: ev.status !== 'cancelled' && empty.canFinish };
   const [participants, submissions, scores, overall] = await Promise.all([
     db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id)),
@@ -132,6 +140,18 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     gameScore: overall[0]?.score ?? null,
     participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, score: scoreMap.get(p.userId) ?? null }]),
     ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null };
+}
+
+/** Complete the review outbox stored by finish; names come from the immutable game roster. */
+export async function ensureGameReview(d: Deps, eventId: number): Promise<void> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev || ev.protocolVersion !== 1 || ev.completedAt === null || !ev.ratingEnabled || ev.status === 'cancelled') return;
+  const state = parseGameState(ev);
+  if (!state?.finishParticipants?.length || state.finishedBy === undefined) return;
+  const roster = state.roster.filter(p => state.finishParticipants!.includes(p.signupId));
+  await d.db.run(sql`INSERT INTO match_reviews(event_id,completed_at,completed_by,closes_at,roster_json)
+    VALUES(${eventId},${ev.completedAt},${state.finishedBy},${ev.completedAt + REVIEW_WINDOW_MS},${JSON.stringify(roster)})
+    ON CONFLICT(event_id) DO NOTHING`);
 }
 
 export async function submitReview(d: Deps, ev: EventRow, userId: number, input: ReviewInput): Promise<'ok' | 'invalid' | 'closed' | 'conflict' | 'forbidden'> {

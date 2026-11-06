@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { getGameProtocol, startGameSession, type GameCommandResult } from '../domain/gameStart';
 import { body, idParam } from './validate';
-import { recordGameResult, editGameResult, undoLastGame } from '../domain/games';
+import { recordGameResult, editGameResult, undoLastGame, finishGameSession } from '../domain/games';
 
 export const gamesApi = new Hono<AppEnv>();
 const metaFields = { requestId: z.string().trim().min(1).max(100), expectedRevision: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER) };
@@ -40,4 +40,9 @@ gamesApi.patch('/events/:id/games/results/:gameId', requireRole('organizer'), bo
 gamesApi.post('/events/:id/games/undo', requireRole('organizer'), body(gameMetaBody), async c => {
   const id = idParam(c.req.param('id'));
   return gameReply(c, id === null ? { kind: 'not_found' } : await undoLastGame(c.get('deps'), id, c.get('user').id, c.req.valid('json')));
+});
+gamesApi.post('/events/:id/games/finish', requireRole('organizer'), body(gameMetaBody.extend({ participantSignupIds: z.array(safeInteger.positive()).max(100) }).strict()), async c => {
+  const id = idParam(c.req.param('id'));
+  const input = c.req.valid('json');
+  return gameReply(c, id === null ? { kind: 'not_found' } : await finishGameSession(c.get('deps'), id, c.get('user').id, input, input.participantSignupIds));
 });

@@ -1,6 +1,6 @@
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
-import { communities, users } from '../../src/db/schema';
+import { events, communities, users } from '../../src/db/schema';
 import { closeBill, markPaid, upsertBill } from '../../src/domain/bills';
 import { addGuest, createEvent, joinEvent, leaveEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { __setTgClientForTests, TgForbidden, TgRateLimited } from '../../src/telegram/client';
@@ -20,6 +20,8 @@ async function world(enabled = true) {
   tg.members.add(501); tg.members.add(101);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
   const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   await joinEvent(d, ev, org.id); await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Шанырак' });
   const ids = (await loadQueue(d.db, ev)).main.map(s => s.id);

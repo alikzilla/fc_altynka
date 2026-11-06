@@ -32,6 +32,7 @@ async function world() {
   tg.members.add(101); tg.members.add(501);
   const d = { db: db(), get now() { return now; }, sync: new FakeSync() };
   const ev = await createEvent(d, { communityId: community.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   await joinEvent(d, ev, org.id); await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Шанырак' });
   const stub = env.EVENT_SYNC.get(env.EVENT_SYNC.idFromName(`event:${ev}`));

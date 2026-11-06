@@ -43,3 +43,13 @@ test('game writes validate body, permissions, ownership and retries', async () =
   const dto=await (await apiRequest(`/api/events/${eventId}/games`,{as:w.player})).json() as {games:unknown[]};
   expect(dto.games).toHaveLength(1); expect(dto).not.toHaveProperty('receipts');
 });
+
+test('new sessions finish through the game protocol and support an empty no-play roster', async () => {
+  await apiRequest(`/api/events/${eventId}/games/start`,{as:w.org,method:'POST',body:{requestId:'start',expectedRevision:0}});
+  expect((await apiRequest(`/api/events/${eventId}/finish`,{as:w.org,method:'POST',body:{participantSignupIds:[1]}})).status).toBe(409);
+  const body={requestId:'finish',expectedRevision:1,participantSignupIds:[]};
+  expect((await apiRequest(`/api/events/${eventId}/games/finish`,{as:w.player,method:'POST',body})).status).toBe(403);
+  const response=await apiRequest(`/api/events/${eventId}/games/finish`,{as:w.org,method:'POST',body});
+  expect(response.status).toBe(200);
+  expect(await response.json()).toMatchObject({protocol:{state:'completed',canRecord:false}});
+});

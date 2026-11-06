@@ -8,6 +8,7 @@ import { makeTgClient } from '../telegram/client';
 import { miniAppLink } from '../telegram/links';
 import type { BotDeps } from './bot';
 import { appKeyboard, helpText, organizerCommands, playerCommands, settingsKeyboard, settingsText } from './presentation';
+import { activeEventFilter } from '../domain/eventPhase';
 
 const money = (amount: number) => `${amount.toLocaleString('ru-RU').replace(/\s/g, ' ')} ₸`;
 const actions = ['start', 'matches', 'payments', 'settings', 'newmatch', 'help'] as const;
@@ -66,7 +67,7 @@ export function registerPrivateCommands(bot: Bot, env: Env, deps: BotDeps): void
     } else if (action === 'matches') {
       const rows = await deps.db.select({ id: events.id, date: events.date, startTime: events.startTime, place: events.place, group: communities.title }).from(events)
         .innerJoin(communities, eq(communities.id, events.communityId))
-        .where(and(inArray(events.communityId, groups.map(g => g.community.id)), inArray(events.status, ['collecting', 'scheduled'])))
+        .where(and(inArray(events.communityId, groups.map(g => g.community.id)), activeEventFilter(false)))
         .orderBy(asc(events.date), asc(events.id)).limit(8);
       const label = groups.length > 1;
       const text = rows.length ? '<b>Предстоящие матчи</b>\n\n' + rows.map(e => `${formatDateRu(e.date)} · ${e.startTime ?? 'время не назначено'}${e.place ? ` · ${escapeHtml(e.place)}` : ''}${label ? ` · ${escapeHtml(e.group)}` : ''}`).join('\n') : 'Пока нет активных матчей.';

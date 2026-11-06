@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { billLines, users } from '../../src/db/schema';
+import { events, billLines, users } from '../../src/db/schema';
 import { upsertBill } from '../../src/domain/bills';
 import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { __setTgClientForTests } from '../../src/telegram/client';
@@ -17,6 +17,8 @@ async function world() {
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
   await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   const eventId = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
+  await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,eventId));
   await joinEvent(d, eventId, org.id); await joinEvent(d, eventId, payer.id);
   await scheduleEvent(d, eventId, { startTime: '21:00', durationHours: 1, place: 'Поле' });
   d.now = Date.parse('2026-11-07T16:00:00Z');

@@ -13,7 +13,7 @@ export interface GameCommandReceipt { requestId: string; fingerprint: string; re
 export interface GameState {
   teamCount: TeamCount; roster: GameRosterPlayer[];
   initialPair: GamePair; currentPair: GamePair; games: GameResult[];
-  receipts: GameCommandReceipt[]; finishParticipants: number[] | null;
+  receipts: GameCommandReceipt[]; finishParticipants: number[] | null; finishedBy?: number;
 }
 export interface GameMutationMeta { requestId: string; expectedRevision: number }
 export interface GameResultInput { score: GameScore; scorers: GameGoals[]; firstRestTeamIndex?: number }

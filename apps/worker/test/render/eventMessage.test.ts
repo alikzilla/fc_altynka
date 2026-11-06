@@ -9,6 +9,11 @@ export const base: EventView = {
 const targets = (r: ReturnType<typeof renderEventMessage>) =>
   r.keyboard!.inline_keyboard.flat().map(b => ('callback_data' in b ? b.callback_data : 'url' in b ? b.url : ''));
 
+test('new completed sport is not described as a closed monetary bill', () => {
+  expect(renderEventMessage({...base,protocolVersion:1,status:'closed',completedAt:1},env).html).toContain('Встреча завершена');
+  expect(renderEventMessage({...base,protocolVersion:1,status:'closed',completedAt:1},env).html).not.toContain('Счёт закрыт');
+});
+
 test('collecting message: date, pending time, numbered lists, buttons', () => {
   const r = renderEventMessage(base, env);
   expect(r.html).toContain('суббота, 7 ноября');

@@ -15,6 +15,8 @@ export interface PersonView {
 }
 
 export interface EventView {
+  protocolVersion?: 0 | 1;
+  completedAt?: number | null;
   communityTitle?: string;
   id: number;
   date: string;
@@ -48,7 +50,7 @@ function statusLine(v: EventView): string {
       return 'Время и поле пока не назначены';
     default: {
       const when = v.startTime && v.durationHours ? timeRange(v.startTime, v.durationHours) : 'Время пока не назначено';
-      const tail = v.status === 'playing' ? '\nИгра началась · запись закрыта' : v.status === 'billing' ? '\nЗапись закрыта · доступна оплата' : v.status === 'closed' ? '\nСчёт закрыт' : '';
+      const tail = v.status === 'playing' ? '\nИгра началась · запись закрыта' : v.status === 'billing' ? (v.protocolVersion === 1 && v.completedAt != null ? '\nВстреча завершена · доступна оплата' : '\nЗапись закрыта · доступна оплата') : v.status === 'closed' ? (v.protocolVersion === 1 ? '\nВстреча завершена' : '\nСчёт закрыт') : '';
       return `${when}${v.place ? ` · ${escapeHtml(v.place)}` : ''}${tail}`;
     }
   }

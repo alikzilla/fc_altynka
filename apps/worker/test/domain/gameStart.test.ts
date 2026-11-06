@@ -45,6 +45,16 @@ test('scheduled time alone does not lock preparation', async () => {
   expect((await startGameSession(w.d,w.eventId,w.actorId,{requestId:'late',expectedRevision:0})).kind).toBe('ok');
 });
 
+test('retry of a persisted start retries Telegram sync after the first sync failed', async () => {
+  const w=await gameFixture();
+  const request=vi.fn().mockRejectedValueOnce(new Error('sync unavailable')).mockResolvedValue(undefined);
+  w.d.sync={request};
+  const meta={requestId:'start',expectedRevision:0};
+  await expect(startGameSession(w.d,w.eventId,w.actorId,meta)).rejects.toThrow('sync unavailable');
+  expect((await startGameSession(w.d,w.eventId,w.actorId,meta)).kind).toBe('ok');
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
 test('stale roster revision prevents a snapshot committing after guest removal; guards roll back partial batches', async () => {
   const w = await gameFixture();
   const before = (await getEvent(w.d.db,w.eventId))!;
