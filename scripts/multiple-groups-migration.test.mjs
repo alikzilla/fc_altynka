@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-test('multiple-group migration keeps profile on users, preserves memberships and history, one assessment per user', () => {
+test('0009 then 0010: profile edits made in group copies return to users, memberships and history survive, one assessment per user', () => {
   const db = new DatabaseSync(':memory:');
   try {
     const directory = new URL('../apps/worker/migrations/', import.meta.url);
@@ -24,6 +24,25 @@ test('multiple-group migration keeps profile on users, preserves memberships and
       INSERT INTO bills(event_id, receiver_user_id, field_amount, share, created_at) VALUES(1, 1, 4000, 4000, 1);
     `);
     db.exec(readFileSync(new URL('0009_multiple_groups.sql', directory), 'utf8'));
+    // 0009 (applied in production) copied profiles into memberships; edits after it shipped
+    // landed only there. User 1's group-2 copy is untouched (NULLs), user 3 renamed in the
+    // group copy, user 4 set position/foot and turned notifications off there.
+    db.exec(`
+      UPDATE memberships SET kaspi_phone = NULL, playing_position = NULL, dominant_foot = NULL,
+        profile_completed_at = NULL, notifications_enabled = 0 WHERE community_id = 2 AND user_id = 1;
+      INSERT INTO users(id, tg_id, first_name, display_name, notifications_enabled, created_at)
+        VALUES(3, 300, 'Third', 'Third', 0, 1), (4, 400, 'Fourth', 'Fourth', 1, 1);
+      INSERT INTO memberships(community_id, user_id, display_name, checked_at) VALUES(1, 3, 'Renamed', 1);
+      INSERT INTO memberships(community_id, user_id, display_name, playing_position, dominant_foot, notifications_enabled, checked_at)
+        VALUES(1, 4, 'Fourth', 'forward', 'right', 0, 1);
+    `);
+    db.exec(readFileSync(new URL('0010_unified_profile.sql', directory), 'utf8'));
+    const owner = db.prepare('SELECT * FROM users WHERE id=1').get();
+    assert.equal(owner.kaspi_phone, '+77011234567'); assert.equal(owner.playing_position, 'goalkeeper');
+    assert.equal(owner.dominant_foot, 'left'); assert.equal(owner.notifications_enabled, 1); assert.equal(owner.profile_completed_at, 123);
+    assert.equal(db.prepare('SELECT display_name FROM users WHERE id=3').get().display_name, 'Renamed');
+    const fourth = db.prepare('SELECT * FROM users WHERE id=4').get();
+    assert.equal(fourth.playing_position, 'forward'); assert.equal(fourth.dominant_foot, 'right'); assert.equal(fourth.notifications_enabled, 0);
     const member = db.prepare('SELECT * FROM memberships WHERE community_id=1 AND user_id=1').get();
     assert.equal(db.prepare('SELECT count(*) n FROM skill_assessments WHERE user_id=1').get().n, 1);
     assert.equal(db.prepare('SELECT teamwork FROM skill_assessments WHERE user_id=1').get().teamwork, 8);
@@ -42,6 +61,7 @@ test('multiple-group migration keeps profile on users, preserves memberships and
       VALUES (?, 1, ?, 5, 5, 5, 5, 5, 5, 5, 300)`).run(userId, teamwork);
     assert.throws(() => assessment(1, 5), /UNIQUE|PRIMARY KEY/);
     db.exec(`INSERT INTO users(id, tg_id, first_name, display_name, created_at) VALUES(2, 200, 'Second', 'Second', 1)`);
+    assert.equal(db.prepare('SELECT count(*) n FROM skill_assessments').get().n, 1);
     assert.throws(() => assessment(2, 11), /CHECK constraint failed/);
     assert.throws(() => assessment(2, 0), /CHECK constraint failed/);
     assessment(2, 10);
