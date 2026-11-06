@@ -21,3 +21,16 @@ test('collecting allows signup without a scheduled time; terminal phases stay te
     expect(registrationOpen({ ...scheduled, status }, start - 1)).toBe(false);
   }
 });
+
+test('manual sessions keep registration open past scheduled time until explicit start', () => {
+  const manual = { ...scheduled, protocolVersion: 1 as const, startedAt: null, completedAt: null };
+  expect(matchPhase(manual, start + 60_000)).toBe('scheduled');
+  expect(registrationOpen(manual, start + 60_000)).toBe(true);
+  for (const status of ['scheduled', 'billing', 'closed'] as const) {
+    const playing = { ...manual, status, startedAt: start };
+    expect(matchPhase(playing, start + 1)).toBe('playing');
+    expect(registrationOpen(playing, start + 1)).toBe(false);
+    expect(matchPhase({ ...playing, completedAt: start + 1 }, start + 2)).toBe(status === 'billing' ? 'billing' : 'closed');
+  }
+  expect(matchPhase({ ...manual, status: 'cancelled', startedAt: start }, start + 1)).toBe('cancelled');
+});

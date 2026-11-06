@@ -1,7 +1,7 @@
 import type { EventStatus } from './api';
 
 type Timing = { date: string; startTime: string | null };
-type Match = Timing & { status: EventStatus };
+type Match = Timing & { status: EventStatus; protocolVersion?: 0 | 1; startedAt?: number | null; completedAt?: number | null };
 const localTime = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Almaty', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 
 /** Convert a match's local wall time using the IANA zone, including midnight boundaries. */
@@ -21,6 +21,12 @@ export function matchStartsAt({ date, startTime }: Timing): number | null {
 
 /** Playing is derived, so clock enforcement never depends on a background status update. */
 export function matchPhase(event: Match, now = Date.now()): EventStatus {
+  if (event.protocolVersion === 1) {
+    if (event.status === 'cancelled') return 'cancelled';
+    if (event.completedAt != null) return event.status === 'billing' ? 'billing' : 'closed';
+    if (event.startedAt != null) return 'playing';
+    return event.status;
+  }
   const start = matchStartsAt(event);
   return event.status === 'scheduled' && start !== null && now >= start ? 'playing' : event.status;
 }

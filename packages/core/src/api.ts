@@ -1,6 +1,7 @@
 import type { Extra, LineState } from './bill';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 import type { MatchReviewSummaryDto, PlayerRatingDto, PlayerSummaryDto } from './ratings';
+import type { GameProtocolDto } from './games';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
@@ -44,6 +45,9 @@ export interface SignupDto {
 }
 
 export interface EventSummaryDto {
+  protocolVersion?: 0 | 1;
+  startedAt?: number | null;
+  completedAt?: number | null;
   /** Server snapshot used to keep kickoff behavior independent of the phone's clock. */
   serverNow?: number;
   id: number;
@@ -92,6 +96,7 @@ export interface BillDto {
 }
 
 export interface EventDetailDto extends EventSummaryDto {
+  gameProtocol?: GameProtocolDto;
   review?: MatchReviewSummaryDto;
   comment: string | null;
   main: SignupDto[];
