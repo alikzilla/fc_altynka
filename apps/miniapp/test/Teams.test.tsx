@@ -58,9 +58,23 @@ test('publish sends PUT then POST', async () => {
   expect(calls[0][0]).toBe('PUT');
   expect(calls[0][1]).toBe('/api/events/5/teams');
   expect(calls[0][2]).toMatchObject({ teamCount: 2 });
+  expect(calls[0][2].refreshRatings).toBe(true);
+  expect(calls[0][2].ratingSnapshot).toEqual(Object.fromEntries(main.map(m => [m.id, m.level])));
   expect(calls[0][2].teams.flat().sort((x: number, y: number) => x - y)).toEqual(main.map(m => m.id));
   expect(calls[1]).toEqual(['POST', '/api/events/5/teams/publish']);
   expect(reload).toHaveBeenCalled();
+});
+
+test('republishing saved teams preserves the reviewed snapshot until a new split is generated', async () => {
+  const ratingSnapshot = Object.fromEntries(main.map(m => [m.id, 5]));
+  const saved = { ...ev, teams: { teamCount: 2 as const, teams: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], publishedAt: 1, stale: false, ratingSnapshot } };
+  renderWithApp(<Teams ev={saved} reload={() => {}} />, { me: organizer });
+  expect(screen.getAllByText('Сумма 25,0')).toHaveLength(2);
+  await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
+  expect(api.send).toHaveBeenCalledWith('PUT', '/api/events/5/teams', expect.objectContaining({ refreshRatings: false, ratingSnapshot }));
+  await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
+  expect(api.send).toHaveBeenCalledWith('PUT', '/api/events/5/teams', expect.objectContaining({ refreshRatings: true, ratingSnapshot: Object.fromEntries(main.map(m => [m.id, m.level])) }));
 });
 
 test('player sees published teams without levels', () => {

@@ -1,10 +1,12 @@
 import type { Extra, LineState } from './bill';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
+import type { MatchReviewSummaryDto, PlayerRatingDto } from './ratings';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
 
 export interface MeDto {
+  rating?: PlayerRatingDto;
   userId: number;
   displayName: string;
   role: Role;
@@ -50,6 +52,7 @@ export interface EventSummaryDto {
 }
 
 export interface TeamsDto {
+  ratingSnapshot?: Record<number, number>;
   teamCount: 2 | 3;
   teams: number[][];
   publishedAt: number | null;
@@ -81,6 +84,7 @@ export interface BillDto {
 }
 
 export interface EventDetailDto extends EventSummaryDto {
+  review?: MatchReviewSummaryDto;
   comment: string | null;
   main: SignupDto[];
   reserve: SignupDto[];
@@ -106,6 +110,8 @@ export interface MatchArchiveDto {
 }
 
 export type NotificationTaskDto =
+  | { kind: 'skills'; id: string }
+  | { kind: 'review'; id: string; eventId: number; date: string; place: string | null; closesAt: number }
   | { kind: 'payment'; id: string; eventId: number; date: string; place: string | null; due: number; receiverName: string }
   | { kind: 'schedule'; id: string; eventId: number; date: string; place: string | null };
 

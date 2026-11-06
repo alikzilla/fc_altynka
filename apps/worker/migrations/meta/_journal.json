@@ -57,6 +57,13 @@
       "when": 1793820643696,
       "tag": "0007_grey_boomerang",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1793897572947,
+      "tag": "0008_player_ratings",
+      "breakpoints": true
     }
   ]
 }

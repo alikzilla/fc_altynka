@@ -17,6 +17,8 @@
 - [Нижние окна и пустые состояния](bottom-sheet-review.md)
 - [Поля ввода](input-sizing-review.md)
 - [Настройки профиля](profile-settings-review.md)
+- [Игровые характеристики и рейтинги](player-ratings-review.md) — анкета, анонимные оценки и профили игроков.
+- [Публикация рейтингов](player-ratings-deployment.md) — рабочая версия, миграция и проверки после деплоя.
 
 ## Telegram-бот
 

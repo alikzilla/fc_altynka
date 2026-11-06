@@ -14,6 +14,7 @@ import { MatchParticipation } from './MatchParticipation';
 import { EventList } from './EventList';
 import { Teams } from './Teams';
 import { Bill } from './Bill';
+import { MatchRatings } from './MatchRatings';
 
 export type Tab = 'list' | 'teams' | 'bill';
 const TABS: [Tab, string][] = [['list', 'Участники'], ['teams', 'Составы'], ['bill', 'Оплата']];
@@ -64,6 +65,7 @@ export function Event() {
         <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS[ev.status]}</span></p>
         <MatchParticipation key={ev.id} ev={ev} reload={reload} />
       </section>
+      <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />
       <div className="tabs" role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={`panel-${k}`} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {
         const index = TABS.findIndex(([key]) => key === k);
         const next = e.key === 'ArrowRight' ? (index + 1) % TABS.length : e.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;

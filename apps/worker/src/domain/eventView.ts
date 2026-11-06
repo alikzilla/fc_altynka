@@ -5,6 +5,7 @@ import { events, memberships, signups, type EventRow, type SignupRow } from '../
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDto } from './teams';
+import { matchReview, playerRatings } from './ratings';
 import { billDto, getBillByEvent } from './bills';
 
 const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
@@ -93,8 +94,8 @@ export async function eventDetail(
   const showLevels = viewer.role !== 'player';
   const levels = new Map<number, number>();
   if (showLevels) {
-    const ms = await db.select().from(memberships).where(eq(memberships.communityId, ev.communityId));
-    ms.forEach(m => levels.set(m.userId, m.level));
+    const ratings = await playerRatings(db, ev.communityId, now);
+    ratings.forEach(p => levels.set(p.userId, p.rating.value));
   }
   const dto = (s: SignupRow): SignupDto => {
     const base: SignupDto = {
@@ -108,7 +109,9 @@ export async function eventDetail(
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
     return base;
   };
+  const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);
   return {
+    review: { state, canFinish, completedAt, closesAt, gameScore },
     ...summary(ev, q, viewer.userId, now),
     comment: ev.comment,
     main: q.main.map(dto),

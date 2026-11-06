@@ -16,8 +16,8 @@ export interface Rated {
 }
 
 export function spread(teams: Rated[][]): number {
-  const s = teams.map(t => t.reduce((a, p) => a + p.level, 0));
-  return Math.max(...s) - Math.min(...s);
+  const s = teams.map(t => t.reduce((a, p) => a + Math.round(p.level * 10), 0));
+  return (Math.max(...s) - Math.min(...s)) / 10;
 }
 
 /** mulberry32: детерминированный ГПСЧ для тестов и повторяемости. */

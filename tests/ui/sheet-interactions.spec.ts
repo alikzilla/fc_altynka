@@ -9,7 +9,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await page.route('**/api/**', route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : path === '/api/members' ? [] : draft });
+    return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : (path === '/api/members' || path === '/api/players') ? [] : draft });
   });
 });
 async function openSheet(page: Page) {

@@ -9,6 +9,8 @@ import { Event } from './screens/Event';
 import { Home } from './screens/Home';
 import { NewEvent } from './screens/NewEvent';
 import { Players } from './screens/Players';
+import { SkillAssessment, SkillsPrompt } from './screens/SkillAssessment';
+import { MatchReview } from './screens/MatchReview';
 import { Profile } from './screens/Profile';
 import { ProfileSettings } from './screens/ProfileSettings';
 import { Schedule } from './screens/Schedule';
@@ -69,14 +71,11 @@ export function App() {
                   </Route>
                   <Route path="/event/:id/guest" component={AddGuest} />
                   <Route path="/event/:id/schedule" component={Schedule} />
+                  <Route path="/event/:id/review"><MatchReview /></Route>
                   <Route path="/event/:id" component={Event} />
-                  <Route path="/players">
-                    {canManage(me) ? <Players /> : (
-                      <Screen title="Игроки" back="/profile">
-                        <EmptyState title="Только для организаторов" text="Управление составом доступно организаторам команды." />
-                      </Screen>
-                    )}
-                  </Route>
+                  <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
+                  <Route path="/players"><Players /></Route>
+                  <Route path="/profile/skills" component={SkillAssessment} />
                   <Route path="/profile/settings/:section">{params => <ProfileSettings section={params.section} />}</Route>
                   <Route path="/profile/settings"><ProfileSettings /></Route>
                   <Route path="/profile" component={Profile} />
@@ -84,6 +83,7 @@ export function App() {
                 </Switch>
               </ScreenSearchContext.Provider>
               <Nav />
+              <SkillsPrompt />
               {path === '/new' && canManage(me) && (
                 <NewEvent onClose={() => navigate(background.current, { replace: true })} />
               )}

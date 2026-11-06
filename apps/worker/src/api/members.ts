@@ -6,6 +6,7 @@ import { requireRole, type AppEnv } from '../auth/middleware';
 import type { Db } from '../db/client';
 import { bills, memberships, users, type UserRow } from '../db/schema';
 import { effectiveRole, nameTaken } from '../domain/members';
+import { playerRatings } from '../domain/ratings';
 import type { Env } from '../env';
 import { body, idParam } from './validate';
 
@@ -14,9 +15,9 @@ const name = z.string().trim().min(1).max(24);
 export const membersApi = new Hono<AppEnv>();
 const profileDetails = (u: UserRow) => ({ profileCompleted: u.profileCompletedAt !== null || !!u.kaspiPhone, playingPosition: u.playingPosition, dominantFoot: u.dominantFoot, theme: u.theme });
 
-membersApi.get('/me', c => {
+membersApi.get('/me', async c => {
   const u = c.get('user');
-  return c.json<MeDto>({ userId: u.id, displayName: u.displayName, role: c.get('role'), kaspiPhone: u.kaspiPhone, ...profileDetails(u), notifications: { enabled: u.notificationsEnabled, available: u.pmAvailable }, telegram: c.get('telegram'), community: { id: c.get('community').id, title: c.get('community').title } });
+  return c.json<MeDto>({ rating: (await playerRatings(c.get('deps').db, c.get('community').id, c.get('deps').now)).get(u.id)!.rating, userId: u.id, displayName: u.displayName, role: c.get('role'), kaspiPhone: u.kaspiPhone, ...profileDetails(u), notifications: { enabled: u.notificationsEnabled, available: u.pmAvailable }, telegram: c.get('telegram'), community: { id: c.get('community').id, title: c.get('community').title } });
 });
 
 membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone: z.string().max(40).nullable().optional(), notificationsEnabled: z.boolean().optional(), profileCompleted: z.literal(true).optional(), playingPosition: z.enum(PLAYING_POSITIONS).nullable().optional(), dominantFoot: z.enum(DOMINANT_FEET).nullable().optional(), theme: z.enum(APP_THEMES).optional() })), async c => {
@@ -59,7 +60,7 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
     const affected = await db.select({ eventId: bills.eventId }).from(bills).where(and(eq(bills.receiverUserId, u.id), eq(bills.status, 'open')));
     for (const bill of affected) await c.get('deps').sync.request(bill.eventId, { parts: ['bill'] });
   }
-  return c.json<MeDto>({ userId: u.id, displayName: u.displayName, role: c.get('role'), kaspiPhone: u.kaspiPhone, ...profileDetails(u), notifications: { enabled: u.notificationsEnabled, available: u.pmAvailable }, telegram: c.get('telegram'), community: { id: c.get('community').id, title: c.get('community').title } });
+  return c.json<MeDto>({ rating: (await playerRatings(c.get('deps').db, c.get('community').id, c.get('deps').now)).get(u.id)!.rating, userId: u.id, displayName: u.displayName, role: c.get('role'), kaspiPhone: u.kaspiPhone, ...profileDetails(u), notifications: { enabled: u.notificationsEnabled, available: u.pmAvailable }, telegram: c.get('telegram'), community: { id: c.get('community').id, title: c.get('community').title } });
 });
 
 async function membersOf(db: Db, env: Env, communityId: number, userId?: number): Promise<MemberDto[]> {
@@ -80,7 +81,7 @@ membersApi.get('/members', requireRole('organizer'), async c =>
 membersApi.patch(
   '/members/:userId',
   requireRole('admin'),
-  body(z.object({ level: z.number().int().min(1).max(10).optional(), role: z.enum(['organizer', 'player']).optional(), displayName: name.optional() })),
+  body(z.object({ role: z.enum(['organizer', 'player']).optional(), displayName: name.optional() }).strict()),
   async c => {
     const userId = idParam(c.req.param('userId'));
     const communityId = c.get('community').id;
@@ -90,7 +91,6 @@ membersApi.patch(
     if (!target.length) return c.json({ error: 'not_found' }, 404);
     if (v.displayName !== undefined && (await nameTaken(db, v.displayName, userId!))) return c.json({ error: 'name_taken' }, 409);
     const m: { level?: number; role?: 'organizer' | 'player' } = {};
-    if (v.level !== undefined) m.level = v.level;
     if (v.role !== undefined) m.role = v.role;
     if (Object.keys(m).length)
       await db.update(memberships).set(m).where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId!)));

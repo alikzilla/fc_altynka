@@ -48,7 +48,7 @@ Nested screens support Back with an inward horizontal swipe starting within 24 p
 
 Screens start directly with the page title at the standard safe-area inset. There is no separate club header, rotating football greeting, logo or avatar above it. Profile editing actions appear directly below its summary; the profile title has no decorative icon or action on its right.
 
-Organizer/admin destinations: Главная, Матчи, central ＋, Задачи, Профиль. Players have four destinations. Creation and player management are role-gated. The dock caps at 416 px, sits 16 px above the safe bottom, has 32 px corners and an opaque blue material. The central pearl control is 52 px. Selection lights the icon; there is no moving lens. A small dot identifies real pending tasks and is hidden if task refresh fails.
+Organizer/admin destinations: Главная, Матчи, central ＋, Задачи, Профиль. Players have four destinations. Creation and role/name management are role-gated. The player directory and sports profiles are available to every community member. The dock caps at 416 px, sits 16 px above the safe bottom, has 32 px corners and an opaque blue material. The central pearl control is 52 px. Selection lights the icon; there is no moving lens. A small dot identifies real pending tasks and is hidden if task refresh fails.
 
 Home leads with active collecting/scheduled matches, sorted by date/id. Native scroll snap, keyboard-accessible links and explicit previous/next controls operate the carousel. A single match uses the full available width. Open bills do not replace signup cards. Personal tasks follow, then next games or the latest billed/closed/cancelled match.
 
@@ -60,7 +60,7 @@ Match details lead with day/month and weekday, followed by one plum card: promin
 
 One contextual primary action is fixed 12 px above the navigation dock: join/reserve, schedule, split/publish teams, or open/submit the bill form. Scheduling takes priority for an organizer while collecting; their own signup remains available in the card. Content has extra bottom clearance when this action exists. Native action sheets own Back, trap focus, restore the trigger, and block dismissal during a pending mutation. Kaspi is the exception: its transfer button stays inside the coral payment card. The card leads the bill tab and always reserves a status line (К оплате, Доплатить or Ты отметил оплату), so marking payment does not move the amount and recipient. Amounts can be copied through the adjacent copy affordance. Closed bills expose no new transfer/mark actions, and receivers have no personal obligation card. Expenses and payer lines follow. A payment mark is the member's declaration, not bank verification; correcting paid lines retains existing receiver/organizer permissions.
 
-Time and duration are required before a new bill can be issued, enforced server-side and explained with an appointment action in the bill tab. Venue is optional. Scheduling is read-only after billing/cancellation/closure. Bill creation and editing open in a native bottom sheet over the unchanged Payment tab. The form scrolls independently, and its submit footer remains at the bottom of the sheet, above keyboard/safe-area clearance. Pending submission locks dismissal; closing restores trigger focus. Drafts preserve amounts on refresh and only submit currently present selected signups. Closed matches and legacy bills remain readable. Team publication rejects a stale roster or closed match. Published teams identify the member's own team without exposing hidden levels.
+Time and duration are required before a new bill can be issued, enforced server-side and explained with an appointment action in the bill tab. Venue is optional. Scheduling is read-only after billing/cancellation/closure. Bill creation and editing open in a native bottom sheet over the unchanged Payment tab. The form scrolls independently, and its submit footer remains at the bottom of the sheet, above keyboard/safe-area clearance. Pending submission locks dismissal; closing restores trigger focus. Drafts preserve amounts on refresh and only submit currently present selected signups. Closed matches and legacy bills remain readable. Team publication rejects a stale roster or closed match. Published teams identify the member's own team. Player names open sports profiles; public decimal ratings replace the previous hidden levels. Saved teams retain a rating snapshot.
 
 Transient notifications appear at the safe top inset throughout the app, above content and clear of the fixed action and bottom navigation. The persistent Задачи destination remains in the dock.
 
@@ -76,10 +76,46 @@ Form controls and their flex/grid parents have a zero minimum width and are boun
 
 The profile shows Telegram identity and a compact football summary (primary playing position and dominant foot). Name/Kaspi setup appears until the first accepted save; completion lives on the server and remains complete after a phone is removed. Returning users edit their number through the direct payment action, alongside name and football actions. Football values stay unspecified until chosen and can be cleared. Native selectors retain the shared form sizing; submitted setup fields are disabled while saving, and failed saves retain drafts. Profile navigation stays active throughout its settings routes; forms return directly to Profile.
 
-Profile identity and football details share one plum card. Its upper row places the avatar on the left, with name, Telegram handle and account role on the right. A divider separates the football information below: position and dominant foot share one two-column row, including on narrow phones. Настройка профиля contains three direct graphite actions: Изменить имя, Изменить оплату, Изменить футбольные данные. They use the same icon/copy/chevron format as organizer controls. Системные настройки contains two accessible switches, Уведомления and Тёмная тема. Notification permission recovery stays adjacent to its switch when necessary. Управление appears only for organizers/admins and contains Игроки команды.
+Profile identity and football details share one plum card. Its upper row places the avatar on the left, with name, Telegram handle and account role on the right. A divider separates the football information below: position and dominant foot share one two-column row, including on narrow phones. Настройка профиля contains three direct graphite actions: Изменить имя, Изменить оплату, Изменить футбольные данные. They use the same icon/copy/chevron format as organizer controls. Системные настройки contains two accessible switches, Уведомления and Тёмная тема. Notification permission recovery stays adjacent to its switch when necessary. Игроки команды is available to everyone: under Управление for organizers/admins and Команда for players. Role and club-name controls appear only for admins, separately from sports profiles.
 
 Synthetic images and data appear only in visual artifacts and tests. Real API data is authenticated with signed Telegram initData and scoped to the current group/user. Physical-device Telegram validation is separate from browser tests.
 
 ## Empty content
 
 Empty states stay in the content flow: left-aligned 17 px heading, short 14 px explanation, optional contextual action with natural width. No decorative icon tile or large centre-aligned poster. Keep the layout and tabs intact; distinguish things the person can create from things they must wait for. Home omits its tasks section when no tasks remain. Empty archive/notifications/teams/player lists use the same quiet treatment. No fabricated matches or sample content.
+
+## Playing skills and match reviews
+
+The first ordinary app entry offers a dismissible bottom sheet linking to `/profile/skills`.
+Dismissal lasts for the session; the profile and tasks retain the questionnaire action.
+Eight questions use a shared native 1–10 range slider, a progress bar, clear scale
+anchors and an unselected initial state. A large number rolls vertically on a damped spring
+that preserves its position and velocity during reversals. The thumb tracks directly; keyboard
+changes and reduced motion settle immediately. Next stays fixed above the dock. Back preserves
+answers. The final summary precedes
+an explicit immutable save; failed requests retain all answers.
+
+Profile places the decimal rating directly below the photo/name row inside the plum identity
+card, alongside a short source/count label. Position and dominant foot follow below the rating. There is no separate rating card or self-assessment card in own/public profiles. Published
+match averages follow (including insufficient-data states). The initial-result screen retains
+its existing rating summary and answer breakdown. There are no fabricated rating trends.
+`/players` lists names, positions and decimal ratings with name search; `/players/:userId`
+opens the sports profile in the shared ActionSheet. Names in participant and published-team
+lists also open the same sheet. Sports profiles never expose Kaspi or private account settings.
+The Profile dock destination remains selected on player-profile routes.
+
+After kickoff, an organizer can confirm actual participants using a separate finish sheet.
+Main players are preselected; reserve players and guests can be included. A fixed footer
+confirms the immutable snapshot. This does not close the bill. The match then links to an anonymous questionnaire page with a question card and a rating-entry
+card. Оценить opens an ActionSheet, showing one peer at a time on the shared slider with
+contextual scale descriptions. Changing or releasing the slider updates only the draft score. Далее explicitly confirms
+the choice and slides the next peer in from the left, while the previous one leaves right.
+Neither pointer release nor Enter on the slider advances; keyboard users activate Далее. Skip and Back remain available. The game is rated last,
+followed by explicit final submission. Closing the sheet retains the page draft; a failed submit
+retains all scores. No self-score control is shown. Submission is final. The server closes voting after 72 hours;
+only aggregates with at least three votes are published. Loading, retry and expired states
+retain navigation and use existing components in both themes.
+
+The rating slider uses the browser's native drag tracking. It deliberately does not call
+setPointerCapture: that interferes with WebKit's native mouse tracking. The existing sheet and
+edge gestures exclude interactive inputs. Slider focus rings leave room for endpoint labels.

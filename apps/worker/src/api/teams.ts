@@ -14,6 +14,8 @@ const teamsBody = z.object({
   teamCount: z.union([z.literal(2), z.literal(3)]),
   teams: z.array(z.array(z.number().int())).max(3),
   guestLevels: z.record(z.string().regex(/^\d+$/), z.number().int()).default({}),
+  refreshRatings: z.boolean().optional(),
+  ratingSnapshot: z.record(z.string().regex(/^\d+$/), z.number().min(1).max(10)).optional(),
 });
 
 teamsApi.put('/events/:id/teams', body(teamsBody), async c => {
@@ -22,7 +24,7 @@ teamsApi.put('/events/:id/teams', body(teamsBody), async c => {
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
   const v = c.req.valid('json');
   const guestLevels = Object.fromEntries(Object.entries(v.guestLevels).map(([k, lvl]) => [Number(k), lvl]));
-  const r = await saveTeams(c.get('deps'), ev.id, { teamCount: v.teamCount, teams: v.teams, guestLevels });
+  const r = await saveTeams(c.get('deps'), ev.id, { teamCount: v.teamCount, teams: v.teams, guestLevels, refreshRatings: v.refreshRatings, ratingSnapshot: v.ratingSnapshot });
   return c.json({ kind: r }, r === 'invalid' ? 400 : statusFor(r));
 });
 
