@@ -11,6 +11,7 @@ export function MatchRatings({ ev, reload }: { ev: EventDetailDto; reload: () =>
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const locked = useRef(false);
+  if (ev.protocolVersion === 1 && !review?.closesAt) return null;
   if (!review || review.state === 'legacy' || review.state === 'pending' && !review.canFinish) return null;
   async function finish() {
     if (locked.current || !selected.length) return;

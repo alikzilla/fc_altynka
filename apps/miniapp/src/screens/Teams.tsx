@@ -1,6 +1,6 @@
 import { formatRating, alternativeSplit, balanceTeams, teamCountFor, TEAMS, type EventDetailDto, type SignupDto, type TeamCount } from '@altynka/core';
-import { useMemo, useState } from 'react';
-import { Link } from 'wouter';
+import { useMemo, useRef, useState } from 'react';
+import { Link, useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { isOpen } from '../lib/labels';
 import { canManageEvent, useMe } from '../state/me';
@@ -8,6 +8,7 @@ import { haptic } from '../lib/tg';
 import { EmptyState, useToast } from '../components/ui';
 import { MatchAction } from '../components/MatchAction';
 import { PlayerProfileSheet } from './PlayerProfile';
+import { ActionSheet } from '../components/ActionSheet';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
@@ -29,7 +30,8 @@ function TeamBlock(p: { index: number; ids: number[]; byId: Map<number, SignupDt
 function PublishedTeams({ ev }: Props) {
   const me = useMe();
   const [profileId, setProfileId] = useState<number | null>(null);
-  const byId = new Map(ev.main.map(s => [s.id, s]));
+  const frozen = new Map(ev.gameProtocol?.roster.map(p => [p.signupId, p.name]) ?? []);
+  const byId = new Map(ev.main.map(s => [s.id, { ...s, name: frozen.get(s.id) ?? s.name }]));
   const ownSignup = ev.main.find(s => s.userId === me.userId);
   const ownTeam = ownSignup ? ev.teams?.teams.findIndex(ids => ids.includes(ownSignup.id)) : -1;
   if (!ev.teams?.publishedAt) return <EmptyState title="Составы ещё не опубликованы" text="Организатор добавит команды перед игрой." />;
@@ -47,6 +49,7 @@ function PublishedTeams({ ev }: Props) {
 
 function TeamEditor({ ev, reload, actionBlocked }: Props) {
   const toast = useToast();
+  const [, navigate] = useLocation();
   const byId = useMemo(() => new Map(ev.main.map(s => [s.id, s])), [ev.main]);
   const [count, setCount] = useState<TeamCount>(ev.teams?.teamCount ?? teamCountFor(ev.main.length));
   const [split, setSplit] = useState<number[][]>(() => (ev.teams && !ev.teams.stale ? ev.teams.teams : []));
@@ -54,6 +57,25 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
   const [guestLevels, setGuestLevels] = useState<Record<number, number>>({});
   const [selected, setSelected] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
+  const [changed, setChanged] = useState(false);
+  const [confirmStart, setConfirmStart] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const startRequest = useRef<{ requestId: string; expectedRevision: number } | null>(null);
+  const startLocked = useRef(false);
+  const canStart = ev.protocolVersion === 1 && !!ev.gameProtocol?.canStart && !changed;
+
+  async function start() {
+    if (startLocked.current || !canStart) return;
+    startLocked.current = true; setBusy(true); setStartError(null);
+    startRequest.current ??= { requestId: crypto.randomUUID(), expectedRevision: ev.gameProtocol?.revision ?? 0 };
+    try {
+      await api.send('POST', `/api/events/${ev.id}/games/start`, startRequest.current);
+      setConfirmStart(false); reload(); navigate(`/event/${ev.id}?tab=games`);
+    } catch (error) {
+      setStartError(error instanceof ApiError && error.status === 409 ? 'Составы изменились. Обнови и подтверди их перед стартом.' : 'Не получилось начать встречу. Попробуй ещё раз.');
+      if (error instanceof ApiError && error.status === 409) { startRequest.current = null; reload(); }
+    } finally { startLocked.current = false; setBusy(false); }
+  }
 
   const currentLevelOf = (s: SignupDto) => (s.userId === null ? (guestLevels[s.id] ?? s.level ?? 5) : (s.level ?? 5));
   const levelOf = (s: SignupDto) => freshSplit || s.userId === null ? currentLevelOf(s) : ev.teams?.ratingSnapshot?.[s.id] ?? currentLevelOf(s);
@@ -62,6 +84,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
   const teamOf = (id: number) => split.findIndex(t => t.includes(id));
 
   const divide = (n: TeamCount = count) => {
+    setChanged(true);
     setFreshSplit(true);
     setSplit(balanceTeams(rated, n));
     setSelected(null);
@@ -73,6 +96,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
     const a = teamOf(selected);
     const b = teamOf(id);
     if (a === b) return setSelected(id);
+    setChanged(true);
     setSplit(split.map((t, i) => (i === a ? t.map(x => (x === selected ? id : x)) : i === b ? t.map(x => (x === id ? selected : x)) : t)));
     setSelected(null);
   }
@@ -82,6 +106,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
     if (selected === null) return;
     const from = teamOf(selected);
     if (from === target || split[target].length >= split[from].length) return;
+    setChanged(true);
     setSplit(split.map((t, i) => (i === from ? t.filter(x => x !== selected) : i === target ? [...t, selected] : t)));
     setSelected(null);
   }
@@ -97,6 +122,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
       haptic('success');
       toast('Составы отправлены в группу');
       setFreshSplit(false);
+      setChanged(false);
     } catch (err) {
       haptic('error');
       if (err instanceof ApiError && err.status === 409) {
@@ -122,6 +148,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
             aria-pressed={count === n}
             onClick={() => {
               setCount(n);
+              setChanged(true);
               setSplit([]);
             }}
           >
@@ -131,7 +158,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
       </div>
       <div className="actions">
         {split.length > 0 || actionBlocked ? <button className="btn wide" onClick={() => divide()} disabled={busy}>Поделить</button> : <MatchAction><button className="btn primary wide" onClick={() => divide()} disabled={busy}>Поделить</button></MatchAction>}
-        <button className="btn wide" disabled={!split.length} onClick={() => { setFreshSplit(true); setSplit(alternativeSplit(rated, count, split)); }}>
+        <button className="btn wide" disabled={!split.length || busy} onClick={() => { setChanged(true); setFreshSplit(true); setSplit(alternativeSplit(rated, count, split)); }}>
           Ещё вариант
         </button>
       </div>
@@ -144,7 +171,7 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
                 {s.name}
               </button>
               {s.userId === null ? (
-                <select aria-label={`Уровень гостя ${s.name}`} value={levelOf(s)} onChange={e => setGuestLevels({ ...guestLevels, [s.id]: Number(e.target.value) })}>
+                <select aria-label={`Уровень гостя ${s.name}`} value={levelOf(s)} onChange={e => { setChanged(true); setGuestLevels({ ...guestLevels, [s.id]: Number(e.target.value) }); }}>
                   {Array.from({ length: 10 }, (_, k) => (
                     <option key={k + 1} value={k + 1}>
                       {k + 1}
@@ -159,8 +186,13 @@ function TeamEditor({ ev, reload, actionBlocked }: Props) {
         </TeamBlock>
       ))}
       {split.length > 0 && (
-        actionBlocked ? <button className="btn wide" disabled={busy} onClick={publish}>Опубликовать составы</button> : <MatchAction><button className="btn primary wide" disabled={busy} onClick={publish}>Опубликовать составы</button></MatchAction>
+        actionBlocked || canStart ? <button className="btn wide" disabled={busy} onClick={publish}>Опубликовать составы</button> : <MatchAction><button className="btn primary wide" disabled={busy} onClick={publish}>Опубликовать составы</button></MatchAction>
       )}
+      {canStart && <MatchAction><button className="btn primary wide" disabled={busy} onClick={() => setConfirmStart(true)}>Начать встречу</button></MatchAction>}
+      {confirmStart && <ActionSheet title="Начать встречу?" onClose={() => setConfirmStart(false)} busy={busy} footer={<button className="btn primary wide" disabled={busy || !canStart} onClick={start}>{busy ? 'Начинаем…' : 'Начать встречу'}</button>}>
+        <p>Составы фиксируются на всю встречу. Приложение выберет первую пару команд.</p>
+        {startError && <p className="field-error" role="alert">{startError}</p>}
+      </ActionSheet>}
     </>
   );
 }

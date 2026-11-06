@@ -235,10 +235,10 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const [editing, setEditing] = useState(false);
   const manage = canManageEvent(ev);
   const bill = ev.bill;
-  const canBill = manage && (ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
+  const canBill = manage && (ev.protocolVersion === 1 ? ev.startedAt != null && ev.status !== 'cancelled' && bill?.status !== 'closed' : ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
   if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction>}</div>;
   if (!bill) {
-    if (ev.status === 'scheduled') return <EmptyState title="Счёт будет доступен после начала игры" text={`Начало — ${formatDateRu(ev.date)}${ev.startTime ? `, ${ev.startTime}` : ''}. До этого идёт набор игроков.`} />;
+    if (ev.status === 'scheduled') return <EmptyState title="Счёт будет доступен после начала игры" text={ev.protocolVersion === 1 ? 'Организатор подтвердит составы и начнёт встречу. До этого идёт набор игроков.' : `Начало — ${formatDateRu(ev.date)}${ev.startTime ? `, ${ev.startTime}` : ''}. До этого идёт набор игроков.`} />;
     if (!canBill) return <EmptyState title="Счёт ещё не выставлен" />;
     if (!bill && !ev.main.length && !ev.reserve.length) return <EmptyState title="Некому выставить счёт" text="Сначала добавь участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">Перейти к участникам</Link>} />;
     return <><EmptyState title="Счёт пока не выставлен" text="Укажи расходы и получателя. После отправки счёта запись закроется." action={actionBlocked ? <button className="btn" onClick={() => setEditing(true)}>Выставить счёт</button> : <MatchAction><button className="btn primary wide" onClick={() => setEditing(true)}>Выставить счёт</button></MatchAction>} />{editing && <BillForm key="bill-editor" ev={ev} reload={reload} onDone={() => setEditing(false)} />}</>;

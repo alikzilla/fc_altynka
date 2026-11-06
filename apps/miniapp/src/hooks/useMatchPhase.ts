@@ -18,7 +18,7 @@ export function useMatchPhase<T extends EventSummaryDto>(
   const now = () => anchor.server + performance.now() - anchor.elapsed;
   const phase = event ? matchPhase(event, now()) : undefined;
   useEffect(() => {
-    if (!event || event.status !== "scheduled") return;
+    if (!event || event.protocolVersion === 1 || event.status !== "scheduled") return;
     const kickoff = matchStartsAt(event);
     const remaining = kickoff === null ? 0 : kickoff - now();
     if (remaining <= 0) return;
