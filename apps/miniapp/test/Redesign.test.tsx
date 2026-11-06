@@ -245,8 +245,11 @@ test("verified Telegram identity is distinct from the club name and broken photo
   fireEvent.error(image);
   await waitFor(() => expect(container.querySelector("img")).toBeNull());
   expect(screen.getByText("АТ")).toBeVisible();
-  expect(screen.getByRole("link", { name: /Игроки команды/ })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: /^Игроки/ })).toHaveAttribute(
     "href",
     "/players",
   );
+  expect(screen.queryByText(/Игроки команды/)).toBeNull();
+  expect(screen.getByRole("heading", { name: "Управление" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Команда" })).toBeNull();
 });

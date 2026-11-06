@@ -127,7 +127,8 @@ test('failed background profile refresh preserves the open bill draft', async ()
   expect(screen.getByLabelText('Аренда поля, ₸')).toHaveValue(4000);
 });
 
-test.each([401, 403])('profile refresh with explicit authorization failure %s blocks cached access', async status => {
+// /api/me works without groups: only 401 (no Telegram session) is an authorization failure.
+test.each([401])('profile refresh with explicit authorization failure %s blocks cached access', async status => {
   open();
   await screen.findByText('Ты пока не записан');
   vi.mocked(fetch).mockImplementation(async path => path === '/api/me'

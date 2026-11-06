@@ -90,7 +90,7 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390, 768, 1440]
       const html = (await page.content()).replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '').replace(/<link\b[^>]*rel="stylesheet"[^>]*>/gi, '');
       await writeFile('artifacts/ratings/profile-snapshot.html', html.replace('</head>', `<style>${css}</style></head>`));
     }
-    await page.getByRole('link', { name: /Игроки команды/ }).click();
+    await page.getByRole('link', { name: /^Игроки/ }).click();
     await page.getByRole('searchbox').fill('Арман');
     await expect(page.getByRole('button', { name: /Арман/ })).toBeVisible();
     await expect(page.getByRole('button', { name: /Данияр/ })).toHaveCount(0);

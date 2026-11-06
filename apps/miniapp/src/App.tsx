@@ -32,9 +32,12 @@ export function App() {
     const { route, joinCommunityId } = contextForStartParam(startParam());
     if (route !== '/') navigate(route, { replace: true });
     // Joining validates membership server-side; a failure just leaves the user without that group.
+    // The first /api/me may still be in flight (and predate the membership): a plain invalidation would
+    // reuse that request, so cancel it and fetch again.
     if (joinCommunityId) {
       void api.send('POST', `/api/communities/${joinCommunityId}/join`)
         .catch(() => {})
+        .then(() => queryClient.cancelQueries({ queryKey: ['api'] }))
         .then(() => queryClient.invalidateQueries({ queryKey: ['api'] }));
     }
     return cleanup;
@@ -51,15 +54,9 @@ function TeamApp() {
   const scheduleParent = scheduleId && background.current.split('?')[0] === `/event/${scheduleId}` ? background.current : `/event/${scheduleId}${search ? `?${search}` : ''}`;
   const { data: me, error, reload: reloadMe, replace: updateMe } = useResource<MeDto>('/api/me');
   useEffect(() => { if (me?.theme) applyTheme(me.theme); }, [me?.theme]);
-  if (error && (!me || error.status === 401 || error.status === 403 || error.status === 503)) {
-    const text =
-      error.status === 403
-        ? 'Мини-апп доступен только участникам группы'
-        : error.status === 401
-          ? 'Открой мини-апп из Telegram'
-          : error.status === 503
-            ? 'Бот ещё не привязан к группе'
-            : 'Нет связи, попробуй позже';
+  // /api/me works without any group, so only a missing Telegram session or the network can fail it.
+  if (error && (!me || error.status === 401)) {
+    const text = error.status === 401 ? 'Открой мини-апп из Telegram' : 'Нет связи, попробуй позже';
     return (
       <main className="screen">
         <h1 className="title">FC Altynka</h1>

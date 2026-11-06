@@ -20,6 +20,10 @@ test('profile shows three direct edit actions and two system switches without an
   expect(screen.getByRole('switch', { name: 'Тёмная тема' })).toBeChecked();
   expect(screen.getByRole('switch', { name: 'Уведомления' })).not.toBeChecked();
   expect(screen.queryByRole('heading', { name: 'Управление' })).not.toBeInTheDocument();
+  // A player's players link sits under a neutral heading, never «Команда».
+  expect(screen.getByRole('heading', { name: 'Игроки' })).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Команда' })).not.toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /^Игроки/ })).toHaveAttribute('href', '/players');
 });
 
 test('theme switch saves the actual preference and rolls back a failed save', async () => {

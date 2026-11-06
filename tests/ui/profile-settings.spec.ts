@@ -26,7 +26,7 @@ for (const width of [280, 390]) for (const role of ['player', 'organizer']) test
   const editing = page.getByRole('navigation', { name: 'Настройка профиля', exact: true });
   await expect(editing.getByRole('link')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: 'Управление', exact: true })).toHaveCount(role === 'organizer' ? 1 : 0);
-  await expect(page.getByRole('link', { name: /Игроки команды/ })).toHaveCount(1);
+  await expect(page.getByRole('link', { name: /^Игроки/ })).toHaveCount(1);
   await expect(page.getByRole('switch')).toHaveCount(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
