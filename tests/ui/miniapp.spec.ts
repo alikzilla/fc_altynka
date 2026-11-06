@@ -4,9 +4,9 @@ import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 // Synthetic data: tests never connect to the bot, D1, or a real group.
-const me = { userId: 1, displayName: 'Алихан', role: 'admin', kaspiPhone: '+77071234567', community: { id: 1, title: 'Футбол по субботам' }, telegram: { firstName: 'Алихан', lastName: 'Нурланов', username: 'alikhan', photoUrl: null } };
+const me = { userId: 1, displayName: 'Алихан', kaspiPhone: '+77071234567', communities: [{ id: 1, title: 'Футбол по субботам', role: 'admin' }], telegram: { firstName: 'Алихан', lastName: 'Нурланов', username: 'alikhan', photoUrl: null } };
 const main = ['Алихан', 'Данияр', 'Тимур', 'Арман', 'Руслан', 'Ерлан', 'Азамат', 'Никита'].map((name, i) => ({ id: i + 1, seq: i + 1, name, userId: i + 1, guestOfName: null, invitedByUserId: null, level: 5 }));
-const event = { id: 1, date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: 'Arena • поле № 2', limit: 10, mainCount: 8, reserveCount: 0, my: 'main', comment: 'Берём светлые и тёмные футболки', main, reserve: [], teams: null, bill: null };
+const event = { community: { id: 1, title: 'Футбол по субботам' }, viewerRole: 'admin', id: 1, date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: 'Arena • поле № 2', limit: 10, mainCount: 8, reserveCount: 0, my: 'main', comment: 'Берём светлые и тёмные футболки', main, reserve: [], teams: null, bill: null };
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
@@ -78,10 +78,10 @@ test('carousel and all five destinations work on a narrow phone', async ({ page 
 
 test('payment obligation opens the real bill and clears after the member marks payment', async ({ page }) => {
   let paid = false;
-  await page.route('**/api/me', route => route.fulfill({ json: { ...me, userId: 2, role: 'player' } }));
-  await page.route('**/api/notifications', route => route.fulfill({ json: { tasks: paid ? [] : [{ kind: 'payment', id: 'payment:2', eventId: 1, date: event.date, place: event.place, due: 2500, receiverName: 'Алихан' }] } }));
+  await page.route('**/api/me', route => route.fulfill({ json: { ...me, userId: 2, communities: [{ ...me.communities[0], role: 'player' }] } }));
+  await page.route('**/api/notifications', route => route.fulfill({ json: { tasks: paid ? [] : [{ kind: 'payment', id: 'payment:2', community: event.community, eventId: 1, date: event.date, place: event.place, due: 2500, receiverName: 'Алихан' }] } }));
   await page.route('**/api/bills/1/paid', route => { paid = true; return route.fulfill({ json: { ok: true } }); });
-  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, status: 'billing', bill: {
+  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, viewerRole: 'player', status: 'billing', bill: {
     id: 1, receiver: { userId: 1, name: 'Алихан', kaspiPhone: '+77071234567' }, fieldAmount: 20000, extras: [], total: 20000, share: 2500, status: 'open', participantSignupIds: main.map(p => p.id),
     lines: main.map(p => ({ id: p.id, userId: p.userId, name: p.name, units: 1, amount: 2500, paidAmount: p.id === 1 || paid && p.id === 2 ? 2500 : null, state: p.id === 1 || paid && p.id === 2 ? 'paid' : 'unpaid', due: p.id === 1 || paid && p.id === 2 ? 0 : 2500 })),
   } } }));
@@ -92,7 +92,10 @@ test('payment obligation opens the real bill and clears after the member marks p
   await expect(page.locator('.payment-label')).toHaveText('Ты отметил оплату');
   await page.getByRole('navigation').getByRole('link', { name: 'Задачи' }).click();
   await expect(page.getByRole('heading', { name: 'Новых задач нет' })).toBeVisible();
-  await expect(page.getByRole('navigation').getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
+  // A player keeps the dock entry, but the sheet explains that only organizers create matches.
+  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  await expect(page.getByRole('dialog').getByText(/Создавать матчи может организатор/)).toBeVisible();
+  await expect(page.getByRole('dialog').getByRole('button', { name: 'Создать матч' })).toHaveCount(0);
 });
 
 test('network error can be retried and empty state offers the next step', async ({ page }) => {
@@ -110,8 +113,8 @@ test('network error can be retried and empty state offers the next step', async 
 test('dark theme, safe areas and payment are accessible on a narrow phone', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ colorScheme: 'dark', reducedMotion: 'reduce' });
-  await page.route('**/api/me', route => route.fulfill({ json: { ...me, userId: 2, role: 'player' } }));
-  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, status: 'billing', bill: {
+  await page.route('**/api/me', route => route.fulfill({ json: { ...me, userId: 2, communities: [{ ...me.communities[0], role: 'player' }] } }));
+  await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, viewerRole: 'player', status: 'billing', bill: {
     id: 1, receiver: { userId: 1, name: 'Алихан', kaspiPhone: '+77071234567' }, fieldAmount: 20000, extras: [], total: 20000, share: 2500, status: 'open', participantSignupIds: main.map(p => p.id),
     lines: main.map(p => ({ id: p.id, userId: p.userId, name: p.name, units: 1, amount: 2500, paidAmount: p.id === 1 ? 2500 : null, state: p.id === 1 ? 'paid' : 'unpaid', due: p.id === 1 ? 0 : 2500 })),
   } } }));

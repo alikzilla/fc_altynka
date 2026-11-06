@@ -22,8 +22,7 @@ test('bottom sheet preserves context, traps focus, dismisses and restores focus 
   const dialog = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading')).toBeFocused();
-  await expect(dialog.getByLabel('Группа')).toHaveValue('4');
-  await expect(dialog.getByLabel('Группа')).toContainText('Футбол по субботам');
+  await expect(dialog.getByRole('radiogroup')).toHaveCount(0);
   await expect(page.locator('main .title')).toHaveText('Профиль');
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect.poll(async () => { const box = (await dialog.boundingBox())!; return Math.round(box.y + box.height); }).toBe(844);
@@ -189,7 +188,6 @@ for (const width of [320, 390]) {
         await route.fallback();
       });
       await page.goto(path);
-      await expect(page.getByRole('button', { name: 'Сменить команду' })).toBeVisible();
       const loading = page.locator('main .loading').first();
       await expect(loading).toBeVisible();
       const sizes = await loading.evaluate(el => {
@@ -218,7 +216,7 @@ test('initial authentication skeleton fills width and viewport', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 });
   let release = () => {};
   const pending = new Promise<void>(resolve => { release = resolve; });
-  await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: identity }); });
+  await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: '+77071234567', communities: [{ id: 4, title: 'Футбол по субботам', role: 'organizer' }] } }); });
   await page.goto('/');
   await expect(page.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
   expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(844);
