@@ -28,9 +28,9 @@ async function activeSignups(db: Db, eventId: number): Promise<SignupRow[]> {
   return db.select().from(signups).where(and(eq(signups.eventId, eventId), isNull(signups.leftAt)));
 }
 
-export async function loadQueue(db: Db, eventId: number): Promise<QueueSplit<SignupRow>> {
-  const ev = await getEvent(db, eventId);
-  return splitQueue(await activeSignups(db, eventId), ev?.baseLimit ?? limitFor(null));
+export async function loadQueue(db: Db, eventId: number, baseLimit?: number): Promise<QueueSplit<SignupRow>> {
+  const limit = baseLimit ?? (await getEvent(db, eventId))?.baseLimit ?? limitFor(null);
+  return splitQueue(await activeSignups(db, eventId), limit);
 }
 
 function placeOf(q: QueueSplit<SignupRow>, signupId: number): { inMain: boolean; position: number } {

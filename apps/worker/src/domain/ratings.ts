@@ -5,18 +5,19 @@ import {
 } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, memberships, matchParticipants, matchReviews, reviewSubmissions, signups, skillAssessments, users, type EventRow } from '../db/schema';
+import { events, memberships, matchParticipants, matchReviews, reviewSubmissions, signups, skillAssessments, users, type EventRow, type UserRow } from '../db/schema';
 import type { Deps } from './events';
 import { peerUserIds } from './members';
 import { getEvent } from './events';
 import { parseGameState } from './gameStore';
+import { usersById } from '../sync/parts';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
 
-async function ratingInputs(db: Db, ids: number[], now: number) {
+async function ratingInputs(db: Db, ids: number[], now: number, knownUsers?: ReadonlyMap<number, UserRow>) {
   return Promise.all([
-    db.select().from(users).where(inArray(users.id, ids)),
+    usersById(db, ids, knownUsers).then(people => [...people.values()]),
     db.select({ userId: memberships.userId, avg: sql<number>`avg(${memberships.level})` }).from(memberships)
       .where(inArray(memberships.userId, ids)).groupBy(memberships.userId),
     db.select().from(skillAssessments).where(inArray(skillAssessments.userId, ids)),
@@ -35,12 +36,12 @@ async function ratingInputs(db: Db, ids: number[], now: number) {
   ]);
 }
 
-export async function playerRatings(db: Db, userIds: number[], now: number): Promise<Map<number, PlayerSummaryDto>> {
+export async function playerRatings(db: Db, userIds: number[], now: number, knownUsers?: ReadonlyMap<number, UserRow>): Promise<Map<number, PlayerSummaryDto>> {
   const ids = [...new Set(userIds)];
   if (!ids.length) return new Map();
   const chunks: number[][] = [];
   for (let i = 0; i < ids.length; i += RATING_CHUNK) chunks.push(ids.slice(i, i + RATING_CHUNK));
-  const parts = await Promise.all(chunks.map(chunk => ratingInputs(db, chunk, now)));
+  const parts = await Promise.all(chunks.map(chunk => ratingInputs(db, chunk, now, knownUsers)));
   const people = parts.flatMap(p => p[0]);
   const levels = parts.flatMap(p => p[1]);
   const assessments = parts.flatMap(p => p[2]);

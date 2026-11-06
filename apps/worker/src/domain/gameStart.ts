@@ -1,25 +1,36 @@
-import { calculateScorers, calculateStandings, chooseFirstPair, todayAlmaty, type GameMutationMeta, type GameProtocolDto, type GameState } from '@altynka/core';
+import { calculateScorers, calculateStandings, chooseFirstPair, todayAlmaty, type GameMutationMeta, type GameProtocolDto, type GameState, type TeamsDto } from '@altynka/core';
 import { inArray } from 'drizzle-orm';
-import { users } from '../db/schema';
+import { users, type EventRow } from '../db/schema';
 import { getEvent, loadQueue, type Deps } from './events';
 import { commitGameCommand, parseGameState, previousGameCommand, type GameCommitResult } from './gameStore';
-import { teamsDto } from './teams';
+import { teamsDto, teamsDtoFromEvent } from './teams';
 
 export type GameCommandResult = { kind: 'ok'; protocol: GameProtocolDto; appliedRevision: number }
   | { kind: 'invalid' | 'stale' | 'not_started' | 'completed' | 'closed' | 'conflict' | 'not_found'; reason?: string };
 
 export async function getGameProtocol(d: Deps, eventId: number, manage: boolean): Promise<GameProtocolDto | null> {
   const ev = await getEvent(d.db, eventId);
-  if (!ev) return null;
+  return ev ? gameProtocolFromEvent(d, ev, manage) : null;
+}
+
+/** Loaded preparation belongs to this response; nothing is cached across requests. */
+export async function gameProtocolFromEvent(
+  d: Deps, ev: EventRow, manage: boolean, preparation?: { teams: TeamsDto | null; mainCount: number },
+): Promise<GameProtocolDto> {
   const state = parseGameState(ev);
   const legacy = ev.protocolVersion !== 1;
   const active = !legacy && ev.startedAt !== null && ev.completedAt === null && ev.status !== 'cancelled';
   const editable = !legacy && ev.startedAt !== null && ev.status !== 'cancelled';
   let canStart = false;
   if (!legacy && ev.startedAt === null && ev.status === 'scheduled' && ev.date <= todayAlmaty(new Date(d.now))) {
-    const q = await loadQueue(d.db, eventId);
-    const teams = await teamsDto(d.db, eventId, q.main.map(p => p.id));
-    canStart = !!teams?.publishedAt && !teams.stale && teams.teams.every(t => t.length > 0) && teams.teams.flat().length === q.main.length;
+    let teams = preparation?.teams;
+    let mainCount = preparation?.mainCount;
+    if (!preparation) {
+      const q = await loadQueue(d.db, ev.id, ev.baseLimit);
+      teams = await teamsDtoFromEvent(d.db, ev, q.main.map(p => p.id));
+      mainCount = q.main.length;
+    }
+    canStart = !!teams?.publishedAt && !teams.stale && teams.teams.every(t => t.length > 0) && teams.teams.flat().length === mainCount;
   }
   const currentPair = active ? state?.currentPair ?? null : null;
   return {

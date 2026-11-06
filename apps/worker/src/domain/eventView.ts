@@ -4,10 +4,10 @@ import type { Db } from '../db/client';
 import { events, signups, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
-import { teamsDto } from './teams';
+import { teamsDtoFromEvent } from './teams';
 import { matchReview, playerRatings } from './ratings';
-import { billDto, getBillByEvent } from './bills';
-import { getGameProtocol } from './gameStart';
+import { billDtoFromRow, getBillByEvent } from './bills';
+import { gameProtocolFromEvent } from './gameStart';
 import { activeEventFilter, pastEventFilter } from './eventPhase';
 
 const { gameStateJson: _protocolJson, ...summaryColumns } = getTableColumns(events);
@@ -107,13 +107,13 @@ export async function eventDetail(
 ): Promise<EventDetailDto | null> {
   const ev = await getEvent(db, eventId);
   if (!ev || ev.communityId !== viewer.community.id) return null;
-  const q = await loadQueue(db, eventId);
+  const q = await loadQueue(db, eventId, ev.baseLimit);
   const all = [...q.main, ...q.reserve];
   const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
   const showLevels = viewer.role !== 'player';
   const levels = new Map<number, number>();
   if (showLevels) {
-    const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now);
+    const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now, byId);
     ratings.forEach(p => levels.set(p.userId, p.rating.value));
   }
   const dto = (s: SignupRow): SignupDto => {
@@ -130,18 +130,19 @@ export async function eventDetail(
     return base;
   };
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);
+  const teams = await teamsDtoFromEvent(db, ev, q.main.map(s => s.id));
   return {
     review: { state, canFinish, completedAt, closesAt, gameScore },
-    gameProtocol: (await getGameProtocol({db,now,sync:{request:async()=>{}}},eventId,showLevels)) ?? undefined,
+    gameProtocol: await gameProtocolFromEvent({db,now,sync:{request:async()=>{}}}, ev, showLevels, { teams, mainCount: q.main.length }),
     ...summary(ev, q, viewer.userId, now, viewer.community),
     viewerRole: viewer.role,
     comment: ev.comment,
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),
-    teams: await teamsDto(db, eventId, q.main.map(s => s.id)),
+    teams,
     bill: await (async () => {
       const b = await getBillByEvent(db, eventId);
-      return b ? billDto(db, b.id) : null;
+      return b ? billDtoFromRow(db, b, byId) : null;
     })(),
   };
 }

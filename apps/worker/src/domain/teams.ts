@@ -2,7 +2,7 @@ import { guardRosterMutation } from './rosterGuard';
 import type { TeamCount, TeamsDto } from '@altynka/core';
 import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, signups, teamAssignments } from '../db/schema';
+import { events, signups, teamAssignments, type EventRow } from '../db/schema';
 import { playerRatings } from './ratings';
 import { getEvent, isClosed, loadQueue, type Deps } from './events';
 
@@ -66,12 +66,17 @@ async function publishTeamsUnsafe(d: Deps, eventId: number): Promise<'ok' | 'no_
 /** Команды по порядку TEAMS, внутри — по порядку записи; stale — состав основы изменился. */
 export async function teamsDto(db: Db, eventId: number, mainIds: number[]): Promise<TeamsDto | null> {
   const ev = await getEvent(db, eventId);
-  if (!ev?.teamCount) return null;
+  return ev ? teamsDtoFromEvent(db, ev, mainIds) : null;
+}
+
+/** Reuse the event snapshot when composing a detail response. */
+export async function teamsDtoFromEvent(db: Db, ev: EventRow, mainIds: number[]): Promise<TeamsDto | null> {
+  if (!ev.teamCount) return null;
   const rows = await db
     .select({ signupId: teamAssignments.signupId, teamIndex: teamAssignments.teamIndex })
     .from(teamAssignments)
     .innerJoin(signups, eq(signups.id, teamAssignments.signupId))
-    .where(eq(teamAssignments.eventId, eventId))
+    .where(eq(teamAssignments.eventId, ev.id))
     .orderBy(asc(signups.seq));
   const teams: number[][] = Array.from({ length: ev.teamCount }, () => []);
   rows.forEach(r => teams[r.teamIndex]?.push(r.signupId));

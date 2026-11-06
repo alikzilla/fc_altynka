@@ -1,7 +1,7 @@
 import { computeBill, lineStatus, normalizeKzPhone, matchPhase, type BillDto, type Extra, type Role } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { billLines, bills, events, memberships, signups, users, type BillRow } from '../db/schema';
+import { billLines, bills, events, memberships, signups, users, type BillRow, type UserRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { canManage, getEvent, type Deps } from './events';
 
@@ -225,9 +225,12 @@ export async function closeBill(d: Deps, billId: number): Promise<'ok' | 'not_fo
 
 export async function billDto(db: Db, billId: number): Promise<BillDto> {
   const bill = (await getBill(db, billId))!;
-  const lines = await db.select().from(billLines).where(eq(billLines.billId, billId));
-  const ev = (await getEvent(db, bill.eventId))!;
-  const byId = await usersById(db, [bill.receiverUserId, ...lines.map(l => l.userId)]);
+  return billDtoFromRow(db, bill);
+}
+
+export async function billDtoFromRow(db: Db, bill: BillRow, knownUsers?: ReadonlyMap<number, UserRow>): Promise<BillDto> {
+  const lines = await db.select().from(billLines).where(eq(billLines.billId, bill.id));
+  const byId = await usersById(db, [bill.receiverUserId, ...lines.map(l => l.userId)], knownUsers);
   const receiver = byId.get(bill.receiverUserId)!;
   const extras = JSON.parse(bill.extrasJson) as Extra[];
   return {

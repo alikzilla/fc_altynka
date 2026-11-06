@@ -13,11 +13,17 @@ import type { Part } from './port';
 import { renderTeamsPart } from './teamsPart';
 import { renderBillPart, resolveReminder } from './billPart';
 
-export async function usersById(db: Db, ids: number[]): Promise<Map<number, UserRow>> {
+export async function usersById(db: Db, ids: number[], known?: ReadonlyMap<number, UserRow>): Promise<Map<number, UserRow>> {
   const uniq = [...new Set(ids)];
   if (!uniq.length) return new Map();
-  const rows = await db.select().from(users).where(inArray(users.id, uniq));
-  return new Map(rows.map(u => [u.id, u]));
+  const missing = known ? uniq.filter(id => !known.has(id)) : uniq;
+  const rows = missing.length ? await db.select().from(users).where(inArray(users.id, missing)) : [];
+  const result = new Map(rows.map(u => [u.id, u]));
+  for (const id of uniq) {
+    const user = known?.get(id);
+    if (user) result.set(id, user);
+  }
+  return result;
 }
 
 export function personView(s: SignupRow, byId: Map<number, UserRow>): PersonView {
