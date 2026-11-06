@@ -15,6 +15,7 @@ export interface PersonView {
 }
 
 export interface EventView {
+  communityTitle?: string;
   id: number;
   date: string;
   status: EventStatus;

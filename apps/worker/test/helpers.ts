@@ -2,6 +2,8 @@ import { env } from 'cloudflare:test';
 import { getDb } from '../src/db/client';
 import { communities, memberships, users, type CommunityRow, type UserRow } from '../src/db/schema';
 import type { TgWebAppUser } from '../src/auth/initData';
+import { and, eq } from 'drizzle-orm';
+import { communityUser, getCommunity } from '../src/domain/members';
 
 export const db = () => getDb(env.DB);
 
@@ -14,7 +16,7 @@ export async function seedCommunity(): Promise<CommunityRow> {
 
 export async function seedUser(
   name: string,
-  opts: { role?: 'organizer' | 'player'; level?: number; tgId?: number; communityId?: number } = {},
+  opts: { role?: 'organizer' | 'player'; level?: number; tgId?: number; communityId?: number; telegramAdmin?: boolean } = {},
 ): Promise<UserRow> {
   const [u] = await db()
     .insert(users)
@@ -23,9 +25,26 @@ export async function seedUser(
   if (opts.communityId !== undefined) {
     await db()
       .insert(memberships)
-      .values({ communityId: opts.communityId, userId: u.id, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
+      .values({ communityId: opts.communityId, userId: u.id, displayName: name, telegramAdmin: opts.telegramAdmin ?? false, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
   }
   return u;
+}
+
+/** Explicit local-profile fixture: ambiguous team selection is an error in tests too. */
+export async function setMemberProfile(userId: number, fields: Partial<UserRow>, communityId?: number): Promise<void> {
+  const selected = communityId ?? (await getCommunity(db()))?.id;
+  if (!selected) throw new Error('Fixture requires an explicit community');
+  const { pmAvailable, theme, ...local } = fields;
+  if (pmAvailable !== undefined || theme !== undefined) await db().update(users).set({ pmAvailable, theme }).where(eq(users.id, userId));
+  if (Object.keys(local).length) await db().update(memberships).set(local).where(and(eq(memberships.communityId, selected), eq(memberships.userId, userId)));
+}
+
+export async function localUser(userId: number, communityId?: number): Promise<UserRow> {
+  const selected = communityId ?? (await getCommunity(db()))?.id;
+  if (!selected) throw new Error('Fixture requires an explicit community');
+  const user = await communityUser(db(), selected, userId);
+  if (!user) throw new Error('Fixture user is not a member');
+  return user;
 }
 
 const enc = new TextEncoder();
@@ -55,9 +74,10 @@ import { SELF } from 'cloudflare:test';
 
 export async function apiRequest(
   path: string,
-  o: { method?: string; body?: unknown; as: TgWebAppUser | null; at?: number },
+  o: { method?: string; body?: unknown; as: TgWebAppUser | null; at?: number; communityId?: number },
 ): Promise<Response> {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
+  if (o.communityId !== undefined) headers['X-Community-Id'] = String(o.communityId);
   if (o.as) headers.Authorization = `tma ${await signInitData(o.as, 'test-token', Math.floor((o.at ?? Date.now()) / 1000))}`;
   return SELF.fetch(`https://altynka.test${path}`, {
     method: o.method ?? 'GET',

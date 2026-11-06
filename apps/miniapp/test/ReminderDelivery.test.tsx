@@ -19,7 +19,7 @@ const advance = async (ms: number) => { await act(async () => { await vi.advance
 test('an unused reminder shows private delivery, group fallback and the 24-hour limit', async () => {
   render(<ReminderDelivery billId={3} />);
   await settle();
-  expect(api.get).toHaveBeenCalledWith('/api/bills/3/reminder-status');
+  expect(api.get).toHaveBeenCalledWith('/api/bills/3/reminder-status', expect.objectContaining({ communityId: null, signal: expect.any(AbortSignal) }));
   expect(screen.getByText(/личный чат/)).toBeInTheDocument();
   expect(screen.getByText(/групп/)).toBeInTheDocument();
   expect(screen.getByText(/24 часа/)).toBeInTheDocument();

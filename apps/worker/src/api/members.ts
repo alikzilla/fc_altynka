@@ -4,8 +4,8 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import type { Db } from '../db/client';
-import { bills, memberships, users, type UserRow } from '../db/schema';
-import { effectiveRole, nameTaken } from '../domain/members';
+import { bills, events, memberships, users, type UserRow } from '../db/schema';
+import { communityUser, effectiveRole, memberUser, nameTaken } from '../domain/members';
 import { playerRatings } from '../domain/ratings';
 import type { Env } from '../env';
 import { body, idParam } from './validate';
@@ -34,14 +34,14 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
     set.notificationsEnabled = v.notificationsEnabled;
   }
   if (v.displayName !== undefined) {
-    if (await nameTaken(c.get('deps').db, v.displayName, c.get('user').id)) return c.json({ error: 'name_taken' }, 409);
+    if (await nameTaken(c.get('deps').db, v.displayName, c.get('user').id, c.get('community').id)) return c.json({ error: 'name_taken' }, 409);
     set.displayName = v.displayName;
   }
   if (v.kaspiPhone !== undefined) {
     if (v.kaspiPhone === null || v.kaspiPhone.trim() === '') {
       // по открытому счёту ему переводят — без номера счёт сломается
-      const open = await c.get('deps').db.select({ id: bills.id }).from(bills)
-        .where(and(eq(bills.receiverUserId, c.get('user').id), eq(bills.status, 'open'))).limit(1);
+      const open = await c.get('deps').db.select({ id: bills.id }).from(bills).innerJoin(events, eq(events.id, bills.eventId))
+        .where(and(eq(events.communityId, c.get('community').id), eq(bills.receiverUserId, c.get('user').id), eq(bills.status, 'open'))).limit(1);
       if (open.length) return c.json({ error: 'receiver_needs_phone' }, 409);
       set.kaspiPhone = null;
     }
@@ -53,11 +53,14 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
     }
   }
   const { db } = c.get('deps');
-  const [u] = Object.keys(set).length
-    ? await db.update(users).set(set).where(eq(users.id, c.get('user').id)).returning()
-    : [c.get('user')];
+  const { theme, ...local } = set;
+  if (theme !== undefined) await db.update(users).set({ theme }).where(eq(users.id, c.get('user').id));
+  if (Object.keys(local).length) await db.update(memberships).set(local)
+    .where(and(eq(memberships.communityId, c.get('community').id), eq(memberships.userId, c.get('user').id)));
+  const u = (await communityUser(db, c.get('community').id, c.get('user').id))!;
   if (set.kaspiPhone !== undefined && set.kaspiPhone !== c.get('user').kaspiPhone) {
-    const affected = await db.select({ eventId: bills.eventId }).from(bills).where(and(eq(bills.receiverUserId, u.id), eq(bills.status, 'open')));
+    const affected = await db.select({ eventId: bills.eventId }).from(bills).innerJoin(events, eq(events.id, bills.eventId))
+      .where(and(eq(events.communityId, c.get('community').id), eq(bills.receiverUserId, u.id), eq(bills.status, 'open')));
     for (const bill of affected) await c.get('deps').sync.request(bill.eventId, { parts: ['bill'] });
   }
   return c.json<MeDto>({ rating: (await playerRatings(c.get('deps').db, c.get('community').id, c.get('deps').now)).get(u.id)!.rating, userId: u.id, displayName: u.displayName, role: c.get('role'), kaspiPhone: u.kaspiPhone, ...profileDetails(u), notifications: { enabled: u.notificationsEnabled, available: u.pmAvailable }, telegram: c.get('telegram'), community: { id: c.get('community').id, title: c.get('community').title } });
@@ -68,9 +71,9 @@ async function membersOf(db: Db, env: Env, communityId: number, userId?: number)
     .select({ m: memberships, u: users })
     .from(memberships)
     .innerJoin(users, eq(users.id, memberships.userId))
-    .where(userId === undefined ? eq(memberships.communityId, communityId) : and(eq(memberships.communityId, communityId), eq(memberships.userId, userId)));
+    .where(and(eq(memberships.active, true), eq(memberships.communityId, communityId), userId === undefined ? undefined : eq(memberships.userId, userId)));
   return rows
-    .map(({ m, u }) => ({ userId: u.id, displayName: u.displayName, role: effectiveRole(env, u, m), level: m.level }))
+    .map(({ m, u }) => ({ userId: u.id, displayName: memberUser(u, m).displayName, role: effectiveRole(env, u, m), level: m.level }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'));
 }
 
@@ -89,12 +92,12 @@ membersApi.patch(
     const v = c.req.valid('json');
     const target = userId === null ? [] : await membersOf(db, c.env, communityId, userId);
     if (!target.length) return c.json({ error: 'not_found' }, 404);
-    if (v.displayName !== undefined && (await nameTaken(db, v.displayName, userId!))) return c.json({ error: 'name_taken' }, 409);
+    if (v.displayName !== undefined && (await nameTaken(db, v.displayName, userId!, communityId))) return c.json({ error: 'name_taken' }, 409);
     const m: { level?: number; role?: 'organizer' | 'player' } = {};
     if (v.role !== undefined) m.role = v.role;
     if (Object.keys(m).length)
       await db.update(memberships).set(m).where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId!)));
-    if (v.displayName !== undefined) await db.update(users).set({ displayName: v.displayName }).where(eq(users.id, userId!));
+    if (v.displayName !== undefined) await db.update(memberships).set({ displayName: v.displayName }).where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId!)));
     return c.json((await membersOf(db, c.env, communityId, userId!))[0]);
   },
 );

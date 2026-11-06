@@ -1,16 +1,17 @@
-import { formatDateRu } from '@altynka/core';
 import { Bot } from 'grammy';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';
-import { users, type UserRow } from '../db/schema';
+import { communities, memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBill, markPaid } from '../domain/bills';
 import { getEvent, joinEvent, leaveEvent, type Deps } from '../domain/events';
-import { bindCommunity, ensureMembership, getCommunity, moveCommunityChat, openEvents, upsertTgUser } from '../domain/members';
+import { bindCommunity, communityByChat, communityUser, confirmedMembership, ensureMembership, getCommunity, moveCommunityChat, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
 import { makeTgClient } from '../telegram/client';
 import { registerPrivateCommands } from './private';
+import { miniAppLink } from '../telegram/links';
+import { restoreCommunitySync } from '../domain/reactivate';
 
 export interface BotDeps {
   db: Db;
@@ -74,19 +75,38 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
   registerPrivateCommands(bot, env, deps);
 
   bot.chatType(['group', 'supergroup']).command('bind', async ctx => {
-    if (String(ctx.from.id) !== env.ADMIN_TG_ID) return;
-    const current = await getCommunity(deps.db);
-    const open = current && current.tgChatId !== ctx.chat.id ? await openEvents(deps.db, current.id) : [];
-    if (open.length) {
-      await ctx.reply(
-        `Сначала заверши открытые сборы в прежней группе — отмени их или закрой счёт в мини-аппе: ${open.map(e => formatDateRu(e.date)).join('; ')}`,
-      );
-      return;
-    }
+    if (!ctx.from || ctx.from.is_bot || ctx.message.sender_chat) return void await ctx.reply('Отправь /bind от своего личного аккаунта администратора.');
+    const sender = await ctx.api.getChatMember(ctx.chat.id, ctx.from.id);
+    if (sender.status !== 'creator' && sender.status !== 'administrator') return void await ctx.reply('Подключить бота может администратор этой группы.');
+    const own = await ctx.api.getChatMember(ctx.chat.id, ctx.me.id);
+    if (own.status !== 'administrator' || !own.can_pin_messages) return void await ctx.reply('Назначь бота администратором с правом закреплять сообщения, затем повтори /bind.');
     const c = await bindCommunity(deps.db, ctx.chat.id, ctx.chat.title);
     const admin = await upsertTgUser(deps.db, ctx.from, deps.now());
-    await ensureMembership(deps.db, c.id, admin.id);
-    await ctx.reply('Группа привязана ✅');
+    await ensureMembership(deps.db, c.id, admin.id, deps.now());
+    await deps.db.update(memberships).set({ telegramAdmin: true }).where(and(eq(memberships.communityId, c.id), eq(memberships.userId, admin.id)));
+    await restoreCommunitySync(deps.db, deps.sync, c.id, deps.now());
+    await ctx.reply(`Группа привязана ✅\n${c.title}`, { reply_markup: { inline_keyboard: [[{ text: 'Открыть команду', url: miniAppLink(env, `c${c.id}_matches`) }]] } });
+  });
+
+  bot.on('my_chat_member', async ctx => {
+    const community = await communityByChat(deps.db, ctx.chat.id);
+    if (!community) return;
+    const member = ctx.myChatMember.new_chat_member;
+    const active = member.status === 'administrator' && member.can_pin_messages;
+    await deps.db.update(communities).set({ active }).where(eq(communities.id, community.id));
+    if (active && !community.active) await restoreCommunitySync(deps.db, deps.sync, community.id, deps.now());
+  });
+
+  bot.on('chat_member', async ctx => {
+    const community = await communityByChat(deps.db, ctx.chat.id);
+    if (!community) return;
+    const member = ctx.chatMember.new_chat_member;
+    const [user] = await deps.db.select().from(users).where(eq(users.tgId, member.user.id));
+    if (!user) return;
+    const admin = member.status === 'administrator' || member.status === 'creator';
+    const active = admin || member.status === 'member' || member.status === 'restricted' && member.is_member;
+    await deps.db.update(memberships).set({ active, telegramAdmin: admin, checkedAt: 0, ...(!active ? { legacy: false } : {}) })
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
   });
 
   bot.on('message:migrate_to_chat_id', async ctx => {
@@ -95,11 +115,11 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
 
   bot.callbackQuery(/^pp:(\d+):(\d+):(\d+):(\d{11})$/, async ctx => {
     const [, billId, due, receiverTgId, phoneDigits] = ctx.match;
-    const community = await getCommunity(deps.db);
     const chat = ctx.callbackQuery.message?.chat;
     const bill = await getBill(deps.db, Number(billId));
     const event = bill ? await getEvent(deps.db, bill.eventId) : null;
-    if (chat?.type !== 'private' || chat.id !== ctx.from.id || !community || !bill || event?.communityId !== community.id
+    const community = event ? await getCommunity(deps.db, event.communityId) : null;
+    if (chat?.type !== 'private' || chat.id !== ctx.from.id || !community?.active || !bill
       || !(await makeTgClient(env).isMember(community.tgChatId, ctx.from.id))) {
       return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
     }
@@ -108,7 +128,7 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     const dto = await billDto(deps.db, bill.id);
     const line = dto.lines.find(l => l.userId === user.id);
     if (!line) return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
-    const [receiver] = await deps.db.select().from(users).where(eq(users.id, bill.receiverUserId));
+    const receiver = await communityUser(deps.db, community.id, bill.receiverUserId);
     if (line.due !== Number(due) || receiver?.tgId !== Number(receiverTgId) || receiver.kaspiPhone?.replace(/\D/g, '') !== phoneDigits) {
       return void await ctx.answerCallbackQuery({ text: 'Счёт изменился. Открой актуальную оплату.' });
     }
@@ -121,17 +141,23 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     const data = ctx.callbackQuery.data;
     const i = data.indexOf(':');
     const handler = i > 0 ? callbacks.get(data.slice(0, i)) : undefined;
-    const community = handler ? await getCommunity(deps.db) : null;
-    if (!handler || !community) {
+    if (!handler) {
       await ctx.answerCallbackQuery();
       return;
     }
-    if (ctx.callbackQuery.message?.chat.id !== community.tgChatId) {
+    const community = await communityByChat(deps.db, ctx.callbackQuery.message?.chat.id ?? 0);
+    const arg = data.slice(i + 1);
+    const objectId = /^[1-9]\d*$/.test(arg) && Number.isSafeInteger(Number(arg)) ? Number(arg) : 0;
+    const bill = data.slice(0, i) === 'p' ? await getBill(deps.db, objectId) : null;
+    const event = await getEvent(deps.db, bill?.eventId ?? objectId);
+    if (!community?.active || !event || event.communityId !== community.id || data.slice(0, i) === 'p' && !bill) {
       await ctx.answerCallbackQuery({ text: 'Этот сбор ведётся в другой группе' });
       return;
     }
     const user = await upsertTgUser(deps.db, ctx.from, deps.now());
-    await ensureMembership(deps.db, community.id, user.id, deps.now());
+    if (!(await confirmedMembership(deps.db, makeTgClient(env), community, user, deps.now(), env.ADMIN_TG_ID))) {
+      return void await ctx.answerCallbackQuery({ text: 'Доступно только участникам этой группы' });
+    }
     const text = await handler({
       env,
       deps: { db: deps.db, now: deps.now(), sync: deps.sync },

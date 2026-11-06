@@ -5,7 +5,7 @@ import { apiRequest as rawRequest, db } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
-const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now });
+const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now, communityId: w.communityId });
 beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 const create = (body: unknown) => apiRequest('/api/events', { method: 'POST', as: w.org, body });

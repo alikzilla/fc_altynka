@@ -28,7 +28,7 @@ test('signup before scheduling is allowed; every queue mutation is frozen exactl
   await schedule();
   const before = await loadQueue(d.db, id);
   d.now = start;
-  expect(await joinEvent(d, id, 999)).toEqual({ kind: 'closed' });
+  expect(await joinEvent(d, id, player)).toEqual({ kind: 'closed' });
   expect(await leaveEvent(d, id, player)).toEqual({ kind: 'closed' });
   expect(await addGuest(d, id, player, 'Гость')).toEqual({ kind: 'closed' });
   expect(await removeSignup(d, before.main[0].id, { userId: org, role: 'organizer' })).toBe('closed');

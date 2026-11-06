@@ -2,7 +2,7 @@ import { lineStatus, type NotificationsDto, type NotificationTaskDto } from '@al
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppEnv } from '../auth/middleware';
-import { billLines, bills, events, skillAssessments, users } from '../db/schema';
+import { billLines, bills, events, memberships, skillAssessments } from '../db/schema';
 
 export const notificationsApi = new Hono<AppEnv>();
 
@@ -16,11 +16,11 @@ notificationsApi.get('/notifications', async c => {
     place: events.place,
     amount: billLines.amount,
     paidAmount: billLines.paidAmount,
-    receiverName: users.displayName,
+    receiverName: memberships.displayName,
   }).from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
     .innerJoin(events, eq(events.id, bills.eventId))
-    .innerJoin(users, eq(users.id, bills.receiverUserId))
+    .innerJoin(memberships, and(eq(memberships.userId, bills.receiverUserId), eq(memberships.communityId, communityId)))
     .where(and(
       eq(events.communityId, communityId),
       eq(billLines.userId, c.get('user').id),
@@ -35,7 +35,7 @@ notificationsApi.get('/notifications', async c => {
     date: row.date,
     place: row.place,
     due: lineStatus(row.amount, row.paidAmount).due,
-    receiverName: row.receiverName,
+    receiverName: row.receiverName ?? 'Получатель',
   }));
   const reviews = await db.all<{ eventId: number; date: string; place: string | null; closesAt: number }>(sql`
     SELECT e.id AS eventId, e.date, e.place, r.closes_at AS closesAt

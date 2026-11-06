@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { bills, billLines, events, users } from '../../src/db/schema';
 import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeTg } from '../fakes/fakeTg';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { db, seedCommunity, seedUser, localUser } from '../helpers';
 import { groupCommand, makeTestBot, privateCommand, tap } from './helpers';
 
 let tg: FakeTg;
@@ -16,19 +16,21 @@ const privateTap = (id: number, data: string) => {
 };
 
 test('/start proves private availability but notifications require an explicit toggle', async () => {
-  await seedCommunity();
+  const c = await seedCommunity();
+  await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  tg.members.add(501);
   const t = makeTestBot();
   await t.bot.handleUpdate(privateCommand(501, '/start'));
   let [user] = await db().select().from(users).where(eq(users.tgId, 501));
   expect(user.pmAvailable).toBe(true);
-  expect(user.notificationsEnabled).toBe(false);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(false);
   expect(texts(t)).toContain('Личные уведомления можно настроить отдельно');
   await t.bot.handleUpdate(privateTap(501, 'notify:1'));
   [user] = await db().select().from(users).where(eq(users.tgId, 501));
-  expect(user.notificationsEnabled).toBe(true);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(true);
   await t.bot.handleUpdate(privateTap(501, 'notify:0'));
   [user] = await db().select().from(users).where(eq(users.tgId, 501));
-  expect(user.notificationsEnabled).toBe(false);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(false);
 });
 
 test('a group notification callback cannot enable a personal subscription', async () => {
@@ -49,7 +51,7 @@ test('old database membership alone cannot reveal matches or debts to a removed 
   await t.bot.handleUpdate(privateCommand(501, '/newmatch'));
   expect(texts(t)).toContain('участникам группы');
   expect(texts(t)).not.toContain('Секретное поле');
-  expect(JSON.stringify(t.calls)).not.toContain('startapp=newmatch');
+  expect(JSON.stringify(t.calls)).not.toContain(`startapp=c${c.id}_newmatch`);
 });
 
 test('/payments shows only own remaining open obligations with event links', async () => {
@@ -82,13 +84,13 @@ test('/newmatch checks organizer role and installs a role-aware private menu', a
   tg.members.add(501); tg.members.add(502);
   const org = makeTestBot();
   await org.bot.handleUpdate(privateCommand(501, '/newmatch'));
-  expect(JSON.stringify(org.calls)).toContain('startapp=newmatch');
+  expect(JSON.stringify(org.calls)).toContain(`startapp=c${c.id}_newmatch`);
   expect(org.calls.find(c => c.method === 'setMyCommands')?.payload.scope).toEqual({ type: 'chat', chat_id: 501 });
   expect(JSON.stringify(org.calls.find(c => c.method === 'setMyCommands')?.payload.commands)).toContain('newmatch');
   const player = makeTestBot();
   await player.bot.handleUpdate(privateCommand(502, '/newmatch'));
   expect(texts(player)).toContain('организатор');
-  expect(JSON.stringify(player.calls)).not.toContain('startapp=newmatch');
+  expect(JSON.stringify(player.calls)).not.toContain(`startapp=c${c.id}_newmatch`);
   expect(JSON.stringify(player.calls.find(c => c.method === 'setMyCommands')?.payload.commands)).not.toContain('newmatch');
 });
 
@@ -100,7 +102,7 @@ test('newmatch private deep link checks role before opening the creation form', 
   const update = privateCommand(501, '/start newmatch');
   if (update.message?.entities) update.message.entities[0].length = 6;
   await t.bot.handleUpdate(update);
-  expect(JSON.stringify(t.calls.filter(c => c.method === 'sendMessage'))).toContain('startapp=newmatch');
+  expect(JSON.stringify(t.calls.filter(c => c.method === 'sendMessage'))).toContain(`startapp=c${c.id}_newmatch`);
 });
 
 test('/matches returns at most eight active matches in date order and escapes user content', async () => {
@@ -118,15 +120,15 @@ test('/matches returns at most eight active matches in date order and escapes us
   expect(texts(t).indexOf('2 ноября')).toBeLessThan(texts(t).indexOf('9 ноября'));
   const markup = msg.payload.reply_markup as { inline_keyboard: { text: string; url: string }[][] };
   expect(markup.inline_keyboard.filter(row => row[0].url.includes('startapp=e'))).toHaveLength(8);
-  expect(markup.inline_keyboard.at(-1)?.[0].url).toContain('startapp=matches');
+  expect(markup.inline_keyboard.at(-1)?.[0].url).toContain(`startapp=c${c.id}_matches`);
 });
 
 test('group personal commands redirect to private and ordinary conversation is ignored', async () => {
-  await seedCommunity();
+  const c = await seedCommunity();
   const t = makeTestBot();
-  await t.bot.handleUpdate(groupCommand(501, '/payments'));
+  await t.bot.handleUpdate(groupCommand(501, '/payments', -100500));
   expect(texts(t)).toContain('личном чате');
-  expect(JSON.stringify(t.calls)).toContain('https://t.me/fc_altynka_bot?start=payments');
+  expect(JSON.stringify(t.calls)).toContain(`https://t.me/fc_altynka_bot?start=c${c.id}_payments`);
   const before = t.calls.length;
   const update = groupCommand(501, 'привет');
   if (update.message) update.message.entities = [];
@@ -142,6 +144,9 @@ test('unknown private commands show help and a menu link', async () => {
 });
 
 test('a command menu update failure still allows welcome without leaking the transport URL', async () => {
+  const c = await seedCommunity();
+  await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  tg.members.add(501);
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   try {
     const t = makeTestBot();
@@ -150,7 +155,7 @@ test('a command menu update failure still allows welcome without leaking the tra
       return prev(method, payload, signal);
     });
     await t.bot.handleUpdate(privateCommand(501, '/start'));
-    expect(texts(t)).toContain('ФК Алтынка');
+    expect(texts(t)).toContain('Футбол');
     expect(JSON.stringify(warning.mock.calls)).not.toContain('secret-token');
   } finally { warning.mockRestore(); }
 });

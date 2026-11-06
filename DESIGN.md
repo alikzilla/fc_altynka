@@ -66,6 +66,17 @@ Transient notifications appear at the safe top inset throughout the app, above c
 
 Profile displays verified Telegram photo, full name and username. Missing or broken photos use initials. Editable club display name and Kaspi phone remain separate. Authorized users reach player management from profile.
 
+Scheduling opens in the shared ActionSheet over the current match and retains its tab.
+The venue field is a button opening a second ActionSheet; it never opens a keyboard.
+The catalogue currently contains only Школа Аксай and the supplied 2GIS link.
+Unknown address and tariff stay explicitly unspecified. A known tariff uses
+`18 000 ₸ / час` on one unbroken line. Explicit selection returns to the appointment
+draft without resetting time/duration; dismissing keeps the existing venue, including
+legacy free-text names. Background refresh does not overwrite the draft. Pending
+save locks controls/dismissal, and late responses after navigation cannot redirect.
+Nested sheets share the body scroll lock and restore the venue trigger's focus in
+WebKit as well as Chromium. The match menu closes before opening scheduling.
+
 ## Accessibility and states
 
 Real links/buttons, one h1, named regions, visible focus, keyboard tabs, readable error/empty/loading states. All content can scroll clear of the dock. Reduced motion disables animation/travel. Increased contrast flattens materials and adds clear edges. Materials are already opaque, so reduced-transparency preferences do not depend on browser blur support.

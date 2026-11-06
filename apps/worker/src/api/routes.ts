@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import { authMiddleware, type AppEnv } from '../auth/middleware';
+import { communityMiddleware, identityMiddleware, type AppEnv } from '../auth/middleware';
+import { communitiesApi } from './communities';
 import { getDb } from '../db/client';
 import type { Deps } from '../domain/events';
 import type { Env } from '../env';
@@ -19,7 +20,9 @@ export function setDepsFactoryForTests(f: ((env: Env) => Deps) | null): void {
 }
 
 export const api = new Hono<AppEnv>();
-api.use('*', authMiddleware(env => depsFactory(env)));
+api.use('*', identityMiddleware(env => depsFactory(env)));
+api.route('/', communitiesApi);
+api.use('*', communityMiddleware());
 api.route('/', eventsApi);
 api.route('/', membersApi);
 api.route('/', teamsApi);

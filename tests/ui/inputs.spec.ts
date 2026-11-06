@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 
 const me = { userId: 1, displayName: 'Организатор', role: 'admin', kaspiPhone: '+77071234567', profileCompleted: true, community: { id: 1, title: 'Очень длинное название футбольной группы '.repeat(3) } };
@@ -7,7 +8,7 @@ const event = { id: 1, date: '2026-11-07', status: 'scheduled', startTime: '21:0
 test.beforeEach(async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', route => {
+  await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/players' ? [{ userId: 1, displayName: me.displayName, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } }] : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
   });
@@ -18,7 +19,7 @@ for (const width of [280, 320, 390, 430]) {
     await page.setViewportSize({ width, height: 740 });
     for (const path of ['/new', '/event/1/schedule', '/profile/settings/name', '/profile/settings/payment', '/profile/settings/football', '/event/1/guest', '/event/1?tab=bill', '/event/1?tab=teams', '/players']) {
       await page.goto(path);
-      let scope = path === '/new' ? page.getByRole('dialog') : page.locator('main');
+      let scope = path === '/new' || path.endsWith('/schedule') ? page.getByRole('dialog') : page.locator('main');
       await expect(scope).toBeVisible();
       await expect(page.locator('.loading')).toHaveCount(0);
       if (path === '/new') {
@@ -27,7 +28,8 @@ for (const width of [280, 320, 390, 430]) {
       }
       if (path.endsWith('/schedule')) {
         await page.getByLabel('Начало').fill('23:59');
-        await page.getByLabel('Поле · необязательно').fill('Поле с длинным названием '.repeat(3));
+        await page.getByRole('button', { name: /Место проведения/ }).click();
+        await page.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
       }
       if (path === '/profile/settings/name') await page.getByLabel('Имя в списках').fill('ДлинноеИмяУчастникаКлуба');
       if (path === '/profile/settings/football') {

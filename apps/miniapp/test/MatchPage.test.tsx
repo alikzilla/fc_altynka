@@ -17,6 +17,8 @@ beforeEach(() => {
   ev = { id: 7, date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
   requests = []; delayJoin = false; finishJoin = undefined;
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
+    if (String(path).startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
     if (path === '/api/me') return Response.json(me);
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events/7') return Response.json(ev);
@@ -118,6 +120,8 @@ test('failed background profile refresh preserves the open bill draft', async ()
   await userEvent.click(await screen.findByRole('button', { name: 'Выставить счёт' }));
   await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
   vi.mocked(fetch).mockImplementation(async path => {
+    if (path === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
+    if (String(path).startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
     if (path === '/api/me') throw new Error('offline');
     if (path === '/api/events/7') return Response.json(ev);
     return Response.json({ tasks: [] });

@@ -12,19 +12,21 @@ test('upsertTgUser sets default display name once and never overwrites a custom 
   expect(b.lastName).toBe('Новый');
 });
 
-test('ensureMembership creates player with level 5, effectiveRole honours ADMIN_TG_ID', async () => {
+test('ensureMembership creates player with level 5; global owner ID grants no rights', async () => {
   const c = await seedCommunity();
   const user = await upsertTgUser(db(), { id: 1, first_name: 'Админ' }, 1);
   const m = await ensureMembership(db(), c.id, user.id);
   expect(m).toMatchObject({ role: 'player', level: 5 });
   expect(await ensureMembership(db(), c.id, user.id)).toMatchObject({ role: 'player', level: 5 });
-  expect(effectiveRole({ ADMIN_TG_ID: '1' }, user, m)).toBe('admin');
+  expect(effectiveRole({ ADMIN_TG_ID: '1' }, user, m)).toBe('player');
+  expect(effectiveRole({ ADMIN_TG_ID: '999' }, user, { ...m, telegramAdmin: true })).toBe('admin');
   expect(effectiveRole({ ADMIN_TG_ID: '999' }, user, m)).toBe('player');
 });
 
-test('a new user whose default name is taken gets a numbered one', async () => {
-  expect((await upsertTgUser(db(), { id: 7, first_name: 'Данияр' }, 1)).displayName).toBe('Данияр');
-  expect((await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 1)).displayName).toBe('данияр 2');
-  expect((await upsertTgUser(db(), { id: 9, first_name: 'Данияр' }, 1)).displayName).toBe('Данияр 3');
-  expect((await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 2)).displayName).toBe('данияр 2');
+test('numbered names are allocated within the team, never across all Telegram accounts', async () => {
+  const c = await seedCommunity();
+  const a = await upsertTgUser(db(), { id: 7, first_name: 'Данияр' }, 1);
+  const b = await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 1);
+  expect((await ensureMembership(db(), c.id, a.id)).displayName).toBe('Данияр');
+  expect((await ensureMembership(db(), c.id, b.id)).displayName).toBe('данияр 2');
 });

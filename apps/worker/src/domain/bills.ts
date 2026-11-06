@@ -1,7 +1,8 @@
 import { computeBill, lineStatus, normalizeKzPhone, matchPhase, type BillDto, type Extra, type Role } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { billLines, bills, events, signups, users, type BillRow } from '../db/schema';
+import { billLines, bills, events, memberships, signups, type BillRow } from '../db/schema';
+import { communityUser } from './members';
 import { usersById } from '../sync/parts';
 import { canManage, getEvent, type Deps } from './events';
 
@@ -34,8 +35,9 @@ export async function upsertBill(
   const existing = await getBillByEvent(d.db, eventId);
   if (ev.status === 'collecting' || (!existing && (ev.status !== 'scheduled' || !ev.startTime || !ev.durationHours))) return { kind: 'not_scheduled' };
   if (!existing && matchPhase(ev, d.now) !== 'playing') return { kind: 'not_started' };
-  const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
-  if (!receiver || !v.participantSignupIds.length) return { kind: 'invalid' };
+  const receiver = await communityUser(d.db, ev.communityId, v.receiverUserId);
+  const [receiverMembership] = await d.db.select().from(memberships).where(and(eq(memberships.communityId, ev.communityId), eq(memberships.userId, v.receiverUserId), eq(memberships.active, true)));
+  if (!receiver || !receiverMembership || !v.participantSignupIds.length) return { kind: 'invalid' };
   const parts = await d.db
     .select()
     .from(signups)
@@ -45,7 +47,8 @@ export async function upsertBill(
   if (v.receiverKaspiPhone !== undefined && v.receiverKaspiPhone.trim() !== '') {
     phone = normalizeKzPhone(v.receiverKaspiPhone);
     if (!phone) return { kind: 'bad_phone' };
-    await d.db.update(users).set({ kaspiPhone: phone, profileCompletedAt: receiver.profileCompletedAt ?? d.now }).where(eq(users.id, receiver.id));
+    await d.db.update(memberships).set({ kaspiPhone: phone, profileCompletedAt: receiver.profileCompletedAt ?? d.now })
+      .where(and(eq(memberships.communityId, ev.communityId), eq(memberships.userId, receiver.id)));
   }
   if (!phone) return { kind: 'no_kaspi' };
 
@@ -130,7 +133,7 @@ export async function markPaid(
     .where(and(eq(billLines.id, line.id), expected ? and(
       eq(billLines.amount, line.amount),
       sql`${billLines.amount} - coalesce(${billLines.paidAmount}, 0) = ${expected.due}`,
-      sql`exists (select 1 from bills join users on users.id = bills.receiver_user_id where bills.id = ${billId} and bills.status = 'open' and bills.receiver_user_id = ${expected.receiverUserId} and users.kaspi_phone = ${expected.receiverPhone})`,
+      sql`exists (select 1 from bills join events on events.id = bills.event_id join memberships on memberships.user_id = bills.receiver_user_id and memberships.community_id = events.community_id where bills.id = ${billId} and bills.status = 'open' and bills.receiver_user_id = ${expected.receiverUserId} and memberships.kaspi_phone = ${expected.receiverPhone})`,
     ) : undefined)).returning({ id: billLines.id });
   if (!changed.length) return 'stale';
   const closed = await closeIfAllPaid(d, billId);
@@ -189,7 +192,8 @@ export async function closeBill(d: Deps, billId: number): Promise<'ok' | 'not_fo
 export async function billDto(db: Db, billId: number): Promise<BillDto> {
   const bill = (await getBill(db, billId))!;
   const lines = await db.select().from(billLines).where(eq(billLines.billId, billId));
-  const byId = await usersById(db, [bill.receiverUserId, ...lines.map(l => l.userId)]);
+  const ev = (await getEvent(db, bill.eventId))!;
+  const byId = await usersById(db, [bill.receiverUserId, ...lines.map(l => l.userId)], ev.communityId);
   const receiver = byId.get(bill.receiverUserId)!;
   const extras = JSON.parse(bill.extrasJson) as Extra[];
   return {

@@ -11,6 +11,7 @@ import type { Notice, Part, SyncRequest } from './port';
 import { PersonalDelivery, type DeliveryReport } from './personal';
 import { miniAppLink } from '../telegram/links';
 import { getEvent } from '../domain/events';
+import { AutomaticNotifications } from './automatic';
 
 const PART_ORDER: Part[] = ['event', 'teams', 'bill'];
 
@@ -48,6 +49,8 @@ export class EventSync extends DurableObject<Env> {
     const dirty = new Set<Part>([...((await s.get<Part[]>('dirty')) ?? []), ...req.parts]);
     const pending = [...((await s.get<Notice[]>('pending')) ?? []), ...(req.notices ?? [])];
     await s.put({ eventId, dirty: [...dirty], pending });
+    if (req.review) await s.put('auto:reviewArmed', true);
+    if (req.parts.includes('bill') && await s.get<number>('auto:billArmedAt') === undefined) await s.put('auto:billArmedAt', Date.now());
     if (req.notices?.some(n => n.kind === 'reminder')) await s.put({
       deliveryReport: { at: Date.now(), sent: 0, unavailable: 0, skipped: 0, failed: 0, status: 'queued' } satisfies DeliveryReport,
       reminderProgress: {},
@@ -62,9 +65,14 @@ export class EventSync extends DurableObject<Env> {
     const s = this.ctx.storage;
     const eventId = await s.get<number>('eventId');
     if (eventId === undefined) return;
-    const community = await getCommunity(getDb(this.env.DB));
-    if (!community) return;
+    const retryNotBefore = await s.get<number>('retryNotBefore');
+    if (retryNotBefore !== undefined && retryNotBefore > Date.now()) {
+      await s.setAlarm(retryNotBefore);
+      return;
+    }
     const event = await getEvent(getDb(this.env.DB), eventId);
+    const community = event ? await getCommunity(getDb(this.env.DB), event.communityId) : null;
+    if (!community?.active) return;
     if (!event || event.communityId !== community.id || event.telegramChatId !== null && event.telegramChatId !== community.tgChatId) {
       await s.put({ dirty: [], pending: [] });
       return;
@@ -100,6 +108,12 @@ export class EventSync extends DurableObject<Env> {
     if (stopped(run)) run.notices = pending;
     else await this.sendNotices(tg, community.tgChatId, eventId, pending, run);
 
+    const automatic = new AutomaticNotifications(getDb(this.env.DB), this.env, tg, s, community.tgChatId);
+    if (!stopped(run)) {
+      try { await automatic.run(eventId); }
+      catch (e) { noteError(run, e); }
+    }
+
     await this.putBack(run);
     if (run.retryAt !== null) {
       await s.put('retryNotBefore', run.retryAt);
@@ -116,7 +130,10 @@ export class EventSync extends DurableObject<Env> {
       await s.delete('retryNotBefore');
       const latest = await getEvent(getDb(this.env.DB), eventId);
       const nextKickoff = latest?.status === 'scheduled' ? matchStartsAt(latest) : null;
-      if (nextKickoff !== null && nextKickoff > Date.now()) await s.setAlarm(nextKickoff);
+      const nextAutomatic = await automatic.nextAt(eventId);
+      const deadlines = [nextKickoff !== null && nextKickoff > Date.now() ? nextKickoff : null, nextAutomatic]
+        .filter((at): at is number => at !== null);
+      if (deadlines.length) await s.setAlarm(Math.min(...deadlines));
     }
   }
 

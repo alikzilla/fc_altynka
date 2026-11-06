@@ -9,6 +9,7 @@ import './styles/app.css';
 import './styles/themes.css';
 import './styles/match.css';
 import './styles/ratings.css';
+import './styles/venues.css';
 
 initializeTheme();
 createRoot(document.getElementById('root')!).render(

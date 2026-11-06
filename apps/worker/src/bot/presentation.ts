@@ -21,9 +21,9 @@ export const mainKeyboard = (env: LinkEnv): InlineKeyboardMarkup => ({
 export function settingsText(enabled: boolean, available: boolean): string {
   return `<b>Уведомления</b>\nЛичные уведомления: ${enabled ? 'включены' : 'выключены'}.\nДоставка в личный чат: ${available ? 'доступна' : 'недоступна'}.\n\nРазрешение Telegram и подписка на уведомления настраиваются отдельно.`;
 }
-export const settingsKeyboard = (env: LinkEnv, enabled: boolean): InlineKeyboardMarkup => ({
+export const settingsKeyboard = (env: LinkEnv, enabled: boolean, communityId?: number): InlineKeyboardMarkup => ({
   inline_keyboard: [
-    [{ text: enabled ? 'Выключить уведомления' : 'Включить уведомления', callback_data: enabled ? 'notify:0' : 'notify:1' }],
-    [{ text: 'Открыть профиль', url: miniAppLink(env, 'settings') }],
+    [{ text: enabled ? 'Выключить уведомления' : 'Включить уведомления', callback_data: `notify:${communityId ? `${communityId}:` : ''}${enabled ? '0' : '1'}` }],
+    [{ text: 'Открыть профиль', url: miniAppLink(env, communityId ? `c${communityId}_settings` : 'settings') }],
   ],
 });

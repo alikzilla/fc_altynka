@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { expect, test } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -6,7 +7,7 @@ for (const width of [280, 390]) for (const role of ['player', 'organizer']) test
   const name = width === 280 ? 'Александр Константинопольский' : 'Тимур Нурланов';
   const username = width === 280 ? 'very_long_football_player_username' : 'timur';
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me'
+  await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me'
     ? { userId: 2, displayName: name, role, kaspiPhone: null, profileCompleted: true, playingPosition: 'midfielder', dominantFoot: 'both', telegram: { firstName: name, lastName: null, username, photoUrl: null } }
     : { tasks: [] } }));
   await page.goto('/profile');
@@ -40,7 +41,7 @@ for (const width of [280, 320, 390]) test(`profile setup stays saved and footbal
   let me = { userId: 2, displayName: 'Тимур', role: 'player', kaspiPhone: null as string | null, profileCompleted: false, playingPosition: null as string | null, dominantFoot: null as string | null, notifications: { enabled: false, available: true } };
   const payloads: Record<string, unknown>[] = [];
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => {
+  await teamApiRoute(page, r => {
     if (new URL(r.request().url()).pathname === '/api/me') {
       if (r.request().method() === 'PATCH') {
         const payload = r.request().postDataJSON(); payloads.push(payload);
@@ -89,7 +90,7 @@ for (const width of [280, 320, 390]) test(`profile setup stays saved and footbal
 
 test('profile destination remains current while editing settings', async ({ page }) => {
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me'
+  await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me'
     ? { userId: 1, displayName: 'Тимур', role: 'player', kaspiPhone: null, profileCompleted: true }
     : { tasks: [] } }));
   await page.goto('/profile/settings/football');
@@ -105,7 +106,7 @@ for (const width of [320, 390]) test(`system switches apply and persist light th
   await page.setViewportSize({ width, height: 844 });
   let me = { userId: 2, displayName: 'Тимур', role: 'player', kaspiPhone: null, profileCompleted: true, theme: 'dark', notifications: { enabled: false, available: true } };
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => {
+  await teamApiRoute(page, r => {
     if (new URL(r.request().url()).pathname !== '/api/me') return r.fulfill({ json: { tasks: [] } });
     if (r.request().method() === 'PATCH') {
       const body = r.request().postDataJSON();
@@ -145,7 +146,7 @@ test('late notification response does not erase a phone saved concurrently durin
   let releaseRefresh!: () => void; const refreshHold = new Promise<void>(r => { releaseRefresh = r; });
   let started = false; let saved = false;
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', async r => {
+  await teamApiRoute(page, async r => {
     if (new URL(r.request().url()).pathname !== '/api/me') return r.fulfill({ json: { tasks: [] } });
     if (r.request().method() === 'PATCH') {
       const body = r.request().postDataJSON();
@@ -178,7 +179,7 @@ test('an obsolete theme failure cannot undo a newer successful choice after navi
   let releaseFirst!: () => void; const hold = new Promise<void>(r => { releaseFirst = r; });
   let attempts = 0;
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', async r => {
+  await teamApiRoute(page, async r => {
     if (new URL(r.request().url()).pathname !== '/api/me') return r.fulfill({ json: { tasks: [] } });
     if (r.request().method() === 'PATCH') {
       attempts++;
@@ -211,7 +212,7 @@ test('opening payment settings immediately after setup uses the saved phone whil
   let resume!: () => void;
   const holdRefresh = new Promise<void>(resolve => { resume = resolve; });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', async r => {
+  await teamApiRoute(page, async r => {
     if (new URL(r.request().url()).pathname !== '/api/me') return r.fulfill({ json: { tasks: [] } });
     if (r.request().method() === 'PATCH') { me = { ...me, ...r.request().postDataJSON() }; saved = true; }
     else if (saved) await holdRefresh;

@@ -75,7 +75,7 @@ export function Event() {
       }}>{label}</button>)}</div>
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="tab-panel">{View && <View key={`${id}-${tab}`} ev={ev} reload={reload} actionBlocked={actionBlocked} />}</div>
       {menu && manage && <ActionSheet title="Действия матча" onClose={() => setMenu(false)} busy={busy}>
-        <Link className="sheet-action" href={`/event/${ev.id}/schedule`} aria-disabled={busy} tabIndex={busy ? -1 : 0} onClick={e => { if (busy) e.preventDefault(); }}>{ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}<Icon name="arrow" /></Link>
+        <Link className="sheet-action" href={`/event/${ev.id}/schedule`} aria-disabled={busy} tabIndex={busy ? -1 : 0} onClick={e => { if (busy) e.preventDefault(); else setMenu(false); }}>{ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}<Icon name="arrow" /></Link>
         <ConfirmButton className="sheet-action danger-text" label="Отменить матч" confirmLabel="Точно отменить матч?" disabled={busy} onConfirm={cancel} />
       </ActionSheet>}
     </>}

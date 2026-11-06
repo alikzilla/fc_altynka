@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { writeFile } from 'node:fs/promises';
@@ -25,7 +26,7 @@ async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; c
   const me = () => ({ userId: 1, displayName: 'Данияр', role: 'organizer', kaspiPhone: '+77071234567', profileCompleted: true, playingPosition: 'midfielder', dominantFoot: 'right', theme: options.theme ?? 'dark', rating: assessed ? { ...rating, selfAssessment: savedSkills } : { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, community: { id: 1, title: 'FC Altynka' } });
   const match = () => ({ id: 1, date: '2026-11-05', status: 'playing', startTime: '20:00', durationHours: 1, place: 'Шанырак', limit: 10, mainCount: 2, reserveCount: 1, my: 'main', comment: null, main: people.slice(0, 2).map(p => ({ id: p.userId, seq: p.userId, name: p.displayName, userId: p.userId, guestOfName: null, invitedByUserId: null, level: p.rating.value })), reserve: [{ id: 3, seq: 3, name: 'Руслан', userId: 3, guestOfName: null, invitedByUserId: null }], teams: null, bill: null, review: review() });
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', async route => {
+  await teamApiRoute(page, async route => {
     const path = new URL(route.request().url()).pathname;
     const method = route.request().method();
     let body: unknown;

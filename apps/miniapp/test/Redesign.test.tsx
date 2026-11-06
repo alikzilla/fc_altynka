@@ -61,6 +61,8 @@ beforeEach(() => {
     "fetch",
     vi.fn(async (input: string, init?: RequestInit) => {
       requested.push(input);
+    if (input === '/api/communities') return Response.json({ communities: [{ id: 1, title: 'FC Altynka' }] });
+    if (input.startsWith('/api/context?')) return Response.json({ community: { id: 1, title: 'FC Altynka' } });
       if (input === "/api/me") return Response.json(identity);
       if (input === "/api/notifications") return Response.json({ tasks });
       if (input === "/api/events")

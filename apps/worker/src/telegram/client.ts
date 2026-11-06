@@ -7,6 +7,7 @@ export interface TgClient {
   editMessage(chatId: number, messageId: number, html: string, keyboard?: InlineKeyboardMarkup): Promise<void>;
   pinMessage(chatId: number, messageId: number): Promise<void>;
   isMember(chatId: number, tgUserId: number): Promise<boolean>;
+  memberStatus(chatId: number, tgUserId: number): Promise<'admin' | 'member' | 'left'>;
 }
 
 export class TgRateLimited extends Error {
@@ -78,11 +79,15 @@ class GrammyTgClient implements TgClient {
     }
   }
   async isMember(chatId: number, tgUserId: number) {
+    return await this.memberStatus(chatId, tgUserId) !== 'left';
+  }
+  async memberStatus(chatId: number, tgUserId: number): Promise<'admin' | 'member' | 'left'> {
     try {
       const m = await this.api.getChatMember(chatId, tgUserId);
-      return m.status === 'creator' || m.status === 'administrator' || m.status === 'member' || (m.status === 'restricted' && m.is_member);
+      if (m.status === 'creator' || m.status === 'administrator') return 'admin';
+      return m.status === 'member' || (m.status === 'restricted' && m.is_member) ? 'member' : 'left';
     } catch (e) {
-      if (e instanceof GrammyError && (e.error_code === 400 || e.error_code === 403)) return false;
+      if (e instanceof GrammyError && (e.error_code === 400 || e.error_code === 403)) return 'left';
       translate(e);
     }
   }

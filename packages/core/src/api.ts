@@ -118,3 +118,5 @@ export type NotificationTaskDto =
 export interface NotificationsDto {
   tasks: NotificationTaskDto[];
 }
+export interface CommunityDto { id: number; title: string; }
+export interface CommunitiesDto { communities: CommunityDto[]; }

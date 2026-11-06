@@ -5,6 +5,7 @@ export const communities = sqliteTable('communities', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   tgChatId: integer('tg_chat_id').notNull().unique(),
   title: text('title').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const users = sqliteTable('users', {
@@ -33,8 +34,17 @@ export const memberships = sqliteTable(
     level: integer('level').notNull().default(5),
     /** Когда членство в группе последний раз подтвердил Telegram; 0 — ни разу. */
     checkedAt: integer('checked_at').notNull().default(0),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    telegramAdmin: integer('telegram_admin', { mode: 'boolean' }).notNull().default(false),
+    legacy: integer('legacy', { mode: 'boolean' }).notNull().default(false),
+    displayName: text('display_name'),
+    kaspiPhone: text('kaspi_phone'),
+    profileCompletedAt: integer('profile_completed_at'),
+    playingPosition: text('playing_position').$type<typeof users.$inferSelect.playingPosition>(),
+    dominantFoot: text('dominant_foot').$type<typeof users.$inferSelect.dominantFoot>(),
+    notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
   },
-  t => [primaryKey({ columns: [t.communityId, t.userId] })],
+  t => [primaryKey({ columns: [t.communityId, t.userId] }), index('memberships_user').on(t.userId, t.communityId)],
 );
 
 export const events = sqliteTable('events', {

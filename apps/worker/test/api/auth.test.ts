@@ -19,7 +19,7 @@ test('401 without initData, 403 for non-member, member is auto-registered as pla
   expect(await r2.json()).toMatchObject({ displayName: 'Чужой', role: 'player', kaspiPhone: null });
 });
 
-test('admin is recognised by ADMIN_TG_ID', async () => {
+test('admin is recognised by confirmed Telegram status', async () => {
   expect(await (await apiRequest('/api/me', { as: w.admin })).json()).toMatchObject({ role: 'admin' });
 });
 
@@ -29,12 +29,12 @@ test('health check needs no auth', async () => {
   expect(await r.json()).toEqual({ ok: true });
 });
 
-test('membership is re-checked after a day and refused once the user left the group', async () => {
+test('membership is re-checked immediately and refused once the user left the group', async () => {
   const stranger = { id: 77, first_name: 'Чужой' };
   w.tg.members.add(77);
   expect((await apiRequest('/api/me', { as: stranger })).status).toBe(200);
   w.tg.members.delete(77);
-  expect((await apiRequest('/api/me', { as: stranger })).status).toBe(200);
+  expect((await apiRequest('/api/me', { as: stranger })).status).toBe(403);
   const later = Date.now() + 25 * 3600_000;
   setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: later, sync: w.sync }));
   expect((await apiRequest('/api/me', { as: stranger, at: later })).status).toBe(403);

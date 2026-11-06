@@ -2,7 +2,7 @@ import { SELF } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { events, memberships } from '../../src/db/schema';
 import { createEvent, loadQueue } from '../../src/domain/events';
-import { getCommunity } from '../../src/domain/members';
+import { communityByChat, getCommunity } from '../../src/domain/members';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 import { groupCommand, makeTestBot, migrated, privateCommand, tap } from './helpers';
@@ -11,7 +11,10 @@ import { FakeTg } from '../fakes/fakeTg';
 
 let ev: number;
 
+afterEach(() => __setTgClientForTests(null));
+
 beforeEach(async () => {
+  const tg = new FakeTg(); tg.members.add(501); __setTgClientForTests(tg);
   const c = await seedCommunity();
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer' });
   ev = await createEvent({ db: db(), now: 1, sync: new FakeSync() }, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
@@ -48,25 +51,21 @@ test('unknown callback gets an empty answer', async () => {
   expect(t.calls.map(c => c.method)).toEqual(['answerCallbackQuery']);
 });
 
-test('/bind from admin binds group, from others is ignored', async () => {
-  await db().update(events).set({ status: 'cancelled' }).where(eq(events.id, ev));
+test('/bind checks the group admin and creates another team', async () => {
   const t = makeTestBot();
   await t.bot.handleUpdate(groupCommand(2, '/bind'));
-  expect((await getCommunity(db()))!.tgChatId).toBe(-100500);
-  expect(t.calls).toHaveLength(0);
+  expect(await communityByChat(db(), -100777)).toBeNull();
   await t.bot.handleUpdate(groupCommand(1, '/bind'));
-  expect((await getCommunity(db()))!.tgChatId).toBe(-100777);
-  expect(t.calls.find(c => c.method === 'sendMessage')!.payload.text).toBe('Группа привязана ✅');
+  expect((await communityByChat(db(), -100500))!.tgChatId).toBe(-100500);
+  expect((await communityByChat(db(), -100777))!.tgChatId).toBe(-100777);
 });
 
-test('/start in private replies with an open button', async () => {
-  __setTgClientForTests(new FakeTg());
+test('/start in private offers onboarding to a new identity', async () => {
   const t = makeTestBot();
-  try { await t.bot.handleUpdate(privateCommand(501, '/start')); }
-  finally { __setTgClientForTests(null); }
+  await t.bot.handleUpdate(privateCommand(501, '/start'));
   const msg = t.calls.find(c => c.method === 'sendMessage')!;
-  expect(msg.payload.text).toContain('<b>ФК Алтынка</b>');
-  expect(msg.payload.reply_markup).toEqual({ inline_keyboard: [[{ text: 'Открыть приложение', url: 'https://t.me/fc_altynka_bot/app' }]] });
+  expect(msg.payload.text).toContain('/bind');
+  expect(JSON.stringify(msg.payload.reply_markup)).toContain('startgroup=connect');
 });
 
 test('webhook rejects wrong secret', async () => {
@@ -85,22 +84,12 @@ test('a button from another chat is ignored', async () => {
   expect((await loadQueue(db(), ev)).main).toHaveLength(0);
 });
 
-test('/bind to another chat is refused while events are open', async () => {
+test('connecting a group does not require closing another team matches', async () => {
   const t = makeTestBot();
   await t.bot.handleUpdate(groupCommand(1, '/bind'));
-  expect((await getCommunity(db()))!.tgChatId).toBe(-100500);
-  const text = t.calls.find(c => c.method === 'sendMessage')!.payload.text as string;
-  expect(text).toContain('Сначала');
-  expect(text).toContain('7 ноября');
-});
-
-test('rebinding to another chat makes everyone re-confirm membership', async () => {
-  await db().update(events).set({ status: 'cancelled' }).where(eq(events.id, ev));
-  const t = makeTestBot();
-  await t.bot.handleUpdate(groupCommand(1, '/bind'));
-  const rows = await db().select().from(memberships);
-  expect(rows.length).toBeGreaterThan(0);
-  expect(rows.every(m => m.checkedAt === 0)).toBe(true);
+  expect(await communityByChat(db(), -100500)).not.toBeNull();
+  expect(await communityByChat(db(), -100777)).not.toBeNull();
+  expect((await db().select().from(events).where(eq(events.id, ev)))[0].status).toBe('collecting');
 });
 
 test('group upgraded to a supergroup moves the binding', async () => {

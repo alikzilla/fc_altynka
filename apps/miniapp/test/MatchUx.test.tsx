@@ -18,6 +18,8 @@ beforeEach(() => {
   role = 'organizer'; status = 'collecting'; createFails = false; created = false; submissions = [];
   roster = [signup]; billSubmissions = [];
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/communities') return Response.json({ communities: [{ id: 3, title: 'Футбол по субботам' }] });
+    if (path.startsWith('/api/context?')) return Response.json({ community: { id: 3, title: 'Футбол по субботам' } });
     if (path === '/api/me') return Response.json({ ...me, role });
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events' && init?.method === 'POST') {

@@ -3,7 +3,7 @@ import { bills, events, users, type UserRow } from '../../src/db/schema';
 import { billDto, closeBill, markPaid, remindDebtors, setLinePaid, upsertBill } from '../../src/domain/bills';
 import { addGuest, createEvent, joinEvent, loadQueue, scheduleEvent, type Deps } from '../../src/domain/events';
 import { FakeSync } from '../fakes/fakeSync';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
 
 let d: Deps & { sync: FakeSync };
 let ev: number;
@@ -22,7 +22,7 @@ beforeEach(async () => {
   timur = us[8];
   for (const u of us) await joinEvent(d, ev, u.id);
   await addGuest(d, ev, timur.id, 'Ержан');
-  await d.db.update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, us[0].id));
+  await setMemberProfile(us[0].id, { kaspiPhone: '+77071234567' });
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Arena' });
   d.now = Date.parse('2026-11-07T16:00:00Z');
   signupIds = (await loadQueue(d.db, ev)).main.map(s => s.id);
@@ -35,9 +35,9 @@ const make = (o: Partial<Parameters<typeof upsertBill>[2]> = {}) =>
 const billIdOf = async () => (await d.db.select().from(bills).where(eq(bills.eventId, ev)))[0].id;
 
 test('saving a receiver phone during billing also persists completed profile setup', async () => {
-  expect((await d.db.select().from(users).where(eq(users.id, us[0].id)))[0].profileCompletedAt).toBeNull();
+  expect((await localUser(us[0].id)).profileCompletedAt).toBeNull();
   expect((await make({ receiverKaspiPhone: '8 707 123 45 67' })).kind).toBe('ok');
-  expect((await d.db.select().from(users).where(eq(users.id, us[0].id)))[0]).toMatchObject({ kaspiPhone: '+77071234567', profileCompletedAt: d.now });
+  expect((await localUser(us[0].id))).toMatchObject({ kaspiPhone: '+77071234567', profileCompletedAt: d.now });
 });
 
 test('bill splits equally, guest share goes to inviter, receiver is pre-paid', async () => {
@@ -56,7 +56,7 @@ test('missing Kaspi phone → no_kaspi; junk → bad_phone; valid phone saved to
   expect(await make({ receiverUserId: us[1].id })).toEqual({ kind: 'no_kaspi' });
   expect(await make({ receiverUserId: us[1].id, receiverKaspiPhone: 'abc' })).toEqual({ kind: 'bad_phone' });
   expect((await make({ receiverUserId: us[1].id, receiverKaspiPhone: '8 707 000 11 22' })).kind).toBe('ok');
-  expect((await d.db.select().from(users).where(eq(users.id, us[1].id)))[0].kaspiPhone).toBe('+77070001122');
+  expect((await localUser(us[1].id)).kaspiPhone).toBe('+77070001122');
 });
 
 test('participants must be signups of this event', async () => {

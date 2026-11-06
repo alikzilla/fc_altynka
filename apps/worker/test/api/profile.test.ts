@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { users } from '../../src/db/schema';
-import { apiRequest, db } from '../helpers';
+import { setMemberProfile, localUser, apiRequest, db } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
@@ -38,9 +38,9 @@ test('invalid phone does not finish setup or save football changes', async () =>
   expect(await get()).toMatchObject({ profileCompleted: false, playingPosition: null });
 });
 test('existing saved phone is recognized and notification-only edits do not complete empty profiles', async () => {
-  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, w.playerUserId));
+  await setMemberProfile(w.playerUserId, { kaspiPhone: '+77071234567' });
   expect(await get()).toMatchObject({ profileCompleted: true });
-  await db().update(users).set({ kaspiPhone: null }).where(eq(users.id, w.playerUserId));
+  await setMemberProfile(w.playerUserId, { kaspiPhone: null });
   await patch({ notificationsEnabled: false });
   expect(await get()).toMatchObject({ profileCompleted: false });
 });
@@ -52,7 +52,7 @@ test('a profile edit cannot target another user', async () => {
 });
 
 test('clearing a legacy phone does not reopen setup when its completion timestamp was not backfilled', async () => {
-  await db().update(users).set({ kaspiPhone: '+77071234567', profileCompletedAt: null }).where(eq(users.id, w.playerUserId));
+  await setMemberProfile(w.playerUserId, { kaspiPhone: '+77071234567', profileCompletedAt: null });
   expect(await get()).toMatchObject({ profileCompleted: true });
   expect((await patch({ kaspiPhone: null })).status).toBe(200);
   expect(await get()).toMatchObject({ profileCompleted: true, kaspiPhone: null });

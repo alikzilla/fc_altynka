@@ -58,7 +58,7 @@ export function Profile() {
         <div className="profile-card-details">
           <h2>{telegramName}</h2>
           {me.telegram?.username && <span className="profile-handle">@{me.telegram.username}</span>}
-          <span className="profile-role">{me.role === 'admin' ? 'Администратор' : me.role === 'organizer' ? 'Организатор' : 'Игрок'} · FC Altynka</span>
+          <span className="profile-role">{me.role === 'admin' ? 'Администратор' : me.role === 'organizer' ? 'Организатор' : 'Игрок'} · {me.community?.title ?? 'Команда'}</span>
         </div>
         </div>
         {me.rating && <InlineRating rating={me.rating} />}

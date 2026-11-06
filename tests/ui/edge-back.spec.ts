@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page } from '@playwright/test';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
@@ -7,7 +8,7 @@ const match = { id: 7, date: '2026-11-08', status: 'collecting', main: [], reser
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', route => {
+  await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({ json: path === '/api/me' ? me : path === '/api/events' ? { active: [match], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : match });
   });

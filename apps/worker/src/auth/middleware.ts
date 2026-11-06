@@ -1,10 +1,10 @@
 import type { MeDto, Role } from '@altynka/core';
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import type { MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';
-import { memberships, users } from '../db/schema';
+import { users } from '../db/schema';
 import type { Deps } from '../domain/events';
-import { effectiveRole, ensureMembership, getCommunity, upsertTgUser } from '../domain/members';
+import { confirmedMembership, effectiveRole, getCommunity, memberUser, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
 import { verifyInitData } from './initData';
@@ -23,35 +23,18 @@ function httpsPhoto(value: unknown): string | null {
   }
 }
 
-/** Раз в сутки спрашиваем Telegram, состоит ли человек ещё в группе. */
-export const MEMBER_RECHECK_MS = 24 * 3600_000;
-
-export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<AppEnv> {
+export function identityMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const header = c.req.header('Authorization') ?? '';
     const raw = header.startsWith('tma ') ? header.slice(4) : '';
     const deps = makeDeps(c.env);
     const tgUser = raw ? await verifyInitData(raw, c.env.BOT_TOKEN, Math.floor(deps.now / 1000)) : null;
     if (!tgUser) return c.json({ error: 'unauthorized' }, 401);
-    const community = await getCommunity(deps.db);
-    if (!community) return c.json({ error: 'not_bound' }, 503);
     const user = await upsertTgUser(deps.db, tgUser, deps.now);
     if (tgUser.allows_write_to_pm === true && !user.pmAvailable) {
       await deps.db.update(users).set({ pmAvailable: true }).where(eq(users.id, user.id));
       user.pmAvailable = true;
     }
-    let [m] = await deps.db
-      .select()
-      .from(memberships)
-      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
-    const isAdmin = String(tgUser.id) === c.env.ADMIN_TG_ID;
-    if (!isAdmin && (!m || deps.now - m.checkedAt > MEMBER_RECHECK_MS)) {
-      if (!(await makeTgClient(c.env).isMember(community.tgChatId, tgUser.id))) {
-        return c.json({ error: 'not_member' }, 403);
-      }
-      m = await ensureMembership(deps.db, community.id, user.id, deps.now);
-    }
-    if (!m) m = await ensureMembership(deps.db, community.id, user.id);
     c.set('user', user);
     c.set('telegram', {
       firstName: tgUser.first_name,
@@ -59,11 +42,31 @@ export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<
       username: tgUser.username ?? null,
       photoUrl: httpsPhoto(tgUser.photo_url),
     });
-    c.set('role', effectiveRole(c.env, user, m));
-    c.set('community', community);
     c.set('deps', deps);
     await next();
   };
+}
+
+export function communityMiddleware(): MiddlewareHandler<AppEnv> {
+  return async (c, next) => {
+    const raw = c.req.header('X-Community-Id');
+    if (raw !== undefined && (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))) return c.json({ error: 'invalid_community' }, 400);
+    const community = await getCommunity(c.get('deps').db, raw === undefined ? undefined : Number(raw));
+    if (!community) return c.json({ error: raw === undefined ? 'community_required' : 'not_member' }, raw === undefined ? 409 : 403);
+    const user = c.get('user');
+    const m = await confirmedMembership(c.get('deps').db, makeTgClient(c.env), community, user, c.get('deps').now, c.env.ADMIN_TG_ID);
+    if (!m) return c.json({ error: 'not_member' }, 403);
+    c.set('user', memberUser(user, m));
+    c.set('community', community);
+    c.set('role', effectiveRole(c.env, user, m));
+    await next();
+  };
+}
+
+export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<AppEnv> {
+  const identity = identityMiddleware(makeDeps);
+  const community = communityMiddleware();
+  return (c, next) => identity(c, () => community(c, next) as Promise<void>);
 }
 
 export function requireRole(min: 'organizer' | 'admin'): MiddlewareHandler<AppEnv> {

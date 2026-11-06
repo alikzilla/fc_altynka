@@ -6,7 +6,7 @@ import { addGuest, createEvent, joinEvent, leaveEvent, loadQueue, scheduleEvent 
 import { __setTgClientForTests, TgForbidden, TgRateLimited } from '../../src/telegram/client';
 import { FakeTg } from '../fakes/fakeTg';
 import { FakeSync } from '../fakes/fakeSync';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
 
 let tg: FakeTg;
 beforeEach(() => { tg = new FakeTg(); __setTgClientForTests(tg); });
@@ -15,8 +15,8 @@ async function world(enabled = true) {
   const c = await seedCommunity();
   const org = await seedUser('Азамат', { communityId: c.id, role: 'organizer', tgId: 101 });
   const payer = await seedUser('Тимур', { communityId: c.id, tgId: 501 });
-  await db().update(users).set({ notificationsEnabled: enabled, pmAvailable: true }).where(eq(users.id, payer.id));
-  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, org.id));
+  await setMemberProfile(payer.id, { notificationsEnabled: enabled, pmAvailable: true });
+  await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   tg.members.add(501); tg.members.add(101);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
   const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
@@ -46,7 +46,7 @@ test('bill delivers the opted-in payer own amount once, repeated sync edits only
 test.each(['disabled', 'not_member', 'unavailable'] as const)('no personal bill delivery when %s', async reason => {
   const w = await world(reason !== 'disabled');
   if (reason === 'not_member') tg.members.delete(501);
-  if (reason === 'unavailable') await db().update(users).set({ pmAvailable: false }).where(eq(users.id, w.payer.id));
+  if (reason === 'unavailable') await setMemberProfile(w.payer.id, { pmAvailable: false });
   await billSync(w);
   expect(tg.sent.some(m => m.chatId === 501)).toBe(false);
 });
@@ -95,7 +95,13 @@ test('network failure keeps personal work for retry; 429 schedules retry_after',
   await runDurableObjectAlarm(w.stub);
   expect(await runInDurableObject(w.stub, (_i, s) => s.storage.getAlarm())).toBeGreaterThanOrEqual(before + 4000);
   await runDurableObjectAlarm(w.stub);
-  expect(tg.sent.filter(m => m.chatId === 501)).toHaveLength(1);
+  expect(tg.sent.filter(m => m.chatId === 501)).toHaveLength(0);
+  const retryAt = (await runInDurableObject(w.stub, (_i, s) => s.storage.getAlarm()))!;
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(retryAt);
+  try {
+    await runDurableObjectAlarm(w.stub);
+    expect(tg.sent.filter(m => m.chatId === 501)).toHaveLength(1);
+  } finally { clock.mockRestore(); }
 });
 
 test('manual reminder goes privately once per day; fallback only mentions unreachable debtors', async () => {
@@ -129,7 +135,7 @@ test('private and group reminders can be sent again after 24h, but not twice wit
 test('guest promotion goes to the inviter; stale moves for someone who left are suppressed', async () => {
   const c = await seedCommunity();
   const inviter = await seedUser('Тимур', { communityId: c.id, tgId: 501 });
-  await db().update(users).set({ notificationsEnabled: true, pmAvailable: true }).where(eq(users.id, inviter.id));
+  await setMemberProfile(inviter.id, { notificationsEnabled: true, pmAvailable: true });
   tg.members.add(501);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
   const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: inviter.id });
@@ -170,7 +176,7 @@ test('removed member is not mentioned by movement fallback', async () => {
 test('a rate limit pauses all further Telegram calls in this personal batch', async () => {
   const w = await world();
   const another = await seedUser('Ещё игрок', { communityId: (await db().select().from(communities))[0].id, tgId: 502 });
-  await db().update(users).set({ notificationsEnabled: true, pmAvailable: true }).where(eq(users.id, another.id));
+  await setMemberProfile(another.id, { notificationsEnabled: true, pmAvailable: true });
   // Add a third payer directly to a second current bill line without changing the frozen roster.
   const { billLines } = await import('../../src/db/schema');
   await db().insert(billLines).values({ billId: w.billId, userId: another.id, units: 1, amount: 2000 });
@@ -191,7 +197,7 @@ test('a rate limit pauses all further Telegram calls in this personal batch', as
 test('reminder retries preserve already delivered recipients and report totals', async () => {
   const w = await world();
   const another = await seedUser('Второй', { communityId: (await db().select().from(communities))[0].id, tgId: 502 });
-  await db().update(users).set({ notificationsEnabled: true, pmAvailable: true }).where(eq(users.id, another.id));
+  await setMemberProfile(another.id, { notificationsEnabled: true, pmAvailable: true });
   const { billLines } = await import('../../src/db/schema');
   await db().insert(billLines).values({ billId: w.billId, userId: another.id, units: 1, amount: 2000 });
   tg.members.add(502);

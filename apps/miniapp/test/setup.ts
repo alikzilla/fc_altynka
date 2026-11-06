@@ -3,9 +3,10 @@ import { cleanup } from '@testing-library/react';
 import { afterEach } from 'vitest';
 
 import { notifyManager } from '@tanstack/react-query';
+import { setCommunityId } from '../src/state/community';
 import { queryClient } from '../src/lib/queryClient';
 
-afterEach(() => { cleanup(); queryClient.clear(); });
+afterEach(() => { cleanup(); queryClient.clear(); setCommunityId(null); });
 
 // JSDOM has no top layer; real focus containment/backdrop are verified in Playwright.
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };

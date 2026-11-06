@@ -13,7 +13,7 @@ beforeEach(async () => {
 });
 afterEach(teardownApiWorld);
 const request = (path: string, as = w.player, body?: unknown, method = body === undefined ? 'GET' : 'POST') =>
-  apiRequest(path, { as, body, method, at: w.clock.now });
+  apiRequest(path, { as, body, method, at: w.clock.now, communityId: w.communityId });
 
 async function playedMatch() {
   const eventId = await createEvent({ db: db(), now: w.clock.now - 3600000, sync: w.sync }, { communityId: w.communityId, date: '2026-11-05', comment: null, createdBy: w.orgUserId });

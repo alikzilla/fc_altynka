@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -7,7 +8,7 @@ const draft = { id: 7, date: '2026-11-08', status: 'collecting', startTime: null
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', route => {
+  await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [draft], past: [] } : path === '/api/matches' ? { events: [{ ...draft, id: 2, status: 'closed', date: '2026-10-31' }], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : (path === '/api/members' || path === '/api/players') ? [] : draft });
   });
@@ -140,9 +141,9 @@ test('a late create response cannot pull a person away after browser Back', asyn
 test('appointment is the prerequisite for billing; assigning time unlocks the bill form', async ({ page }) => {
   let scheduled = false;
   let started = false;
-  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Arena' } : draft }));
+  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' } : draft }));
   await page.route('**/api/events/7/schedule', route => {
-    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Arena' });
+    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Школа Аксай' });
     scheduled = true;
     return route.fulfill({ json: { kind: 'ok' } });
   });
@@ -150,10 +151,11 @@ test('appointment is the prerequisite for billing; assigning time unlocks the bi
   await expect(page.getByRole('button', { name: 'Выставить счёт' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Назначить игру' }).click();
   await page.getByLabel('Начало').fill('20:00');
-  await page.getByRole('button', { name: '2 часа · 15 человек' }).click();
-  await page.getByLabel('Поле · необязательно').fill('Arena');
+  await page.getByRole('button', { name: /2 часа/ }).click();
+  await page.getByRole('button', { name: /Место проведения/ }).click();
+  await page.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
   await page.getByRole('button', { name: 'Назначить игру', exact: true }).click();
-  await expect(page).toHaveURL('/event/7');
+  await expect(page).toHaveURL('/event/7?tab=bill');
   await expect(page.getByText('20:00–22:00')).toBeVisible();
   await page.getByRole('tab', { name: 'Оплата', exact: true }).click();
   await expect(page.getByText('Счёт будет доступен после начала игры')).toBeVisible();
@@ -181,12 +183,13 @@ for (const width of [320, 390]) {
       let unblock: () => void = () => {};
       const pending = new Promise<void>(resolve => { unblock = resolve; });
       release = unblock;
-      await page.route('**/api/**', async route => {
+      await teamApiRoute(page, async route => {
         if (new URL(route.request().url()).pathname === '/api/me') return route.fallback();
         await pending;
         await route.fallback();
       });
       await page.goto(path);
+      await expect(page.getByRole('button', { name: 'Сменить команду' })).toBeVisible();
       const loading = page.locator('main .loading').first();
       await expect(loading).toBeVisible();
       const sizes = await loading.evaluate(el => {
@@ -203,7 +206,7 @@ for (const width of [320, 390]) {
       await expect(page.locator('main .loading')).toHaveCount(0);
       await page.unroute('**/api/**');
       // Reinstall fixtures removed with the temporary delay route.
-      await page.route('**/api/**', route => {
+      await teamApiRoute(page, route => {
         const resource = new URL(route.request().url()).pathname;
         return route.fulfill({ json: resource === '/api/me' ? identity : resource === '/api/events' ? { active: [draft], past: [] } : resource === '/api/matches' ? { events: [], nextCursor: null } : resource === '/api/notifications' ? { tasks: [] } : (resource === '/api/members' || resource === '/api/players') ? [] : draft });
       });

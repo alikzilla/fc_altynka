@@ -7,11 +7,12 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, memberships, matchParticipants, matchReviews, reviewSubmissions, signups, skillAssessments, users, type EventRow } from '../db/schema';
 import type { Deps } from './events';
+import { memberUser } from './members';
 
 export async function playerRatings(db: Db, communityId: number, now: number): Promise<Map<number, PlayerSummaryDto>> {
   const [members, assessments, games] = await Promise.all([
     db.select({ membership: memberships, user: users }).from(memberships)
-      .innerJoin(users, eq(users.id, memberships.userId)).where(eq(memberships.communityId, communityId)),
+      .innerJoin(users, eq(users.id, memberships.userId)).where(and(eq(memberships.communityId, communityId), eq(memberships.active, true))),
     db.select().from(skillAssessments).where(eq(skillAssessments.communityId, communityId)),
     db.all<RatedMatch & { userId: number }>(sql`
       WITH scores AS (
@@ -31,7 +32,8 @@ export async function playerRatings(db: Db, communityId: number, now: number): P
     const list = gameMap.get(game.userId) ?? [];
     list.push(game); gameMap.set(game.userId, list);
   }
-  return new Map(members.map(({ membership, user }) => {
+  return new Map(members.map(({ membership, user: identity }) => {
+    const user = memberUser(identity, membership);
     const selfAssessment = skillMap.get(user.id) ?? null;
     const initial = selfAssessment ? selfAssessmentRating(selfAssessment) : membership.level;
     const matches = gameMap.get(user.id) ?? [];
@@ -64,11 +66,15 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
   const [existing] = await d.db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
   const ids = [...participantSignupIds].sort((a, b) => a - b);
   const sameRoster = (json: string) => JSON.stringify((JSON.parse(json) as { signupId: number }[]).map(p => p.signupId).sort((a, b) => a - b)) === JSON.stringify(ids);
-  if (existing) return sameRoster(existing.rosterJson) ? 'ok' : 'conflict';
+  if (existing) {
+    if (!sameRoster(existing.rosterJson)) return 'conflict';
+    await d.sync.request(ev.id, { parts: [], review: true });
+    return 'ok';
+  }
   if (!canFinishMatch(ev, d.now)) return 'closed';
   if (!ids.length || new Set(ids).size !== ids.length) return 'invalid';
-  const rows = await d.db.select({ signup: signups, name: users.displayName }).from(signups)
-    .leftJoin(users, eq(users.id, signups.userId))
+  const rows = await d.db.select({ signup: signups, name: memberships.displayName }).from(signups)
+    .leftJoin(memberships, and(eq(memberships.userId, signups.userId), eq(memberships.communityId, ev.communityId)))
     .where(and(eq(signups.eventId, ev.id), isNull(signups.leftAt), inArray(signups.id, ids)));
   if (rows.length !== ids.length) return 'invalid';
   const roster = rows.map(({ signup: s, name }) => ({ signupId: s.id, userId: s.userId, name: name ?? s.guestName ?? 'Гость' })).sort((a, b) => a.signupId - b.signupId);
@@ -78,7 +84,10 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
     FROM events WHERE id = ${ev.id} AND community_id = ${ev.communityId} AND rating_enabled = 1 AND status <> 'cancelled'
     ON CONFLICT(event_id) DO NOTHING`);
   const [saved] = await d.db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
-  return saved ? sameRoster(saved.rosterJson) ? 'ok' : 'conflict' : 'closed';
+  if (!saved) return 'closed';
+  if (!sameRoster(saved.rosterJson)) return 'conflict';
+  await d.sync.request(ev.id, { parts: [], review: true });
+  return 'ok';
 }
 
 export async function matchReview(db: Db, ev: EventRow, userId: number, manage: boolean, now: number): Promise<MatchReviewDto> {

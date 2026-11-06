@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -9,7 +10,7 @@ const event = { id: 1, date: '2026-11-07', status: 'scheduled', startTime: '21:0
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', async route => {
+  await teamApiRoute(page, async route => {
     const path = new URL(route.request().url()).pathname;
     const body = path === '/api/me' ? me : path === '/api/events' ? { active: [event], past: [{ ...event, id: 2, date: '2026-10-31', status: 'closed' }] } : path === '/api/notifications' ? { tasks: [{ kind: 'payment', id: 'payment:1', eventId: 2, date: '2026-10-31', place: 'Arena', due: 2500, receiverName: 'Данияр' }] } : path === '/api/matches' ? { events: [{ ...event, id: 2, date: '2026-10-31', status: 'billing' }], nextCursor: null } : path === '/api/players' ? main.map(p => ({ userId: p.userId, displayName: p.name, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } })) : path === '/api/members' ? main.map(p => ({ userId: p.userId, displayName: p.name, role: 'player', level: 5 })) : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status };
     await route.fulfill({ json: body });

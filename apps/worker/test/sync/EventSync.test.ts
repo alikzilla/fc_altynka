@@ -5,13 +5,14 @@ import { createEvent, joinEvent, leaveEvent, loadQueue, scheduleEvent, type Deps
 import { __setTgClientForTests, TgRateLimited, TgRejected } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
 
 let tg: FakeTg;
 let d: Deps & { sync: FakeSync };
 let ev: number;
 
 const stub = () => env.EVENT_SYNC.get(env.EVENT_SYNC.idFromName(`event:${ev}`));
+const seedMember = async (name: string) => seedUser(name, { communityId: (await eventRow()).communityId });
 const eventRow = async () => (await db().select().from(events).where(eq(events.id, ev)))[0];
 
 beforeEach(async () => {
@@ -89,13 +90,18 @@ test('429 keeps work and reschedules by retry_after', async () => {
   expect(dirty).toEqual(['event']);
   expect(alarm as number).toBeGreaterThanOrEqual(before + 4000);
   await runDurableObjectAlarm(stub());
-  expect(tg.sent).toHaveLength(1);
+  expect(tg.sent).toHaveLength(0);
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(alarm as number);
+  try {
+    await runDurableObjectAlarm(stub());
+    expect(tg.sent).toHaveLength(1);
+  } finally { clock.mockRestore(); }
 });
 
 test('promotion notice is a reply to the event message and mentions the user', async () => {
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
-  const us = await Promise.all(Array.from({ length: 11 }, (_, i) => seedUser(`И${i + 1}`)));
+  const us = await Promise.all(Array.from({ length: 11 }, (_, i) => seedMember(`И${i + 1}`)));
   tg.members.add(us[10].tgId);
   for (const u of us) await joinEvent(d, ev, u.id);
   await leaveEvent(d, ev, us[0].id);
@@ -122,9 +128,9 @@ test('reminder notice lists debtors with amounts due', async () => {
   const { users } = await import('../../src/db/schema');
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
-  const [a, b] = await Promise.all([seedUser('Азамат'), seedUser('Тимур')]);
+  const [a, b] = await Promise.all([seedMember('Азамат'), seedMember('Тимур')]);
   tg.members.add(b.tgId);
-  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, a.id));
+  await setMemberProfile(a.id, { kaspiPhone: '+77071234567' });
   await joinEvent(d, ev, a.id);
   await joinEvent(d, ev, b.id);
   const { scheduleEvent } = await import('../../src/domain/events');
@@ -164,7 +170,7 @@ function holdFirst(method: 'editMessage' | 'sendMessage') {
 test('a join that lands while the alarm is editing is not lost', async () => {
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
-  const [a, b] = await Promise.all([seedUser('Первый'), seedUser('Второй')]);
+  const [a, b] = await Promise.all([seedMember('Первый'), seedMember('Второй')]);
   await joinEvent(d, ev, a.id);
   await stub().request(ev, { parts: ['event'] });
   const h = holdFirst('editMessage');
@@ -182,7 +188,7 @@ test('a join that lands while the alarm is editing is not lost', async () => {
 test('a promotion queued while another notice is being sent is still sent', async () => {
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
-  const us = await Promise.all(Array.from({ length: 12 }, (_, i) => seedUser(`И${i + 1}`)));
+  const us = await Promise.all(Array.from({ length: 12 }, (_, i) => seedMember(`И${i + 1}`)));
   tg.members.add(us[10].tgId);
   tg.members.add(us[11].tgId);
   for (const u of us) await joinEvent(d, ev, u.id);

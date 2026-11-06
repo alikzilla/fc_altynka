@@ -4,12 +4,18 @@ import type { TgWebAppUser } from '../auth/initData';
 import type { Db } from '../db/client';
 import { communities, events, memberships, users, type CommunityRow, type EventRow, type MembershipRow, type UserRow } from '../db/schema';
 import type { Env } from '../env';
+import type { TgClient } from '../telegram/client';
 
-export async function getCommunity(db: Db): Promise<CommunityRow | null> {
-  return (await db.select().from(communities).limit(1))[0] ?? null;
+export async function getCommunity(db: Db, id?: number): Promise<CommunityRow | null> {
+  const rows = await db.select().from(communities).where(id === undefined ? undefined : eq(communities.id, id)).limit(2);
+  return rows.length === 1 ? rows[0] : null;
 }
 
-/** Открытые сборы: пока они есть, переносить бота в другую группу нельзя — их сообщения остались в прежней. */
+export async function communityByChat(db: Db, chatId: number): Promise<CommunityRow | null> {
+  return (await db.select().from(communities).where(eq(communities.tgChatId, chatId)))[0] ?? null;
+}
+
+/** Open matches in this community; connecting another chat never changes them. */
 export async function openEvents(db: Db, communityId: number): Promise<EventRow[]> {
   return db
     .select()
@@ -17,30 +23,25 @@ export async function openEvents(db: Db, communityId: number): Promise<EventRow[
     .where(and(eq(events.communityId, communityId), inArray(events.status, ['collecting', 'scheduled', 'billing'])));
 }
 
-/** В MVP сообщество одно: создаём или переносим на новый чат. При переносе все заново подтверждают членство. */
+/** A chat owns one stable community; connecting another chat never moves it. */
 export async function bindCommunity(db: Db, tgChatId: number, title: string): Promise<CommunityRow> {
-  const existing = await getCommunity(db);
-  if (existing) {
-    const [row] = await db.update(communities).set({ tgChatId, title }).where(eq(communities.id, existing.id)).returning();
-    if (existing.tgChatId !== tgChatId) {
-      await db.update(memberships).set({ checkedAt: 0 }).where(eq(memberships.communityId, existing.id));
-    }
-    return row;
-  }
-  const [row] = await db.insert(communities).values({ tgChatId, title }).returning();
+  const [row] = await db.insert(communities).values({ tgChatId, title }).onConflictDoUpdate({
+    target: communities.tgChatId, set: { title, active: true },
+  }).returning();
   return row;
 }
 
 const nameKey = (n: string) => n.trim().toLocaleLowerCase('ru');
 
-async function takenNames(db: Db, exceptUserId?: number): Promise<Set<string>> {
-  const rows = await db.select({ id: users.id, displayName: users.displayName }).from(users);
-  return new Set(rows.filter(r => r.id !== exceptUserId).map(r => nameKey(r.displayName)));
+async function takenNames(db: Db, exceptUserId?: number, communityId?: number): Promise<Set<string>> {
+  if (communityId === undefined) return new Set();
+  const rows = await db.select().from(memberships).where(eq(memberships.communityId, communityId));
+  return new Set(rows.filter(r => r.userId !== exceptUserId && r.displayName).map(r => nameKey(r.displayName!)));
 }
 
 /** Имя уже у кого-то другого (без учёта регистра): в списках и счёте их было бы не различить. */
-export async function nameTaken(db: Db, name: string, exceptUserId?: number): Promise<boolean> {
-  return (await takenNames(db, exceptUserId)).has(nameKey(name));
+export async function nameTaken(db: Db, name: string, exceptUserId?: number, communityId?: number): Promise<boolean> {
+  return (await takenNames(db, exceptUserId, communityId)).has(nameKey(name));
 }
 
 /** 'Данияр' занято → 'Данияр 2', затем 'Данияр 3'… */
@@ -80,10 +81,12 @@ export async function moveCommunityChat(db: Db, fromChatId: number, toChatId: nu
 
 /** checkedAt — членство только что подтверждено (Telegram ответил или человек нажал кнопку в группе). */
 export async function ensureMembership(db: Db, communityId: number, userId: number, checkedAt?: number): Promise<MembershipRow> {
-  const insert = db.insert(memberships).values({ communityId, userId, checkedAt: checkedAt ?? 0 });
+  const [user] = await db.select().from(users).where(eq(users.id, userId));
+  const displayName = freeName(await takenNames(db, userId, communityId), defaultDisplayName(user.firstName, user.lastName ?? undefined));
+  const insert = db.insert(memberships).values({ communityId, userId, displayName, checkedAt: checkedAt ?? 0 });
   await (checkedAt === undefined
     ? insert.onConflictDoNothing()
-    : insert.onConflictDoUpdate({ target: [memberships.communityId, memberships.userId], set: { checkedAt } }));
+    : insert.onConflictDoUpdate({ target: [memberships.communityId, memberships.userId], set: { checkedAt, active: true } }));
   const [row] = await db
     .select()
     .from(memberships)
@@ -92,6 +95,50 @@ export async function ensureMembership(db: Db, communityId: number, userId: numb
 }
 
 export function effectiveRole(env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow, m: MembershipRow | null): Role {
-  if (String(user.tgId) === env.ADMIN_TG_ID) return 'admin';
+  if (m?.active && m.telegramAdmin) return 'admin';
   return m?.role ?? 'player';
+}
+
+/** Only identity and visual theme are shared. All sports/payment preferences are local. */
+export function memberUser(user: UserRow, m: MembershipRow): UserRow {
+  return { ...user, displayName: m.displayName ?? defaultDisplayName(user.firstName, user.lastName ?? undefined),
+    kaspiPhone: m.kaspiPhone, profileCompletedAt: m.profileCompletedAt,
+    playingPosition: m.playingPosition, dominantFoot: m.dominantFoot, notificationsEnabled: m.notificationsEnabled };
+}
+
+export async function communityUser(db: Db, communityId: number, userId: number): Promise<UserRow | null> {
+  const [row] = await db.select({ user: users, membership: memberships }).from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId)));
+  return row ? memberUser(row.user, row.membership) : null;
+}
+
+/** Always check current Telegram membership; admin privileges are never inferred from a global ID. */
+export async function confirmedMembership(db: Db, tg: TgClient, community: CommunityRow, user: UserRow, now: number, legacyOwnerId?: string): Promise<MembershipRow | null> {
+  if (!community.active) return null;
+  const status = await tg.memberStatus(community.tgChatId, user.tgId);
+  if (status === 'left') {
+    await db.update(memberships).set({ active: false, telegramAdmin: false, checkedAt: 0, legacy: false })
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
+    return null;
+  }
+  const m = await ensureMembership(db, community.id, user.id, now);
+  const [updated] = await db.update(memberships).set({ telegramAdmin: status === 'admin', legacy: false,
+    ...(m.legacy && String(user.tgId) === legacyOwnerId && status !== 'admin' ? { role: 'organizer' as const } : {}),
+  }).where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id))).returning();
+  return updated;
+}
+
+/** Discovery only considers known memberships, never the global list of chats. */
+export async function confirmedCommunities(db: Db, tg: TgClient, user: UserRow): Promise<CommunityRow[]> {
+  const candidates = await db.select({ community: communities }).from(memberships)
+    .innerJoin(communities, eq(communities.id, memberships.communityId))
+    .where(and(eq(memberships.userId, user.id), eq(communities.active, true)));
+  const checked = await Promise.all(candidates.map(async ({ community }) => {
+    if (await tg.isMember(community.tgChatId, user.tgId)) return community;
+    await db.update(memberships).set({ active: false, telegramAdmin: false, checkedAt: 0, legacy: false })
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
+    return null;
+  }));
+  return checked.filter((c): c is CommunityRow => c !== null);
 }

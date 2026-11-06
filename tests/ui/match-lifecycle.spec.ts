@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 
 test('signup remains available before scheduling, then closes and unlocks billing at server kickoff', async ({ page }) => {
@@ -7,7 +8,7 @@ test('signup remains available before scheduling, then closes and unlocks billin
   await page.setViewportSize({ width: 390, height: 844 });
   let phase = 'collecting';
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => {
+  await teamApiRoute(page, r => {
     const path = new URL(r.request().url()).pathname;
     return r.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567' } : path === '/api/notifications' ? { tasks: [] } : {
       id: 7, date: '2026-11-08', status: phase, serverNow: phase === 'playing' ? kickoff : kickoff - 1000,

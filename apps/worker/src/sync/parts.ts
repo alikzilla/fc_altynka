@@ -1,7 +1,8 @@
 import { matchPhase } from '@altynka/core';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { bills, events, users, type SignupRow, type UserRow } from '../db/schema';
+import { bills, events, memberships, users, type SignupRow, type UserRow } from '../db/schema';
+import { getCommunity, memberUser } from '../domain/members';
 import { getEvent, loadQueue } from '../domain/events';
 import type { Env } from '../env';
 import { renderEventMessage, type EventView, type PersonView, type Rendered } from '../render/eventMessage';
@@ -11,11 +12,13 @@ import type { Part } from './port';
 import { renderTeamsPart } from './teamsPart';
 import { renderBillPart, resolveReminder } from './billPart';
 
-export async function usersById(db: Db, ids: number[]): Promise<Map<number, UserRow>> {
+export async function usersById(db: Db, ids: number[], communityId: number): Promise<Map<number, UserRow>> {
   const uniq = [...new Set(ids)];
   if (!uniq.length) return new Map();
-  const rows = await db.select().from(users).where(inArray(users.id, uniq));
-  return new Map(rows.map(u => [u.id, u]));
+  const rows = await db.select({ user: users, membership: memberships }).from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.communityId, communityId), inArray(users.id, uniq)));
+  return new Map(rows.map(({ user, membership }) => [user.id, memberUser(user, membership)]));
 }
 
 export function personView(s: SignupRow, byId: Map<number, UserRow>): PersonView {
@@ -37,9 +40,10 @@ export async function loadEventView(db: Db, eventId: number): Promise<EventView 
   if (!ev) return null;
   const q = await loadQueue(db, eventId);
   const all = [...q.main, ...q.reserve];
-  const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
+  const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null), ev.communityId);
   return {
     id: ev.id,
+    communityTitle: (await getCommunity(db, ev.communityId))?.title,
     date: ev.date,
     status: matchPhase(ev),
     startTime: ev.startTime,
