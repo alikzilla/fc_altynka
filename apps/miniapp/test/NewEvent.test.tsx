@@ -18,7 +18,7 @@ beforeEach(() => { (api.send as Mock).mockResolvedValue({ id: 5 }); });
 
 test('a single creatable group has no group field and sends its id', async () => {
   renderWithApp(<NewEvent onClose={() => {}} />, { me: meWith([{ id: 4, title: 'Футбол', role: 'organizer' }, { id: 5, title: 'Чужая', role: 'player' }]) });
-  expect(screen.queryByRole('radiogroup')).toBeNull();
+  expect(screen.queryByRole('combobox', { name: 'Группа' })).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ communityId: 4 }));
   expect((api.send as Mock).mock.calls[0][2]).toEqual({ date: expect.any(String), communityId: 4, comment: undefined });
@@ -26,13 +26,12 @@ test('a single creatable group has no group field and sends its id', async () =>
 
 test('with several groups none is preselected and submit waits for a choice', async () => {
   renderWithApp(<NewEvent onClose={() => {}} />, { me: meWith([{ id: 4, title: 'Футбол', role: 'organizer' }, { id: 7, title: 'Суббота', role: 'admin' }]) });
-  const group = screen.getByRole('radiogroup', { name: 'Группа' });
-  const radios = within(group).getAllByRole('radio');
-  expect(radios.map(r => (r as HTMLInputElement).checked)).toEqual([false, false]);
-  expect(within(group).getByRole('radio', { name: 'Футбол' })).toBeInTheDocument();
+  const group = screen.getByRole('combobox', { name: 'Группа' }) as HTMLSelectElement;
+  expect(group.value).toBe('');
+  expect(within(group).getAllByRole('option').map(o => o.textContent)).toEqual(['Выбери группу', 'Футбол', 'Суббота']);
   const submit = screen.getByRole('button', { name: 'Открыть запись' });
   expect(submit).toBeDisabled();
-  await userEvent.click(within(group).getByRole('radio', { name: 'Суббота' }));
+  await userEvent.selectOptions(group, 'Суббота');
   expect(submit).toBeEnabled();
   await userEvent.click(submit);
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ communityId: 7 }));

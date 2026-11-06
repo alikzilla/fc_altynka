@@ -4,7 +4,6 @@ import { Route, Switch, useLocation, useSearch } from 'wouter';
 import { MeContext, MeReloadContext, MeUpdateContext } from './state/me';
 import { NotificationsProvider } from './state/notifications';
 import { Nav } from './components/Nav';
-import { AddGuest } from './screens/AddGuest';
 import { Event } from './screens/Event';
 import { Home } from './screens/Home';
 import { NewEvent } from './screens/NewEvent';
@@ -77,7 +76,6 @@ function TeamApp() {
                   <Route path="/" component={Home} />
                   <Route path="/matches" component={Matches} />
                   <Route path="/notifications" component={Notifications} />
-                  <Route path="/event/:id/guest" component={AddGuest} />
                   <Route path="/event/:id/schedule"><Schedule /></Route>
                   <Route path="/event/:id/review"><MatchReview /></Route>
                   <Route path="/event/:id" component={Event} />

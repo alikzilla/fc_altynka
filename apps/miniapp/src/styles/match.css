@@ -18,7 +18,7 @@
 .match-menu-button, .player-menu-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--text); border-radius: 50%; }
 .player-menu-button { color: var(--hint); margin-right: -8px; }
 .match-list-heading { min-height: 28px; }
-.match-list-heading > a { margin-block: -8px; }
+.match-list-heading > :is(a, button) { margin-block: -8px; }
 .match-count { font-size: 15px; font-weight: 400; color: var(--hint); margin-left: 5px; }
 .match-comment { font-size: 13px; color: var(--hint); line-height: 1.5; margin-bottom: 12px; overflow-wrap: anywhere; }
 .match-guest { display: block; font-size: 12px; }
@@ -71,7 +71,7 @@
   .match-personal-detail { font-size: 12px; }
   .match-screen .tabs button { font-size: 13px; }
   .match-list-heading h2 { font-size: 17px; }
-  .match-list-heading > a { font-size: 12px; }
+  .match-list-heading > :is(a, button) { font-size: 12px; }
   .match-screen .person .name { font-size: 14px; }
   .match-screen .person .num { width: 16px; }
   .payment-amount { font-size: 34px; }

@@ -6,6 +6,7 @@ import { canManageEvent } from '../state/me';
 import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { Icon } from '../components/Icon';
+import { GroupTag } from '../components/GroupTag';
 import { ActionSheet } from '../components/ActionSheet';
 import { ConfirmButton, ErrorNote, Loading, Screen, useToast } from '../components/ui';
 import { useResource } from '../hooks/useResource';
@@ -59,6 +60,7 @@ export function Event() {
     {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
     {ev && <>
       <section className={`card material-plum event-summary ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Игра и твоё участие">
+        <GroupTag community={ev.community} always />
         <p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p>
         <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
         <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS[ev.status]}</span></p>

@@ -63,7 +63,7 @@ test('one group shows no switcher, group field or tags', async ({ page }) => {
   await dock(page).getByRole('link', { name: 'Создать матч' }).click();
   const sheet = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole('radiogroup')).toHaveCount(0);
+  await expect(sheet.getByRole('combobox', { name: 'Группа' })).toHaveCount(0);
   await expect(sheet.getByText('Группа', { exact: true })).toHaveCount(0);
   await expect(sheet.getByRole('button', { name: 'Создать матч' })).toBeEnabled();
   await sheet.getByRole('button', { name: 'Создать матч' }).click();
@@ -84,12 +84,12 @@ test('two groups tag cards and require choosing a group before creating', async 
   await axe(page);
   await dock(page).getByRole('link', { name: 'Создать матч' }).click();
   const sheet = page.getByRole('dialog', { name: 'Новый матч' });
-  const group = sheet.getByRole('radiogroup');
+  const group = sheet.getByRole('combobox', { name: 'Группа' });
   await expect(group).toBeVisible();
-  await expect(group.getByRole('radio')).toHaveCount(2);
+  await expect(group.locator('option:not([disabled])')).toHaveCount(2);
   const submit = sheet.getByRole('button', { name: 'Открыть запись' });
   await expect(submit).toBeDisabled();
-  await group.getByText(work.title).click();
+  await group.selectOption({ label: work.title });
   await expect(submit).toBeEnabled();
   await axe(page);
   await page.screenshot({ path: 'artifacts/ui/communities-picker-390.png', fullPage: true });

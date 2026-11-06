@@ -203,6 +203,12 @@ test('football summary uses real values and offers editing without assigning def
   expect(screen.getByRole('link', { name: /Изменить имя/ })).toHaveAttribute('href', '/profile/settings/name');
 });
 
+test('with one group the role line shows only the role, without the group name', () => {
+  renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, communities: [{ id: 1, title: 'Очень длинное название футбольной группы', role: 'admin' }] } });
+  expect(screen.getByText('Администратор')).toHaveClass('profile-role');
+  expect(screen.queryByText(/Очень длинное название/)).toBeNull();
+});
+
 test('with two groups the role line has no group name and history rows carry group tags', async () => {
   (api.get as Mock).mockResolvedValue({ history: [{ eventId: 3, date: '2026-11-01', place: null, score: 7, community: { id: 2, title: 'Футбол по средам' } }] });
   renderWithApp(<Profile />, { me: { ...twoGroups, profileCompleted: true, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }, { id: 2, title: 'Футбол по средам', role: 'player' }] } });

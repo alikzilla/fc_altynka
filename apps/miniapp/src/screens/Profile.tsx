@@ -11,10 +11,9 @@ import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
 
 const ROLE_LABEL = { admin: 'Администратор', organizer: 'Организатор', player: 'Игрок' } as const;
-/** One group: role and its name, as before. Several: only the highest role, no hint of a "current" team. */
+/** Only the role: group names can be long. With several groups, the highest role. */
 function roleLine(me: MeDto) {
   if (!me.communities.length) return 'Без группы';
-  if (me.communities.length === 1) return `${ROLE_LABEL[me.communities[0].role]} · ${me.communities[0].title}`;
   const rank = { admin: 2, organizer: 1, player: 0 } as const;
   return ROLE_LABEL[me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role)];
 }

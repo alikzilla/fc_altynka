@@ -96,10 +96,14 @@ test('root tabs and gestures starting on inputs do not navigate', async ({ page 
   await expect(page).toHaveURL('/matches');
 });
 
-test('nested match screen returns to its match rather than leaving the app', async ({ page }) => {
-  await page.goto('/event/7/guest');
-  await expect(page.getByRole('heading', { name: 'Привести друга', exact: true })).toBeVisible();
-  await swipe(page, 382, 240);
+test('the add-friend sheet closes back to its match rather than leaving the app', async ({ page }) => {
+  await page.goto('/event/7');
+  await page.getByRole('button', { name: 'Добавить друга' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Привести друга' });
+  await expect(sheet).toBeVisible();
+  const box = (await sheet.boundingBox())!;
+  await swipe(page, 8, 150, 'dialog', box.y + box.height / 2);
+  await expect(sheet).toHaveCount(0);
   await expect(page).toHaveURL('/event/7');
   await swipe(page, 8, 150);
   await expect(page).toHaveURL('/matches');

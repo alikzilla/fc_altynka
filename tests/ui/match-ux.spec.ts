@@ -22,7 +22,7 @@ test('bottom sheet preserves context, traps focus, dismisses and restores focus 
   const dialog = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading')).toBeFocused();
-  await expect(dialog.getByRole('radiogroup')).toHaveCount(0);
+  await expect(dialog.getByRole('combobox', { name: 'Группа' })).toHaveCount(0);
   await expect(page.locator('main .title')).toHaveText('Профиль');
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect.poll(async () => { const box = (await dialog.boundingBox())!; return Math.round(box.y + box.height); }).toBe(844);

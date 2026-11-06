@@ -1,12 +1,12 @@
 import type { EventDetailDto, SignupDto } from '@altynka/core';
 import { useRef, useState } from 'react';
-import { Link } from 'wouter';
 import { Avatar, Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
 import { api } from '../lib/api';
 import { isOpen } from '../lib/labels';
 import { canManageEvent, useMe } from '../state/me';
 import { PlayerProfileSheet } from './PlayerProfile';
+import { AddGuestSheet } from './AddGuest';
 import { ConfirmButton, useToast } from '../components/ui';
 
 export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
@@ -17,6 +17,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   const [busy, setBusy] = useState(false);
   const [profileId, setProfileId] = useState<number | null>(null);
   const [selected, setSelected] = useState<SignupDto | null>(null);
+  const [addingGuest, setAddingGuest] = useState(false);
   const canRemove = (s: SignupDto) => open && (canManageEvent(ev) || s.userId === null && s.invitedByUserId === me.userId);
   async function remove(s: SignupDto) {
     if (locked.current || !canRemove(s)) return;
@@ -32,11 +33,12 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   </li>;
   return <>
     <section>
-      <div className="section-heading match-list-heading"><h2>Основа <span className="match-count">{ev.main.length}/{ev.limit}</span></h2>{open && <Link href={`/event/${ev.id}/guest`}><Icon name="plus" />Добавить друга</Link>}</div>
+      <div className="section-heading match-list-heading"><h2>Основа <span className="match-count">{ev.main.length}/{ev.limit}</span></h2>{open && <button type="button" aria-haspopup="dialog" onClick={() => setAddingGuest(true)}><Icon name="plus" />Добавить друга</button>}</div>
       {ev.comment && <p className="match-comment">{ev.comment}</p>}
       <ul className="card list material-graphite">{ev.main.length ? ev.main.map(row) : <li className="match-empty-row muted">Пока никого</li>}</ul>
     </section>
     {ev.reserve.length > 0 && <section><div className="section-heading"><h2>Резерв <span className="match-count">{ev.reserve.length}</span></h2></div><ul className="card list material-graphite">{ev.reserve.map(row)}</ul></section>}
+    {addingGuest && open && <AddGuestSheet eventId={ev.id} onClose={() => setAddingGuest(false)} onAdded={reload} />}
     {profileId !== null && <PlayerProfileSheet userId={profileId} onClose={() => setProfileId(null)} />}
     {selected && canRemove(selected) && <ActionSheet title={selected.name} onClose={() => setSelected(null)} busy={busy}><ConfirmButton className="sheet-action danger-text" label="Убрать из списка" confirmLabel="Точно убрать?" disabled={busy} onConfirm={() => remove(selected)} /></ActionSheet>}
   </>;

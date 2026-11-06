@@ -48,6 +48,20 @@ test.each(['list', 'teams', 'bill'])('participation is available in the shared c
   expect(screen.getByRole('tab', { name: 'Оплата' })).toBeVisible();
 });
 
+test('the match card names its group even for a single-group player', async () => {
+  open();
+  const card = await screen.findByRole('region', { name: 'Игра и твоё участие' });
+  expect(within(card).getByText('FC Altynka')).toBeVisible();
+});
+
+test('«Добавить друга» opens a bottom sheet over the match instead of a new screen', async () => {
+  ev.status = 'collecting';
+  const { loc } = open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Добавить друга' }));
+  expect(await screen.findByRole('dialog', { name: 'Привести друга' })).toBeVisible();
+  expect(loc.history.at(-1)).toBe('/event/7?tab=list');
+});
+
 test('full roster explicitly offers reserve', async () => {
   ev.mainCount = 15;
   open();

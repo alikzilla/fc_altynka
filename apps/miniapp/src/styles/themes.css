@@ -46,7 +46,7 @@
 }
 :root[data-theme='light'] .back-link,
 :root[data-theme='light'] .sheet-close { background: #e9e3ef; }
-:root[data-theme='light'] .section-heading > a { color: #67458b; }
+:root[data-theme='light'] .section-heading > :is(a, button) { color: #67458b; }
 :root[data-theme='light'] .count { background: #e6dcef; color: #5b367e; }
 :root[data-theme='light'] .chip { background: var(--accent-soft); color: var(--accent-ink); }
 :root[data-theme='light'] .chip.warn,
