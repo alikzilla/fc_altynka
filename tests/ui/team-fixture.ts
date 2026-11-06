@@ -27,6 +27,7 @@ export async function teamApiRoute(page: Page, handler: (route: Route) => unknow
     if (path === '/api/matches') return { ...body, events: withGroup(body.events) };
     if (path === '/api/notifications') return { ...body, tasks: withGroup(body.tasks) };
     if (path === '/api/players') return Array.isArray(body) ? { groups: [{ community, role, players: body }] } : body;
+    if (/^\/api\/players\/\d+$/.test(path) && Array.isArray(body.history)) return { ...body, history: withGroup(body.history) };
     if (/^\/api\/events\/\d+$/.test(path) && 'status' in body) return { ...body, community: body.community ?? community, viewerRole: body.viewerRole ?? role };
     return body;
   };

@@ -12,7 +12,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await teamApiRoute(page, async route => {
     const path = new URL(route.request().url()).pathname;
-    const body = path === '/api/me' ? me : path === '/api/events' ? { active: [event], past: [{ ...event, id: 2, date: '2026-10-31', status: 'closed' }] } : path === '/api/notifications' ? { tasks: [{ kind: 'payment', id: 'payment:1', eventId: 2, date: '2026-10-31', place: 'Arena', due: 2500, receiverName: 'Данияр' }] } : path === '/api/matches' ? { events: [{ ...event, id: 2, date: '2026-10-31', status: 'billing' }], nextCursor: null } : path === '/api/players' ? main.map(p => ({ userId: p.userId, displayName: p.name, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } })) : path === '/api/members' ? main.map(p => ({ userId: p.userId, displayName: p.name, role: 'player', level: 5 })) : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status };
+    const body = path === '/api/me' ? me : path === '/api/events' ? { active: [event], past: [{ ...event, id: 2, date: '2026-10-31', status: 'closed' }] } : path === '/api/notifications' ? { tasks: [{ kind: 'payment', id: 'payment:1', community: event.community, eventId: 2, billId: 2, date: '2026-10-31', place: 'Arena', due: 2500, receiverName: 'Данияр', receiverKaspiPhone: '+77071234567' }] } : path === '/api/matches' ? { events: [{ ...event, id: 2, date: '2026-10-31', status: 'billing' }], nextCursor: null } : path === '/api/players' ? main.map(p => ({ userId: p.userId, displayName: p.name, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } })) : path === '/api/members' ? main.map(p => ({ userId: p.userId, displayName: p.name, role: 'player', level: 5 })) : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status };
     await route.fulfill({ json: body });
   });
 });
@@ -79,7 +79,7 @@ test('carousel and all five destinations work on a narrow phone', async ({ page 
 test('payment obligation opens the real bill and clears after the member marks payment', async ({ page }) => {
   let paid = false;
   await page.route('**/api/me', route => route.fulfill({ json: { ...me, userId: 2, communities: [{ ...me.communities[0], role: 'player' }] } }));
-  await page.route('**/api/notifications', route => route.fulfill({ json: { tasks: paid ? [] : [{ kind: 'payment', id: 'payment:2', community: event.community, eventId: 1, date: event.date, place: event.place, due: 2500, receiverName: 'Алихан' }] } }));
+  await page.route('**/api/notifications', route => route.fulfill({ json: { tasks: paid ? [] : [{ kind: 'payment', id: 'payment:2', community: event.community, eventId: 1, billId: 1, date: event.date, place: event.place, due: 2500, receiverName: 'Алихан', receiverKaspiPhone: '+77071234567' }] } }));
   await page.route('**/api/bills/1/paid', route => { paid = true; return route.fulfill({ json: { ok: true } }); });
   await page.route('**/api/events/1', route => route.fulfill({ json: { ...event, viewerRole: 'player', status: 'billing', bill: {
     id: 1, receiver: { userId: 1, name: 'Алихан', kaspiPhone: '+77071234567' }, fieldAmount: 20000, extras: [], total: 20000, share: 2500, status: 'open', participantSignupIds: main.map(p => p.id),

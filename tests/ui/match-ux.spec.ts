@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567', community: { id: 4, title: 'Футбол по субботам' } };
 const player = { id: 1, seq: 1, userId: 1, name: 'Организатор', invitedByUserId: null, guestOfName: null, level: 5 };
-const draft = { id: 7, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', comment: null, main: [player], reserve: [], teams: null, bill: null };
+const draft = { id: 7, community: identity.community, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', comment: null, main: [player], reserve: [], teams: null, bill: null };
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
