@@ -1,6 +1,6 @@
 import type { EventDetailDto, EventsListDto, MeDto, NotificationsDto, PlayersDto } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
-import { billLines, bills, events, memberships, type EventRow } from '../../src/db/schema';
+import { billLines, bills, events, memberships, signups, users, type EventRow } from '../../src/db/schema';
 import { bindCommunity, ensureMembership } from '../../src/domain/members';
 import { createEvent } from '../../src/domain/events';
 import { apiRequest, db, seedUser } from '../helpers';
@@ -165,6 +165,50 @@ test('kaspi change resyncs open bills in every group', async () => {
     { eventId: inA.ev.id, req: { parts: ['bill'] } },
     { eventId: inB.ev.id, req: { parts: ['bill'] } },
   ]));
+});
+
+/** An open bill in A that can be re-saved; `signupUsers` are on the match. */
+async function editableBillInA(signupUsers: number[]) {
+  const made = await billIn(w.communityId, w.orgUserId, [w.orgUserId]);
+  const ids = (await db().insert(signups).values(signupUsers.map((userId, i) => ({ eventId: made.ev.id, userId, seq: i + 1, createdAt: 0 }))).returning()).map(s => s.id);
+  return { ...made, signupIds: ids };
+}
+const phoneOf = async (userId: number) => (await db().select().from(users).where(eq(users.id, userId)))[0].kaspiPhone;
+
+test('another group cannot overwrite the receiver phone', async () => {
+  await db().update(users).set({ kaspiPhone: '+77011111111' }).where(eq(users.id, w.playerUserId));
+  const inB = await billIn(b, w.playerUserId, [orgBUserId]);
+  const inA = await editableBillInA([w.playerUserId, w.orgUserId]);
+  w.sync.calls = [];
+  const body = { receiverUserId: w.playerUserId, receiverKaspiPhone: '87022222222', fieldAmount: 4000, extras: [], participantSignupIds: inA.signupIds };
+  const r = await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body });
+  expect(r.status).toBe(409);
+  expect(await r.json()).toEqual({ error: 'receiver_phone_locked' });
+  expect(await phoneOf(w.playerUserId)).toBe('+77011111111');
+  expect(w.sync.calls.filter(x => x.eventId === inB.ev.id)).toEqual([]);
+  // Same phone, or no phone in the form, keeps working.
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body: { ...body, receiverKaspiPhone: '+7 701 111 11 11' } })).status).toBe(200);
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body: { ...body, receiverKaspiPhone: undefined } })).status).toBe(200);
+  expect(w.sync.calls.filter(x => x.eventId === inB.ev.id)).toEqual([]);
+});
+
+test('organizer changing own phone in a bill resyncs open bills in every group', async () => {
+  await db().update(users).set({ kaspiPhone: '+77011111111' }).where(eq(users.id, w.playerUserId));
+  await db().update(memberships).set({ role: 'organizer' }).where(and(eq(memberships.communityId, w.communityId), eq(memberships.userId, w.playerUserId)));
+  const inB = await billIn(b, w.playerUserId, [orgBUserId]);
+  const inA = await editableBillInA([w.playerUserId, w.orgUserId]);
+  w.sync.calls = [];
+  const body = { receiverUserId: w.playerUserId, receiverKaspiPhone: '87022222222', fieldAmount: 4000, extras: [], participantSignupIds: inA.signupIds };
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.player, method: 'PUT', body })).status).toBe(200);
+  expect(await phoneOf(w.playerUserId)).toBe('+77022222222');
+  expect(w.sync.calls).toContainEqual({ eventId: inB.ev.id, req: { parts: ['bill'] } });
+});
+
+test('receiver without a phone gets one from the bill form', async () => {
+  const inA = await editableBillInA([w.playerUserId, w.orgUserId]);
+  const body = { receiverUserId: w.playerUserId, receiverKaspiPhone: '87022222222', fieldAmount: 4000, extras: [], participantSignupIds: inA.signupIds };
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body })).status).toBe(200);
+  expect(await phoneOf(w.playerUserId)).toBe('+77022222222');
 });
 
 test('a global account cannot be selected as foreign bill receiver', async () => {

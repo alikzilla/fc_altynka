@@ -1,5 +1,5 @@
 import type { EventDetailDto, EventsListDto } from '@altynka/core';
-import { apiRequest } from '../helpers';
+import { apiRequest, setMemberProfile } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
@@ -40,6 +40,18 @@ test('player gets no levels in event detail, organizer does', async () => {
   expect(asOrg.main.map(s => s.level)).toEqual([5, 5]);
   expect(asOrg.teams).toBeNull();
   expect(asOrg.bill).toBeNull();
+});
+
+test('organizer sees saved Kaspi numbers of participants (bill receiver), player does not', async () => {
+  const id = await newEvent();
+  await setMemberProfile(w.playerUserId, { kaspiPhone: '+77071234567' });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
+  await apiRequest(`/api/events/${id}/guests`, { method: 'POST', as: w.player, body: { name: 'Ержан' } });
+  const asPlayer = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  for (const s of asPlayer.main) expect(s).not.toHaveProperty('kaspiPhone');
+  const asOrg = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  expect(asOrg.main.map(s => [s.name, s.kaspiPhone])).toEqual([['Игрок', '+77071234567'], ['Орг', null], ['Ержан', undefined]]);
 });
 
 test('join returns the queue position; unknown event is 404', async () => {

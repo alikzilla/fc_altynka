@@ -4,7 +4,8 @@ import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import type { Db } from '../db/client';
-import { bills, memberships, users, type UserRow } from '../db/schema';
+import { memberships, users, type UserRow } from '../db/schema';
+import { openBillsReceivedBy, resyncReceiverBills } from '../domain/bills';
 import { activeMemberships, confirmedMemberships, effectiveRole, nameTaken, type MyMembership } from '../domain/members';
 import { playerRatings } from '../domain/ratings';
 import type { Env } from '../env';
@@ -56,13 +57,10 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
     if (await nameTaken(db, v.displayName, me.id)) return c.json({ error: 'name_taken' }, 409);
     set.displayName = v.displayName;
   }
-  // Open bills where this person receives the money, in every group.
-  const receiving = () => db.select({ eventId: bills.eventId }).from(bills)
-    .where(and(eq(bills.receiverUserId, me.id), eq(bills.status, 'open')));
   if (v.kaspiPhone !== undefined) {
     if (v.kaspiPhone === null || v.kaspiPhone.trim() === '') {
       // по открытому счёту ему переводят — без номера счёт сломается
-      if ((await receiving().limit(1)).length) return c.json({ error: 'receiver_needs_phone' }, 409);
+      if ((await openBillsReceivedBy(db, me.id).limit(1)).length) return c.json({ error: 'receiver_needs_phone' }, 409);
       set.kaspiPhone = null;
     }
     else {
@@ -74,7 +72,7 @@ membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone
   }
   const u = Object.keys(set).length ? (await db.update(users).set(set).where(eq(users.id, me.id)).returning())[0] : me;
   if (set.kaspiPhone !== undefined && set.kaspiPhone !== me.kaspiPhone) {
-    for (const bill of await receiving()) await c.get('deps').sync.request(bill.eventId, { parts: ['bill'] });
+    await resyncReceiverBills(c.get('deps'), me.id);
   }
   return c.json<MeDto>(await meDto(c, u, await activeMemberships(db, c.env, u)));
 });

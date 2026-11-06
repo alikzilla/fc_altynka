@@ -9,6 +9,7 @@ export type UpsertBillResult =
   | { kind: 'ok'; billId: number }
   | { kind: 'no_kaspi' }
   | { kind: 'bad_phone' }
+  | { kind: 'receiver_phone_locked' }
   | { kind: 'invalid' }
   | { kind: 'not_found' }
   | { kind: 'not_scheduled' }
@@ -23,10 +24,28 @@ export async function getBillByEvent(db: Db, eventId: number): Promise<BillRow |
   return (await db.select().from(bills).where(eq(bills.eventId, eventId)))[0] ?? null;
 }
 
+/** Open bills where this person receives the money, in every group. */
+export function openBillsReceivedBy(db: Db, userId: number) {
+  return db.select({ eventId: bills.eventId }).from(bills)
+    .where(and(eq(bills.receiverUserId, userId), eq(bills.status, 'open')));
+}
+
+/** The receiver's phone changed: every open bill they receive, in every group, shows the new number. */
+export async function resyncReceiverBills(d: Deps, userId: number, exceptEventId?: number): Promise<void> {
+  for (const bill of await openBillsReceivedBy(d.db, userId)) {
+    if (bill.eventId !== exceptEventId) await d.sync.request(bill.eventId, { parts: ['bill'] });
+  }
+}
+
+/**
+ * `actorUserId` — who saves the bill. The phone is shared by all groups, so the form may set it
+ * only when the receiver has none yet or the receiver saves the bill themselves.
+ */
 export async function upsertBill(
   d: Deps,
   eventId: number,
   v: { receiverUserId: number; receiverKaspiPhone?: string; fieldAmount: number; extras: Extra[]; participantSignupIds: number[] },
+  actorUserId?: number,
 ): Promise<UpsertBillResult> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
@@ -43,11 +62,20 @@ export async function upsertBill(
     .where(and(eq(signups.eventId, eventId), isNull(signups.leftAt), inArray(signups.id, v.participantSignupIds)));
   if (parts.length !== new Set(v.participantSignupIds).size) return { kind: 'invalid' };
   let phone = receiver.kaspiPhone;
+  let phoneChanged = false;
   if (v.receiverKaspiPhone !== undefined && v.receiverKaspiPhone.trim() !== '') {
-    phone = normalizeKzPhone(v.receiverKaspiPhone);
-    if (!phone) return { kind: 'bad_phone' };
-    await d.db.update(users).set({ kaspiPhone: phone, profileCompletedAt: receiver.profileCompletedAt ?? d.now })
-      .where(eq(users.id, receiver.id));
+    const submitted = normalizeKzPhone(v.receiverKaspiPhone);
+    if (!submitted) return { kind: 'bad_phone' };
+    if (submitted !== receiver.kaspiPhone) {
+      // Only the receiver changes an existing number (in their profile or in their own bill).
+      if (receiver.kaspiPhone && receiver.id !== actorUserId) return { kind: 'receiver_phone_locked' };
+      await d.db.update(users).set({ kaspiPhone: submitted, profileCompletedAt: receiver.profileCompletedAt ?? d.now })
+        .where(eq(users.id, receiver.id));
+      phone = submitted;
+      phoneChanged = true;
+    } else if (receiver.profileCompletedAt === null) {
+      await d.db.update(users).set({ profileCompletedAt: d.now }).where(eq(users.id, receiver.id));
+    }
   }
   if (!phone) return { kind: 'no_kaspi' };
 
@@ -97,6 +125,7 @@ export async function upsertBill(
   await d.db.batch(stmts as [ (typeof stmts)[number], ...(typeof stmts)[number][] ]);
   await closeIfAllPaid(d, billId);
   await d.sync.request(eventId, { parts: ['bill', 'event'] });
+  if (phoneChanged) await resyncReceiverBills(d, receiver.id, eventId);
   return { kind: 'ok', billId };
 }
 

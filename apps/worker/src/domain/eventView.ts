@@ -117,6 +117,7 @@ export async function eventDetail(
       invitedByUserId: s.userId === null ? s.invitedBy : null,
     };
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
+    if (showLevels && s.userId !== null) base.kaspiPhone = byId.get(s.userId)?.kaspiPhone ?? null;
     return base;
   };
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);

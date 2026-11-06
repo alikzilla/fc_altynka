@@ -208,3 +208,31 @@ test('editing a bill keeps the people who were left out unchecked', async () => 
   expect(screen.getByRole('checkbox', { name: 'Игрок2' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Игрок3' })).not.toBeChecked();
 });
+
+test('another receiver with a saved phone: number is read-only and not sent', async () => {
+  const ev = evWith(2);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
+  (api.send as Mock).mockResolvedValue(bill);
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  await userEvent.selectOptions(screen.getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  const field = screen.getByLabelText(/Номер Kaspi получателя/);
+  expect(field).toHaveAttribute('readonly');
+  expect(field).toHaveValue('+7 701 111 11 11');
+  expect(screen.getByText('Номер получатель меняет в своём профиле')).toBeVisible();
+  await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect((api.send as Mock).mock.calls.at(-1)![2]).toMatchObject({ receiverUserId: ev.main[1].userId, receiverKaspiPhone: undefined });
+});
+
+test('locked receiver phone from the server is explained', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'receiver_phone_locked'));
+  const ev = evWith(2);
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  await userEvent.selectOptions(screen.getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  await userEvent.type(screen.getByLabelText(/Номер Kaspi получателя/), '87022222222');
+  await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect(await screen.findByText('Номер получатель меняет в своём профиле')).toBeInTheDocument();
+});

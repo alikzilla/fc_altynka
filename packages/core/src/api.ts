@@ -39,6 +39,8 @@ export interface SignupDto {
   invitedByUserId: number | null;
   /** Только для организатора и админа: уровень игрока или гостя (guestLevel ?? 5). */
   level?: number;
+  /** Только для организатора и админа, только у игроков: сохранённый номер Kaspi (получатель счёта). */
+  kaspiPhone?: string | null;
 }
 
 export interface EventSummaryDto {
