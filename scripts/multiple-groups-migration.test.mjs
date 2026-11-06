@@ -33,5 +33,18 @@ test('multiple-group migration keeps profile on users, preserves memberships and
     for (const table of ['events', 'bills', 'signups']) assert.equal(db.prepare(`SELECT count(*) AS n FROM ${table}`).get().n, 1);
     const other = db.prepare('SELECT * FROM memberships WHERE community_id=2 AND user_id=1').get();
     assert.equal(other.legacy, 1); assert.equal(other.role, 'player'); assert.equal(other.level, 3);
+    // Person-scoped lookups go through memberships by user.
+    const index = db.prepare(`SELECT name FROM sqlite_master WHERE type='index' AND name='memberships_user'`).get();
+    assert.equal(index?.name, 'memberships_user');
+    assert.deepEqual(db.prepare(`PRAGMA index_info('memberships_user')`).all().map(c => c.name), ['user_id', 'community_id']);
+    // One assessment per person, skills stay within 1..10.
+    const assessment = (userId, teamwork) => db.prepare(`INSERT INTO skill_assessments(user_id, version, teamwork, dribbling, technique, shooting, stamina, physical, passing, defending, created_at)
+      VALUES (?, 1, ?, 5, 5, 5, 5, 5, 5, 5, 300)`).run(userId, teamwork);
+    assert.throws(() => assessment(1, 5), /UNIQUE|PRIMARY KEY/);
+    db.exec(`INSERT INTO users(id, tg_id, first_name, display_name, created_at) VALUES(2, 200, 'Second', 'Second', 1)`);
+    assert.throws(() => assessment(2, 11), /CHECK constraint failed/);
+    assert.throws(() => assessment(2, 0), /CHECK constraint failed/);
+    assessment(2, 10);
+    assert.deepEqual(db.prepare('PRAGMA foreign_key_check').all(), []);
   } finally { db.close(); }
 });
