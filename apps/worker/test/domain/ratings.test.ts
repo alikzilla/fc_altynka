@@ -54,8 +54,6 @@ test('rating counts matches from every group', async () => {
 
 test('leaving a group keeps rating and own history', async () => {
   const w = await world();
-  // A self-assessment pins the starting level, so only the matches could change the value.
-  await db().insert(skillAssessments).values({ userId: w.u1.id, teamwork: 6, dribbling: 6, technique: 6, shooting: 6, stamina: 6, physical: 6, passing: 6, defending: 6, createdAt: 1 });
   const before = (await playerRatings(db(), [w.u1.id], NOW)).get(w.u1.id)!.rating.value;
   await db().update(memberships).set({ active: false }).where(eq(memberships.communityId, w.b.id));
   const after = (await playerRatings(db(), [w.u1.id], NOW)).get(w.u1.id)!;
@@ -73,13 +71,15 @@ test('foreign profile history is limited to shared groups', async () => {
   expect(await playerProfile(db(), w.u1.id, w.u4.id, NOW)).toBeNull();
 });
 
-test('initial level averages active memberships', async () => {
+test('initial level averages all memberships, active or not', async () => {
   const a = await group(-1, 'A');
   const b = await group(-2, 'B');
   const u = await seedUser('U', { communityId: a.id, level: 4 });
   await db().insert(memberships).values({ communityId: b.id, userId: u.id, level: 7, checkedAt: 1 });
   const r = (await playerRatings(db(), [u.id], NOW)).get(u.id)!;
   expect(r.rating.initial).toBe(6);
+  await db().update(memberships).set({ active: false }).where(eq(memberships.userId, u.id));
+  expect((await playerRatings(db(), [u.id], NOW)).get(u.id)!.rating.initial).toBe(6);
   const lone = await seedUser('Lone');
   expect((await playerRatings(db(), [lone.id], NOW)).get(lone.id)!.rating.initial).toBe(5);
 });

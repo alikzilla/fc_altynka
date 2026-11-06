@@ -15,7 +15,7 @@ export async function playerRatings(db: Db, userIds: number[], now: number): Pro
   const [people, levels, assessments, games] = await Promise.all([
     db.select().from(users).where(inArray(users.id, ids)),
     db.select({ userId: memberships.userId, avg: sql<number>`avg(${memberships.level})` }).from(memberships)
-      .where(and(inArray(memberships.userId, ids), eq(memberships.active, true))).groupBy(memberships.userId),
+      .where(inArray(memberships.userId, ids)).groupBy(memberships.userId),
     db.select().from(skillAssessments).where(inArray(skillAssessments.userId, ids)),
     db.all<RatedMatch & { userId: number }>(sql`
       WITH scores AS (
