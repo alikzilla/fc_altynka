@@ -1,6 +1,6 @@
 import type { MeDto, Role } from '@altynka/core';
 import { eq } from 'drizzle-orm';
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';
 import { users } from '../db/schema';
 import type { Deps } from '../domain/events';
@@ -47,25 +47,28 @@ export function identityMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHand
   };
 }
 
-export function communityMiddleware(): MiddlewareHandler<AppEnv> {
+/**
+ * Object-scoped routes: the group comes from the object itself (or an explicit query parameter),
+ * then membership and the role are checked in that group only.
+ * `debtor` lets a person who has left the group still settle their own bill line (role `player`).
+ */
+export function scopeCommunity(
+  resolve: (c: Context<AppEnv>) => Promise<number | null>,
+  denied: 403 | 404 = 404,
+  debtor?: (c: Context<AppEnv>) => Promise<boolean>,
+): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const raw = c.req.header('X-Community-Id');
-    if (raw !== undefined && (!/^[1-9]\d*$/.test(raw) || !Number.isSafeInteger(Number(raw)))) return c.json({ error: 'invalid_community' }, 400);
-    const community = await getCommunity(c.get('deps').db, raw === undefined ? undefined : Number(raw));
-    if (!community) return c.json({ error: raw === undefined ? 'community_required' : 'not_member' }, raw === undefined ? 409 : 403);
+    const { db, now } = c.get('deps');
     const user = c.get('user');
-    const m = await confirmedMembership(c.get('deps').db, makeTgClient(c.env), community, user, c.get('deps').now, c.env.ADMIN_TG_ID);
-    if (!m) return c.json({ error: 'not_member' }, 403);
-        c.set('community', community);
-    c.set('role', effectiveRole(c.env, user, m));
+    const id = await resolve(c);
+    const community = id === null ? null : await getCommunity(db, id);
+    const m = community ? await confirmedMembership(db, makeTgClient(c.env), community, user, now, c.env.ADMIN_TG_ID) : null;
+    if (community && m) c.set('role', effectiveRole(c.env, user, m));
+    else if (community && debtor && (await debtor(c))) c.set('role', 'player');
+    else return c.json({ error: denied === 404 ? 'not_found' : 'not_member' }, denied);
+    c.set('community', community);
     await next();
   };
-}
-
-export function authMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHandler<AppEnv> {
-  const identity = identityMiddleware(makeDeps);
-  const community = communityMiddleware();
-  return (c, next) => identity(c, () => community(c, next) as Promise<void>);
 }
 
 export function requireRole(min: 'organizer' | 'admin'): MiddlewareHandler<AppEnv> {

@@ -23,7 +23,7 @@ test('a player may complete initial setup without a payment receiver phone', asy
 });
 test('football choices persist independently without completing setup or changing role', async () => {
   expect((await patch({ playingPosition: 'goalkeeper', dominantFoot: 'left' })).status).toBe(200);
-  expect(await get()).toMatchObject({ playingPosition: 'goalkeeper', dominantFoot: 'left', profileCompleted: false, role: 'player' });
+  expect(await get()).toMatchObject({ playingPosition: 'goalkeeper', dominantFoot: 'left', profileCompleted: false, communities: [{ role: 'player' }] });
   await patch({ dominantFoot: 'both' });
   expect(await get()).toMatchObject({ playingPosition: 'goalkeeper', dominantFoot: 'both' });
   await patch({ playingPosition: null, dominantFoot: null });
@@ -31,7 +31,7 @@ test('football choices persist independently without completing setup or changin
 });
 test.each([{ playingPosition: 'coach' }, { dominantFoot: 'magic' }, { playingPosition: ['goalkeeper'] }, { dominantFoot: 5 }])('rejects invalid football data %j', async body => {
   expect((await patch(body)).status).toBe(400);
-  expect(await get()).toMatchObject({ playingPosition: null, dominantFoot: null, role: 'player' });
+  expect(await get()).toMatchObject({ playingPosition: null, dominantFoot: null, communities: [{ role: 'player' }] });
 });
 test('invalid phone does not finish setup or save football changes', async () => {
   expect((await patch({ profileCompleted: true, kaspiPhone: 'abc', playingPosition: 'forward' })).status).toBe(400);

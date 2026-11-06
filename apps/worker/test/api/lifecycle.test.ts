@@ -5,14 +5,14 @@ import { apiRequest as rawRequest, db } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
 let w: ApiWorld;
-const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now, communityId: w.communityId });
+const apiRequest = (path: string, options: Parameters<typeof rawRequest>[1]) => rawRequest(path, { ...options, at: w.clock.now });
 beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 const create = (body: unknown) => apiRequest('/api/events', { method: 'POST', as: w.org, body });
 const post = (path: string, body?: unknown) => apiRequest(path, { method: 'POST', as: w.org, body });
 
 test('a bill requires appointment; rejected requests leave signup, phone and bills unchanged', async () => {
-  const { id } = await (await create({ date: '2026-11-07' })).json() as { id: number };
+  const { id } = await (await create({ date: '2026-11-07', communityId: w.communityId })).json() as { id: number };
   await post(`/api/events/${id}/join`);
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   const detail = await (await apiRequest(`/api/events/${id}`, { as: w.org })).json() as EventDetailDto;
@@ -38,20 +38,23 @@ test('a bill requires appointment; rejected requests leave signup, phone and bil
   expect((await post(`/api/events/${id}/cancel`)).status).toBe(409);
 });
 
-test('me exposes the real group and create rejects a foreign destination', async () => {
-  expect(await (await apiRequest('/api/me', { as: w.org })).json()).toMatchObject({ community: { id: w.communityId, title: 'Футбол' } });
+test('me exposes the real groups and create rejects a foreign or missing destination', async () => {
+  expect(await (await apiRequest('/api/me', { as: w.org })).json()).toMatchObject({ communities: [{ id: w.communityId, title: 'Футбол', role: 'organizer' }] });
   expect((await create({ date: '2026-11-07', communityId: w.communityId + 1 })).status).toBe(403);
+  expect((await create({ date: '2026-11-07' })).status).toBe(400);
   expect(await db().select().from(events)).toHaveLength(0);
   expect((await create({ date: '2026-11-07', communityId: w.communityId, comment: '  Футболки  ' })).status).toBe(200);
 });
 
 test.each(['2026-02-30', '2026-13-01', '2026-11-00', '2000-01-01'])('create rejects invalid or past date %s', async date => {
-  expect((await create({ date })).status).toBe(400);
+  expect((await create({ date, communityId: w.communityId })).status).toBe(400);
   expect(await db().select().from(events)).toHaveLength(0);
 });
 
 test('organizer cannot delete another community signup by guessing its id', async () => {
   const [community] = await db().insert(communities).values({ tgChatId: -100123, title: 'Другая' }).returning();
+  // Nobody of this world is in that chat (FakeTg would otherwise fall back to the default member set).
+  w.tg.chatMembers.set(-100123, new Set()); w.tg.chatAdmins.set(-100123, new Set());
   const [event] = await db().insert(events).values({ communityId: community.id, date: '2026-11-07', createdBy: w.orgUserId, createdAt: 0 }).returning();
   const [signup] = await db().insert(signups).values({ eventId: event.id, userId: w.playerUserId, seq: 1, createdAt: 0 }).returning();
   expect((await apiRequest(`/api/signups/${signup.id}`, { method: 'DELETE', as: w.org })).status).toBe(404);

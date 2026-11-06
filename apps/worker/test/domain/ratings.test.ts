@@ -1,6 +1,6 @@
 import { calculatePlayerRating } from '@altynka/core';
 import { eq } from 'drizzle-orm';
-import { communities, events, memberships, signups, skillAssessments } from '../../src/db/schema';
+import { communities, events, memberships, signups, skillAssessments, users } from '../../src/db/schema';
 import { playerProfile, playerRatings } from '../../src/domain/ratings';
 import { env } from 'cloudflare:test';
 import { db, seedUser } from '../helpers';
@@ -82,4 +82,21 @@ test('initial level averages all memberships, active or not', async () => {
   expect((await playerRatings(db(), [u.id], NOW)).get(u.id)!.rating.initial).toBe(6);
   const lone = await seedUser('Lone');
   expect((await playerRatings(db(), [lone.id], NOW)).get(lone.id)!.rating.initial).toBe(5);
+});
+
+test('ratings for a large group stay under the D1 bound-parameter limit', async () => {
+  const a = await group(-1, 'A');
+  const people = [];
+  // Seeded in small batches: a fixture insert must not hit the limit under test.
+  for (let i = 0; i < 120; i += 10) {
+    const batch = await db().insert(users).values(Array.from({ length: 10 }, (_, j) => ({ tgId: 50_000 + i + j, firstName: `P${i + j}`, displayName: `P${i + j}`, createdAt: 0 }))).returning();
+    await db().insert(memberships).values(batch.map(p => ({ communityId: a.id, userId: p.id, level: 8, checkedAt: 1 })));
+    people.push(...batch);
+  }
+  const voters = people.slice(0, 3).map(p => p.id);
+  await ratedMatch(a.id, '2026-11-01', people[119].id, voters, 9, NOW - 5000);
+  const ratings = await playerRatings(db(), people.map(p => p.id), NOW);
+  expect(ratings.size).toBe(120);
+  expect(ratings.get(people[0].id)!.rating).toMatchObject({ initial: 8, matchesCount: 0 });
+  expect(ratings.get(people[119].id)!.rating.matchesCount).toBe(1);
 });

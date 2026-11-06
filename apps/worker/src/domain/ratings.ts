@@ -9,10 +9,11 @@ import { events, memberships, matchParticipants, matchReviews, reviewSubmissions
 import type { Deps } from './events';
 import { peerUserIds } from './members';
 
-export async function playerRatings(db: Db, userIds: number[], now: number): Promise<Map<number, PlayerSummaryDto>> {
-  const ids = [...new Set(userIds)];
-  if (!ids.length) return new Map();
-  const [people, levels, assessments, games] = await Promise.all([
+/** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
+const RATING_CHUNK = 30;
+
+async function ratingInputs(db: Db, ids: number[], now: number) {
+  return Promise.all([
     db.select().from(users).where(inArray(users.id, ids)),
     db.select({ userId: memberships.userId, avg: sql<number>`avg(${memberships.level})` }).from(memberships)
       .where(inArray(memberships.userId, ids)).groupBy(memberships.userId),
@@ -30,6 +31,18 @@ export async function playerRatings(db: Db, userIds: number[], now: number): Pro
         SELECT *, row_number() OVER (PARTITION BY userId ORDER BY completedAt DESC, eventId DESC) AS rn FROM scores
       ) SELECT userId, eventId, completedAt, score, votes FROM ranked WHERE rn <= 10`),
   ]);
+}
+
+export async function playerRatings(db: Db, userIds: number[], now: number): Promise<Map<number, PlayerSummaryDto>> {
+  const ids = [...new Set(userIds)];
+  if (!ids.length) return new Map();
+  const chunks: number[][] = [];
+  for (let i = 0; i < ids.length; i += RATING_CHUNK) chunks.push(ids.slice(i, i + RATING_CHUNK));
+  const parts = await Promise.all(chunks.map(chunk => ratingInputs(db, chunk, now)));
+  const people = parts.flatMap(p => p[0]);
+  const levels = parts.flatMap(p => p[1]);
+  const assessments = parts.flatMap(p => p[2]);
+  const games = parts.flatMap(p => p[3]);
   const skillMap = new Map(assessments.map(a => [a.userId, Object.fromEntries(SKILLS.map(s => [s.key, a[s.key]])) as SkillAnswers]));
   const levelMap = new Map(levels.map(l => [l.userId, Math.round(Number(l.avg))]));
   const gameMap = new Map<number, RatedMatch[]>();

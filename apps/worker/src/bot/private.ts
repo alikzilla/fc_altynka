@@ -2,7 +2,7 @@ import { escapeHtml, formatDateRu, lineStatus } from '@altynka/core';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Bot, Context } from 'grammy';
 import { billLines, bills, events, memberships, users } from '../db/schema';
-import { communityByChat, confirmedCommunities, confirmedMembership, effectiveRole, getCommunity, upsertTgUser } from '../domain/members';
+import { communityByChat, confirmedMemberships, confirmedMembership, effectiveRole, getCommunity, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
 import { miniAppLink } from '../telegram/links';
@@ -28,7 +28,7 @@ export function registerPrivateCommands(bot: Bot, env: Env, deps: BotDeps): void
     if (!ctx.from) return null;
     const user = await upsertTgUser(deps.db, ctx.from, deps.now());
     const tg = makeTgClient(env);
-    const available = communityId === undefined ? await confirmedCommunities(deps.db, tg, user) : [];
+    const available = communityId === undefined ? (await confirmedMemberships(deps.db, tg, env, user, deps.now())).map(m => m.community) : [];
     if (communityId === undefined && available.length !== 1) {
       if (available.length) await ctx.reply('Выбери команду:', { reply_markup: { inline_keyboard:
         available.map(c => [{ text: c.title, callback_data: `team:${c.id}:${action}` }]),

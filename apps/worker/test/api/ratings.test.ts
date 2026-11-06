@@ -1,4 +1,4 @@
-import { REVIEW_WINDOW_MS, type MatchReviewDto, type PlayerProfileDto, type SkillAnswers } from '@altynka/core';
+import { REVIEW_WINDOW_MS, type MatchReviewDto, type PlayerProfileDto, type PlayersDto, type SkillAnswers } from '@altynka/core';
 import { eq } from 'drizzle-orm';
 import { communities, events, signups } from '../../src/db/schema';
 import { createEvent } from '../../src/domain/events';
@@ -13,7 +13,7 @@ beforeEach(async () => {
 });
 afterEach(teardownApiWorld);
 const request = (path: string, as = w.player, body?: unknown, method = body === undefined ? 'GET' : 'POST') =>
-  apiRequest(path, { as, body, method, at: w.clock.now, communityId: w.communityId });
+  apiRequest(path, { as, body, method, at: w.clock.now });
 
 async function playedMatch() {
   const eventId = await createEvent({ db: db(), now: w.clock.now - 3600000, sync: w.sync }, { communityId: w.communityId, date: '2026-11-05', comment: null, createdBy: w.orgUserId });
@@ -33,8 +33,9 @@ test('skills require all eight integer answers and produce the same rating in pu
   expect(await (await request('/api/me')).json()).toMatchObject({ rating: { value: 6 } });
   expect((await request('/api/me/skills', w.player, skills, 'PUT')).status).toBe(200);
   expect((await request('/api/me/skills', w.player, { ...skills, teamwork: 10 }, 'PUT')).status).toBe(409);
-  const list = await (await request('/api/players')).json() as PlayerProfileDto[];
-  expect(list.some(p => p.userId === w.playerUserId)).toBe(true);
+  const list = await (await request('/api/players')).json() as PlayersDto;
+  expect(list.groups.map(g => g.community.id)).toEqual([w.communityId]);
+  expect(list.groups[0].players.find(p => p.userId === w.playerUserId)?.rating.value).toBe(6);
   expect(JSON.stringify(list)).not.toMatch(/kaspiPhone|tgId|notificationsEnabled/);
 });
 
@@ -181,6 +182,8 @@ test('guests are frozen as participants but cannot receive votes or lend their i
 
 test('finish and review endpoints do not reveal or mutate another community event', async () => {
   const [community] = await db().insert(communities).values({ tgChatId: -999, title: 'Другая группа' }).returning();
+  // Nobody of this world is in that chat (FakeTg would otherwise fall back to the default member set).
+  w.tg.chatMembers.set(-999, new Set()); w.tg.chatAdmins.set(-999, new Set());
   const id = await createEvent({ db: db(), now: w.clock.now, sync: w.sync }, { communityId: community.id, date: '2026-11-05', comment: null, createdBy: w.orgUserId });
   expect((await request(`/api/events/${id}/review`)).status).toBe(404);
   expect((await request(`/api/events/${id}/finish`, w.org, { participantSignupIds: [1] })).status).toBe(404);

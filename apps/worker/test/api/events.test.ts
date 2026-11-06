@@ -7,7 +7,7 @@ beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 
 async function newEvent(): Promise<number> {
-  const r = await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } });
+  const r = await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } });
   expect(r.status).toBe(200);
   return ((await r.json()) as { id: number }).id;
 }
@@ -21,7 +21,7 @@ test('organizer creates event and it requests a sync', async () => {
 });
 
 test('player cannot create events or schedule', async () => {
-  expect((await apiRequest('/api/events', { method: 'POST', as: w.player, body: { date: '2026-11-07' } })).status).toBe(403);
+  expect((await apiRequest('/api/events', { method: 'POST', as: w.player, body: { date: '2026-11-07', communityId: w.communityId } })).status).toBe(403);
   const id = await newEvent();
   const r = await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.player, body: { startTime: '21:00', durationHours: 2 } });
   expect(r.status).toBe(403);

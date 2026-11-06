@@ -35,23 +35,25 @@ export async function bindCommunity(db: Db, tgChatId: number, title: string): Pr
 const nameKey = (n: string) => n.trim().toLocaleLowerCase('ru');
 
 /** Люди, с которыми есть общая группа, где оба активны (без самого человека). */
-export async function peerUserIds(db: Db, userId: number): Promise<number[]> {
+async function peers(db: Db, userId: number): Promise<{ id: number; displayName: string }[]> {
+  // A join rather than bound id lists: a big group would exceed D1's bound-parameter limit.
   const mine = alias(memberships, 'mine');
-  const rows = await db
-    .selectDistinct({ id: memberships.userId })
+  return db
+    .selectDistinct({ id: memberships.userId, displayName: users.displayName })
     .from(mine)
     .innerJoin(communities, and(eq(communities.id, mine.communityId), eq(communities.active, true)))
     .innerJoin(memberships, and(eq(memberships.communityId, mine.communityId), eq(memberships.active, true)))
+    .innerJoin(users, eq(users.id, memberships.userId))
     .where(and(eq(mine.userId, userId), eq(mine.active, true), ne(memberships.userId, userId)));
-  return rows.map(r => r.id);
+}
+
+export async function peerUserIds(db: Db, userId: number): Promise<number[]> {
+  return (await peers(db, userId)).map(r => r.id);
 }
 
 /** Имя уже у кого-то из общих групп (без учёта регистра): в списках и счёте их было бы не различить. */
 export async function nameTaken(db: Db, name: string, userId: number): Promise<boolean> {
-  const ids = await peerUserIds(db, userId);
-  if (!ids.length) return false;
-  const rows = await db.select({ displayName: users.displayName }).from(users).where(inArray(users.id, ids));
-  return rows.some(r => nameKey(r.displayName) === nameKey(name));
+  return (await peers(db, userId)).some(r => nameKey(r.displayName) === nameKey(name));
 }
 
 /** Создаёт пользователя или обновляет данные Telegram; отображаемое имя задаётся только при создании. */
@@ -117,16 +119,29 @@ export async function confirmedMembership(db: Db, tg: TgClient, community: Commu
   return updated;
 }
 
-/** Discovery only considers known memberships, never the global list of chats. */
-export async function confirmedCommunities(db: Db, tg: TgClient, user: UserRow): Promise<CommunityRow[]> {
+export interface MyMembership { community: CommunityRow; membership: MembershipRow; role: Role }
+
+const byTitle = (a: MyMembership, b: MyMembership) => a.community.title.localeCompare(b.community.title, 'ru') || a.community.id - b.community.id;
+
+/** Groups the person is in according to the database (no Telegram calls): active membership in an active group. */
+export async function activeMemberships(db: Db, env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow): Promise<MyMembership[]> {
+  const rows = await db.select({ community: communities, membership: memberships }).from(memberships)
+    .innerJoin(communities, eq(communities.id, memberships.communityId))
+    .where(and(eq(memberships.userId, user.id), eq(memberships.active, true), eq(communities.active, true)));
+  return rows.map(r => ({ ...r, role: effectiveRole(env, user, r.membership) })).sort(byTitle);
+}
+
+/**
+ * Same as activeMemberships, but every known membership (inactive included) is re-checked in Telegram.
+ * Discovery only considers known memberships, never the global list of chats.
+ */
+export async function confirmedMemberships(db: Db, tg: TgClient, env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow, now: number): Promise<MyMembership[]> {
   const candidates = await db.select({ community: communities }).from(memberships)
     .innerJoin(communities, eq(communities.id, memberships.communityId))
-    .where(and(eq(memberships.userId, user.id), eq(communities.active, true)));
+    .where(eq(memberships.userId, user.id));
   const checked = await Promise.all(candidates.map(async ({ community }) => {
-    if (await tg.isMember(community.tgChatId, user.tgId)) return community;
-    await db.update(memberships).set({ active: false, telegramAdmin: false, checkedAt: 0, legacy: false })
-      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
-    return null;
+    const membership = await confirmedMembership(db, tg, community, user, now, env.ADMIN_TG_ID);
+    return membership ? { community, membership, role: effectiveRole(env, user, membership) } : null;
   }));
-  return checked.filter((c): c is CommunityRow => c !== null);
+  return checked.filter((m): m is MyMembership => m !== null).sort(byTitle);
 }

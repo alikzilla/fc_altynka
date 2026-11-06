@@ -60,7 +60,7 @@ test('existing legacy bill remains editable even if its stored date is in the fu
 });
 test('detail reports playing and the injected server clock without changing stored status', async () => {
   await schedule();
-  const detail = await eventDetail(d.db, id, { userId: player, role: 'player', communityId }, start);
+  const detail = await eventDetail(d.db, id, { userId: player, role: 'player', community: { id: communityId, title: 'Футбол' } }, start);
   expect(detail).toMatchObject({ status: 'playing', serverNow: start });
   expect((await d.db.select().from(events).where(eq(events.id, id)))[0].status).toBe('scheduled');
 });

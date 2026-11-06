@@ -20,18 +20,18 @@ async function debt(ev: EventRow, paidAmount: number | null, userId = w.playerUs
 
 test('me returns signed Telegram identity on GET and PATCH, refreshes it without replacing club name', async () => {
   const as = { ...w.player, first_name: 'Дамир', last_name: 'Иманов', username: 'damir', photo_url: 'https://t.me/i/userpic/320/damir.jpg' };
-  const initial = await apiRequest('/api/me', { communityId: w.communityId, as });
+  const initial = await apiRequest('/api/me', { as });
   expect(initial.status).toBe(200);
   expect(await initial.json()).toMatchObject({ displayName: 'Игрок', telegram: { firstName: 'Дамир', lastName: 'Иманов', username: 'damir', photoUrl: as.photo_url } });
-  const updated = await apiRequest('/api/me', { communityId: w.communityId, method: 'PATCH', as: { ...as, first_name: 'Данияр', username: 'daniyar' }, body: { displayName: 'Вратарь', telegram: { firstName: 'Подмена' } } });
+  const updated = await apiRequest('/api/me', { method: 'PATCH', as: { ...as, first_name: 'Данияр', username: 'daniyar' }, body: { displayName: 'Вратарь', telegram: { firstName: 'Подмена' } } });
   expect(await updated.json()).toMatchObject({ displayName: 'Вратарь', telegram: { firstName: 'Данияр', lastName: 'Иманов', username: 'daniyar', photoUrl: as.photo_url } });
-  const removed = await apiRequest('/api/me', { communityId: w.communityId, as: w.player });
+  const removed = await apiRequest('/api/me', { as: w.player });
   expect(await removed.json()).toMatchObject({ displayName: 'Вратарь', telegram: { firstName: 'Игрок', lastName: null, username: null, photoUrl: null } });
 });
 
 test.each(['http://example.com/a.jpg', 'javascript:alert(1)', 'data:image/png;base64,abc', '//example.com/a.jpg', 'not a url'])('me rejects unsafe Telegram photo %s', async photo_url => {
   const as = { ...w.player, photo_url };
-  expect(await (await apiRequest('/api/me', { communityId: w.communityId, as })).json()).toMatchObject({ telegram: { photoUrl: null } });
+  expect(await (await apiRequest('/api/me', { as })).json()).toMatchObject({ telegram: { photoUrl: null } });
 });
 
 test('archive paginates equal dates once each, includes billing, and isolates groups and active games', async () => {
@@ -47,7 +47,7 @@ test('archive paginates equal dates once each, includes billing, and isolates gr
     { eventId: rows[22].id, userId: w.orgUserId, seq: 2, leftAt: 100, createdAt: 0 },
   ]);
   const get = async (suffix = '') => {
-    const response = await apiRequest(`/api/matches${suffix}`, { communityId: w.communityId, as: w.player });
+    const response = await apiRequest(`/api/matches${suffix}`, { as: w.player });
     expect(response.status).toBe(200);
     return response.json() as Promise<{ events: EventSummaryDto[]; nextCursor: string | null }>;
   };
@@ -61,7 +61,7 @@ test('archive paginates equal dates once each, includes billing, and isolates gr
 });
 
 test.each(['', 'garbage', '2026-02-30:1', '2026-11-01:0', '2026-11-01:-2', '2026-11-01:1.5', '2026-11-01:9007199254740992'])('archive rejects invalid cursor %s', async cursor => {
-  const response = await apiRequest(`/api/matches?cursor=${encodeURIComponent(cursor)}`, { communityId: w.communityId, as: w.player });
+  const response = await apiRequest(`/api/matches?cursor=${encodeURIComponent(cursor)}`, { as: w.player });
   expect(response.status).toBe(400);
   expect(await response.json()).toEqual({ error: 'invalid_cursor' });
 });
@@ -75,21 +75,25 @@ test('notifications return only current user remaining open debt and disappear a
   await debt(await event('billing'), 3500);
   await debt(await event('closed'), null, w.playerUserId, 'closed');
   await debt(await event('billing'), null, w.orgUserId);
+  // A debt follows the bill line, even in a group the person is not (or no longer) a member of.
   const [other] = await db().insert(communities).values({ tgChatId: -100501, title: 'Чужая' }).returning();
-  await debt(await event('billing', '2026-12-01', other.id), null);
-  const get = () => apiRequest('/api/notifications', { communityId: w.communityId, as: w.player });
+  const elsewhere = await event('billing', '2026-12-01', other.id);
+  await debt(elsewhere, null);
+  const get = () => apiRequest('/api/notifications', { as: w.player });
   const response = await get();
   expect(response.status).toBe(200);
   const body = await response.json() as { tasks: Array<{ id: string; eventId: number }> };
+  const home = { id: w.communityId, title: 'Футбол' };
   expect(body.tasks).toEqual([
-    { kind: 'payment', id: expect.any(String), eventId: partial.id, date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг' },
-    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг' },
+    { kind: 'payment', id: expect.any(String), eventId: partial.id, date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: elsewhere.id, date: '2026-12-01', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: { id: other.id, title: 'Чужая' } },
     { kind: 'skills', id: 'skills' },
   ]);
-  expect(new Set(body.tasks.map(t => t.id)).size).toBe(3);
+  expect(new Set(body.tasks.map(t => t.id)).size).toBe(4);
   expect(await (await get()).json()).toEqual(body);
   await db().update(billLines).set({ paidAmount: 3000 }).where(eq(billLines.id, line.id));
-  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0], { kind: 'skills', id: 'skills' }] });
+  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0], body.tasks[2], { kind: 'skills', id: 'skills' }] });
 });
 
 test('only organizers and admins receive collecting scheduling duties in their group', async () => {
@@ -101,17 +105,17 @@ test('only organizers and admins receive collecting scheduling duties in their g
   await event('cancelled');
   const [other] = await db().insert(communities).values({ tgChatId: -100501, title: 'Чужая' }).returning();
   await event('collecting', '2026-11-06', other.id);
-  const playerResponse = await apiRequest('/api/notifications', { communityId: w.communityId, as: w.player });
+  const playerResponse = await apiRequest('/api/notifications', { as: w.player });
   expect(playerResponse.status).toBe(200);
   expect(await playerResponse.json()).toEqual({ tasks: [{ kind: 'skills', id: 'skills' }] });
-  const expected = { tasks: [{ kind: 'skills', id: 'skills' }, ...[first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак' }))] };
+  const expected = { tasks: [{ kind: 'skills', id: 'skills' }, ...[first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак', community: { id: w.communityId, title: 'Футбол' } }))] };
   for (const as of [w.org, w.admin]) {
-    const response = await apiRequest('/api/notifications', { communityId: w.communityId, as });
+    const response = await apiRequest('/api/notifications', { as });
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual(expected);
   }
 });
 
 test('new resources require Telegram authentication', async () => {
-  for (const path of ['/api/matches', '/api/notifications']) expect((await apiRequest(path, { communityId: w.communityId, as: null })).status).toBe(401);
+  for (const path of ['/api/matches', '/api/notifications']) expect((await apiRequest(path, { as: null })).status).toBe(401);
 });

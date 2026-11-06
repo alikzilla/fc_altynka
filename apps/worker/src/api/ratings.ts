@@ -1,9 +1,11 @@
-import { SKILLS, type SkillAnswers } from '@altynka/core';
-import { and, eq } from 'drizzle-orm';
+import { SKILLS, type PlayersDto, type SkillAnswers } from '@altynka/core';
+import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
-import { skillAssessments } from '../db/schema';
+import type { Db } from '../db/client';
+import { memberships, skillAssessments } from '../db/schema';
+import { activeMemberships } from '../domain/members';
 import { canManage, getEvent } from '../domain/events';
 import { finishMatch, matchReview, playerProfile, playerRatings, submitReview } from '../domain/ratings';
 import { body, idParam } from './validate';
@@ -14,27 +16,35 @@ const skillsBody = z.object({ teamwork: score, dribbling: score, technique: scor
 const reviewBody = z.object({ scores: z.array(z.object({ userId: z.number().int().positive(), score }).strict()).max(100), gameScore: score.nullable(), skipped: z.boolean() }).strict()
   .refine(v => v.skipped ? v.scores.length === 0 && v.gameScore === null : v.scores.length > 0 || v.gameScore !== null);
 
-ratingsApi.get('/me/skills', async c => {
-  const ratings = await playerRatings(c.get('deps').db, c.get('community').id, c.get('deps').now);
-  return c.json(ratings.get(c.get('user').id)!.rating);
-});
+const myRating = async (db: Db, userId: number, now: number) => (await playerRatings(db, [userId], now)).get(userId)!.rating;
+
+ratingsApi.get('/me/skills', async c => c.json(await myRating(c.get('deps').db, c.get('user').id, c.get('deps').now)));
 ratingsApi.put('/me/skills', body(skillsBody), async c => {
   const answers = c.req.valid('json');
   const { db, now } = c.get('deps');
-  const communityId = c.get('community').id;
   const userId = c.get('user').id;
-  await db.insert(skillAssessments).values({ communityId, userId, ...answers, createdAt: now }).onConflictDoNothing();
-  const [saved] = await db.select().from(skillAssessments).where(and(eq(skillAssessments.communityId, communityId), eq(skillAssessments.userId, userId)));
+  await db.insert(skillAssessments).values({ userId, ...answers, createdAt: now }).onConflictDoNothing();
+  const [saved] = await db.select().from(skillAssessments).where(eq(skillAssessments.userId, userId));
   if (SKILLS.some(s => saved[s.key] !== answers[s.key as keyof SkillAnswers])) return c.json({ error: 'already_assessed' }, 409);
-  return c.json((await playerRatings(db, communityId, now)).get(userId)!.rating);
+  return c.json(await myRating(db, userId, now));
 });
+/** One section per group of the viewer (by title); a person in several groups has the same rating everywhere. */
 ratingsApi.get('/players', async c => {
-  const players = [...(await playerRatings(c.get('deps').db, c.get('community').id, c.get('deps').now)).values()];
-  return c.json(players.sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru')));
+  const { db, now } = c.get('deps');
+  const groups = await activeMemberships(db, c.env, c.get('user'));
+  const rows = groups.length ? await db.select({ communityId: memberships.communityId, userId: memberships.userId }).from(memberships)
+    .where(and(inArray(memberships.communityId, groups.map(g => g.community.id)), eq(memberships.active, true))) : [];
+  const ratings = await playerRatings(db, rows.map(r => r.userId), now);
+  return c.json<PlayersDto>({ groups: groups.map(g => ({
+    community: { id: g.community.id, title: g.community.title },
+    role: g.role,
+    players: rows.filter(r => r.communityId === g.community.id).flatMap(r => ratings.get(r.userId) ?? [])
+      .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru')),
+  })) });
 });
 ratingsApi.get('/players/:userId', async c => {
   const userId = idParam(c.req.param('userId'));
-  const profile = userId === null ? null : await playerProfile(c.get('deps').db, c.get('community').id, userId, c.get('deps').now);
+  const profile = userId === null ? null : await playerProfile(c.get('deps').db, userId, c.get('user').id, c.get('deps').now);
   return profile ? c.json(profile) : c.json({ error: 'not_found' }, 404);
 });
 

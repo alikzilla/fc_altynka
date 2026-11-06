@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { billLines } from '../db/schema';
 import { billDto, closeBill, getBill, markPaid, remindDebtors, setLinePaid, upsertBill } from '../domain/bills';
-import { getEvent } from '../domain/events';
+import { canManage, getEvent } from '../domain/events';
 import { eq } from 'drizzle-orm';
 import { body, idParam, statusFor } from './validate';
 
@@ -21,7 +21,7 @@ export const billsApi = new Hono<AppEnv>();
 
 type Get = <K extends keyof AppEnv['Variables']>(k: K) => AppEnv['Variables'][K];
 
-/** Счёт существует и относится к группе пользователя. */
+/** Счёт существует и относится к группе запроса (её определил scopeCommunity по самому объекту). */
 async function ownBill(get: Get, raw: string) {
   const id = idParam(raw);
   const bill = id === null ? null : await getBill(get('deps').db, id);
@@ -51,7 +51,14 @@ billsApi.post('/bill-lines/:id', body(z.object({ paid: z.boolean() })), async c 
   const [line] = id === null ? [] : await c.get('deps').db.select().from(billLines).where(eq(billLines.id, id));
   const bill = line ? await ownBill(c.get, String(line.billId)) : null;
   if (!line || !bill) return c.json({ error: 'not_found' }, 404);
-  const r = await setLinePaid(c.get('deps'), line.id, c.req.valid('json').paid, { userId: c.get('user').id, role: c.get('role') });
+  const actor = { userId: c.get('user').id, role: c.get('role') };
+  const paid = c.req.valid('json').paid;
+  // A debtor marking their own line paid is the same action as POST /bills/:id/paid.
+  if (paid && line.userId === actor.userId && !canManage(actor.role) && bill.receiverUserId !== actor.userId) {
+    const r = await markPaid(c.get('deps'), bill.id, actor.userId, actor.userId);
+    return c.json({ kind: r }, r === 'not_in_bill' ? 404 : statusFor(r));
+  }
+  const r = await setLinePaid(c.get('deps'), line.id, paid, actor);
   return c.json({ kind: r }, statusFor(r));
 });
 
