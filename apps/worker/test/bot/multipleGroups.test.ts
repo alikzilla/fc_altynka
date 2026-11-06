@@ -75,8 +75,14 @@ test('/payments lists debts of every group, including one the person left', asyn
   tg.chatMembers.set(-102, new Set());
   const left = makeTestBot();
   await left.bot.handleUpdate(privateCommand(501, '/payments'));
-  text = String(left.calls.find(c => c.method === 'sendMessage')!.payload.text);
+  const reply = left.calls.find(c => c.method === 'sendMessage')!;
+  text = String(reply.payload.text);
   expect(text).toContain('Команда B');
+  // The match page of a left group is gone: that debt links to the tasks screen instead.
+  const buttons = (reply.payload.reply_markup as { inline_keyboard: { text: string; url: string }[][] }).inline_keyboard.flat();
+  const evA = (await db().select().from(events).where(eq(events.communityId, a.id)))[0];
+  expect(buttons.find(x => x.text.includes('7 нояб'))?.url).toContain(`startapp=b${evA.id}`);
+  expect(buttons.find(x => x.text.includes('8 нояб'))?.url).toMatch(/startapp=payments$/);
 });
 
 test('/settings needs no group choice and notify toggles the personal flag', async () => {

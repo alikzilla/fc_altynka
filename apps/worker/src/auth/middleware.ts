@@ -11,7 +11,11 @@ import { verifyInitData } from './initData';
 
 export interface AppEnv {
   Bindings: Env;
-  Variables: { user: UserRow; role: Role; community: CommunityRow; deps: Deps; telegram: NonNullable<MeDto['telegram']> };
+  Variables: {
+    user: UserRow; role: Role; community: CommunityRow; deps: Deps; telegram: NonNullable<MeDto['telegram']>;
+    /** Set by scopeCommunity when a non-member is let in only to settle their own bill line. */
+    debtor?: boolean;
+  };
 }
 
 function httpsPhoto(value: unknown): string | null {
@@ -64,7 +68,10 @@ export function scopeCommunity(
     const community = id === null ? null : await getCommunity(db, id);
     const m = community ? await confirmedMembership(db, makeTgClient(c.env), community, user, now, c.env.ADMIN_TG_ID) : null;
     if (community && m) c.set('role', effectiveRole(c.env, user, m));
-    else if (community && debtor && (await debtor(c))) c.set('role', 'player');
+    else if (community && debtor && (await debtor(c))) {
+      c.set('role', 'player');
+      c.set('debtor', true);
+    }
     else return c.json({ error: denied === 404 ? 'not_found' : 'not_member' }, denied);
     c.set('community', community);
     await next();

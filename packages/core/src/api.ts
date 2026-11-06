@@ -122,7 +122,7 @@ export interface MatchArchiveDto {
 export type NotificationTaskDto =
   | { kind: 'skills'; id: string }
   | { kind: 'review'; id: string; eventId: number; date: string; place: string | null; closesAt: number; community: CommunityDto }
-  | { kind: 'payment'; id: string; eventId: number; date: string; place: string | null; due: number; receiverName: string; community: CommunityDto }
+  | { kind: 'payment'; id: string; eventId: number; billId: number; date: string; place: string | null; due: number; receiverName: string; receiverKaspiPhone: string; community: CommunityDto }
   | { kind: 'schedule'; id: string; eventId: number; date: string; place: string | null; community: CommunityDto };
 
 export interface NotificationsDto {

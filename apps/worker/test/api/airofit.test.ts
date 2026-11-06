@@ -85,9 +85,9 @@ test('notifications return only current user remaining open debt and disappear a
   const body = await response.json() as { tasks: Array<{ id: string; eventId: number }> };
   const home = { id: w.communityId, title: 'Футбол' };
   expect(body.tasks).toEqual([
-    { kind: 'payment', id: expect.any(String), eventId: partial.id, date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг', community: home },
-    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: home },
-    { kind: 'payment', id: expect.any(String), eventId: elsewhere.id, date: '2026-12-01', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: { id: other.id, title: 'Чужая' } },
+    { kind: 'payment', id: expect.any(String), eventId: partial.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: elsewhere.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-12-01', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: { id: other.id, title: 'Чужая' } },
     { kind: 'skills', id: 'skills' },
   ]);
   expect(new Set(body.tasks.map(t => t.id)).size).toBe(4);

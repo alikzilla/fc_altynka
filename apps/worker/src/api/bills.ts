@@ -54,8 +54,10 @@ billsApi.post('/bill-lines/:id', body(z.object({ paid: z.boolean() })), async c 
   if (!line || !bill) return c.json({ error: 'not_found' }, 404);
   const actor = { userId: c.get('user').id, role: c.get('role') };
   const paid = c.req.valid('json').paid;
+  // Someone who left the group may only mark their own debt paid, never undo a payment or reopen a bill.
+  if (c.get('debtor') && !paid) return c.json({ error: 'forbidden' }, 403);
   // A debtor marking their own line paid is the same action as POST /bills/:id/paid.
-  if (paid && line.userId === actor.userId && !canManage(actor.role) && bill.receiverUserId !== actor.userId) {
+  if (paid && line.userId === actor.userId && (c.get('debtor') || !canManage(actor.role) && bill.receiverUserId !== actor.userId)) {
     const r = await markPaid(c.get('deps'), bill.id, actor.userId, actor.userId);
     return c.json({ kind: r }, r === 'not_in_bill' ? 404 : statusFor(r));
   }

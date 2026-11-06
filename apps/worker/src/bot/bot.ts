@@ -2,10 +2,10 @@ import { Bot } from 'grammy';
 import { and, eq } from 'drizzle-orm';
 import type { UserFromGetMe } from 'grammy/types';
 import type { Db } from '../db/client';
-import { communities, memberships, users, type UserRow } from '../db/schema';
+import { billLines, communities, memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBill, markPaid } from '../domain/bills';
 import { getEvent, joinEvent, leaveEvent, type Deps } from '../domain/events';
-import { bindCommunity, communityByChat, confirmedMembership, ensureMembership, getCommunity, moveCommunityChat, upsertTgUser } from '../domain/members';
+import { bindCommunity, communityByChat, confirmedMembership, ensureMembership, moveCommunityChat, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
 import { makeTgClient } from '../telegram/client';
@@ -117,10 +117,11 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     const [, billId, due, receiverTgId, phoneDigits] = ctx.match;
     const chat = ctx.callbackQuery.message?.chat;
     const bill = await getBill(deps.db, Number(billId));
-    const event = bill ? await getEvent(deps.db, bill.eventId) : null;
-    const community = event ? await getCommunity(deps.db, event.communityId) : null;
-    if (chat?.type !== 'private' || chat.id !== ctx.from.id || !community?.active || !bill
-      || !(await makeTgClient(env).isMember(community.tgChatId, ctx.from.id))) {
+    // Debts follow the bill line, not membership: whoever owns a line may settle it even after leaving the group.
+    const [known] = await deps.db.select({ id: users.id }).from(users).where(eq(users.tgId, ctx.from.id));
+    const owned = known && bill ? (await deps.db.select({ id: billLines.id }).from(billLines)
+      .where(and(eq(billLines.billId, bill.id), eq(billLines.userId, known.id))))[0] : undefined;
+    if (chat?.type !== 'private' || chat.id !== ctx.from.id || !bill || !owned) {
       return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
     }
     if (bill.status === 'closed') return void await ctx.answerCallbackQuery({ text: 'Счёт закрыт' });

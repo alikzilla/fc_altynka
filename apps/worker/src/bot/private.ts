@@ -83,9 +83,11 @@ export function registerPrivateCommands(bot: Bot, env: Env, deps: BotDeps): void
       if (!rows.length && !groups.length) return void await noGroups();
       // Group titles appear when the person has several groups or the debts span several groups.
       const label = groups.length > 1 || new Set(rows.map(r => r.communityId)).size > 1;
+      const mine = new Set(groups.map(g => g.community.id));
       const text = rows.length ? '<b>Мои платежи</b>\n\n' + rows.map(r => `${formatDateRu(r.date)} · осталось ${money(lineStatus(r.amount, r.paidAmount).due)}${r.units > 1 ? ` · за тебя и гостей: ${r.units - 1}` : ''}${label ? ` · ${escapeHtml(r.group)}` : ''}`).join('\n') : 'Нет открытых платежей.';
       await ctx.reply(text, { parse_mode: 'HTML', reply_markup: { inline_keyboard: [
-        ...rows.map(r => [{ text: `Открыть оплату · ${formatDateRu(r.date)}`, url: miniAppLink(env, `b${r.eventId}`) }]),
+        // A left group's match page is not reachable: such a debt is paid from the tasks screen.
+        ...rows.map(r => [{ text: `Открыть оплату · ${formatDateRu(r.date)}`, url: miniAppLink(env, mine.has(r.communityId) ? `b${r.eventId}` : 'payments') }]),
         [{ text: 'Все платежи', url: miniAppLink(env, 'payments') }],
       ] } });
     } else {

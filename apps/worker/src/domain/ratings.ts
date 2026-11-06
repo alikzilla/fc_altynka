@@ -63,7 +63,7 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   if (userId !== viewerId && !(await peerUserIds(db, viewerId)).includes(userId)) return null;
   const player = (await playerRatings(db, [userId], now)).get(userId);
   if (!player) return null;
-  const shared = userId === viewerId ? sql`` : sql`AND e.community_id IN (
+  const shared = userId === viewerId ? sql`` : sql`AND c.active = 1 AND e.community_id IN (
     SELECT community_id FROM memberships WHERE user_id = ${viewerId} AND active = 1)`;
   const rows = await db.all<Omit<PlayerProfileDto['history'][number], 'community'> & { communityId: number; communityTitle: string }>(sql`
     SELECT e.id AS eventId, e.date, e.place, c.id AS communityId, c.title AS communityTitle,

@@ -1,6 +1,6 @@
-import type { EventDetailDto, EventsListDto, MeDto, NotificationsDto, PlayersDto } from '@altynka/core';
+import type { EventDetailDto, EventsListDto, MeDto, NotificationsDto, PlayerProfileDto, PlayersDto } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
-import { billLines, bills, events, memberships, signups, users, type EventRow } from '../../src/db/schema';
+import { billLines, bills, communities, events, matchReviews, memberships, signups, users, type EventRow } from '../../src/db/schema';
 import { bindCommunity, ensureMembership } from '../../src/domain/members';
 import { createEvent } from '../../src/domain/events';
 import { apiRequest, db, seedUser } from '../helpers';
@@ -139,6 +139,70 @@ test('debt survives leaving the group', async () => {
   expect(lines.filter(l => l.userId === orgBUserId).every(l => l.paidAmount === null)).toBe(true);
   // A debtor who left cannot use organizer bill routes.
   expect((await apiRequest(`/api/bills/${second.bill.id}/close`, { as: w.player, method: 'POST' })).status).toBe(404);
+});
+
+const leaveB = async () => {
+  w.tg.chatMembers.get(-100600)!.delete(w.player.id);
+  await db().update(memberships).set({ active: false }).where(and(eq(memberships.communityId, b), eq(memberships.userId, w.playerUserId)));
+};
+
+test('payment task carries what is needed to pay without the match page', async () => {
+  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, orgBUserId));
+  const { bill } = await billIn(b, orgBUserId, [w.playerUserId, orgBUserId]);
+  await leaveB();
+  const tasks = (await (await apiRequest('/api/notifications', { as: w.player })).json() as NotificationsDto).tasks;
+  expect(tasks.find(t => t.kind === 'payment')).toMatchObject({ billId: bill.id, receiverKaspiPhone: '+77071234567', receiverName: 'Орг Б', due: 3000 });
+});
+
+test('no review task after leaving the group', async () => {
+  const { ev } = await billIn(b, orgBUserId, [w.playerUserId]);
+  const [signup] = await db().insert(signups).values({ eventId: ev.id, userId: w.playerUserId, seq: 1, createdAt: 0 }).returning();
+  // The roster trigger fills match_participants.
+  await db().insert(matchReviews).values({ eventId: ev.id, completedAt: w.clock.now - 1000, completedBy: orgBUserId, closesAt: w.clock.now + 86_400_000, rosterJson: JSON.stringify([{ signupId: signup.id, userId: w.playerUserId, name: 'Игрок' }]) });
+  const reviews = async () => (await (await apiRequest('/api/notifications', { as: w.player })).json() as NotificationsDto).tasks.filter(t => t.kind === 'review');
+  expect(await reviews()).toHaveLength(1);
+  await leaveB();
+  expect(await reviews()).toEqual([]);
+});
+
+test('a debtor who left cannot reopen a closed bill', async () => {
+  const { bill, lines } = await billIn(b, w.playerUserId, [w.playerUserId, orgBUserId]);
+  await db().update(billLines).set({ paidAmount: 3000 });
+  await db().update(bills).set({ status: 'closed' }).where(eq(bills.id, bill.id));
+  await leaveB();
+  w.sync.calls = [];
+  const own = lines.find(l => l.userId === w.playerUserId)!;
+  const r = await apiRequest(`/api/bill-lines/${own.id}`, { as: w.player, method: 'POST', body: { paid: false } });
+  expect(r.status).toBe(403);
+  expect((await db().select().from(bills).where(eq(bills.id, bill.id)))[0].status).toBe('closed');
+  expect((await db().select().from(billLines).where(eq(billLines.id, own.id)))[0].paidAmount).toBe(3000);
+  expect(w.sync.calls).toEqual([]);
+});
+
+test('GET /me survives a Telegram failure for one group', async () => {
+  const realStatus = w.tg.memberStatus.bind(w.tg);
+  w.tg.memberStatus = async (chatId, tgUserId) => {
+    if (chatId === -100600) throw new Error('Telegram is down');
+    return realStatus(chatId, tgUserId);
+  };
+  const r = await apiRequest('/api/me', { as: w.player });
+  expect(r.status).toBe(200);
+  expect((await r.json() as MeDto).communities.map(g => g.title)).toEqual(['Альфа', 'Футбол']);
+  // The stored flag decides when Telegram cannot answer.
+  await db().update(memberships).set({ active: false }).where(and(eq(memberships.communityId, b), eq(memberships.userId, w.playerUserId)));
+  expect((await (await apiRequest('/api/me', { as: w.player })).json() as MeDto).communities.map(g => g.title)).toEqual(['Футбол']);
+});
+
+test('shared history skips groups whose bot was removed', async () => {
+  const { ev } = await billIn(b, orgBUserId, [orgBUserId]);
+  const [signup] = await db().insert(signups).values({ eventId: ev.id, userId: orgBUserId, seq: 1, createdAt: 0 }).returning();
+  await db().insert(matchReviews).values({ eventId: ev.id, completedAt: w.clock.now - 2000, completedBy: orgBUserId, closesAt: w.clock.now - 1000, rosterJson: JSON.stringify([{ signupId: signup.id, userId: orgBUserId, name: 'Орг Б' }]) });
+  const history = async () => (await (await apiRequest(`/api/players/${orgBUserId}`, { as: w.player })).json() as PlayerProfileDto).history;
+  expect((await history()).map(h => h.eventId)).toEqual([ev.id]);
+  // Bot removed from B; the membership rows stay active, the group does not. A is still shared.
+  await ensureMembership(db(), w.communityId, orgBUserId, w.clock.now);
+  await db().update(communities).set({ active: false }).where(eq(communities.id, b));
+  expect(await history()).toEqual([]);
 });
 
 test('players grouped by community', async () => {

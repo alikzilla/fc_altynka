@@ -14,12 +14,14 @@ notificationsApi.get('/notifications', async c => {
   // Debts follow the bill line, not membership: leaving the group never hides what is owed.
   const debts = await db.select({
     lineId: billLines.id,
+    billId: bills.id,
     eventId: events.id,
     date: events.date,
     place: events.place,
     amount: billLines.amount,
     paidAmount: billLines.paidAmount,
     receiverName: users.displayName,
+    receiverKaspiPhone: users.kaspiPhone,
     communityId: communities.id,
     communityTitle: communities.title,
   }).from(billLines)
@@ -41,16 +43,21 @@ notificationsApi.get('/notifications', async c => {
     place: row.place,
     due: lineStatus(row.amount, row.paidAmount).due,
     receiverName: row.receiverName ?? 'Получатель',
+    billId: row.billId,
+    receiverKaspiPhone: row.receiverKaspiPhone ?? '',
     community: { id: row.communityId, title: row.communityTitle },
   }));
-  // Reviews follow actual participation in the match.
-  const reviews = await db.all<{ eventId: number; date: string; place: string | null; closesAt: number; communityId: number; communityTitle: string }>(sql`
+  const mine = await activeMemberships(db, c.env, me);
+  // Reviews follow actual participation in the match, in groups the person is still in.
+  const groupIds = mine.map(m => m.community.id);
+  const reviews = !groupIds.length ? [] : await db.all<{ eventId: number; date: string; place: string | null; closesAt: number; communityId: number; communityTitle: string }>(sql`
     SELECT e.id AS eventId, e.date, e.place, r.closes_at AS closesAt, c.id AS communityId, c.title AS communityTitle
     FROM match_reviews r JOIN events e ON e.id = r.event_id
     JOIN communities c ON c.id = e.community_id
     JOIN match_participants p ON p.event_id = r.event_id AND p.user_id = ${me.id}
     LEFT JOIN review_submissions s ON s.event_id = r.event_id AND s.user_id = p.user_id
     WHERE e.status <> 'cancelled' AND r.closes_at > ${now}
+      AND e.community_id IN (${sql.join(groupIds.map(id => sql`${id}`), sql`, `)})
       AND s.user_id IS NULL ORDER BY r.closes_at, e.id`);
   tasks.push(...reviews.map(({ communityId, communityTitle, ...row }) => ({
     kind: 'review' as const, id: `review:${row.eventId}`, ...row, community: { id: communityId, title: communityTitle },
@@ -59,7 +66,7 @@ notificationsApi.get('/notifications', async c => {
     .where(eq(skillAssessments.userId, me.id)).limit(1);
   if (!assessed.length) tasks.push({ kind: 'skills', id: 'skills' });
   // Scheduling duties only in groups where this person organizes.
-  const managed = (await activeMemberships(db, c.env, me)).filter(m => canManage(m.role)).map(m => m.community);
+  const managed = mine.filter(m => canManage(m.role)).map(m => m.community);
   if (managed.length) {
     const titles = new Map(managed.map(g => [g.id, g.title]));
     const collecting = await db.select({ eventId: events.id, date: events.date, place: events.place, communityId: events.communityId }).from(events)

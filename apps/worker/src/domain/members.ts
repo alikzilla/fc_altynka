@@ -136,12 +136,16 @@ export async function activeMemberships(db: Db, env: Pick<Env, 'ADMIN_TG_ID'>, u
  * Discovery only considers known memberships, never the global list of chats.
  */
 export async function confirmedMemberships(db: Db, tg: TgClient, env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow, now: number): Promise<MyMembership[]> {
-  const candidates = await db.select({ community: communities }).from(memberships)
+  const candidates = await db.select({ community: communities, stored: memberships }).from(memberships)
     .innerJoin(communities, eq(communities.id, memberships.communityId))
     .where(eq(memberships.userId, user.id));
-  const checked = await Promise.all(candidates.map(async ({ community }) => {
-    const membership = await confirmedMembership(db, tg, community, user, now, env.ADMIN_TG_ID);
+  const settled = await Promise.allSettled(candidates.map(({ community }) => confirmedMembership(db, tg, community, user, now, env.ADMIN_TG_ID)));
+  const checked = candidates.map(({ community, stored }, i): MyMembership | null => {
+    const r = settled[i];
+    // Telegram failed for this group: trust what the database already knows instead of failing the request.
+    const membership = r.status === 'fulfilled' ? r.value : community.active && stored.active ? stored : null;
+    if (r.status === 'rejected') console.warn(`Telegram membership check failed for community ${community.id}.`);
     return membership ? { community, membership, role: effectiveRole(env, user, membership) } : null;
-  }));
+  });
   return checked.filter((m): m is MyMembership => m !== null).sort(byTitle);
 }
