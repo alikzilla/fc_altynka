@@ -7,11 +7,12 @@ import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, EmptyState } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { GameResultSheet } from './GameResultSheet';
+import { gamePlayerName } from '../lib/gamePlayerName';
 
-function goalsText(protocol: GameProtocolDto, game: GameResult, team: number): string {
+function goalsText(protocol: GameProtocolDto, game: GameResult, team: number, ev: EventDetailDto): string {
   const entries=game.scorers.flatMap(g=>{
     const person=protocol.roster.find(p=>p.signupId===g.signupId && p.teamIndex===team);
-    return person?[`${person.name}${g.goals>1?` ×${g.goals}`:''}`]:[];
+    return person?[`${gamePlayerName(person,protocol.roster,ev.main)}${g.goals>1?` ×${g.goals}`:''}`]:[];
   });
   const known=game.scorers.reduce((sum,g)=>sum+(protocol.roster.find(p=>p.signupId===g.signupId)?.teamIndex===team?g.goals:0),0);
   const missing=game.score[game.pair.indexOf(team)]-known;
@@ -74,11 +75,11 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       {protocol.games.length?<ol className="game-results">{protocol.games.map(game=><li key={game.id} className="game-result">
         <div className="row between"><span className="muted">Игра {game.sequence}</span>{protocol.canEdit && <button className="btn-text" aria-label={`Изменить результат игры ${game.sequence}`} onClick={()=>setResult(game)}>Изменить</button>}</div>
         <div className="game-result-pair"><GameTeamName index={game.pair[0]}/><strong>{game.score[0]}:{game.score[1]}</strong><GameTeamName index={game.pair[1]}/></div>
-        {game.pair.map(team=>{const text=goalsText(protocol,game,team);return text?<p className="game-goals" key={team}><span>{TEAMS[team].name}:</span> {text}</p>:null;})}
+        {game.pair.map(team=>{const text=goalsText(protocol,game,team,ev);return text?<p className="game-goals" key={team}><span>{TEAMS[team].name}:</span> {text}</p>:null;})}
       </li>)}</ol>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
     </section>
 
-    <section className="game-bombardiers" aria-labelledby="game-scorers-heading"><h2 id="game-scorers-heading">Бомбардиры</h2>{protocol.scorers.length?<ol className="game-scorers-list">{protocol.scorers.map(p=><li key={p.signupId}><span className="game-rank">{p.rank}</span><span className="game-scorer-identity">{p.name}<small className="muted">{TEAMS[p.teamIndex].name}{p.userId===null?' · гость':''}</small></span><b>{p.goals}</b></li>)}</ol>:<p className="muted">Авторы голов пока не указаны.</p>}</section>
+    <section className="game-bombardiers" aria-labelledby="game-scorers-heading"><h2 id="game-scorers-heading">Бомбардиры</h2>{protocol.scorers.length?<ol className="game-scorers-list">{protocol.scorers.map(p=><li key={p.signupId}><span className="game-rank">{p.rank}</span><span className="game-scorer-identity">{gamePlayerName(p,protocol.roster,ev.main)}<small className="muted">{TEAMS[p.teamIndex].name}{p.userId===null?' · гость':''}</small></span><b>{p.goals}</b></li>)}</ol>:<p className="muted">Авторы голов пока не указаны.</p>}</section>
 
     {result!==undefined && <GameResultSheet ev={ev} protocol={protocol} game={result} onClose={()=>setResult(undefined)} onSaved={()=>{setResult(undefined);reload();}} reload={reload}/>}
     {menu && <ActionSheet title="Действия встречи" onClose={()=>setMenu(false)} busy={busy}>

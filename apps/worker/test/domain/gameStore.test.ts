@@ -19,4 +19,6 @@ test('CAS serializes commands and recognizes old receipts after later mutations'
   expect(await commitGameCommand(d,ev,{requestId:accepted,expectedRevision:0},first)).toMatchObject({kind:'ok',appliedRevision:1,duplicate:true});
   expect(await commitGameCommand(d,ev,{requestId:accepted,expectedRevision:0},{...first,fingerprint:'changed'})).toEqual({kind:'conflict'});
   expect((await getEvent(db(),ev.id))!.gameRevision).toBe(2);
+  // A caller must not apply state prepared at revision 1 by guessing revision 2.
+  expect(await commitGameCommand(d,current,{requestId:'stale-preparation',expectedRevision:2},{...first,fingerprint:'stale-state',state:(JSON.parse(current.gameStateJson!) as GameState)})).toEqual({kind:'conflict'});
 });

@@ -1,16 +1,18 @@
 .match-games { display: grid; gap: 24px; }
+.match-screen .event-summary.game-summary { padding: 16px; border-radius: 24px; }
+.game-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.game-summary-top .group-tag { align-self: auto; max-width: 48%; }
+.game-summary .match-detail-time { font-size: 20px; white-space: nowrap; }
+.game-summary .match-detail-place { font-size: 12px; margin-top: 8px; }
 .match-games h2 { margin: 0 0 14px; font-size: 18px; font-weight: 550; }
 .game-team-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .game-team-name .team-dot { width: 8px; height: 8px; flex: 0 0 8px; margin: 0; }
-.game-team-name.team-red .team-dot { background: #f17c88; }
-.game-team-name.team-blue .team-dot { background: #88b9fa; }
-.game-team-name.team-yellow .team-dot { background: #ebcb69; }
-.game-current { padding: 20px; }
-.game-current-meta, .game-rest { color: #c5c8e3; font-size: 13px; }
-.game-current .btn-text { color: #e3e0f9; }
+.match-games .game-current { padding: 20px; gap: 0; }
+.game-current-meta, .game-rest { color: var(--hint); font-size: 13px; }
+.game-current .btn-text { color: var(--accent-ink); }
 .game-current .row { min-height: 32px; }
 .game-pair { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 12px; font-size: 21px; font-weight: 550; letter-spacing: -.025em; }
-.game-pair-separator { font-weight: 400; color: #c5c8e3; }
+.game-pair-separator { font-weight: 400; color: var(--hint); }
 .game-completed { padding: 4px 0; }
 .game-completed h2 { margin-bottom: 6px; }
 .game-standings-section { padding: 18px 16px; }
@@ -68,8 +70,8 @@
 .match-screen .tabs:has(#tab-games) button { padding-inline: 4px; font-size: 13px; }
 @media (max-width: 359px) {
   .match-screen .tabs:has(#tab-games) button { padding-inline: 2px; font-size: 12px; }
-  .game-pair { font-size: 18px; gap: 6px; }
-  .game-current { padding: 18px; }
+  .game-pair { font-size: 18px; gap: 6px; margin-block: 6px; }
+  .match-games .game-current { padding: 12px 18px; }
   .game-standings { font-size: 12px; }
   .game-rank { margin-right: 5px; }
   .game-standings th, .game-standings td { padding-inline: 2px; }

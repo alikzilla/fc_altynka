@@ -5,6 +5,7 @@ import { GameTeamName } from '../components/GameTeamName';
 import { api, ApiError } from '../lib/api';
 import { clearGameDraft, readGameDraft, writeGameDraft, type GameResultDraft } from '../lib/gameDraft';
 import { useMe } from '../state/me';
+import { gamePlayerName } from '../lib/gamePlayerName';
 
 type Props = { ev: EventDetailDto; protocol: GameProtocolDto; game: GameResult | null; onClose: () => void; onSaved: () => void; reload: () => void };
 
@@ -80,7 +81,8 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
         <h3><GameTeamName index={team}/></h3>
         {protocol.roster.filter(p=>p.teamIndex===team).map(person=>{
           const count=draft.input.scorers.find(g=>g.signupId===person.signupId)?.goals ?? 0;
-          return <div className="game-scorer-control" key={person.signupId}><span className="game-scorer-identity">{person.name}{person.userId===null && <small className="muted">Гость</small>}</span><div className="game-stepper"><button type="button" aria-label={`Убрать гол: ${person.name}`} disabled={!count} onClick={()=>goals(person.signupId,count-1)}>−</button><input type="number" inputMode="numeric" min="0" max={draft.input.score[side]} aria-label={`Голы: ${person.name}`} value={count} onChange={e=>goals(person.signupId,e.target.valueAsNumber)}/><button type="button" aria-label={`Добавить гол: ${person.name}`} disabled={totals[side]>=draft.input.score[side]} onClick={()=>goals(person.signupId,count+1)}>+</button></div></div>;
+          const name=gamePlayerName(person,protocol.roster,ev.main);
+          return <div className="game-scorer-control" key={person.signupId}><span className="game-scorer-identity">{name}{person.userId===null && <small className="muted">Гость</small>}</span><div className="game-stepper"><button type="button" aria-label={`Убрать гол: ${name}`} disabled={!count} onClick={()=>goals(person.signupId,count-1)}>−</button><input type="number" inputMode="numeric" min="0" max={draft.input.score[side]} aria-label={`Голы: ${name}`} value={count} onChange={e=>goals(person.signupId,e.target.valueAsNumber)}/><button type="button" aria-label={`Добавить гол: ${name}`} disabled={totals[side]>=draft.input.score[side]} onClick={()=>goals(person.signupId,count+1)}>+</button></div></div>;
         })}
         {totals[side]>draft.input.score[side]?<p className="field-error">Указано больше голов, чем в результате.</p>:draft.input.score[side]>totals[side] && <p className="muted game-unknown">Автор не указан: {draft.input.score[side]-totals[side]}</p>}
       </section>)}

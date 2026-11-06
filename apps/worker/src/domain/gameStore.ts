@@ -27,7 +27,7 @@ export async function commitGameCommand(d: Deps, ev: EventRow, meta: GameMutatio
   if (!current) return { kind: 'not_found' };
   const previous = previousGameCommand(current, meta, command.fingerprint);
   if (previous) return previous;
-  if (current.gameRevision !== meta.expectedRevision) return { kind: 'conflict' };
+  if (ev.gameRevision !== meta.expectedRevision || current.gameRevision !== meta.expectedRevision) return { kind: 'conflict' };
   const revision = meta.expectedRevision + 1;
   const state: GameState = { ...command.state, receipts: [...command.state.receipts, { requestId: meta.requestId, fingerprint: command.fingerprint, revision }] };
   const guard = [eq(events.id, ev.id), eq(events.protocolVersion, 1), eq(events.gameRevision, meta.expectedRevision)];
