@@ -42,6 +42,12 @@ export const memberships = sqliteTable(
 );
 
 export const events = sqliteTable('events', {
+  protocolVersion: integer('protocol_version').$type<0 | 1>().notNull().default(0),
+  startedAt: integer('started_at'),
+  completedAt: integer('completed_at'),
+  gameRevision: integer('game_revision').notNull().default(0),
+  rosterRevision: integer('roster_revision').notNull().default(0),
+  gameStateJson: text('game_state_json'),
   ratingEnabled: integer('rating_enabled', { mode: 'boolean' }).notNull().default(false),
   ratingSnapshot: text('rating_snapshot'),
   id: integer('id').primaryKey({ autoIncrement: true }),

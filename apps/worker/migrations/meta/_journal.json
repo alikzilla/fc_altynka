@@ -78,6 +78,13 @@
       "when": 1793968903530,
       "tag": "0010_unified_profile",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793976574392,
+      "tag": "0011_game_statistics",
+      "breakpoints": true
     }
   ]
 }

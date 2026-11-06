@@ -5,7 +5,8 @@
   "scripts": {
     "test:ui": "pnpm build && playwright test",
     "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs",
-    "test:migrations": "node --test scripts/multiple-groups-migration.test.mjs",
+    "test:migrations": "node --test scripts/multiple-groups-migration.test.mjs scripts/game-statistics-migration.test.mjs",
+    "test:migrations:games": "node --test scripts/game-statistics-migration.test.mjs",
     "bot:profile": "node scripts/bot-profile.mjs",
     "mcp:telegram": "node scripts/mcp/telegram.mjs",
     "check:telegram": "node scripts/mcp/check-telegram.mjs",

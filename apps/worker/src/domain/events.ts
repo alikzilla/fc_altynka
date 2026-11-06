@@ -96,7 +96,7 @@ export async function createEvent(
   const [community] = await d.db.select().from(communities).where(eq(communities.id, v.communityId));
   const [row] = await d.db
     .insert(events)
-    .values({ communityId: v.communityId, ratingEnabled: true, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
+    .values({ communityId: v.communityId, protocolVersion: 1, ratingEnabled: true, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
     .returning({ id: events.id });
   await syncEvent(d, row.id, []);
   return row.id;
