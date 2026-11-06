@@ -48,6 +48,7 @@ export const events = sqliteTable('events', {
   gameRevision: integer('game_revision').notNull().default(0),
   rosterRevision: integer('roster_revision').notNull().default(0),
   gameStateJson: text('game_state_json'),
+  reviewSyncPending: integer('review_sync_pending', { mode: 'boolean' }).notNull().default(false),
   ratingEnabled: integer('rating_enabled', { mode: 'boolean' }).notNull().default(false),
   ratingSnapshot: text('rating_snapshot'),
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -70,7 +71,7 @@ export const events = sqliteTable('events', {
   teamsMessageId: integer('teams_message_id'),
   createdBy: integer('created_by').notNull().references(() => users.id),
   createdAt: integer('created_at').notNull(),
-});
+}, t => [index('events_game_review_recovery').on(t.reviewSyncPending,t.completedAt)]);
 
 export const signups = sqliteTable(
   'signups',

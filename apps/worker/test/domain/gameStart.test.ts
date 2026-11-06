@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { events, signups, teamAssignments, users } from '../../src/db/schema';
-import { addGuest, getEvent, joinEvent, leaveEvent, removeSignup, scheduleEvent } from '../../src/domain/events';
+import { addGuest, cancelEvent, getEvent, joinEvent, leaveEvent, removeSignup, scheduleEvent } from '../../src/domain/events';
 import { publishTeams, saveTeams } from '../../src/domain/teams';
 import { startGameSession, getGameProtocol } from '../../src/domain/gameStart';
 import { commitGameCommand } from '../../src/domain/gameStore';
@@ -53,6 +53,20 @@ test('retry of a persisted start retries Telegram sync after the first sync fail
   await expect(startGameSession(w.d,w.eventId,w.actorId,meta)).rejects.toThrow('sync unavailable');
   expect((await startGameSession(w.d,w.eventId,w.actorId,meta)).kind).toBe('ok');
   expect(request).toHaveBeenCalledTimes(2);
+});
+
+test('a start committed between cancellation read and write prevents the stale cancellation', async () => {
+  const w=await gameFixture();
+  const real=w.d.db;
+  const racingDb=new Proxy(real,{get(target,key){
+    if(key==='update')return (table:typeof events)=>({set:(fields:Partial<typeof events.$inferInsert>)=>({where:(condition:Parameters<ReturnType<ReturnType<typeof real.update>['set']>['where']>[0])=>({returning:async(selection:{id:typeof events.id})=>{
+      expect((await startGameSession(w.d,w.eventId,w.actorId,{requestId:'racing-start',expectedRevision:0})).kind).toBe('ok');
+      return real.update(table).set(fields).where(condition).returning(selection);
+    }})})});
+    const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;
+  }}) as typeof real;
+  expect(await cancelEvent({...w.d,db:racingDb},w.eventId)).toBe('closed');
+  expect((await getGameProtocol(w.d,w.eventId,true))?.canRecord).toBe(true);
 });
 
 test('stale roster revision prevents a snapshot committing after guest removal; guards roll back partial batches', async () => {

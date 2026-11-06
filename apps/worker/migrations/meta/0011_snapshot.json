@@ -467,9 +467,26 @@
           "primaryKey": false,
           "notNull": true,
           "autoincrement": false
+        },
+        "review_sync_pending": {
+          "name": "review_sync_pending",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "events_game_review_recovery": {
+          "name": "events_game_review_recovery",
+          "columns": [
+            "review_sync_pending",
+            "completed_at"
+          ],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "events_community_id_communities_id_fk": {
           "name": "events_community_id_communities_id_fk",

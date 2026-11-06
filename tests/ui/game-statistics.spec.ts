@@ -72,6 +72,19 @@ test('two organizers see a conflict rather than transferring an old result to a 
   await expect(page.getByRole('button',{name:'Сохранить результат',exact:true})).toBeDisabled();await second.close();
 });
 
+test('lost finish response preserves participants, survives closing, and reconciles completion after refresh',async({page})=>{
+  const world=gameStatisticsWorld({started:true});world.add({score:[1,0],scorers:[]});world.dropNextFinish=true;
+  await world.attach(page);await page.goto('/event/7?tab=games');
+  await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Завершить встречу',exact:true}).click();
+  await page.getByRole('button',{name:'Подтвердить завершение',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Повтори');
+  for(const checkbox of await page.getByRole('checkbox').all())await expect(checkbox).toBeDisabled();
+  await page.getByRole('button',{name:'Закрыть',exact:true}).click();await page.getByRole('button',{name:'Действия',exact:true}).click();
+  await expect(page.getByRole('button',{name:'Отменить последнюю запись',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Проверить завершение',exact:true}).click();await page.getByRole('button',{name:'Повторить завершение',exact:true}).click();
+  await expect(page.getByRole('dialog')).toHaveCount(0);const sends=world.requests.filter(r=>r.path.endsWith('/finish'));expect(sends).toHaveLength(2);expect(sends[0].body).toEqual(sends[1].body);
+  await page.reload();await expect(page.getByText('Итоги встречи',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Внести результат',exact:true})).toHaveCount(0);
+});
+
 test('closed payment still allows results and sport completion, with history corrections and undo',async({page})=>{
   const world=gameStatisticsWorld({started:true,count:2});world.closePayment();await world.attach(page);
   await page.goto('/matches?view=active');await page.getByRole('link',{name:/8 ноября/}).click();

@@ -1,9 +1,12 @@
+ALTER TABLE `events` ADD `review_sync_pending` integer DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE `events` ADD `protocol_version` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `events` ADD `started_at` integer;--> statement-breakpoint
 ALTER TABLE `events` ADD `completed_at` integer;--> statement-breakpoint
 ALTER TABLE `events` ADD `game_revision` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `events` ADD `roster_revision` integer DEFAULT 0 NOT NULL;--> statement-breakpoint
 ALTER TABLE `events` ADD `game_state_json` text;
+--> statement-breakpoint
+CREATE INDEX `events_game_review_recovery` ON `events` (`review_sync_pending`,`completed_at`);
 --> statement-breakpoint
 CREATE TRIGGER game_state_valid_insert BEFORE INSERT ON events
 WHEN NEW.protocol_version NOT IN (0,1) OR (NEW.game_state_json IS NOT NULL AND NOT json_valid(NEW.game_state_json))
@@ -19,7 +22,7 @@ BEGIN SELECT RAISE(ABORT, 'game_state_invalid'); END;
 --> statement-breakpoint
 CREATE TRIGGER game_event_locked BEFORE UPDATE ON events
 WHEN OLD.protocol_version = 1 AND OLD.started_at IS NOT NULL AND (
- NEW.started_at IS NOT OLD.started_at OR NEW.protocol_version != 1 OR NEW.team_count IS NOT OLD.team_count OR NEW.base_limit IS NOT OLD.base_limit OR NEW.teams_roster IS NOT OLD.teams_roster OR NEW.rating_snapshot IS NOT OLD.rating_snapshot OR NEW.teams_published_at IS NOT OLD.teams_published_at OR NEW.date IS NOT OLD.date OR NEW.start_time IS NOT OLD.start_time OR NEW.duration_hours IS NOT OLD.duration_hours OR NEW.place IS NOT OLD.place
+ NEW.started_at IS NOT OLD.started_at OR NEW.protocol_version != 1 OR NEW.status = 'cancelled' OR NEW.team_count IS NOT OLD.team_count OR NEW.base_limit IS NOT OLD.base_limit OR NEW.teams_roster IS NOT OLD.teams_roster OR NEW.rating_snapshot IS NOT OLD.rating_snapshot OR NEW.teams_published_at IS NOT OLD.teams_published_at OR NEW.date IS NOT OLD.date OR NEW.start_time IS NOT OLD.start_time OR NEW.duration_hours IS NOT OLD.duration_hours OR NEW.place IS NOT OLD.place
  OR (OLD.completed_at IS NOT NULL AND NEW.completed_at IS NOT OLD.completed_at))
 BEGIN SELECT RAISE(ABORT, 'game_roster_locked'); END;
 --> statement-breakpoint

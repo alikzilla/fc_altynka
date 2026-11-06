@@ -7,6 +7,7 @@ import { getEvent, type Deps } from './events';
 export interface GameStoredCommand {
   fingerprint: string; state: GameState; startedAt: number | null; completedAt: number | null;
   status?: EventRow['status'];
+  reviewSyncPending?: boolean;
 }
 export type GameCommitResult = { kind: 'ok'; appliedRevision: number; duplicate: boolean } | { kind: 'conflict' | 'not_found' };
 
@@ -36,6 +37,7 @@ export async function commitGameCommand(d: Deps, ev: EventRow, meta: GameMutatio
   const saved = await d.db.update(events).set({
     startedAt: command.startedAt, completedAt: command.completedAt, gameRevision: revision,
     gameStateJson: JSON.stringify(state), ...(command.status === undefined ? {} : { status: command.status }),
+    ...(command.reviewSyncPending === undefined ? {} : { reviewSyncPending: command.reviewSyncPending }),
   }).where(and(...guard)).returning({ id: events.id });
   if (saved.length) return { kind: 'ok', appliedRevision: revision, duplicate: false };
   const latest = await getEvent(d.db, ev.id);

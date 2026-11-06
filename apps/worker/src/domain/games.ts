@@ -3,7 +3,7 @@ import { getEvent, type Deps } from './events';
 import { commitGameCommand, parseGameState, previousGameCommand } from './gameStore';
 import { gameCommandResponse, type GameCommandResult } from './gameStart';
 import { getBillByEvent } from './bills';
-import { ensureGameReview } from './ratings';
+import { recoverGameReview } from './gameRecovery';
 
 function resultFingerprint(action: string, input?: GameResultInput, gameId?: string): string {
   return JSON.stringify({ action, gameId: gameId ?? null, ...(input ? { score: input.score, scorers: [...input.scorers].sort((a, b) => a.signupId - b.signupId), firstRestTeamIndex: input.firstRestTeamIndex ?? null } : {}) });
@@ -85,7 +85,7 @@ export async function finishGameSession(d: Deps, eventId: number, actorId: numbe
   const fingerprint = JSON.stringify({ action: 'finish', participantSignupIds: ids });
   const previous = previousGameCommand(ev, meta, fingerprint);
   if (previous) {
-    if (previous.kind === 'ok') { await d.sync.request(eventId, { parts: ['event'], review: true }); await ensureGameReview(d, eventId); }
+    if (previous.kind === 'ok') await recoverGameReview(d,eventId);
     return gameCommandResponse(d, eventId, previous);
   }
   if (ev.protocolVersion !== 1 || ev.status === 'cancelled') return { kind: 'closed' };
@@ -96,12 +96,10 @@ export async function finishGameSession(d: Deps, eventId: number, actorId: numbe
   const bill = await getBillByEvent(d.db, eventId);
   const result = await commitGameCommand(d, ev, meta, {
     fingerprint, state: { ...state, finishParticipants: ids, finishedBy: actorId },
-    startedAt: ev.startedAt, completedAt: Math.max(d.now, ev.startedAt), status: bill?.status === 'open' ? 'billing' : 'closed',
+    startedAt: ev.startedAt, completedAt: Math.max(d.now, ev.startedAt), status: bill?.status === 'open' ? 'billing' : 'closed', reviewSyncPending:true,
   });
   if (result.kind === 'ok') {
-    // Queue durable recovery before creating the review: a DB failure must not lose that work.
-    await d.sync.request(eventId, { parts: ['event'], review: true });
-    await ensureGameReview(d, eventId);
+    await recoverGameReview(d,eventId);
   }
   return gameCommandResponse(d, eventId, result);
 }

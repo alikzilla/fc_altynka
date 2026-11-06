@@ -1,6 +1,6 @@
 import { guardRosterMutation } from './rosterGuard';
 import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type QueueSplit, type Role } from '@altynka/core';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { communities, events, memberships, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
 import type { Notice, SyncPort } from '../sync/port';
@@ -244,7 +244,7 @@ async function cancelEventUnsafe(d: Deps, eventId: number): Promise<'ok' | 'not_
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
-  const changed = await d.db.update(events).set({ status: 'cancelled' }).where(and(eq(events.id, eventId), sql`not exists (select 1 from match_reviews where event_id = ${eventId})`)).returning({ id: events.id });
+  const changed = await d.db.update(events).set({ status: 'cancelled' }).where(and(eq(events.id, eventId), or(eq(events.protocolVersion,0),isNull(events.startedAt)), sql`not exists (select 1 from match_reviews where event_id = ${eventId})`)).returning({ id: events.id });
   if (!changed.length) return 'closed';
   await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
   return 'ok';

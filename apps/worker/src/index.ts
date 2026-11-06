@@ -6,6 +6,7 @@ import { createBot } from './bot/bot';
 import { getDb } from './db/client';
 import type { Env } from './env';
 import { doSyncPort } from './sync/port';
+import { recoverPendingGameReviews } from './domain/gameRecovery';
 
 export { EventSync } from './sync/EventSync';
 
@@ -26,4 +27,10 @@ app.post('/tg/webhook', async c => {
   return webhookCallback(bot, 'hono', { secretToken: c.env.WEBHOOK_SECRET })(c);
 });
 
-export default app;
+export default {
+  fetch:app.fetch,
+  async scheduled(_controller,env) {
+    const result=await recoverPendingGameReviews({db:getDb(env.DB),now:Date.now(),sync:doSyncPort(env)});
+    if(result.failed)console.error(JSON.stringify({event:'game_review_recovery',...result}));
+  },
+} satisfies ExportedHandler<Env>;

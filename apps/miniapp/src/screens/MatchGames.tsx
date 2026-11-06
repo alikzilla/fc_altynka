@@ -1,5 +1,5 @@
 import { TEAMS, type EventDetailDto, type GameProtocolDto, type GameResult } from '@altynka/core';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
 import { GameTeamName } from '../components/GameTeamName';
@@ -8,6 +8,8 @@ import { ConfirmButton, EmptyState } from '../components/ui';
 import { api, ApiError } from '../lib/api';
 import { GameResultSheet } from './GameResultSheet';
 import { gamePlayerName } from '../lib/gamePlayerName';
+import { clearGameFinish, readGameFinish, writeGameFinish, type GameFinishDraft } from '../lib/gameDraft';
+import { useMe } from '../state/me';
 
 function goalsText(protocol: GameProtocolDto, game: GameResult, team: number, ev: EventDetailDto): string {
   const entries=game.scorers.flatMap(g=>{
@@ -21,6 +23,7 @@ function goalsText(protocol: GameProtocolDto, game: GameResult, team: number, ev
 }
 
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
+  const me=useMe();
   const protocol=ev.gameProtocol;
   const [result,setResult]=useState<GameResult|null|undefined>(undefined);
   const [menu,setMenu]=useState(false);
@@ -29,34 +32,43 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const locked=useRef(false);
-  const request=useRef<{requestId:string;expectedRevision:number}|null>(null);
+  const [pendingFinish,setPendingFinish]=useState<GameFinishDraft|null>(()=>readGameFinish(ev.id,me.userId));
+  const finishRequest=useRef<GameFinishDraft|null>(pendingFinish);
+  const undoRequest=useRef<{requestId:string;expectedRevision:number}|null>(null);
+  useEffect(()=>{
+    if(protocol?.state==='completed'){
+      clearGameFinish(ev.id,me.userId);finishRequest.current=null;setPendingFinish(null);setFinishing(false);setMenu(false);setError(null);
+    }
+  },[protocol?.state,ev.id,me.userId]);
   if(!protocol || protocol.state==='legacy') return <EmptyState title="Протокол не велся" text="Для этой встречи результаты коротких игр не записывались."/>;
   if(protocol.state==='not_started') return <EmptyState title="Встреча ещё не началась" text="После подтверждения составов организатор начнёт встречу. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
   const active=protocol.state==='playing';
   async function finish() {
     if(locked.current) return;
     locked.current=true; setBusy(true); setError(null);
-    request.current ??= {requestId:crypto.randomUUID(),expectedRevision:protocol!.revision};
+    finishRequest.current ??= {version:1,requestId:crypto.randomUUID(),expectedRevision:protocol!.revision,participantSignupIds:[...selected]};
+    const command=finishRequest.current;setPendingFinish(command);writeGameFinish(ev.id,me.userId,command);
     try {
-      await api.send('POST',`/api/events/${ev.id}/games/finish`,{...request.current,participantSignupIds:selected});
-      request.current=null; setFinishing(false); reload();
+      const {version:_version,...body}=command;
+      await api.send('POST',`/api/events/${ev.id}/games/finish`,body);
+      finishRequest.current=null;setPendingFinish(null);clearGameFinish(ev.id,me.userId);setFinishing(false);reload();
     } catch(failure) {
-      setError(failure instanceof ApiError && failure.status===409?'Данные встречи изменились. Проверь участников и повтори завершение.':'Не получилось подтвердить завершение. Попробуй ещё раз.');
-      if(failure instanceof ApiError && failure.status>=400 && failure.status<500){request.current=null;reload();}
+      setError(failure instanceof ApiError && failure.status===409?'Данные встречи изменились. Проверь участников и повтори завершение.':'Не удалось подтвердить завершение. Повтори отправку с теми же участниками.');
+      if(failure instanceof ApiError && failure.status>=400 && failure.status<500){finishRequest.current=null;setPendingFinish(null);clearGameFinish(ev.id,me.userId);reload();}
     } finally {locked.current=false;setBusy(false);}
   }
   async function undo() {
     if(locked.current) return;
     locked.current=true;setBusy(true);setError(null);
-    request.current ??= {requestId:crypto.randomUUID(),expectedRevision:protocol!.revision};
-    try {await api.send('POST',`/api/events/${ev.id}/games/undo`,request.current);request.current=null;setMenu(false);reload();}
-    catch(failure){setError('Не получилось отменить запись. Повтори отправку.');if(failure instanceof ApiError && failure.status<500){request.current=null;reload();}}
+    undoRequest.current ??= {requestId:crypto.randomUUID(),expectedRevision:protocol!.revision};
+    try {await api.send('POST',`/api/events/${ev.id}/games/undo`,undoRequest.current);undoRequest.current=null;setMenu(false);reload();}
+    catch(failure){setError('Не получилось отменить запись. Повтори отправку.');if(failure instanceof ApiError && failure.status<500){undoRequest.current=null;reload();}}
     finally{locked.current=false;setBusy(false);}
   }
   function openFinish(){
-    request.current=null;setError(null);setMenu(false);
+    setError(null);setMenu(false);
     const appeared=new Set(protocol!.games.flatMap(g=>[...g.pair]));
-    setSelected(protocol!.roster.filter(p=>!protocol!.games.length || appeared.has(p.teamIndex)).map(p=>p.signupId));setFinishing(true);
+    setSelected(finishRequest.current?.participantSignupIds ?? protocol!.roster.filter(p=>!protocol!.games.length || appeared.has(p.teamIndex)).map(p=>p.signupId));setFinishing(true);
   }
   return <div className="match-games">
     {active && protocol.currentPair ? <section className="card material-blue game-current" aria-label="Текущая игра">
@@ -83,13 +95,13 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
 
     {result!==undefined && <GameResultSheet ev={ev} protocol={protocol} game={result} onClose={()=>setResult(undefined)} onSaved={()=>{setResult(undefined);reload();}} reload={reload}/>}
     {menu && <ActionSheet title="Действия встречи" onClose={()=>setMenu(false)} busy={busy}>
-      {protocol.canFinish && <button className="sheet-action" onClick={openFinish}>Завершить встречу</button>}
-      {protocol.canUndo && <ConfirmButton className="sheet-action danger-text" label="Отменить последнюю запись" confirmLabel={`Убрать результат игры ${protocol.games.at(-1)?.sequence}?`} disabled={busy} onConfirm={undo}/>}
+      {protocol.canFinish && <button className="sheet-action" onClick={openFinish}>{pendingFinish?'Проверить завершение':'Завершить встречу'}</button>}
+      {protocol.canUndo && !pendingFinish && <ConfirmButton className="sheet-action danger-text" label="Отменить последнюю запись" confirmLabel={`Убрать результат игры ${protocol.games.at(-1)?.sequence}?`} disabled={busy} onConfirm={undo}/>}
       {error && <p className="field-error" role="alert">{error}</p>}
     </ActionSheet>}
-    {finishing && <ActionSheet title="Завершить встречу" onClose={()=>setFinishing(false)} busy={busy} footer={<button className="btn primary wide" disabled={busy || protocol.games.length>0 && !selected.length} onClick={finish}>{busy?'Завершаем…':'Подтвердить завершение'}</button>}>
+    {finishing && <ActionSheet title="Завершить встречу" onClose={()=>setFinishing(false)} busy={busy} footer={<button className="btn primary wide" disabled={busy || protocol.games.length>0 && !selected.length} onClick={finish}>{busy?'Завершаем…':pendingFinish?'Повторить завершение':'Подтвердить завершение'}</button>}>
       <p className="muted">Отметь тех, кто играл. Им откроется опрос. Составы и оплата сохранятся.</p>
-      <fieldset className="form-fields finish-roster" disabled={busy}>{protocol.roster.map(person=><label className="finish-person" key={person.signupId}><input type="checkbox" checked={selected.includes(person.signupId)} onChange={e=>setSelected(ids=>e.target.checked?[...ids,person.signupId]:ids.filter(id=>id!==person.signupId))}/><span>{person.name}{person.userId===null && <small className="muted"> · гость</small>}</span></label>)}</fieldset>
+      <fieldset className="form-fields finish-roster" disabled={busy || pendingFinish!==null}>{protocol.roster.map(person=><label className="finish-person" key={person.signupId}><input type="checkbox" checked={selected.includes(person.signupId)} onChange={e=>setSelected(ids=>e.target.checked?[...ids,person.signupId]:ids.filter(id=>id!==person.signupId))}/><span>{person.name}{person.userId===null && <small className="muted"> · гость</small>}</span></label>)}</fieldset>
       {!protocol.games.length && <p className="muted">Если никто не играл, убери все отметки — встреча завершится без опроса.</p>}
       {error && <p className="field-error" role="alert">{error}</p>}
     </ActionSheet>}

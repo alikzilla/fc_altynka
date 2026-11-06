@@ -32,6 +32,7 @@ test('0011 preserves legacy data, locks started rosters and tracks preparation r
       `INSERT INTO signups(event_id,guest_name,seq,created_at) VALUES(1,'Late',2,1)`,
       `UPDATE team_assignments SET team_index=1 WHERE signup_id=1`, `DELETE FROM team_assignments WHERE signup_id=1`,
       `UPDATE events SET team_count=3 WHERE id=1`, `UPDATE events SET started_at=NULL WHERE id=1`,
+      `UPDATE events SET status='cancelled' WHERE id=1`,
     ]) assert.throws(() => db.exec(statement), /game_roster_locked|game_state_invalid/);
     db.exec('UPDATE events SET status=\'closed\' WHERE id=1');
     db.exec(`INSERT INTO signups(event_id,guest_name,seq,created_at) VALUES(3,'Legacy',1,1)`);

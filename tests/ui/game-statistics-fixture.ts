@@ -19,7 +19,7 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
   const receipts=new Map<string,{fingerprint:string;revision:number}>();
   const requests:{path:string;body:any}[]=[];
   const world={
-    dropNextResult:false,requests,
+    dropNextResult:false,dropNextFinish:false,requests,
     get games(){return games;},get pair(){return pair;},get revision(){return revision;},
     closePayment(){billClosed=true;},
     renameGuest(name:string){people[5].name=name;},
@@ -72,6 +72,7 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
         else return reply({error:'not_found'},404);
         receipts.set(requestId,{fingerprint,revision});
         if(world.dropNextResult&&path.endsWith('/results')){world.dropNextResult=false;return route.abort('failed');}
+        if(world.dropNextFinish&&path.endsWith('/finish')){world.dropNextFinish=false;return route.abort('failed');}
         return reply({protocol:world.protocol(manage),appliedRevision:revision});
       });
     },
