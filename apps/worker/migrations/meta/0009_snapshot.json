@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "6a2a5d62-d5cf-4097-b551-c64d61edcd6c",
+  "id": "222f30ad-1d68-4470-b8f0-4c18384f7812",
   "prevId": "32e2df77-dcf9-40fe-bbe1-7aa459981d96",
   "tables": {
     "bill_lines": {
@@ -705,49 +705,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": false
-        },
-        "display_name": {
-          "name": "display_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "kaspi_phone": {
-          "name": "kaspi_phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "profile_completed_at": {
-          "name": "profile_completed_at",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "playing_position": {
-          "name": "playing_position",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "dominant_foot": {
-          "name": "dominant_foot",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "notifications_enabled": {
-          "name": "notifications_enabled",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         }
       },
       "indexes": {
@@ -1196,17 +1153,10 @@
     "skill_assessments": {
       "name": "skill_assessments",
       "columns": {
-        "community_id": {
-          "name": "community_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
         "user_id": {
           "name": "user_id",
           "type": "integer",
-          "primaryKey": false,
+          "primaryKey": true,
           "notNull": true,
           "autoincrement": false
         },
@@ -1284,19 +1234,6 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "skill_assessments_community_id_communities_id_fk": {
-          "name": "skill_assessments_community_id_communities_id_fk",
-          "tableFrom": "skill_assessments",
-          "tableTo": "communities",
-          "columnsFrom": [
-            "community_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "skill_assessments_user_id_users_id_fk": {
           "name": "skill_assessments_user_id_users_id_fk",
           "tableFrom": "skill_assessments",
@@ -1311,15 +1248,7 @@
           "onUpdate": "no action"
         }
       },
-      "compositePrimaryKeys": {
-        "skill_assessments_community_id_user_id_pk": {
-          "columns": [
-            "community_id",
-            "user_id"
-          ],
-          "name": "skill_assessments_community_id_user_id_pk"
-        }
-      },
+      "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {
         "skill_teamwork_range": {
