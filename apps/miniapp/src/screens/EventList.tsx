@@ -5,7 +5,7 @@ import { Avatar, Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
 import { api } from '../lib/api';
 import { isOpen } from '../lib/labels';
-import { creatableCommunities, useMe } from '../state/me';
+import { canManageEvent, useMe } from '../state/me';
 import { PlayerProfileSheet } from './PlayerProfile';
 import { ConfirmButton, useToast } from '../components/ui';
 
@@ -17,7 +17,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   const [busy, setBusy] = useState(false);
   const [profileId, setProfileId] = useState<number | null>(null);
   const [selected, setSelected] = useState<SignupDto | null>(null);
-  const canRemove = (s: SignupDto) => open && (creatableCommunities(me).length > 0 || s.userId === null && s.invitedByUserId === me.userId);
+  const canRemove = (s: SignupDto) => open && (canManageEvent(ev) || s.userId === null && s.invitedByUserId === me.userId);
   async function remove(s: SignupDto) {
     if (locked.current || !canRemove(s)) return;
     locked.current = true; setBusy(true);

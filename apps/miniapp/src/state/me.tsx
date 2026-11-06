@@ -1,4 +1,4 @@
-import type { MeDto } from '@altynka/core';
+import type { EventDetailDto, MeDto } from '@altynka/core';
 import { createContext, useContext } from 'react';
 
 export const MeContext = createContext<MeDto | null>(null);
@@ -16,3 +16,6 @@ export const MeReloadContext = createContext<() => void>(() => {});
 export const useReloadMe = () => useContext(MeReloadContext);
 export const MeUpdateContext = createContext<(me: MeDto | ((current: MeDto) => MeDto)) => void>(() => {});
 export const useUpdateMe = () => useContext(MeUpdateContext);
+
+/** Organizer rights are per match: the viewer's role in the match's own group decides. */
+export const canManageEvent = (ev: Pick<EventDetailDto, 'viewerRole'>) => ev.viewerRole !== 'player';

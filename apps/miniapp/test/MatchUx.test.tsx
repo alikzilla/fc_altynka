@@ -28,7 +28,7 @@ beforeEach(() => {
     }
     if (path === '/api/events') return Response.json({ active: created ? [{ ...match, id: 2, date: '2026-11-08' }] : [match], past: [] });
     if (path === '/api/matches') return Response.json({ events: [{ ...match, id: 9, date: '2026-10-31', status: 'closed' }], nextCursor: null });
-    if (path === '/api/events/1') return Response.json({ ...match, status, main: roster, startTime: ['scheduled', 'playing'].includes(status) ? '21:00' : null, durationHours: ['scheduled', 'playing'].includes(status) ? 1 : null });
+    if (path === '/api/events/1') return Response.json({ ...match, viewerRole: role, status, main: roster, startTime: ['scheduled', 'playing'].includes(status) ? '21:00' : null, durationHours: ['scheduled', 'playing'].includes(status) ? 1 : null });
     if (path === '/api/events/1/bill') { billSubmissions.push(JSON.parse(String(init?.body))); return Response.json({ id: 1 }); }
     throw new Error(`Unexpected ${path}`);
   }));

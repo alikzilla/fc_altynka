@@ -1,10 +1,11 @@
-import { formatRating, playingPositionLabel, type MemberDto, type PlayersDto } from '@altynka/core';
+import { formatRating, playingPositionLabel, type MemberDto, type PlayersDto, type PlayerSummaryDto } from '@altynka/core';
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
-import { useMe } from '../state/me';
+import { showGroups, useMe } from '../state/me';
 import { EmptyState, ErrorNote, Loading, Screen, useToast } from '../components/ui';
 import { useResource } from '../hooks/useResource';
+import { GroupTag } from '../components/GroupTag';
 import { Avatar, Icon } from '../components/Icon';
 import { PlayerProfileSheet } from './PlayerProfile';
 
@@ -26,32 +27,45 @@ function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; com
   </div>;
 }
 
+function PlayerRow({ person, member, communityId, managing, toggle, onSaved }: { person: PlayerSummaryDto; member: MemberDto | undefined; communityId: number; managing: boolean; toggle: () => void; onSaved: () => void }) {
+  const [, navigate] = useLocation();
+  return <li>
+    <button type="button" className="btn-plain player-directory-row" onClick={() => navigate(`/players/${person.userId}`)}>
+      <Avatar name={person.displayName} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
+      <span className="rating-small">{formatRating(person.rating.value)}</span><Icon name="back" className="chevron-right" />
+    </button>
+    {member && <><button className="btn-text player-management-toggle" aria-expanded={managing} aria-label={`Управление: ${person.displayName}`} onClick={toggle}>Управление</button>
+      {managing && <MemberEditor member={member} communityId={communityId} onSaved={onSaved} />}</>}
+  </li>;
+}
+
+/** Role management is fetched only for a group the viewer administers. */
+function GroupSection({ group, titled, search, onChanged }: { group: PlayersDto['groups'][number]; titled: boolean; search: string; onChanged: () => void }) {
+  const admin = group.role === 'admin';
+  const management = useResource<MemberDto[]>(admin ? `/api/members?communityId=${group.community.id}` : null);
+  const [managing, setManaging] = useState<number | null>(null);
+  const needle = search.trim().toLocaleLowerCase('ru');
+  const players = group.players.filter(p => p.displayName.toLocaleLowerCase('ru').includes(needle));
+  if (!players.length) return null;
+  const headingId = `players-group-${group.community.id}`;
+  return <section className="players-group" aria-labelledby={titled ? headingId : undefined}>
+    {titled && <header className="players-group-header"><h2 id={headingId}><GroupTag community={group.community} /></h2><span className="muted">{group.players.length}</span></header>}
+    <ul className="card list player-directory">{players.map(person => <PlayerRow key={person.userId} person={person} member={management.data?.find(m => m.userId === person.userId)} communityId={group.community.id} managing={managing === person.userId} toggle={() => setManaging(managing === person.userId ? null : person.userId)} onSaved={() => { onChanged(); management.reload(); }} />)}</ul>
+  </section>;
+}
+
 export function Players({ selectedUserId }: { selectedUserId?: number } = {}) {
   const me = useMe();
   const [, navigate] = useLocation();
-  const { data: directory, error, loading, reload } = useResource<PlayersDto>('/api/players');
-  // TEMP (Task 7): flattened across groups; management limited to the first group the user administers.
-  const data = directory && [...new Map(directory.groups.flatMap(g => g.players).map(p => [p.userId, p])).values()];
-  const adminCommunityId = me.communities.find(c => c.role === 'admin')?.id;
-  const management = useResource<MemberDto[]>(adminCommunityId ? `/api/members?communityId=${adminCommunityId}` : null);
+  const { data, error, loading, reload } = useResource<PlayersDto>('/api/players');
   const [search, setSearch] = useState('');
-  const [managing, setManaging] = useState<number | null>(null);
-  const filtered = data?.filter(p => p.displayName.toLocaleLowerCase('ru').includes(search.trim().toLocaleLowerCase('ru')));
-  return <Screen title="Игроки команды" back="/profile">
+  const needle = search.trim().toLocaleLowerCase('ru');
+  const empty = data && !data.groups.some(g => g.players.some(p => p.displayName.toLocaleLowerCase('ru').includes(needle)));
+  return <Screen title="Игроки" back="/profile">
     <label className="form player-search"><span className="sr-only">Поиск игрока</span><input type="search" placeholder="Найти по имени" value={search} onChange={e => setSearch(e.target.value)} /></label>
     {loading && !data && <Loading />}{error && <ErrorNote text="Не получилось загрузить игроков" retry={reload} />}
-    {filtered && !filtered.length && <EmptyState title={search ? 'Игрок не найден' : 'В команде пока никого'} text={search ? 'Попробуй другое имя.' : 'Игроки появятся после открытия приложения из группы.'} />}
-    {filtered && filtered.length > 0 && <ul className="card list player-directory">{filtered.map(person => {
-      const member = management.data?.find(m => m.userId === person.userId);
-      return <li key={person.userId}>
-        <button type="button" className="btn-plain player-directory-row" onClick={() => navigate(`/players/${person.userId}`)}>
-          <Avatar name={person.displayName} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
-          <span className="rating-small">{formatRating(person.rating.value)}</span><Icon name="back" className="chevron-right" />
-        </button>
-        {member && <><button className="btn-text player-management-toggle" aria-expanded={managing === person.userId} aria-label={`Управление: ${person.displayName}`} onClick={() => setManaging(managing === person.userId ? null : person.userId)}>Управление</button>
-          {managing === person.userId && adminCommunityId && <MemberEditor member={member} communityId={adminCommunityId} onSaved={() => { reload(); management.reload(); }} />}</>}
-      </li>;
-    })}</ul>}
+    {empty && <EmptyState title={search ? 'Игрок не найден' : 'В команде пока никого'} text={search ? 'Попробуй другое имя.' : 'Игроки появятся после открытия приложения из группы.'} />}
+    {data?.groups.map(group => <GroupSection key={group.community.id} group={group} titled={showGroups(me)} search={search} onChanged={reload} />)}
     <p className="muted">Рейтинг помогает собирать равные команды. Сначала он основан на анкете, затем уточняется оценками матчей.</p>
     {selectedUserId !== undefined && <PlayerProfileSheet key={selectedUserId} userId={selectedUserId} onClose={() => navigate('/players', { replace: true })} />}
   </Screen>;

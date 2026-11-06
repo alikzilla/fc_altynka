@@ -137,3 +137,12 @@ test.each([401, 403])('profile refresh with explicit authorization failure %s bl
   expect(screen.queryByText('Ты пока не записан')).not.toBeInTheDocument();
   expect(screen.getByRole('alert')).toBeVisible();
 });
+
+test('organizer in another group gets no organizer controls when viewerRole is player', async () => {
+  me.communities = [{ id: 1, title: 'FC Altynka', role: 'player' }, { id: 2, title: 'Другая', role: 'organizer' }];
+  ev.viewerRole = 'player'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
+  open();
+  await screen.findByRole('button', { name: 'Иду' });
+  expect(screen.queryByRole('button', { name: 'Действия матча' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Назначить игру' })).toBeNull();
+});

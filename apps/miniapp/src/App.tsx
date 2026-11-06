@@ -1,7 +1,7 @@
 import type { MeDto } from '@altynka/core';
 import { useEffect, useRef } from 'react';
 import { Route, Switch, useLocation, useSearch } from 'wouter';
-import { creatableCommunities, MeContext, MeReloadContext, MeUpdateContext } from './state/me';
+import { MeContext, MeReloadContext, MeUpdateContext } from './state/me';
 import { NotificationsProvider } from './state/notifications';
 import { Nav } from './components/Nav';
 import { AddGuest } from './screens/AddGuest';
@@ -68,7 +68,7 @@ function TeamApp() {
     );
   }
   if (!me) return <main className="screen"><h1 className="title">FC Altynka</h1><Loading variant="detail" /></main>;
-  const overlayBackground = path === '/new' ? background.current : scheduleId && creatableCommunities(me).length > 0 ? scheduleParent : null;
+  const overlayBackground = path === '/new' ? background.current : scheduleId ? scheduleParent : null;
   return (
     <MeContext.Provider value={me}>
       <MeReloadContext.Provider value={reloadMe}>
@@ -98,7 +98,7 @@ function TeamApp() {
               {path === '/new' && (
                 <NewEvent onClose={() => navigate(background.current, { replace: true })} />
               )}
-              {scheduleId && creatableCommunities(me).length > 0 && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
+              {scheduleId && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
             </NotificationsProvider>
           </ToastProvider>
         </MeUpdateContext.Provider>

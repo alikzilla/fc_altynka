@@ -174,7 +174,6 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .toast { position: fixed; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(120px + var(--safe-bottom)); margin: 0 auto; max-width: 400px; background: #e3dced; color: #221c2c; padding: 14px 18px; border-radius: 24px; font-size: 14px; font-weight: 500; z-index: 10; }
 .nav-shell { position: fixed; left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .nav { display: grid; grid-template-columns: 1fr 1fr 58px 1fr 1fr; align-items: center; width: 100%; max-width: 416px; height: 82px; padding: 8px 5px; border-radius: 32px; background: radial-gradient(ellipse 110% 100% at 22% -40%, #7773bc 0%, #3b3e78 50%, transparent 100%), radial-gradient(ellipse 45% 100% at 100% 140%, #444d91 0%, transparent 100%), #10142f; box-shadow: var(--rim), inset 0 -2px 6px #8d90d34d, 0 6px 16px #0006; pointer-events: auto; } /* taste-skill-ignore: user-approved Airofit dock */
-.nav-player { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 58px; color: #bec0da; font-size: 11px; transition: transform 140ms var(--ease-out); }
 .nav a.on { color: #fffaff; }
 .nav-icon { display: grid; place-items: center; width: 39px; height: 33px; border-radius: 17px; position: relative; }
@@ -330,7 +329,6 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
   .match-roster { font-size: 12px; }
   .nav-shell { left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right)); }
   .nav { grid-template-columns: 1fr 1fr 54px 1fr 1fr; padding-inline: 3px; }
-  .nav-player { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .card:not(.match-card) { padding: 18px; }
   .card.list, .card.archive-list { padding: 4px 12px; }
   .card.task-preview { padding: 13px; gap: 8px; }
@@ -359,3 +357,14 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
 .group-row.on .group-dot { border: 5px solid var(--accent); }
 .group-name { min-width: 0; overflow-wrap: anywhere; }
 .empty-sheet { display: flex; flex-direction: column; gap: 14px; padding-bottom: 8px; }
+
+/* Group tags: light tones that hold contrast on the dark plum, blue and graphite materials */
+:root { --group-1: #ffb3d9; --group-2: #9fb4ff; --group-3: #8fe0b8; --group-4: #ffd08a; --group-5: #c9a8ff; }
+.group-tag { display: inline-flex; align-items: center; align-self: flex-start; gap: 6px; max-width: 100%; font-size: 11px; line-height: 1.4; font-weight: 500; padding: 3px 9px; border-radius: 99px; background: #1b1424b8; color: #f2f1f8; box-shadow: inset 0 1px 0 #ffffff1f; }
+.group-tag i { flex: none; width: 6px; height: 6px; border-radius: 50%; }
+.match-card > .group-tag { margin-bottom: 10px; }
+.event-row-copy .group-tag { margin-bottom: 4px; }
+.task-copy .group-tag, .task-card > .group-tag, .rating-history-row .group-tag { margin-bottom: 4px; }
+.players-group { display: flex; flex-direction: column; gap: 8px; }
+.players-group-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 4px; }
+.players-group-header h2 { margin: 0; font-size: 15px; }

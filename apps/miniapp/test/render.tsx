@@ -21,3 +21,6 @@ export function renderWithApp(ui: ReactElement, o: { me: MeDto; path?: string })
   );
   return { ...result, history: loc.history! };
 }
+
+export const twoGroups: MeDto = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }, { id: 2, title: 'Футбол по средам', role: 'player' }] };
+export const noGroups: MeDto = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [] };

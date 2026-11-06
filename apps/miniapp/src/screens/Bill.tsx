@@ -3,7 +3,7 @@ import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { transfer } from '../lib/kaspi';
-import { creatableCommunities, useMe } from '../state/me';
+import { canManageEvent, useMe } from '../state/me';
 import { copy, haptic } from '../lib/tg';
 import { ConfirmButton, EmptyState, useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
@@ -230,7 +230,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const me = useMe();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const manage = creatableCommunities(me).length > 0;
+  const manage = canManageEvent(ev);
   const bill = ev.bill;
   const canBill = manage && (ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
   if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction>}</div>;

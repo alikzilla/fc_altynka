@@ -4,7 +4,9 @@ import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
 import { Home } from '../src/screens/Home';
 import { NotificationsProvider } from '../src/state/notifications';
-import { organizer, player, renderWithApp } from './render';
+import userEvent from '@testing-library/user-event';
+import { openTelegramLink } from '../src/lib/tg';
+import { noGroups, organizer, player, renderWithApp, twoGroups } from './render';
 
 vi.mock('../src/lib/api');
 vi.mock('../src/lib/tg');
@@ -43,4 +45,25 @@ test('empty home has one contextual action without decorative tiles or an empty 
   expect(within(empty as HTMLElement).getByRole('link', { name: 'Создать матч' })).toHaveAttribute('href', '/new');
   expect(container.querySelector('.empty-icon')).toBeNull();
   expect(screen.queryByRole('heading', { name: 'Нужно сделать' })).not.toBeInTheDocument();
+});
+
+test('two groups tag every match card with its group; one group shows no tag', async () => {
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [ev, { ...ev, id: 6, community: { id: 2, title: 'Футбол по средам' } }], past: [] }));
+  const { unmount } = renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });
+  const cards = await screen.findAllByRole('article');
+  expect(within(cards[0]).getByText('FC Altynka')).toBeInTheDocument();
+  expect(within(cards[1]).getByText('Футбол по средам')).toBeInTheDocument();
+  unmount();
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  await screen.findAllByRole('article');
+  expect(screen.queryByText('FC Altynka')).toBeNull();
+});
+
+test('without groups the empty home explains how to connect the bot', async () => {
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [], past: [] }));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: noGroups });
+  expect(await screen.findByText(/Добавь бота в Telegram-группу/)).toBeInTheDocument();
+  expect(screen.queryByRole('link', { name: 'Создать матч' })).toBeNull();
+  await userEvent.click(screen.getByRole('button', { name: 'Добавить в группу' }));
+  expect(openTelegramLink).toHaveBeenCalled();
 });

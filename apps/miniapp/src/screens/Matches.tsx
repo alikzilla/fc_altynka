@@ -5,17 +5,19 @@ import { useScreenSearch } from '../state/screenSearch';
 import { api } from '../lib/api';
 import { datePart, MatchRow } from '../components/MatchCard';
 import { creatableCommunities, useMe } from '../state/me';
+import { ConnectGroupButton, CONNECT_BOT_TEXT } from '../components/ConnectGroup';
 import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
 import { useResource } from '../hooks/useResource';
 
 function ActiveMatches() {
   const me = useMe();
+  const canCreate = creatableCommunities(me).length > 0;
   const { data, loading, error, reload } = useResource<EventsListDto>('/api/events');
   const events = data?.active.filter(event => event.status === 'collecting' || event.status === 'scheduled' || event.status === 'playing').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
   return <>
     {loading && !data && <Loading />}
     {error && <ErrorNote text="Не получилось загрузить активные матчи" retry={reload} />}
-    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные игры</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={creatableCommunities(me).length > 0 ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={creatableCommunities(me).length > 0 && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
+    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные игры</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
   </>;
 }
 

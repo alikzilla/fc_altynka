@@ -3,8 +3,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { creatableCommunities, useMe } from '../state/me';
-import { connectGroupLink } from '../lib/bot';
-import { openTelegramLink, useBackButton } from '../lib/tg';
+import { ConnectGroupButton, CONNECT_BOT_TEXT } from '../components/ConnectGroup';
+import { useBackButton } from '../lib/tg';
 import { useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { useBottomSheet } from '../hooks/useBottomSheet';
@@ -101,9 +101,9 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
     </form>
     ) : (
     <div className="empty-sheet">
-      <p>{groups.length || me.communities.length ? 'Создавать матчи может организатор группы. Попроси администратора группы назначить тебя организатором.' : 'Добавь бота в Telegram-группу, где играете, и сделай его администратором с правом закреплять сообщения. Группа появится здесь сразу.'}</p>
+      <p>{groups.length || me.communities.length ? 'Создавать матчи может организатор группы. Попроси администратора группы назначить тебя организатором.' : CONNECT_BOT_TEXT}</p>
       {me.communities.length > 0 && <p className="muted">Или подключи свою группу: добавь в неё бота администратором.</p>}
-      <button className="btn primary wide" type="button" onClick={() => openTelegramLink(connectGroupLink)}>Добавить в группу<Icon name="plus" /></button>
+      <ConnectGroupButton />
     </div>
     )}
     </div>

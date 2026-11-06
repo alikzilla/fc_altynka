@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api, ApiError } from '../src/lib/api';
 import { Profile } from '../src/screens/Profile';
-import { organizer, player, renderWithApp } from './render';
+import { organizer, player, renderWithApp, twoGroups } from './render';
 import { requestWriteAccess, openTelegramLink } from '../src/lib/tg';
 
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
@@ -197,4 +197,12 @@ test('football summary uses real values and offers editing without assigning def
   expect(screen.getByText('Вратарь')).toBeInTheDocument();
   expect(screen.getByText('Левая')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Изменить имя/ })).toHaveAttribute('href', '/profile/settings/name');
+});
+
+test('with two groups the role line has no group name and history rows carry group tags', async () => {
+  (api.get as Mock).mockResolvedValue({ history: [{ eventId: 3, date: '2026-11-01', place: null, score: 7, community: { id: 2, title: 'Футбол по средам' } }] });
+  renderWithApp(<Profile />, { me: { ...twoGroups, profileCompleted: true, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }, { id: 2, title: 'Футбол по средам', role: 'player' }] } });
+  expect(screen.getByText('Организатор')).toHaveClass('profile-role');
+  expect(screen.getByText('Организатор').textContent).not.toMatch(/FC Altynka/);
+  expect(await screen.findByText('Футбол по средам')).toBeInTheDocument();
 });

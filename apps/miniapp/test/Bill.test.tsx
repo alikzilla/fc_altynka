@@ -187,7 +187,7 @@ test('underpaid shows due amount', () => {
 });
 
 test('player without a bill sees a placeholder', () => {
-  renderWithApp(<Bill ev={evWith(2)} reload={() => {}} />, { me: player });
+  renderWithApp(<Bill ev={{ ...evWith(2), viewerRole: 'player' }} reload={() => {}} />, { me: player });
   expect(screen.getByText('Счёт ещё не выставлен')).toBeInTheDocument();
 });
 

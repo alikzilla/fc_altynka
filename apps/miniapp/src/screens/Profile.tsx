@@ -1,4 +1,4 @@
-import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto } from '@altynka/core';
+import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Avatar, Icon } from '../components/Icon';
@@ -9,6 +9,15 @@ import { Screen, useToast } from '../components/ui';
 import { InlineRating, RatingHistory } from '../components/PlayerRating';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
+
+const ROLE_LABEL = { admin: 'Администратор', organizer: 'Организатор', player: 'Игрок' } as const;
+/** One group: role and its name, as before. Several: only the highest role, no hint of a "current" team. */
+function roleLine(me: MeDto) {
+  if (!me.communities.length) return 'Без группы';
+  if (me.communities.length === 1) return `${ROLE_LABEL[me.communities[0].role]} · ${me.communities[0].title}`;
+  const rank = { admin: 2, organizer: 1, player: 0 } as const;
+  return ROLE_LABEL[me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role)];
+}
 
 export function Profile() {
   const me = useMe();
@@ -58,7 +67,7 @@ export function Profile() {
         <div className="profile-card-details">
           <h2>{telegramName}</h2>
           {me.telegram?.username && <span className="profile-handle">@{me.telegram.username}</span>}
-          <span className="profile-role">{/* TEMP (Task 7): per-group roles */}{(r => r === 'admin' ? 'Администратор' : r === 'organizer' ? 'Организатор' : 'Игрок')(me.communities[0]?.role)} · {me.communities[0]?.title ?? 'Без группы'}</span>
+          <span className="profile-role">{roleLine(me)}</span>
         </div>
         </div>
         {me.rating && <InlineRating rating={me.rating} />}
