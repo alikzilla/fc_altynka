@@ -4,16 +4,23 @@ import { upsertBill } from '../../src/domain/bills';
 import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { upsertTgUser } from '../../src/domain/members';
 import { FakeSync } from '../fakes/fakeSync';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
 import { makeTestBot, tap } from './helpers';
+import { __setTgClientForTests } from '../../src/telegram/client';
+import { FakeTg } from '../fakes/fakeTg';
+import { ensureMembership } from '../../src/domain/members';
+
+afterEach(() => __setTgClientForTests(null));
 
 test('p: callback marks paid once', async () => {
   const d = { db: db(), now: 1, sync: new FakeSync() };
   const c = await seedCommunity();
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer', tgId: 3001 });
-  await db().update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, org.id));
+  await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
   const payer = await upsertTgUser(db(), { id: 501, first_name: 'Арман' }, 1);
+  await ensureMembership(db(), c.id, payer.id, d.now);
+  const tg = new FakeTg(); tg.members.add(501); tg.members.add(777); __setTgClientForTests(tg);
   await joinEvent(d, ev, org.id);
   await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });

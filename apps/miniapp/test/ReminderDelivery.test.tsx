@@ -19,7 +19,7 @@ const advance = async (ms: number) => { await act(async () => { await vi.advance
 test('an unused reminder shows private delivery, group fallback and the 24-hour limit', async () => {
   render(<ReminderDelivery billId={3} />);
   await settle();
-  expect(api.get).toHaveBeenCalledWith('/api/bills/3/reminder-status');
+  expect(api.get).toHaveBeenCalledWith('/api/bills/3/reminder-status', expect.objectContaining({ signal: expect.any(AbortSignal) }));
   expect(screen.getByText(/личный чат/)).toBeInTheDocument();
   expect(screen.getByText(/групп/)).toBeInTheDocument();
   expect(screen.getByText(/24 часа/)).toBeInTheDocument();
@@ -89,7 +89,7 @@ const bill: BillDto = {
   id: 3, receiver: { userId: organizer.userId, name: 'Орг', kaspiPhone: '+77071234567' }, fieldAmount: 4000, extras: [], total: 4000, share: 2000,
   status: 'open', participantSignupIds: [], lines: [{ id: 31, userId: player.userId, name: 'Игрок', units: 1, amount: 2000, paidAmount: null, state: 'unpaid', due: 2000 }],
 };
-const event: EventDetailDto = { id: 5, date: '2026-11-07', status: 'billing', startTime: '21:00', durationHours: 2, place: null, comment: null, limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill };
+const event: EventDetailDto = { id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: 'billing', startTime: '21:00', durationHours: 2, place: null, comment: null, limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill };
 
 test('the organizer queues private reminders without claiming they were already sent', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
@@ -104,7 +104,7 @@ test('the organizer queues private reminders without claiming they were already 
 
 test('payment marking confirms only the player action and hides organizer reminder status', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
-  renderWithApp(<Bill ev={event} reload={() => {}} />, { me: player });
+  renderWithApp(<Bill ev={{ ...event, viewerRole: 'player' }} reload={() => {}} />, { me: player });
   await userEvent.click(screen.getByRole('button', { name: 'Я скинул' }));
   expect(await screen.findByText('Ты отметил оплату')).toBeInTheDocument();
   expect(api.get).not.toHaveBeenCalled();

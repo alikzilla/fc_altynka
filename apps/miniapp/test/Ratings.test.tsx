@@ -34,7 +34,7 @@ test('skills have no preselected answers, show a summary and send all eight valu
 });
 
 test('public profile sheet places the rating with identity and keeps match history', async () => {
-  const profile: PlayerProfileDto = { userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, date: '2026-11-04', place: null, score: null }] };
+  const profile: PlayerProfileDto = { userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: null }] };
   (api.get as Mock).mockResolvedValue(profile);
   renderWithApp(<PlayerProfileSheet userId={12} onClose={vi.fn()} />, { me: player });
   const dialog = screen.getByRole('dialog');
@@ -135,7 +135,7 @@ test('a late survey save cannot navigate after leaving the questionnaire', async
 });
 
 test('own profile integrates the rating into the identity card without a self-assessment card', async () => {
-  (api.get as Mock).mockResolvedValue({ history: [{ eventId: 1, date: '2026-11-04', place: null, score: 7 }] });
+  (api.get as Mock).mockResolvedValue({ history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: 7 }] });
   renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 } } });
   expect(within(screen.getByRole('region', { name: 'Профиль игрока' })).getByText('6,7')).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'Общий рейтинг' })).toBeNull();

@@ -1,14 +1,23 @@
-import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto } from '@altynka/core';
+import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { Avatar, Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
-import { canManage, useMe, useReloadMe, useUpdateMe } from '../state/me';
+import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { Screen, useToast } from '../components/ui';
 import { InlineRating, RatingHistory } from '../components/PlayerRating';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
+
+const ROLE_LABEL = { admin: 'Администратор', organizer: 'Организатор', player: 'Игрок' } as const;
+/** One group: role and its name, as before. Several: only the highest role, no hint of a "current" team. */
+function roleLine(me: MeDto) {
+  if (!me.communities.length) return 'Без группы';
+  if (me.communities.length === 1) return `${ROLE_LABEL[me.communities[0].role]} · ${me.communities[0].title}`;
+  const rank = { admin: 2, organizer: 1, player: 0 } as const;
+  return ROLE_LABEL[me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role)];
+}
 
 export function Profile() {
   const me = useMe();
@@ -58,7 +67,7 @@ export function Profile() {
         <div className="profile-card-details">
           <h2>{telegramName}</h2>
           {me.telegram?.username && <span className="profile-handle">@{me.telegram.username}</span>}
-          <span className="profile-role">{me.role === 'admin' ? 'Администратор' : me.role === 'organizer' ? 'Организатор' : 'Игрок'} · FC Altynka</span>
+          <span className="profile-role">{roleLine(me)}</span>
         </div>
         </div>
         {me.rating && <InlineRating rating={me.rating} />}
@@ -95,8 +104,8 @@ export function Profile() {
         <Link className="card task-preview material-graphite" href="/profile/settings/football"><span className="task-icon"><Icon name="ball" /></span><span className="task-copy"><b>Изменить футбольные данные</b><small>Позиция на поле и рабочая нога</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
-      <h2 className="section" id="profile-team">{canManage(me) ? 'Управление' : 'Команда'}</h2>
-      <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки команды</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
+      <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Игроки'}</h2>
+      <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
     </Screen>
   );
 }

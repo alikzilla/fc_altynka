@@ -1,5 +1,6 @@
 import { formatDateRu, type EventSummaryDto } from "@altynka/core";
 import { Link } from "wouter";
+import { GroupTag } from "./GroupTag";
 import { Icon } from "./Icon";
 import { useMatchPhase } from "../hooks/useMatchPhase";
 import { STATUS_LABEL, timeRange, whenLine } from "../lib/labels";
@@ -37,6 +38,7 @@ export function MatchCard({
         </span>
         <span>{datePart(e.date, { weekday: "long" })}</span>
       </div>
+      <GroupTag community={e.community} />
       <h2 className="match-date" aria-label={formatDateRu(e.date)}>
         <span>{e.date.slice(8)}</span>
         <small>{month}</small>
@@ -104,6 +106,7 @@ export function MatchRow({ event: e }: { event: EventSummaryDto }) {
         <small>{datePart(e.date, { month: "short" }).replace(".", "")}</small>
       </span>
       <span className="event-row-copy">
+        <GroupTag community={e.community} />
         <b>{formatDateRu(e.date)}</b>
         <span className="muted">{whenLine(e)}</span>
         {e.status === "billing" && (

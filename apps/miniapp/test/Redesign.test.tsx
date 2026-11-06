@@ -15,7 +15,7 @@ import { api } from "../src/lib/api";
 const me = {
   userId: 2,
   displayName: "Саша",
-  role: "organizer",
+  communities: [{ id: 1, title: "FC Altynka", role: "organizer" }],
   kaspiPhone: null,
   telegram: {
     firstName: "Александр",
@@ -26,6 +26,7 @@ const me = {
 };
 const match = {
   id: 1,
+  community: { id: 1, title: "FC Altynka" },
   date: "2026-11-07",
   status: "scheduled",
   startTime: "21:00",
@@ -40,10 +41,13 @@ const payment = {
   kind: "payment",
   id: "payment-1",
   eventId: 9,
+  billId: 4,
   date: "2026-10-31",
   place: "Arena",
   due: 2500,
   receiverName: "Алихан",
+  receiverKaspiPhone: "+77071234567",
+  community: { id: 1, title: "FC Altynka" },
 };
 let identity: typeof me;
 let tasks: unknown[];
@@ -160,16 +164,13 @@ test("organizer reaches creation from the central action; a billed match does no
   expect(location.history?.at(-1)).toBe("/new");
 });
 
-test("player has four destinations and cannot open the creation form by URL", async () => {
-  identity = { ...me, role: "player" };
+test("player sees the creation sheet with an explanation instead of a form", async () => {
+  identity = { ...me, communities: [{ id: 1, title: "FC Altynka", role: "player" }] };
   open("/new");
-  await screen.findByText("Матчи создают организаторы");
+  await screen.findByText(/Создавать матчи может организатор группы/);
   expect(screen.queryByLabelText("Дата")).not.toBeInTheDocument();
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-  expect(within(nav).getAllByRole("link")).toHaveLength(4);
-  expect(
-    within(nav).queryByRole("link", { name: "Создать матч" }),
-  ).not.toBeInTheDocument();
+  expect(within(nav).getAllByRole("link")).toHaveLength(5);
 });
 
 test("the latest played match remains on home while its bill is open", async () => {
@@ -244,8 +245,11 @@ test("verified Telegram identity is distinct from the club name and broken photo
   fireEvent.error(image);
   await waitFor(() => expect(container.querySelector("img")).toBeNull());
   expect(screen.getByText("АТ")).toBeVisible();
-  expect(screen.getByRole("link", { name: /Игроки команды/ })).toHaveAttribute(
+  expect(screen.getByRole("link", { name: /^Игроки/ })).toHaveAttribute(
     "href",
     "/players",
   );
+  expect(screen.queryByText(/Игроки команды/)).toBeNull();
+  expect(screen.getByRole("heading", { name: "Управление" })).toBeVisible();
+  expect(screen.queryByRole("heading", { name: "Команда" })).toBeNull();
 });

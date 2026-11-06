@@ -5,6 +5,7 @@ export const communities = sqliteTable('communities', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   tgChatId: integer('tg_chat_id').notNull().unique(),
   title: text('title').notNull(),
+  active: integer('active', { mode: 'boolean' }).notNull().default(true),
 });
 
 export const users = sqliteTable('users', {
@@ -33,8 +34,11 @@ export const memberships = sqliteTable(
     level: integer('level').notNull().default(5),
     /** Когда членство в группе последний раз подтвердил Telegram; 0 — ни разу. */
     checkedAt: integer('checked_at').notNull().default(0),
+    active: integer('active', { mode: 'boolean' }).notNull().default(true),
+    telegramAdmin: integer('telegram_admin', { mode: 'boolean' }).notNull().default(false),
+    legacy: integer('legacy', { mode: 'boolean' }).notNull().default(false),
   },
-  t => [primaryKey({ columns: [t.communityId, t.userId] })],
+  t => [primaryKey({ columns: [t.communityId, t.userId] }), index('memberships_user').on(t.userId, t.communityId)],
 );
 
 export const events = sqliteTable('events', {
@@ -126,15 +130,14 @@ export type BillRow = typeof bills.$inferSelect;
 export type BillLineRow = typeof billLines.$inferSelect;
 
 export const skillAssessments = sqliteTable('skill_assessments', {
-  communityId: integer('community_id').notNull().references(() => communities.id),
-  userId: integer('user_id').notNull().references(() => users.id),
+  userId: integer('user_id').primaryKey().references(() => users.id),
   version: integer('version').notNull().default(1),
   teamwork: integer('teamwork').notNull(), dribbling: integer('dribbling').notNull(),
   technique: integer('technique').notNull(), shooting: integer('shooting').notNull(),
   stamina: integer('stamina').notNull(), physical: integer('physical').notNull(),
   passing: integer('passing').notNull(), defending: integer('defending').notNull(),
   createdAt: integer('created_at').notNull(),
-}, t => [primaryKey({ columns: [t.communityId, t.userId] }), ...[
+}, t => [...[
   t.teamwork, t.dribbling, t.technique, t.shooting, t.stamina, t.physical, t.passing, t.defending,
 ].map(column => check(`skill_${column.name}_range`, sql`typeof(${column}) = 'integer' and ${column} between 1 and 10`))]);
 

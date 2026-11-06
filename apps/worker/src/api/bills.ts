@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { billLines } from '../db/schema';
 import { billDto, closeBill, getBill, markPaid, remindDebtors, setLinePaid, upsertBill } from '../domain/bills';
-import { getEvent } from '../domain/events';
+import { canManage, getEvent } from '../domain/events';
 import { eq } from 'drizzle-orm';
 import { body, idParam, statusFor } from './validate';
 
@@ -21,7 +21,7 @@ export const billsApi = new Hono<AppEnv>();
 
 type Get = <K extends keyof AppEnv['Variables']>(k: K) => AppEnv['Variables'][K];
 
-/** Счёт существует и относится к группе пользователя. */
+/** Счёт существует и относится к группе запроса (её определил scopeCommunity по самому объекту). */
 async function ownBill(get: Get, raw: string) {
   const id = idParam(raw);
   const bill = id === null ? null : await getBill(get('deps').db, id);
@@ -33,8 +33,9 @@ billsApi.put('/events/:id/bill', requireRole('organizer'), body(billBody), async
   const id = idParam(c.req.param('id'));
   const ev = id === null ? null : await getEvent(c.get('deps').db, id);
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
-  const r = await upsertBill(c.get('deps'), ev.id, c.req.valid('json'));
+  const r = await upsertBill(c.get('deps'), ev.id, c.req.valid('json'), c.get('user').id);
   if (r.kind === 'ok') return c.json(await billDto(c.get('deps').db, r.billId));
+  if (r.kind === 'receiver_phone_locked') return c.json({ error: r.kind }, 409);
   if (r.kind === 'no_kaspi' || r.kind === 'bad_phone' || r.kind === 'invalid') return c.json({ error: r.kind }, 400);
   return c.json({ error: r.kind }, statusFor(r.kind));
 });
@@ -51,7 +52,16 @@ billsApi.post('/bill-lines/:id', body(z.object({ paid: z.boolean() })), async c 
   const [line] = id === null ? [] : await c.get('deps').db.select().from(billLines).where(eq(billLines.id, id));
   const bill = line ? await ownBill(c.get, String(line.billId)) : null;
   if (!line || !bill) return c.json({ error: 'not_found' }, 404);
-  const r = await setLinePaid(c.get('deps'), line.id, c.req.valid('json').paid, { userId: c.get('user').id, role: c.get('role') });
+  const actor = { userId: c.get('user').id, role: c.get('role') };
+  const paid = c.req.valid('json').paid;
+  // Someone who left the group may only mark their own debt paid, never undo a payment or reopen a bill.
+  if (c.get('debtor') && !paid) return c.json({ error: 'forbidden' }, 403);
+  // A debtor marking their own line paid is the same action as POST /bills/:id/paid.
+  if (paid && line.userId === actor.userId && (c.get('debtor') || !canManage(actor.role) && bill.receiverUserId !== actor.userId)) {
+    const r = await markPaid(c.get('deps'), bill.id, actor.userId, actor.userId);
+    return c.json({ kind: r }, r === 'not_in_bill' ? 404 : statusFor(r));
+  }
+  const r = await setLinePaid(c.get('deps'), line.id, paid, actor);
   return c.json({ kind: r }, statusFor(r));
 });
 

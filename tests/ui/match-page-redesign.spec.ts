@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -11,7 +12,7 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
     let detail = { ...event };
     await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
     await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-    await page.route('**/api/**', r => {
+    await teamApiRoute(page, r => {
       const path = new URL(r.request().url()).pathname;
       if (path.endsWith('/join')) {
         detail = { ...detail, main: [member, ...roster], mainCount: 13, my: 'main' };
@@ -58,7 +59,7 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
     const people = [member, ...roster.slice(0, 11)];
     await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
     await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-    await page.route('**/api/**', r => {
+    await teamApiRoute(page, r => {
       const path = new URL(r.request().url()).pathname;
       if (path.endsWith('/paid')) { paid = true; return r.fulfill({ json: { kind: 'ok' } }); }
       const bill = { id: 3, receiver: { userId: 99, name: 'Руслан Ахметов', kaspiPhone: '+77071234567' }, fieldAmount: 23000, extras: [{ label: 'Вода', amount: 1000 }], total: 24000, share: 2000, status: 'open', participantSignupIds: people.map(p => p.id), lines: people.map(p => ({ id: p.id, userId: p.userId, name: p.name, units: 1, amount: 2000, paidAmount: p.userId === 2 && paid ? 2000 : null, state: p.userId === 2 && paid ? 'paid' : 'unpaid', due: p.userId === 2 && paid ? 0 : 2000 })) };
@@ -87,7 +88,7 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
 test('organizer gets one scheduling action with safe areas and a confirmed cancellation menu', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: '+77071234567' } : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, status: 'collecting', startTime: null, durationHours: null, my: 'main', main: [member, ...roster] } }));
+  await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: '+77071234567' } : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, status: 'collecting', startTime: null, durationHours: null, my: 'main', main: [member, ...roster] } }));
   await page.goto('/event/7?tab=bill');
   await expect(page.getByRole('link', { name: 'Назначить игру' })).toHaveCount(1);
   await page.evaluate(() => { document.documentElement.style.setProperty('--tg-safe-area-inset-bottom', '34px'); document.documentElement.style.setProperty('--tg-safe-area-inset-top', '24px'); document.documentElement.style.setProperty('--tg-content-safe-area-inset-top', '36px'); });
@@ -104,7 +105,7 @@ test('organizer gets one scheduling action with safe areas and a confirmed cance
 test('failed participation shows a top-layer notification above the open sheet', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => {
+  await teamApiRoute(page, r => {
     const path = new URL(r.request().url()).pathname;
     if (path.endsWith('/leave')) return r.fulfill({ status: 503, json: { error: 'offline' } });
     return r.fulfill({ json: path === '/api/me' ? { userId: 2, displayName: member.name, role: 'player', kaspiPhone: null } : path === '/api/notifications' ? { tasks: [] } : { ...event, my: 'main', main: [member, ...roster] } });
@@ -125,7 +126,7 @@ test('pending cancellation blocks the scheduling link', async ({ page }) => {
   let release = () => {};
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', async r => {
+  await teamApiRoute(page, async r => {
     const path = new URL(r.request().url()).pathname;
     if (path.endsWith('/cancel')) { await pending; return r.fulfill({ json: { kind: 'ok' } }); }
     return r.fulfill({ json: path === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: null } : path === '/api/notifications' ? { tasks: [] } : { ...event, my: 'main', main: [member, ...roster] } });
@@ -146,7 +147,7 @@ test('long participant name keeps the action sheet close button in its frame', a
   const longName = 'ДаниярАбдрахмановНурмухамедов'.repeat(2);
   await page.setViewportSize({ width: 320, height: 568 });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: null } : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, my: 'main', main: [{ ...member, name: longName }, ...roster] } }));
+  await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: null } : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, my: 'main', main: [{ ...member, name: longName }, ...roster] } }));
   await page.goto('/event/7');
   await page.getByRole('button', { name: `Действия: ${longName}` }).click();
   const dialog = page.getByRole('dialog');

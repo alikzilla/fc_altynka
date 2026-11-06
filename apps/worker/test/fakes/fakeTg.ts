@@ -6,6 +6,9 @@ export class FakeTg implements TgClient {
   edited: { chatId: number; messageId: number; html: string; keyboard?: InlineKeyboardMarkup }[] = [];
   pinned: { chatId: number; messageId: number }[] = [];
   members = new Set<number>();
+  admins = new Set<number>();
+  chatMembers = new Map<number, Set<number>>();
+  chatAdmins = new Map<number, Set<number>>();
   failNextWith?: Error;
   private nextId = 500;
 
@@ -29,7 +32,11 @@ export class FakeTg implements TgClient {
   async pinMessage(chatId: number, messageId: number) {
     this.pinned.push({ chatId, messageId });
   }
-  async isMember(_chatId: number, tgUserId: number) {
-    return this.members.has(tgUserId);
+  async isMember(chatId: number, tgUserId: number) {
+    return await this.memberStatus(chatId, tgUserId) !== 'left';
+  }
+  async memberStatus(chatId: number, tgUserId: number): Promise<'admin' | 'member' | 'left'> {
+    if ((this.chatAdmins.get(chatId) ?? this.admins).has(tgUserId)) return 'admin';
+    return (this.chatMembers.get(chatId) ?? this.members).has(tgUserId) ? 'member' : 'left';
   }
 }

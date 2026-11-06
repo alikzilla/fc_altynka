@@ -8,7 +8,7 @@ beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 
 test('PUT bill validates amounts, creates bill visible in detail; player pays via API', async () => {
-  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } })).json()) as { id: number };
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
@@ -33,7 +33,7 @@ test('PUT bill validates amounts, creates bill visible in detail; player pays vi
 });
 
 test('receiver of an open bill cannot clear their Kaspi phone', async () => {
-  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } })).json()) as { id: number };
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
   w.clock.now = Date.parse('2026-11-07T16:00:00Z');
@@ -50,7 +50,7 @@ test('receiver of an open bill cannot clear their Kaspi phone', async () => {
 });
 
 test('bill remembers who it was split between', async () => {
-  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } })).json()) as { id: number };
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });

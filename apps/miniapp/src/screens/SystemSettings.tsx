@@ -2,6 +2,7 @@ import type { AppTheme, MeDto } from '@altynka/core';
 import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useMe, useReloadMe, useUpdateMe } from '../state/me';
+import { BOT_USERNAME } from '../lib/bot';
 import { openTelegramLink, requestWriteAccess } from '../lib/tg';
 import { applyTheme, getTheme } from '../lib/theme';
 import { useToast } from '../components/ui';
@@ -24,7 +25,7 @@ export function SystemSettings() {
   const available = notifications?.available ?? false;
 
   function botSettings() {
-    openTelegramLink('https://t.me/fc_altynka_bot?start=settings');
+    openTelegramLink(`https://t.me/${BOT_USERNAME}?start=settings`);
     toast('Подключи уведомления в личном чате с ботом.');
   }
 

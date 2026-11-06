@@ -14,7 +14,7 @@ const s = (id: number, level: number): SignupDto => ({
 });
 const main = Array.from({ length: 10 }, (_, i) => s(i + 1, 10 - i));
 const ev: EventDetailDto = {
-  id: 5, date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: null, comment: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: 'scheduled', startTime: '21:00', durationHours: 1, place: null, comment: null,
   limit: 10, mainCount: 10, reserveCount: 0, my: 'main', main, reserve: [], teams: null, bill: null,
 };
 const team = (name: string) => screen.getByRole('group', { name });
@@ -79,14 +79,14 @@ test('republishing saved teams preserves the reviewed snapshot until a new split
 
 test('player sees published teams without levels', () => {
   const pub = { ...ev, main: main.map(({ level: _l, ...rest }) => rest), teams: { teamCount: 2 as const, teams: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], publishedAt: 1, stale: false } };
-  renderWithApp(<Teams ev={pub} reload={() => {}} />, { me: player });
+  renderWithApp(<Teams ev={{ ...pub, viewerRole: 'player' }} reload={() => {}} />, { me: player });
   expect(within(team('Красные')).getByText('Игрок1')).toBeInTheDocument();
   expect(screen.queryByText(/Сумма/)).toBeNull();
   expect(screen.queryByRole('button', { name: 'Поделить' })).toBeNull();
 });
 
 test('player sees a placeholder before publication', () => {
-  renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: player });
+  renderWithApp(<Teams ev={{ ...ev, viewerRole: 'player' }} reload={() => {}} />, { me: player });
   expect(screen.getByText('Составы ещё не опубликованы')).toBeInTheDocument();
 });
 

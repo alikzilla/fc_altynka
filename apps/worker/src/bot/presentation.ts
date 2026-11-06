@@ -23,7 +23,7 @@ export function settingsText(enabled: boolean, available: boolean): string {
 }
 export const settingsKeyboard = (env: LinkEnv, enabled: boolean): InlineKeyboardMarkup => ({
   inline_keyboard: [
-    [{ text: enabled ? 'Выключить уведомления' : 'Включить уведомления', callback_data: enabled ? 'notify:0' : 'notify:1' }],
+    [{ text: enabled ? 'Выключить уведомления' : 'Включить уведомления', callback_data: `notify:${enabled ? '0' : '1'}` }],
     [{ text: 'Открыть профиль', url: miniAppLink(env, 'settings') }],
   ],
 });

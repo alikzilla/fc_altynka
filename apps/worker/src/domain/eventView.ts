@@ -1,7 +1,7 @@
-import { matchPhase, splitQueue, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
+import { matchPhase, splitQueue, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, memberships, signups, type EventRow, type SignupRow } from '../db/schema';
+import { events, signups, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDto } from './teams';
@@ -11,7 +11,7 @@ import { billDto, getBillByEvent } from './bills';
 const ACTIVE: EventRow['status'][] = ['collecting', 'scheduled', 'billing'];
 const PAST: EventRow['status'][] = ['closed', 'cancelled'];
 
-function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number, now: number): EventSummaryDto {
+function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number, now: number, community: CommunityDto): EventSummaryDto {
   const my = q.main.some(s => s.userId === viewerUserId) ? 'main' : q.reserve.some(s => s.userId === viewerUserId) ? 'reserve' : null;
   return {
     id: ev.id,
@@ -25,22 +25,29 @@ function summary(ev: EventRow, q: QueueSplit<SignupRow>, viewerUserId: number, n
     mainCount: q.main.length,
     reserveCount: q.reserve.length,
     my,
+    community: { id: community.id, title: community.title },
   };
 }
 
-export async function listEvents(db: Db, communityId: number, viewerUserId: number, now = Date.now()): Promise<EventsListDto> {
+const groupsById = (groups: CommunityDto[]) => new Map(groups.map(g => [g.id, g]));
+
+/** Feed of all the viewer's groups, each match labelled with its group. */
+export async function listEvents(db: Db, groups: CommunityDto[], viewerUserId: number, now = Date.now()): Promise<EventsListDto> {
+  if (!groups.length) return { active: [], past: [] };
+  const byId = groupsById(groups);
+  const ids = [...byId.keys()];
   const active = await db
     .select()
     .from(events)
-    .where(and(eq(events.communityId, communityId), inArray(events.status, ACTIVE)))
+    .where(and(inArray(events.communityId, ids), inArray(events.status, ACTIVE)))
     .orderBy(asc(events.date), asc(events.id));
   const past = await db
     .select()
     .from(events)
-    .where(and(eq(events.communityId, communityId), inArray(events.status, PAST)))
+    .where(and(inArray(events.communityId, ids), inArray(events.status, PAST)))
     .orderBy(desc(events.date), desc(events.id))
     .limit(5);
-  const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId, now);
+  const sum = async (ev: EventRow) => summary(ev, await loadQueue(db, ev.id), viewerUserId, now, byId.get(ev.communityId)!);
   return { active: await Promise.all(active.map(sum)), past: await Promise.all(past.map(sum)) };
 }
 
@@ -57,9 +64,12 @@ export function parseArchiveCursor(raw: string): ArchiveCursor | null {
   return { date, id };
 }
 
-export async function matchArchive(db: Db, communityId: number, viewerUserId: number, cursor: ArchiveCursor | null, now = Date.now()): Promise<MatchArchiveDto> {
+/** One archive across all the viewer's groups, paginated by (date desc, id desc). */
+export async function matchArchive(db: Db, groups: CommunityDto[], viewerUserId: number, cursor: ArchiveCursor | null, now = Date.now()): Promise<MatchArchiveDto> {
+  if (!groups.length) return { events: [], nextCursor: null };
+  const byId = groupsById(groups);
   const rows = await db.select().from(events).where(and(
-    eq(events.communityId, communityId),
+    inArray(events.communityId, [...byId.keys()]),
     inArray(events.status, ['billing', 'closed', 'cancelled']),
     cursor ? or(lt(events.date, cursor.date), and(eq(events.date, cursor.date), lt(events.id, cursor.id))) : undefined,
   )).orderBy(desc(events.date), desc(events.id)).limit(21);
@@ -74,7 +84,7 @@ export async function matchArchive(db: Db, communityId: number, viewerUserId: nu
   }
   const last = page.at(-1);
   return {
-    events: page.map(ev => summary(ev, splitQueue(queues.get(ev.id) ?? [], ev.baseLimit), viewerUserId, now)),
+    events: page.map(ev => summary(ev, splitQueue(queues.get(ev.id) ?? [], ev.baseLimit), viewerUserId, now, byId.get(ev.communityId)!)),
     nextCursor: rows.length > 20 && last ? `${last.date}:${last.id}` : null,
   };
 }
@@ -83,18 +93,18 @@ export async function matchArchive(db: Db, communityId: number, viewerUserId: nu
 export async function eventDetail(
   db: Db,
   eventId: number,
-  viewer: { userId: number; role: Role; communityId: number },
+  viewer: { userId: number; role: Role; community: CommunityDto },
   now = Date.now(),
 ): Promise<EventDetailDto | null> {
   const ev = await getEvent(db, eventId);
-  if (!ev || ev.communityId !== viewer.communityId) return null;
+  if (!ev || ev.communityId !== viewer.community.id) return null;
   const q = await loadQueue(db, eventId);
   const all = [...q.main, ...q.reserve];
   const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
   const showLevels = viewer.role !== 'player';
   const levels = new Map<number, number>();
   if (showLevels) {
-    const ratings = await playerRatings(db, ev.communityId, now);
+    const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now);
     ratings.forEach(p => levels.set(p.userId, p.rating.value));
   }
   const dto = (s: SignupRow): SignupDto => {
@@ -107,12 +117,14 @@ export async function eventDetail(
       invitedByUserId: s.userId === null ? s.invitedBy : null,
     };
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
+    if (showLevels && s.userId !== null) base.kaspiPhone = byId.get(s.userId)?.kaspiPhone ?? null;
     return base;
   };
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);
   return {
     review: { state, canFinish, completedAt, closesAt, gameScore },
-    ...summary(ev, q, viewer.userId, now),
+    ...summary(ev, q, viewer.userId, now, viewer.community),
+    viewerRole: viewer.role,
     comment: ev.comment,
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),

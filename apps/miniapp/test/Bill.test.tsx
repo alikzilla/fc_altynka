@@ -13,7 +13,7 @@ vi.mock('../src/lib/tg');
 
 const s = (id: number): SignupDto => ({ id, seq: id, name: `Игрок${id}`, userId: id === 1 ? organizer.userId : id + 100, guestOfName: null, invitedByUserId: null });
 const evWith = (n: number, bill: BillDto | null = null): EventDetailDto => ({
-  id: 5, date: '2026-11-07', status: bill ? 'billing' : 'playing', startTime: '21:00', durationHours: 2, place: null, comment: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: bill ? 'billing' : 'playing', startTime: '21:00', durationHours: 2, place: null, comment: null,
   limit: 15, mainCount: n, reserveCount: 0, my: 'main', main: Array.from({ length: n }, (_, i) => s(i + 1)), reserve: [], teams: null, bill,
 });
 const bill: BillDto = {
@@ -187,7 +187,7 @@ test('underpaid shows due amount', () => {
 });
 
 test('player without a bill sees a placeholder', () => {
-  renderWithApp(<Bill ev={evWith(2)} reload={() => {}} />, { me: player });
+  renderWithApp(<Bill ev={{ ...evWith(2), viewerRole: 'player' }} reload={() => {}} />, { me: player });
   expect(screen.getByText('Счёт ещё не выставлен')).toBeInTheDocument();
 });
 
@@ -207,4 +207,32 @@ test('editing a bill keeps the people who were left out unchecked', async () => 
   await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
   expect(screen.getByRole('checkbox', { name: 'Игрок2' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: 'Игрок3' })).not.toBeChecked();
+});
+
+test('another receiver with a saved phone: number is read-only and not sent', async () => {
+  const ev = evWith(2);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
+  (api.send as Mock).mockResolvedValue(bill);
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  await userEvent.selectOptions(screen.getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  const field = screen.getByLabelText(/Номер Kaspi получателя/);
+  expect(field).toHaveAttribute('readonly');
+  expect(field).toHaveValue('+7 701 111 11 11');
+  expect(screen.getByText('Номер получатель меняет в своём профиле')).toBeVisible();
+  await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect((api.send as Mock).mock.calls.at(-1)![2]).toMatchObject({ receiverUserId: ev.main[1].userId, receiverKaspiPhone: undefined });
+});
+
+test('locked receiver phone from the server is explained', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'receiver_phone_locked'));
+  const ev = evWith(2);
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  await userEvent.selectOptions(screen.getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  await userEvent.type(screen.getByLabelText(/Номер Kaspi получателя/), '87022222222');
+  await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect(await screen.findByText('Номер получатель меняет в своём профиле')).toBeInTheDocument();
 });

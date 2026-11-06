@@ -2,18 +2,19 @@ import { computeBill, formatDateRu, formatKzPhone, formatTenge, type BillDto, ty
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
-import { transfer } from '../lib/kaspi';
-import { canManage, useMe } from '../state/me';
-import { copy, haptic } from '../lib/tg';
+import { canManageEvent, useMe } from '../state/me';
+import { haptic } from '../lib/tg';
 import { ConfirmButton, EmptyState, useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { MatchAction } from '../components/MatchAction';
 import { ActionSheet } from '../components/ActionSheet';
 import { ReminderDelivery } from './ReminderDelivery';
+import { KaspiPay } from '../components/KaspiPay';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
 const responsible = (s: SignupDto) => s.userId ?? s.invitedByUserId;
+const PHONE_IN_PROFILE = 'Номер получатель меняет в своём профиле';
 
 function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; onDone: () => void }) {
   const me = useMe();
@@ -28,6 +29,9 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
     return [...m];
   }, [ev.main, me]);
   const [receiver, setReceiver] = useState(initial?.receiver.userId ?? me.userId);
+  // The phone is one per person in every group: someone else's saved number is changed only in their profile.
+  const savedPhone = receiver === me.userId ? null
+    : ev.main.find(s => s.userId === receiver)?.kaspiPhone || (initial?.receiver.userId === receiver ? initial.receiver.kaspiPhone : null) || null;
   const [phone, setPhone] = useState(receiver === me.userId ? (me.kaspiPhone ?? '') : '');
   const [field, setField] = useState(initial ? String(initial.fieldAmount) : '');
   const [extras, setExtras] = useState<{ label: string; amount: string }[]>(
@@ -68,7 +72,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
     try {
       await api.send('PUT', `/api/events/${ev.id}/bill`, {
         receiverUserId: receiver,
-        receiverKaspiPhone: phone.trim() || undefined,
+        receiverKaspiPhone: savedPhone ? undefined : phone.trim() || undefined,
         fieldAmount,
         extras: extrasClean,
         participantSignupIds: selectedIds,
@@ -82,6 +86,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       if (!live.current) return;
       haptic('error');
       if (err instanceof ApiError && err.code === 'bad_phone') setPhoneError('Проверь номер');
+      else if (err instanceof ApiError && err.code === 'receiver_phone_locked') setPhoneError(PHONE_IN_PROFILE);
       else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError('Нужен номер Kaspi получателя');
       else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность игры' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала игры' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
     }
@@ -125,8 +130,10 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       </label>
       <label>
         Номер Kaspi получателя
-        <input inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />
-        {phoneError && <span className="field-error">{phoneError}</span>}
+        {savedPhone
+          ? <><input inputMode="tel" readOnly value={formatKzPhone(savedPhone)} /><span className="muted">{PHONE_IN_PROFILE}</span></>
+          : <input inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />}
+        {phoneError && phoneError !== (savedPhone && PHONE_IN_PROFILE) && <span className="field-error">{phoneError}</span>}
       </label>
       <label>
         Аренда поля, ₸
@@ -189,12 +196,8 @@ function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
   }
   return <section className="card material-coral pay" aria-label="Твоя оплата">
     <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
-    <button className="payment-amount" aria-label={`Скопировать сумму ${formatTenge(amount)}`} onClick={() => copy(String(amount)).then(ok => toast(ok ? 'Сумма скопирована' : 'Не получилось скопировать. Сумма указана выше.'))}>{formatTenge(amount)}<Icon name="copy" /></button>
-    <p className="payment-person">{bill.receiver.name}</p>
-    {!closed && line.state !== 'paid' && <>
-      <button className="btn primary wide" onClick={() => transfer(bill.receiver.kaspiPhone)}>Перевести в Kaspi<Icon name="arrow" /></button>
-      <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>
-    </>}
+    <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} />
+    {!closed && line.state !== 'paid' && <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>}
   </section>;
 }
 
@@ -230,7 +233,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const me = useMe();
   const toast = useToast();
   const [editing, setEditing] = useState(false);
-  const manage = canManage(me);
+  const manage = canManageEvent(ev);
   const bill = ev.bill;
   const canBill = manage && (ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
   if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction>}</div>;

@@ -75,21 +75,25 @@ test('notifications return only current user remaining open debt and disappear a
   await debt(await event('billing'), 3500);
   await debt(await event('closed'), null, w.playerUserId, 'closed');
   await debt(await event('billing'), null, w.orgUserId);
+  // A debt follows the bill line, even in a group the person is not (or no longer) a member of.
   const [other] = await db().insert(communities).values({ tgChatId: -100501, title: 'Чужая' }).returning();
-  await debt(await event('billing', '2026-12-01', other.id), null);
+  const elsewhere = await event('billing', '2026-12-01', other.id);
+  await debt(elsewhere, null);
   const get = () => apiRequest('/api/notifications', { as: w.player });
   const response = await get();
   expect(response.status).toBe(200);
   const body = await response.json() as { tasks: Array<{ id: string; eventId: number }> };
+  const home = { id: w.communityId, title: 'Футбол' };
   expect(body.tasks).toEqual([
-    { kind: 'payment', id: expect.any(String), eventId: partial.id, date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг' },
-    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг' },
+    { kind: 'payment', id: expect.any(String), eventId: partial.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-11-01', place: 'Шанырак', due: 1750, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: unpaid.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-11-02', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: home },
+    { kind: 'payment', id: expect.any(String), eventId: elsewhere.id, billId: expect.any(Number), receiverKaspiPhone: expect.any(String), date: '2026-12-01', place: 'Шанырак', due: 3000, receiverName: 'Орг', community: { id: other.id, title: 'Чужая' } },
     { kind: 'skills', id: 'skills' },
   ]);
-  expect(new Set(body.tasks.map(t => t.id)).size).toBe(3);
+  expect(new Set(body.tasks.map(t => t.id)).size).toBe(4);
   expect(await (await get()).json()).toEqual(body);
   await db().update(billLines).set({ paidAmount: 3000 }).where(eq(billLines.id, line.id));
-  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0], { kind: 'skills', id: 'skills' }] });
+  expect(await (await get()).json()).toEqual({ tasks: [body.tasks[0], body.tasks[2], { kind: 'skills', id: 'skills' }] });
 });
 
 test('only organizers and admins receive collecting scheduling duties in their group', async () => {
@@ -104,7 +108,7 @@ test('only organizers and admins receive collecting scheduling duties in their g
   const playerResponse = await apiRequest('/api/notifications', { as: w.player });
   expect(playerResponse.status).toBe(200);
   expect(await playerResponse.json()).toEqual({ tasks: [{ kind: 'skills', id: 'skills' }] });
-  const expected = { tasks: [{ kind: 'skills', id: 'skills' }, ...[first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак' }))] };
+  const expected = { tasks: [{ kind: 'skills', id: 'skills' }, ...[first, tie, later].map(e => ({ kind: 'schedule', id: expect.any(String), eventId: e.id, date: e.date, place: 'Шанырак', community: { id: w.communityId, title: 'Футбол' } }))] };
   for (const as of [w.org, w.admin]) {
     const response = await apiRequest('/api/notifications', { as });
     expect(response.status).toBe(200);

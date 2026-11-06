@@ -9,9 +9,9 @@ export function useResource<T>(path: string | null) {
     {
       queryKey: key,
       enabled: !!path,
-      queryFn: async () => {
+      queryFn: async ({ signal }) => {
         try {
-          return await api.get<T>(path!);
+          return await api.get<T>(path!, { signal });
         } catch (error) {
           throw error instanceof ApiError ? error : new ApiError(0, "network");
         }

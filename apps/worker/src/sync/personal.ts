@@ -1,7 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { users, type UserRow } from '../db/schema';
+import { memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBillByEvent } from '../domain/bills';
+import { communityByChat } from '../domain/members';
 import type { Env } from '../env';
 import type { EventView, PersonView, Rendered } from '../render/eventMessage';
 import type { OutNotice } from '../render/notices';
@@ -19,6 +20,11 @@ export class PersonalDelivery {
   private report: DeliveryReport = { at: Date.now(), sent: 0, unavailable: 0, skipped: 0, failed: 0, status: 'complete' };
   constructor(private db: Db, private env: Env, private tg: TgClient, private storage: DurableObjectStorage, private chatId: number) {}
 
+  /** Automatic deliveries use the same opt-in, membership and error handling, without group fallback. */
+  async automatic(tgId: number, key: string, rendered: Rendered): Promise<boolean | null> {
+    return this.deliver(tgId, key, rendered, false, true);
+  }
+
   private failure(e: unknown) {
     this.report.failed++;
     this.report.status = 'retrying';
@@ -27,7 +33,12 @@ export class PersonalDelivery {
 
   private async user(tgId: number): Promise<UserRow | null> {
     const [u] = await this.db.select().from(users).where(eq(users.tgId, tgId));
-    if (!u?.notificationsEnabled || !u.pmAvailable) return null;
+    const community = await communityByChat(this.db, this.chatId);
+    if (!u?.pmAvailable || !community?.active) return null;
+    if (!u.notificationsEnabled) return null;
+    const [member] = await this.db.select().from(memberships)
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, u.id)));
+    if (!member) return null;
     return await this.tg.isMember(this.chatId, tgId) ? u : null;
   }
 

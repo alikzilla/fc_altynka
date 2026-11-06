@@ -2,6 +2,7 @@ import { env } from 'cloudflare:test';
 import { getDb } from '../src/db/client';
 import { communities, memberships, users, type CommunityRow, type UserRow } from '../src/db/schema';
 import type { TgWebAppUser } from '../src/auth/initData';
+import { eq } from 'drizzle-orm';
 
 export const db = () => getDb(env.DB);
 
@@ -14,7 +15,7 @@ export async function seedCommunity(): Promise<CommunityRow> {
 
 export async function seedUser(
   name: string,
-  opts: { role?: 'organizer' | 'player'; level?: number; tgId?: number; communityId?: number } = {},
+  opts: { role?: 'organizer' | 'player'; level?: number; tgId?: number; communityId?: number; telegramAdmin?: boolean } = {},
 ): Promise<UserRow> {
   const [u] = await db()
     .insert(users)
@@ -23,9 +24,20 @@ export async function seedUser(
   if (opts.communityId !== undefined) {
     await db()
       .insert(memberships)
-      .values({ communityId: opts.communityId, userId: u.id, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
+      .values({ communityId: opts.communityId, userId: u.id, telegramAdmin: opts.telegramAdmin ?? false, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
   }
   return u;
+}
+
+/** The profile is one row of `users`, shared by every group. */
+export async function setMemberProfile(userId: number, fields: Partial<UserRow>): Promise<void> {
+  if (Object.keys(fields).length) await db().update(users).set(fields).where(eq(users.id, userId));
+}
+
+export async function localUser(userId: number): Promise<UserRow> {
+  const [user] = await db().select().from(users).where(eq(users.id, userId));
+  if (!user) throw new Error('Fixture user does not exist');
+  return user;
 }
 
 const enc = new TextEncoder();

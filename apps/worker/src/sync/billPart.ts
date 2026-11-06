@@ -1,5 +1,5 @@
 import type { Db } from '../db/client';
-import { billDto, getBillByEvent } from '../domain/bills';
+import { billDto, getBill, getBillByEvent } from '../domain/bills';
 import { getEvent } from '../domain/events';
 import { renderBillMessage } from '../render/billMessage';
 import type { Rendered } from '../render/eventMessage';
@@ -18,6 +18,8 @@ export async function renderBillPart(db: Db, eventId: number, env?: LinkEnv): Pr
 export async function resolveReminder(db: Db, billId: number): Promise<OutNotice> {
   const dto = await billDto(db, billId);
   const debtors = dto.lines.filter(l => l.state !== 'paid');
+  const raw = (await getBill(db, billId))!;
+  const event = (await getEvent(db, raw.eventId))!;
   const byId = await usersById(db, debtors.map(l => l.userId));
   const amountByTgId: Record<number, number> = {};
   const people = debtors.flatMap(l => {

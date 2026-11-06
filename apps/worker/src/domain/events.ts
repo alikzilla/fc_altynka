@@ -1,7 +1,7 @@
 import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { communities, events, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
+import { communities, events, memberships, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
 import type { Notice, SyncPort } from '../sync/port';
 
 export interface Deps {
@@ -105,6 +105,7 @@ export async function createEvent(
 export async function joinEvent(d: Deps, eventId: number, userId: number): Promise<JoinResult> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
+  if (!await eventMember(d.db, ev.communityId, userId)) return { kind: 'not_found' };
   if (isClosed(ev, d.now)) return { kind: 'closed' };
   const [existing] = await d.db
     .select()
@@ -173,6 +174,7 @@ export async function addGuest(
 > {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
+  if (!await eventMember(d.db, ev.communityId, invitedBy)) return { kind: 'not_found' };
   if (isClosed(ev, d.now)) return { kind: 'closed' };
   const before = await loadQueue(d.db, eventId);
   const signupId = await insertGuest(d.db, { eventId, invitedBy, name, now: d.now });
@@ -181,6 +183,11 @@ export async function addGuest(
   await syncEvent(d, eventId, movesNotices(before, after));
   const p = placeOf(after, signupId);
   return { kind: p.inMain ? 'main' : 'reserve', position: p.position, signupId };
+}
+
+async function eventMember(db: Db, communityId: number, userId: number): Promise<boolean> {
+  return !!(await db.select({ id: memberships.userId }).from(memberships)
+    .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId), eq(memberships.active, true))).limit(1))[0];
 }
 
 export async function removeSignup(

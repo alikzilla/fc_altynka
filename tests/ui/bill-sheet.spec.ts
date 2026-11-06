@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -9,7 +10,7 @@ for (const width of [320, 390]) {
   test(`bill opens as a bottom sheet, retains its page and restores focus at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
     await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-    await page.route('**/api/**', r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? identity : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, reserveCount: 1, reserve: [{ ...players[1], id: 20, userId: 20, name: 'Резервный игрок' }] } }));
+    await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? identity : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, reserveCount: 1, reserve: [{ ...players[1], id: 20, userId: 20, name: 'Резервный игрок' }] } }));
     await page.goto('/event/7?tab=bill');
     const trigger = page.getByRole('button', { name: 'Выставить счёт', exact: true });
     await trigger.click();
@@ -46,7 +47,7 @@ test('bill sheet preserves a failed draft, locks pending dismissal and closes af
   let release = () => {};
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
-  await page.route('**/api/**', async r => {
+  await teamApiRoute(page, async r => {
     const path = new URL(r.request().url()).pathname;
     if (path === '/api/events/7/bill') {
       attempts++;

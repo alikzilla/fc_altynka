@@ -14,12 +14,19 @@ export function makeTestBot(now = () => Date.now()) {
   const sync = new FakeSync();
   const bot = createBot(env, { db: db(), sync, now }, botInfo);
   const calls: { method: string; payload: Record<string, unknown> }[] = [];
+  const admins = new Set([1]);
+  const rights = { canPin: true };
   bot.api.config.use(async (_prev, method, payload) => {
     calls.push({ method, payload: payload as Record<string, unknown> });
+    if (method === 'getChatMember') {
+      const p = payload as { user_id: number };
+      return { ok: true, result: { status: p.user_id === 999 || admins.has(p.user_id) ? 'administrator' : 'member',
+        user: { id: p.user_id, is_bot: p.user_id === 999, first_name: 'Пользователь' }, can_pin_messages: rights.canPin } } as never;
+    }
     return { ok: true, result: true } as never;
   });
   const answers = () => calls.filter(c => c.method === 'answerCallbackQuery').map(c => c.payload.text);
-  return { bot, sync, calls, answers };
+  return { bot, sync, calls, answers, admins, rights };
 }
 
 let uid = 1;
@@ -37,11 +44,11 @@ export const migrated = (fromChatId: number, toChatId: number): Update => ({
   message: { message_id: uid, date: 0, chat: { id: fromChatId, type: 'group', title: 'Футбол' }, migrate_to_chat_id: toChatId } as never,
 });
 
-export const groupCommand = (fromId: number, text: string): Update => ({
+export const groupCommand = (fromId: number, text: string, chatId = -100777): Update => ({
   update_id: uid++,
   message: {
     message_id: uid, date: 0, text,
-    chat: { id: -100777, type: 'supergroup', title: 'Футбол' },
+    chat: { id: chatId, type: 'supergroup', title: 'Футбол' },
     from: { id: fromId, is_bot: false, first_name: 'Кто-то' },
     entities: [{ type: 'bot_command', offset: 0, length: text.length }],
   },

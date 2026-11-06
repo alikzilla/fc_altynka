@@ -2,7 +2,7 @@ import type { EventDetailDto } from '@altynka/core';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
-import { canManage, useMe } from '../state/me';
+import { canManageEvent } from '../state/me';
 import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { Icon } from '../components/Icon';
@@ -25,7 +25,6 @@ const STATUS = { collecting: 'Набираем игроков', scheduled: 'Иг
 
 export function Event() {
   const { id } = useParams<{ id: string }>();
-  const me = useMe();
   const toast = useToast();
   const search = useScreenSearch();
   const [, navigate] = useLocation();
@@ -52,8 +51,8 @@ export function Event() {
   const date = ev ? new Date(`${ev.date}T12:00:00Z`) : null;
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
-  const manage = canManage(me) && ev && isOpen(ev.status);
-  const actionBlocked = !!ev && isOpen(ev.status) && (canManage(me) && ev.status === 'collecting' || !ev.my);
+  const manage = ev && canManageEvent(ev) && isOpen(ev.status);
+  const actionBlocked = !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
   return <Screen title={title} subtitle={weekday} back="/matches" className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
     {loading && !ev && <Loading variant="detail" />}
@@ -75,7 +74,7 @@ export function Event() {
       }}>{label}</button>)}</div>
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className="tab-panel">{View && <View key={`${id}-${tab}`} ev={ev} reload={reload} actionBlocked={actionBlocked} />}</div>
       {menu && manage && <ActionSheet title="Действия матча" onClose={() => setMenu(false)} busy={busy}>
-        <Link className="sheet-action" href={`/event/${ev.id}/schedule`} aria-disabled={busy} tabIndex={busy ? -1 : 0} onClick={e => { if (busy) e.preventDefault(); }}>{ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}<Icon name="arrow" /></Link>
+        <Link className="sheet-action" href={`/event/${ev.id}/schedule`} aria-disabled={busy} tabIndex={busy ? -1 : 0} onClick={e => { if (busy) e.preventDefault(); else setMenu(false); }}>{ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'}<Icon name="arrow" /></Link>
         <ConfirmButton className="sheet-action danger-text" label="Отменить матч" confirmLabel="Точно отменить матч?" disabled={busy} onConfirm={cancel} />
       </ActionSheet>}
     </>}

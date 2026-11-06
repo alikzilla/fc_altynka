@@ -5,7 +5,7 @@ import { createEvent, joinEvent, loadQueue, scheduleEvent } from '../../src/doma
 import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
 import { makeTestBot, tap } from './helpers';
 
 async function world() {
@@ -15,7 +15,7 @@ async function world() {
   const tg = new FakeTg(); tg.members.add(501);
   __setTgClientForTests(tg);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
-  await d.db.update(users).set({ kaspiPhone: '+77071234567' }).where(eq(users.id, org.id));
+  await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   const eventId = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
   await joinEvent(d, eventId, org.id); await joinEvent(d, eventId, payer.id);
   await scheduleEvent(d, eventId, { startTime: '21:00', durationHours: 1, place: 'Поле' });
@@ -46,18 +46,31 @@ test.each(['pp:1:1000:101:77071234567', 'pp:1:2000:999:77071234567'])('stale pri
   expect((await db().select().from(billLines)).find(l => l.userId === w.payer.id)?.paidAmount).toBeNull();
 });
 
-test('removed group member cannot use an old private payment button', async () => {
+test('a former member still settles their own debt from the private button', async () => {
   const w = await world(); w.tg.members.clear(); const t = makeTestBot();
   const update = tap(501, `pp:${w.billId}:2000:101:77071234567`, 'Игрок', 501);
   update.callback_query!.message!.chat.type = 'private';
   await t.bot.handleUpdate(update);
-  expect(t.answers()[0]).toContain('недоступен');
-  expect((await db().select().from(billLines)).find(l => l.userId === w.payer.id)?.paidAmount).toBeNull();
+  expect(t.answers()).toEqual(['Ты отметил оплату']);
+  expect((await db().select().from(billLines)).find(l => l.userId === w.payer.id)?.paidAmount).toBe(2000);
+});
+
+test('a stranger without a line in the bill cannot use a private payment button', async () => {
+  const w = await world(); const t = makeTestBot();
+  await seedUser('Чужой', { tgId: 777 });
+  for (const id of [777, 778]) {
+    const update = tap(id, `pp:${w.billId}:2000:101:77071234567`, 'Чужой', id);
+    update.callback_query!.message!.chat.type = 'private';
+    await t.bot.handleUpdate(update);
+  }
+  expect(t.answers()).toEqual(['Этот счёт тебе недоступен', 'Этот счёт тебе недоступен']);
+  expect((await db().select().from(billLines)).every(l => l.userId !== w.payer.id || l.paidAmount === null)).toBe(true);
 });
 
 test('a private payment button cannot mark paid after the receiver changed Kaspi phone', async () => {
   const w = await world(); const t = makeTestBot();
-  await db().update(users).set({ kaspiPhone: '+77079999999' }).where(eq(users.tgId, 101));
+  const [receiver] = await db().select().from(users).where(eq(users.tgId, 101));
+  await setMemberProfile(receiver.id, { kaspiPhone: '+77079999999' });
   const update = tap(501, `pp:${w.billId}:2000:101:77071234567`, 'Игрок', 501);
   update.callback_query!.message!.chat.type = 'private';
   await t.bot.handleUpdate(update);

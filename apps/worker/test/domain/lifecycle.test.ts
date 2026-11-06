@@ -28,7 +28,7 @@ test('signup before scheduling is allowed; every queue mutation is frozen exactl
   await schedule();
   const before = await loadQueue(d.db, id);
   d.now = start;
-  expect(await joinEvent(d, id, 999)).toEqual({ kind: 'closed' });
+  expect(await joinEvent(d, id, player)).toEqual({ kind: 'closed' });
   expect(await leaveEvent(d, id, player)).toEqual({ kind: 'closed' });
   expect(await addGuest(d, id, player, 'Гость')).toEqual({ kind: 'closed' });
   expect(await removeSignup(d, before.main[0].id, { userId: org, role: 'organizer' })).toBe('closed');
@@ -60,7 +60,7 @@ test('existing legacy bill remains editable even if its stored date is in the fu
 });
 test('detail reports playing and the injected server clock without changing stored status', async () => {
   await schedule();
-  const detail = await eventDetail(d.db, id, { userId: player, role: 'player', communityId }, start);
+  const detail = await eventDetail(d.db, id, { userId: player, role: 'player', community: { id: communityId, title: 'Футбол' } }, start);
   expect(detail).toMatchObject({ status: 'playing', serverNow: start });
   expect((await d.db.select().from(events).where(eq(events.id, id)))[0].status).toBe('scheduled');
 });

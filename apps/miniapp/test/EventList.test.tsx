@@ -17,7 +17,7 @@ const s = (id: number, name: string, extra: Partial<EventDetailDto['main'][numbe
 });
 
 const ev: EventDetailDto = {
-  id: 5, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, comment: null,
+  id: 5, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, comment: null,
   limit: 10, mainCount: 2, reserveCount: 1, my: null,
   main: [s(1, 'Азамат'), s(2, 'Ержан', { userId: null, guestOfName: 'Тимур', invitedByUserId: 7 })],
   reserve: [s(3, 'Арман')],

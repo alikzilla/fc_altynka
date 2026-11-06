@@ -1,22 +1,27 @@
 import type { Extra, LineState } from './bill';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
-import type { MatchReviewSummaryDto, PlayerRatingDto } from './ratings';
+import type { MatchReviewSummaryDto, PlayerRatingDto, PlayerSummaryDto } from './ratings';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
+
+export interface CommunityDto { id: number; title: string; }
+export interface CommunitiesDto { communities: CommunityDto[]; }
+/** A group the person currently belongs to, with their role in it. */
+export interface MyCommunityDto { id: number; title: string; role: Role }
 
 export interface MeDto {
   rating?: PlayerRatingDto;
   userId: number;
   displayName: string;
-  role: Role;
   kaspiPhone: string | null;
   profileCompleted?: boolean;
   playingPosition?: PlayingPosition | null;
   dominantFoot?: DominantFoot | null;
   theme?: AppTheme;
   notifications?: { enabled: boolean; available: boolean };
-  community?: { id: number; title: string };
+  /** Confirmed groups, sorted by title; empty for a person without groups. */
+  communities: MyCommunityDto[];
   telegram?: {
     firstName: string;
     lastName: string | null;
@@ -34,6 +39,8 @@ export interface SignupDto {
   invitedByUserId: number | null;
   /** Только для организатора и админа: уровень игрока или гостя (guestLevel ?? 5). */
   level?: number;
+  /** Только для организатора и админа, только у игроков: сохранённый номер Kaspi (получатель счёта). */
+  kaspiPhone?: string | null;
 }
 
 export interface EventSummaryDto {
@@ -49,6 +56,7 @@ export interface EventSummaryDto {
   mainCount: number;
   reserveCount: number;
   my: 'main' | 'reserve' | null;
+  community: CommunityDto;
 }
 
 export interface TeamsDto {
@@ -90,6 +98,8 @@ export interface EventDetailDto extends EventSummaryDto {
   reserve: SignupDto[];
   teams: TeamsDto | null;
   bill: BillDto | null;
+  /** The viewer's role in this event's group. */
+  viewerRole: Role;
 }
 
 export interface MemberDto {
@@ -111,10 +121,13 @@ export interface MatchArchiveDto {
 
 export type NotificationTaskDto =
   | { kind: 'skills'; id: string }
-  | { kind: 'review'; id: string; eventId: number; date: string; place: string | null; closesAt: number }
-  | { kind: 'payment'; id: string; eventId: number; date: string; place: string | null; due: number; receiverName: string }
-  | { kind: 'schedule'; id: string; eventId: number; date: string; place: string | null };
+  | { kind: 'review'; id: string; eventId: number; date: string; place: string | null; closesAt: number; community: CommunityDto }
+  | { kind: 'payment'; id: string; eventId: number; billId: number; date: string; place: string | null; due: number; receiverName: string; receiverKaspiPhone: string; community: CommunityDto }
+  | { kind: 'schedule'; id: string; eventId: number; date: string; place: string | null; community: CommunityDto };
 
 export interface NotificationsDto {
   tasks: NotificationTaskDto[];
 }
+
+/** Players of each of the viewer's groups; one person may appear in several groups with the same rating. */
+export interface PlayersDto { groups: { community: CommunityDto; role: Role; players: PlayerSummaryDto[] }[] }

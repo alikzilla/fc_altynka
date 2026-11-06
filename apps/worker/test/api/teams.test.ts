@@ -7,7 +7,7 @@ beforeEach(async () => { w = await setupApiWorld(); });
 afterEach(teardownApiWorld);
 
 test('organizer saves and publishes teams; player cannot', async () => {
-  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07' } })).json()) as { id: number };
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } })).json()) as { id: number };
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;

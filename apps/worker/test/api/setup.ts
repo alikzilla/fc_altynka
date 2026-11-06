@@ -24,9 +24,13 @@ export async function setupApiWorld(): Promise<ApiWorld> {
   const clock = { now: Date.now() };
   setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: clock.now, sync }));
   const c = await seedCommunity();
-  await seedUser('Админ', { communityId: c.id, tgId: 1 });
+  await seedUser('Админ', { communityId: c.id, tgId: 1, telegramAdmin: true });
   const o = await seedUser('Орг', { communityId: c.id, tgId: 2001, role: 'organizer' });
   const p = await seedUser('Игрок', { communityId: c.id, tgId: 2002 });
+  tg.members = new Set([1, 2001, 2002]);
+  tg.admins.add(1);
+  tg.chatMembers.set(c.tgChatId, tg.members);
+  tg.chatAdmins.set(c.tgChatId, tg.admins);
   return {
     clock, tg, sync, communityId: c.id,
     admin: { id: 1, first_name: 'Админ' },

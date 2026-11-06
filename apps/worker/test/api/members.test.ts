@@ -17,15 +17,15 @@ test('PATCH /api/me normalizes Kaspi phone and rejects junk', async () => {
 });
 
 test('only organizers list members', async () => {
-  expect((await apiRequest('/api/members', { as: w.player })).status).toBe(403);
-  const list = (await (await apiRequest('/api/members', { as: w.org })).json()) as MemberDto[];
+  expect((await apiRequest(`/api/members?communityId=${w.communityId}`, { as: w.player })).status).toBe(403);
+  const list = (await (await apiRequest(`/api/members?communityId=${w.communityId}`, { as: w.org })).json()) as MemberDto[];
   expect(list.map(m => m.displayName).sort()).toEqual(['Админ', 'Игрок', 'Орг']);
   expect(list.find(m => m.displayName === 'Админ')!.role).toBe('admin');
 });
 
 test('only admin edits roles and calculated levels cannot be overridden', async () => {
   const patch = (as: typeof w.org, body: unknown) =>
-    apiRequest(`/api/members/${w.playerUserId}`, { method: 'PATCH', as, body });
+    apiRequest(`/api/members/${w.playerUserId}?communityId=${w.communityId}`, { method: 'PATCH', as, body });
   expect((await patch(w.org, { level: 8 })).status).toBe(403);
   expect((await patch(w.admin, { level: 11 })).status).toBe(400);
   expect((await patch(w.admin, { level: 8 })).status).toBe(400);
@@ -39,7 +39,7 @@ test('a display name taken by someone else is refused', async () => {
   expect(mine.status).toBe(409);
   expect(await mine.json()).toEqual({ error: 'name_taken' });
   expect((await apiRequest('/api/me', { method: 'PATCH', as: w.player, body: { displayName: 'Игрок' } })).status).toBe(200);
-  const byAdmin = await apiRequest(`/api/members/${w.playerUserId}`, { method: 'PATCH', as: w.admin, body: { displayName: 'Орг' } });
+  const byAdmin = await apiRequest(`/api/members/${w.playerUserId}?communityId=${w.communityId}`, { method: 'PATCH', as: w.admin, body: { displayName: 'Орг' } });
   expect(byAdmin.status).toBe(409);
   expect(await byAdmin.json()).toEqual({ error: 'name_taken' });
 });

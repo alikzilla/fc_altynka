@@ -1,13 +1,14 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567', community: { id: 4, title: 'Футбол по субботам' } };
 const player = { id: 1, seq: 1, userId: 1, name: 'Организатор', invitedByUserId: null, guestOfName: null, level: 5 };
-const draft = { id: 7, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', comment: null, main: [player], reserve: [], teams: null, bill: null };
+const draft = { id: 7, community: identity.community, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', comment: null, main: [player], reserve: [], teams: null, bill: null };
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', route => {
+  await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [draft], past: [] } : path === '/api/matches' ? { events: [{ ...draft, id: 2, status: 'closed', date: '2026-10-31' }], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : (path === '/api/members' || path === '/api/players') ? [] : draft });
   });
@@ -21,8 +22,7 @@ test('bottom sheet preserves context, traps focus, dismisses and restores focus 
   const dialog = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading')).toBeFocused();
-  await expect(dialog.getByLabel('Группа')).toHaveValue('4');
-  await expect(dialog.getByLabel('Группа')).toContainText('Футбол по субботам');
+  await expect(dialog.getByRole('radiogroup')).toHaveCount(0);
   await expect(page.locator('main .title')).toHaveText('Профиль');
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('hidden');
   await expect.poll(async () => { const box = (await dialog.boundingBox())!; return Math.round(box.y + box.height); }).toBe(844);
@@ -140,9 +140,9 @@ test('a late create response cannot pull a person away after browser Back', asyn
 test('appointment is the prerequisite for billing; assigning time unlocks the bill form', async ({ page }) => {
   let scheduled = false;
   let started = false;
-  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Arena' } : draft }));
+  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' } : draft }));
   await page.route('**/api/events/7/schedule', route => {
-    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Arena' });
+    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Школа Аксай' });
     scheduled = true;
     return route.fulfill({ json: { kind: 'ok' } });
   });
@@ -150,10 +150,11 @@ test('appointment is the prerequisite for billing; assigning time unlocks the bi
   await expect(page.getByRole('button', { name: 'Выставить счёт' })).toHaveCount(0);
   await page.getByRole('link', { name: 'Назначить игру' }).click();
   await page.getByLabel('Начало').fill('20:00');
-  await page.getByRole('button', { name: '2 часа · 15 человек' }).click();
-  await page.getByLabel('Поле · необязательно').fill('Arena');
+  await page.getByRole('button', { name: /2 часа/ }).click();
+  await page.getByRole('button', { name: /Место проведения/ }).click();
+  await page.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
   await page.getByRole('button', { name: 'Назначить игру', exact: true }).click();
-  await expect(page).toHaveURL('/event/7');
+  await expect(page).toHaveURL('/event/7?tab=bill');
   await expect(page.getByText('20:00–22:00')).toBeVisible();
   await page.getByRole('tab', { name: 'Оплата', exact: true }).click();
   await expect(page.getByText('Счёт будет доступен после начала игры')).toBeVisible();
@@ -181,7 +182,7 @@ for (const width of [320, 390]) {
       let unblock: () => void = () => {};
       const pending = new Promise<void>(resolve => { unblock = resolve; });
       release = unblock;
-      await page.route('**/api/**', async route => {
+      await teamApiRoute(page, async route => {
         if (new URL(route.request().url()).pathname === '/api/me') return route.fallback();
         await pending;
         await route.fallback();
@@ -203,7 +204,7 @@ for (const width of [320, 390]) {
       await expect(page.locator('main .loading')).toHaveCount(0);
       await page.unroute('**/api/**');
       // Reinstall fixtures removed with the temporary delay route.
-      await page.route('**/api/**', route => {
+      await teamApiRoute(page, route => {
         const resource = new URL(route.request().url()).pathname;
         return route.fulfill({ json: resource === '/api/me' ? identity : resource === '/api/events' ? { active: [draft], past: [] } : resource === '/api/matches' ? { events: [], nextCursor: null } : resource === '/api/notifications' ? { tasks: [] } : (resource === '/api/members' || resource === '/api/players') ? [] : draft });
       });
@@ -215,7 +216,7 @@ test('initial authentication skeleton fills width and viewport', async ({ page }
   await page.setViewportSize({ width: 390, height: 844 });
   let release = () => {};
   const pending = new Promise<void>(resolve => { release = resolve; });
-  await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: identity }); });
+  await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: '+77071234567', communities: [{ id: 4, title: 'Футбол по субботам', role: 'organizer' }] } }); });
   await page.goto('/');
   await expect(page.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
   expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(844);

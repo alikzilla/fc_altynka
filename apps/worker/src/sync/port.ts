@@ -11,6 +11,7 @@ export type Notice =
 export interface SyncRequest {
   parts: Part[];
   notices?: Notice[];
+  review?: boolean;
 }
 
 export interface SyncPort {

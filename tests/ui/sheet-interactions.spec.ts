@@ -1,3 +1,4 @@
+import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page, type CDPSession } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 
@@ -7,7 +8,7 @@ const draft = { id: 7, date: '2026-11-08', status: 'collecting', startTime: null
 
 test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
-  await page.route('**/api/**', route => {
+  await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
     return route.fulfill({ json: path === '/api/me' ? identity : path === '/api/events' ? { active: [], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/notifications' ? { tasks: [] } : (path === '/api/members' || path === '/api/players') ? [] : draft });
   });
@@ -73,6 +74,8 @@ test('short, horizontal, cancelled and multi-touch gestures reset cleanly and th
 
 test('form scrolls on a short phone and a downward content swipe dismisses only at scroll-top', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
+  // Two creatable groups: the picker makes the form taller than a short phone.
+  await page.route('**/api/me', route => route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: null, communities: [{ id: 4, title: 'Футбол по субботам', role: 'organizer' }, { id: 5, title: 'Друзья с работы', role: 'organizer' }] } }));
   await page.goto('/new');
   const sheet = page.getByRole('dialog');
   const body = page.locator('.sheet-content');
@@ -181,10 +184,12 @@ for (const width of [320, 390]) {
       await page.screenshot({ path: `artifacts/ui/empty-${width}-${path.replace(/[^a-z0-9]+/gi, '-')}.png`, fullPage: true });
       if (path === '/') await expect(page.getByRole('heading', { name: 'Нужно сделать' })).toHaveCount(0);
     }
-    await page.route('**/api/me', route => route.fulfill({ json: { ...identity, role: 'player' } }));
+    await page.route('**/api/me', route => route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: null, communities: [{ id: 4, title: 'Футбол по субботам', role: 'player' }] } }));
     await page.goto('/matches');
     await expect(page.locator('.empty-state')).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
+    await page.getByRole('link', { name: 'Создать матч' }).click();
+    await expect(page.getByRole('dialog').getByText(/Создавать матчи может организатор/)).toBeVisible();
+    await page.getByRole('button', { name: 'Закрыть создание матча' }).click();
     await page.goto('/notifications');
     await expect(page.locator('.empty-state')).toBeVisible();
     await expect(page.getByText('Игры без назначенного времени')).toHaveCount(0);

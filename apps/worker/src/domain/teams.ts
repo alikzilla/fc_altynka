@@ -28,7 +28,7 @@ export async function saveTeams(
       return s !== undefined && s.userId === null && Number.isInteger(lvl) && lvl >= 1 && lvl <= 10;
     });
   if (!valid) return 'invalid';
-  const ratings = await playerRatings(d.db, ev.communityId, d.now);
+  const ratings = await playerRatings(d.db, [...main.values()].flatMap(s => s.userId === null ? [] : [s.userId]), d.now);
   const savedSnapshot: Record<number, number> | null = v.refreshRatings === false && ev.teamsRoster === rosterKey(flat) && ev.ratingSnapshot
     ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : null;
   const ratingSnapshot = Object.fromEntries([...main.values()].map(s => [s.id, s.userId === null

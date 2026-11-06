@@ -62,7 +62,7 @@ export function SkillAssessment() {
 export function SkillsPrompt() {
   const me = useMe();
   const [path, navigate] = useLocation();
-  const key = `altynka:skills-prompt:${me.community?.id ?? 0}:${me.userId}`;
+  const key = `altynka:skills-prompt:${me.userId}`;
   const [dismissed, setDismissed] = useState(() => { try { return sessionStorage.getItem(key) === 'later'; } catch { return false; } });
   const dismiss = () => { setDismissed(true); try { sessionStorage.setItem(key, 'later'); } catch { /* The prompt still closes when storage is unavailable. */ } };
   if (!me.rating || me.rating.selfAssessment || dismissed || !['/', '/matches', '/profile', '/players'].includes(path)) return null;

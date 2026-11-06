@@ -64,6 +64,20 @@
       "when": 1793897572947,
       "tag": "0008_player_ratings",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1793960291366,
+      "tag": "0009_multiple_groups",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1793968903530,
+      "tag": "0010_unified_profile",
+      "breakpoints": true
     }
   ]
 }

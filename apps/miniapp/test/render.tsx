@@ -6,9 +6,9 @@ import { memoryLocation } from 'wouter/memory-location';
 import { MeContext } from '../src/state/me';
 import { ToastProvider } from '../src/components/ui';
 
-export const player: MeDto = { userId: 2, displayName: 'Игрок', role: 'player', kaspiPhone: null };
-export const organizer: MeDto = { userId: 1, displayName: 'Орг', role: 'organizer', kaspiPhone: '+77071234567' };
-export const admin: MeDto = { userId: 9, displayName: 'Админ', role: 'admin', kaspiPhone: null };
+export const player: MeDto = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }] };
+export const organizer: MeDto = { userId: 1, displayName: 'Орг', kaspiPhone: '+77071234567', communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }] };
+export const admin: MeDto = { userId: 9, displayName: 'Админ', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'admin' }] };
 
 export function renderWithApp(ui: ReactElement, o: { me: MeDto; path?: string }) {
   const loc = memoryLocation({ path: o.path ?? '/', record: true });
@@ -21,3 +21,6 @@ export function renderWithApp(ui: ReactElement, o: { me: MeDto; path?: string })
   );
   return { ...result, history: loc.history! };
 }
+
+export const twoGroups: MeDto = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }, { id: 2, title: 'Футбол по средам', role: 'player' }] };
+export const noGroups: MeDto = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [] };

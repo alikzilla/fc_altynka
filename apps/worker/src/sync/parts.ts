@@ -1,7 +1,8 @@
 import { matchPhase } from '@altynka/core';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { bills, events, users, type SignupRow, type UserRow } from '../db/schema';
+import { bills, events, memberships, users, type SignupRow, type UserRow } from '../db/schema';
+import { getCommunity } from '../domain/members';
 import { getEvent, loadQueue } from '../domain/events';
 import type { Env } from '../env';
 import { renderEventMessage, type EventView, type PersonView, type Rendered } from '../render/eventMessage';
@@ -40,6 +41,7 @@ export async function loadEventView(db: Db, eventId: number): Promise<EventView 
   const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
   return {
     id: ev.id,
+    communityTitle: (await getCommunity(db, ev.communityId))?.title,
     date: ev.date,
     status: matchPhase(ev),
     startTime: ev.startTime,

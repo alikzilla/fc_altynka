@@ -2,7 +2,7 @@ import { and, eq } from 'drizzle-orm';
 import { bills, billLines, events, users } from '../../src/db/schema';
 import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeTg } from '../fakes/fakeTg';
-import { db, seedCommunity, seedUser } from '../helpers';
+import { db, seedCommunity, seedUser, localUser } from '../helpers';
 import { groupCommand, makeTestBot, privateCommand, tap } from './helpers';
 
 let tg: FakeTg;
@@ -16,19 +16,21 @@ const privateTap = (id: number, data: string) => {
 };
 
 test('/start proves private availability but notifications require an explicit toggle', async () => {
-  await seedCommunity();
+  const c = await seedCommunity();
+  await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  tg.members.add(501);
   const t = makeTestBot();
   await t.bot.handleUpdate(privateCommand(501, '/start'));
   let [user] = await db().select().from(users).where(eq(users.tgId, 501));
   expect(user.pmAvailable).toBe(true);
-  expect(user.notificationsEnabled).toBe(false);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(false);
   expect(texts(t)).toContain('Личные уведомления можно настроить отдельно');
   await t.bot.handleUpdate(privateTap(501, 'notify:1'));
   [user] = await db().select().from(users).where(eq(users.tgId, 501));
-  expect(user.notificationsEnabled).toBe(true);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(true);
   await t.bot.handleUpdate(privateTap(501, 'notify:0'));
   [user] = await db().select().from(users).where(eq(users.tgId, 501));
-  expect(user.notificationsEnabled).toBe(false);
+  expect((await localUser(user.id)).notificationsEnabled).toBe(false);
 });
 
 test('a group notification callback cannot enable a personal subscription', async () => {
@@ -122,11 +124,11 @@ test('/matches returns at most eight active matches in date order and escapes us
 });
 
 test('group personal commands redirect to private and ordinary conversation is ignored', async () => {
-  await seedCommunity();
+  const c = await seedCommunity();
   const t = makeTestBot();
-  await t.bot.handleUpdate(groupCommand(501, '/payments'));
+  await t.bot.handleUpdate(groupCommand(501, '/payments', -100500));
   expect(texts(t)).toContain('личном чате');
-  expect(JSON.stringify(t.calls)).toContain('https://t.me/fc_altynka_bot?start=payments');
+  expect(JSON.stringify(t.calls)).toContain(`https://t.me/fc_altynka_bot?start=c${c.id}_payments`);
   const before = t.calls.length;
   const update = groupCommand(501, 'привет');
   if (update.message) update.message.entities = [];
@@ -142,6 +144,9 @@ test('unknown private commands show help and a menu link', async () => {
 });
 
 test('a command menu update failure still allows welcome without leaking the transport URL', async () => {
+  const c = await seedCommunity();
+  await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  tg.members.add(501);
   const warning = vi.spyOn(console, 'warn').mockImplementation(() => {});
   try {
     const t = makeTestBot();
@@ -150,7 +155,7 @@ test('a command menu update failure still allows welcome without leaking the tra
       return prev(method, payload, signal);
     });
     await t.bot.handleUpdate(privateCommand(501, '/start'));
-    expect(texts(t)).toContain('ФК Алтынка');
+    expect(texts(t)).toContain('Матчи, составы');
     expect(JSON.stringify(warning.mock.calls)).not.toContain('secret-token');
   } finally { warning.mockRestore(); }
 });

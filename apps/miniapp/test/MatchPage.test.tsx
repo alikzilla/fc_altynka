@@ -13,8 +13,8 @@ let requests: string[];
 let finishJoin: (() => void) | undefined;
 let delayJoin: boolean;
 beforeEach(() => {
-  me = { userId: 2, displayName: 'Айдос Нуспеков', role: 'player', kaspiPhone: null };
-  ev = { id: 7, date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
+  me = { userId: 2, displayName: 'Айдос Нуспеков', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }] };
+  ev = { id: 7, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'player', date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
   requests = []; delayJoin = false; finishJoin = undefined;
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     if (path === '/api/me') return Response.json(me);
@@ -86,7 +86,7 @@ test('participation request stays locked when changing tabs', async () => {
 });
 
 test('organizer scheduling has priority over own signup', async () => {
-  me.role = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
   open();
   const schedule = await screen.findByRole('link', { name: 'Назначить игру' });
   expect(schedule.closest('.match-action')).not.toBeNull();
@@ -95,7 +95,7 @@ test('organizer scheduling has priority over own signup', async () => {
 });
 
 test('organizer menu owns match cancellation and keeps it separate from participation', async () => {
-  me.role = 'organizer'; ev.my = 'main'; ev.main = [signup];
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.my = 'main'; ev.main = [signup];
   open();
   await userEvent.click(await screen.findByRole('button', { name: 'Действия матча' }));
   const dialog = screen.getByRole('dialog', { name: 'Действия матча' });
@@ -113,7 +113,7 @@ test('player does not see organizer actions', async () => {
 });
 
 test('failed background profile refresh preserves the open bill draft', async () => {
-  me.role = 'organizer'; ev.status = 'playing'; ev.main = [signup]; ev.mainCount = 1;
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'playing'; ev.main = [signup]; ev.mainCount = 1;
   open('bill');
   await userEvent.click(await screen.findByRole('button', { name: 'Выставить счёт' }));
   await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
@@ -127,7 +127,8 @@ test('failed background profile refresh preserves the open bill draft', async ()
   expect(screen.getByLabelText('Аренда поля, ₸')).toHaveValue(4000);
 });
 
-test.each([401, 403])('profile refresh with explicit authorization failure %s blocks cached access', async status => {
+// /api/me works without groups: only 401 (no Telegram session) is an authorization failure.
+test.each([401])('profile refresh with explicit authorization failure %s blocks cached access', async status => {
   open();
   await screen.findByText('Ты пока не записан');
   vi.mocked(fetch).mockImplementation(async path => path === '/api/me'
@@ -136,4 +137,13 @@ test.each([401, 403])('profile refresh with explicit authorization failure %s bl
   await act(async () => { await queryClient.invalidateQueries({ queryKey: resourceKey('/api/me') }); });
   expect(screen.queryByText('Ты пока не записан')).not.toBeInTheDocument();
   expect(screen.getByRole('alert')).toBeVisible();
+});
+
+test('organizer in another group gets no organizer controls when viewerRole is player', async () => {
+  me.communities = [{ id: 1, title: 'FC Altynka', role: 'player' }, { id: 2, title: 'Другая', role: 'organizer' }];
+  ev.viewerRole = 'player'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
+  open();
+  await screen.findByRole('button', { name: 'Иду' });
+  expect(screen.queryByRole('button', { name: 'Действия матча' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Назначить игру' })).toBeNull();
 });
