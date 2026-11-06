@@ -1,7 +1,8 @@
-import { and, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { memberships, users } from '../../src/db/schema';
-import { bindCommunity, communityUser, ensureMembership, nameTaken } from '../../src/domain/members';
-import { db, seedUser } from '../helpers';
+import { bindCommunity, ensureMembership, nameTaken } from '../../src/domain/members';
+import { usersById } from '../../src/sync/parts';
+import { db, seedUser, setMemberProfile } from '../helpers';
 import { addGuest, createEvent, joinEvent, loadQueue } from '../../src/domain/events';
 import { FakeSync } from '../fakes/fakeSync';
 
@@ -11,8 +12,6 @@ test('binding another group creates an independent team and repeat binding is st
   const b = await bindCommunity(db(), -102, 'B');
   expect(a.id).not.toBe(b.id);
   expect((await bindCommunity(db(), -101, 'A обновлена')).id).toBe(a.id);
-  expect((await communityUser(db(), a.id, u.id))?.displayName).toBe('Игрок');
-  expect(await communityUser(db(), b.id, u.id)).toBeNull();
 });
 
 test('a foreign identity cannot join or invite guests into another team match', async () => {
@@ -27,17 +26,30 @@ test('a foreign identity cannot join or invite guests into another team match', 
   expect((await loadQueue(db(), event)).main).toHaveLength(0);
 });
 
-test('a shared Telegram identity starts with independent team profiles', async () => {
+test('name check only sees people who share a group', async () => {
+  const a = await bindCommunity(db(), -101, 'A');
+  const b = await bindCommunity(db(), -102, 'B');
+  const c = await bindCommunity(db(), -103, 'C');
+  await seedUser('Алихан', { communityId: a.id });
+  const u1 = (await db().select().from(users).where(eq(users.displayName, 'Алихан')))[0];
+  await seedUser('Дамир', { communityId: a.id });
+  const u3 = await seedUser('Ербол', { communityId: b.id });
+  await ensureMembership(db(), b.id, u1.id, 10);
+  await seedUser('Тимур', { communityId: c.id });
+  expect(await nameTaken(db(), 'дамир', u3.id)).toBe(false);
+  expect(await nameTaken(db(), 'Дамир', u1.id)).toBe(true);
+  expect(await nameTaken(db(), 'тимур', u1.id)).toBe(false);
+});
+
+test('profile is shared across groups', async () => {
   const a = await bindCommunity(db(), -101, 'A');
   const b = await bindCommunity(db(), -102, 'B');
   const u = await seedUser('Telegram');
-  await db().update(users).set({ displayName: 'Старое имя', kaspiPhone: '+77011234567', notificationsEnabled: true }).where(eq(users.id, u.id));
   await ensureMembership(db(), a.id, u.id, 10);
   await ensureMembership(db(), b.id, u.id, 10);
-  await db().update(memberships).set({ displayName: 'Только A', kaspiPhone: '+77017654321', notificationsEnabled: true })
-    .where(and(eq(memberships.communityId, a.id), eq(memberships.userId, u.id)));
-  expect(await communityUser(db(), a.id, u.id)).toMatchObject({ displayName: 'Только A', kaspiPhone: '+77017654321', notificationsEnabled: true });
-  expect(await communityUser(db(), b.id, u.id)).toMatchObject({ displayName: 'Telegram', kaspiPhone: null, notificationsEnabled: false });
-  expect(await nameTaken(db(), 'Только A', undefined, a.id)).toBe(true);
-  expect(await nameTaken(db(), 'Только A', undefined, b.id)).toBe(false);
+  await setMemberProfile(u.id, { kaspiPhone: '+77011234567' });
+  expect((await usersById(db(), [u.id])).get(u.id)?.kaspiPhone).toBe('+77011234567');
+  const rows = await db().select().from(memberships).where(eq(memberships.userId, u.id));
+  expect(rows).toHaveLength(2);
+  for (const r of rows) expect(r).not.toHaveProperty('kaspiPhone');
 });

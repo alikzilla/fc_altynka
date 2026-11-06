@@ -2,8 +2,7 @@ import { env } from 'cloudflare:test';
 import { getDb } from '../src/db/client';
 import { communities, memberships, users, type CommunityRow, type UserRow } from '../src/db/schema';
 import type { TgWebAppUser } from '../src/auth/initData';
-import { and, eq } from 'drizzle-orm';
-import { communityUser, getCommunity } from '../src/domain/members';
+import { eq } from 'drizzle-orm';
 
 export const db = () => getDb(env.DB);
 
@@ -25,25 +24,19 @@ export async function seedUser(
   if (opts.communityId !== undefined) {
     await db()
       .insert(memberships)
-      .values({ communityId: opts.communityId, userId: u.id, displayName: name, telegramAdmin: opts.telegramAdmin ?? false, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
+      .values({ communityId: opts.communityId, userId: u.id, telegramAdmin: opts.telegramAdmin ?? false, role: opts.role ?? 'player', level: opts.level ?? 5, checkedAt: Date.now() });
   }
   return u;
 }
 
-/** Explicit local-profile fixture: ambiguous team selection is an error in tests too. */
-export async function setMemberProfile(userId: number, fields: Partial<UserRow>, communityId?: number): Promise<void> {
-  const selected = communityId ?? (await getCommunity(db()))?.id;
-  if (!selected) throw new Error('Fixture requires an explicit community');
-  const { pmAvailable, theme, ...local } = fields;
-  if (pmAvailable !== undefined || theme !== undefined) await db().update(users).set({ pmAvailable, theme }).where(eq(users.id, userId));
-  if (Object.keys(local).length) await db().update(memberships).set(local).where(and(eq(memberships.communityId, selected), eq(memberships.userId, userId)));
+/** The profile is one row of `users`, shared by every group. */
+export async function setMemberProfile(userId: number, fields: Partial<UserRow>): Promise<void> {
+  if (Object.keys(fields).length) await db().update(users).set(fields).where(eq(users.id, userId));
 }
 
-export async function localUser(userId: number, communityId?: number): Promise<UserRow> {
-  const selected = communityId ?? (await getCommunity(db()))?.id;
-  if (!selected) throw new Error('Fixture requires an explicit community');
-  const user = await communityUser(db(), selected, userId);
-  if (!user) throw new Error('Fixture user is not a member');
+export async function localUser(userId: number): Promise<UserRow> {
+  const [user] = await db().select().from(users).where(eq(users.id, userId));
+  if (!user) throw new Error('Fixture user does not exist');
   return user;
 }
 

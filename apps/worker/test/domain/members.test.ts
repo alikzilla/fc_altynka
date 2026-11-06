@@ -23,10 +23,9 @@ test('ensureMembership creates player with level 5; global owner ID grants no ri
   expect(effectiveRole({ ADMIN_TG_ID: '999' }, user, m)).toBe('player');
 });
 
-test('numbered names are allocated within the team, never across all Telegram accounts', async () => {
-  const c = await seedCommunity();
+test('a new user keeps the plain Telegram name, no numbering', async () => {
   const a = await upsertTgUser(db(), { id: 7, first_name: 'Данияр' }, 1);
   const b = await upsertTgUser(db(), { id: 8, first_name: 'данияр' }, 1);
-  expect((await ensureMembership(db(), c.id, a.id)).displayName).toBe('Данияр');
-  expect((await ensureMembership(db(), c.id, b.id)).displayName).toBe('данияр 2');
+  expect(a.displayName).toBe('Данияр');
+  expect(b.displayName).toBe('данияр');
 });

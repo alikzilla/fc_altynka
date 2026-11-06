@@ -1,8 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { users, type UserRow } from '../db/schema';
+import { memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBillByEvent } from '../domain/bills';
-import { communityByChat, communityUser } from '../domain/members';
+import { communityByChat } from '../domain/members';
 import type { Env } from '../env';
 import type { EventView, PersonView, Rendered } from '../render/eventMessage';
 import type { OutNotice } from '../render/notices';
@@ -35,9 +35,11 @@ export class PersonalDelivery {
     const [u] = await this.db.select().from(users).where(eq(users.tgId, tgId));
     const community = await communityByChat(this.db, this.chatId);
     if (!u?.pmAvailable || !community?.active) return null;
-    const local = await communityUser(this.db, community.id, u.id);
-    if (!local?.notificationsEnabled) return null;
-    return await this.tg.isMember(this.chatId, tgId) ? local : null;
+    if (!u.notificationsEnabled) return null;
+    const [member] = await this.db.select().from(memberships)
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, u.id)));
+    if (!member) return null;
+    return await this.tg.isMember(this.chatId, tgId) ? u : null;
   }
 
   private async deliver(tgId: number, key: string, rendered: Rendered, editOnly = false, force = false): Promise<boolean | null> {

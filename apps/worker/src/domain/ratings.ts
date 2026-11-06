@@ -7,7 +7,6 @@ import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, memberships, matchParticipants, matchReviews, reviewSubmissions, signups, skillAssessments, users, type EventRow } from '../db/schema';
 import type { Deps } from './events';
-import { memberUser } from './members';
 
 export async function playerRatings(db: Db, communityId: number, now: number): Promise<Map<number, PlayerSummaryDto>> {
   const [members, assessments, games] = await Promise.all([
@@ -33,7 +32,7 @@ export async function playerRatings(db: Db, communityId: number, now: number): P
     list.push(game); gameMap.set(game.userId, list);
   }
   return new Map(members.map(({ membership, user: identity }) => {
-    const user = memberUser(identity, membership);
+    const user = identity;
     const selfAssessment = skillMap.get(user.id) ?? null;
     const initial = selfAssessment ? selfAssessmentRating(selfAssessment) : membership.level;
     const matches = gameMap.get(user.id) ?? [];
@@ -73,8 +72,8 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
   }
   if (!canFinishMatch(ev, d.now)) return 'closed';
   if (!ids.length || new Set(ids).size !== ids.length) return 'invalid';
-  const rows = await d.db.select({ signup: signups, name: memberships.displayName }).from(signups)
-    .leftJoin(memberships, and(eq(memberships.userId, signups.userId), eq(memberships.communityId, ev.communityId)))
+  const rows = await d.db.select({ signup: signups, name: users.displayName }).from(signups)
+    .leftJoin(users, eq(users.id, signups.userId))
     .where(and(eq(signups.eventId, ev.id), isNull(signups.leftAt), inArray(signups.id, ids)));
   if (rows.length !== ids.length) return 'invalid';
   const roster = rows.map(({ signup: s, name }) => ({ signupId: s.id, userId: s.userId, name: name ?? s.guestName ?? 'Гость' })).sort((a, b) => a.signupId - b.signupId);

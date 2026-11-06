@@ -5,7 +5,7 @@ import type { Db } from '../db/client';
 import { communities, memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBill, markPaid } from '../domain/bills';
 import { getEvent, joinEvent, leaveEvent, type Deps } from '../domain/events';
-import { bindCommunity, communityByChat, communityUser, confirmedMembership, ensureMembership, getCommunity, moveCommunityChat, upsertTgUser } from '../domain/members';
+import { bindCommunity, communityByChat, confirmedMembership, ensureMembership, getCommunity, moveCommunityChat, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
 import { makeTgClient } from '../telegram/client';
@@ -128,7 +128,7 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     const dto = await billDto(deps.db, bill.id);
     const line = dto.lines.find(l => l.userId === user.id);
     if (!line) return void await ctx.answerCallbackQuery({ text: 'Этот счёт тебе недоступен' });
-    const receiver = await communityUser(deps.db, community.id, bill.receiverUserId);
+    const [receiver] = await deps.db.select().from(users).where(eq(users.id, bill.receiverUserId));
     if (line.due !== Number(due) || receiver?.tgId !== Number(receiverTgId) || receiver.kaspiPhone?.replace(/\D/g, '') !== phoneDigits) {
       return void await ctx.answerCallbackQuery({ text: 'Счёт изменился. Открой актуальную оплату.' });
     }

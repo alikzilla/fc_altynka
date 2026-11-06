@@ -1,5 +1,6 @@
 import { defaultDisplayName, type Role } from '@altynka/core';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, ne } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/sqlite-core';
 import type { TgWebAppUser } from '../auth/initData';
 import type { Db } from '../db/client';
 import { communities, events, memberships, users, type CommunityRow, type EventRow, type MembershipRow, type UserRow } from '../db/schema';
@@ -33,21 +34,24 @@ export async function bindCommunity(db: Db, tgChatId: number, title: string): Pr
 
 const nameKey = (n: string) => n.trim().toLocaleLowerCase('ru');
 
-async function takenNames(db: Db, exceptUserId?: number, communityId?: number): Promise<Set<string>> {
-  if (communityId === undefined) return new Set();
-  const rows = await db.select().from(memberships).where(eq(memberships.communityId, communityId));
-  return new Set(rows.filter(r => r.userId !== exceptUserId && r.displayName).map(r => nameKey(r.displayName!)));
+/** Люди, с которыми есть общая группа, где оба активны (без самого человека). */
+export async function peerUserIds(db: Db, userId: number): Promise<number[]> {
+  const mine = alias(memberships, 'mine');
+  const rows = await db
+    .selectDistinct({ id: memberships.userId })
+    .from(mine)
+    .innerJoin(communities, and(eq(communities.id, mine.communityId), eq(communities.active, true)))
+    .innerJoin(memberships, and(eq(memberships.communityId, mine.communityId), eq(memberships.active, true)))
+    .where(and(eq(mine.userId, userId), eq(mine.active, true), ne(memberships.userId, userId)));
+  return rows.map(r => r.id);
 }
 
-/** Имя уже у кого-то другого (без учёта регистра): в списках и счёте их было бы не различить. */
-export async function nameTaken(db: Db, name: string, exceptUserId?: number, communityId?: number): Promise<boolean> {
-  return (await takenNames(db, exceptUserId, communityId)).has(nameKey(name));
-}
-
-/** 'Данияр' занято → 'Данияр 2', затем 'Данияр 3'… */
-function freeName(taken: Set<string>, base: string): string {
-  if (!taken.has(nameKey(base))) return base;
-  for (let n = 2; ; n++) if (!taken.has(nameKey(`${base} ${n}`))) return `${base} ${n}`;
+/** Имя уже у кого-то из общих групп (без учёта регистра): в списках и счёте их было бы не различить. */
+export async function nameTaken(db: Db, name: string, userId: number): Promise<boolean> {
+  const ids = await peerUserIds(db, userId);
+  if (!ids.length) return false;
+  const rows = await db.select({ displayName: users.displayName }).from(users).where(inArray(users.id, ids));
+  return rows.some(r => nameKey(r.displayName) === nameKey(name));
 }
 
 /** Создаёт пользователя или обновляет данные Telegram; отображаемое имя задаётся только при создании. */
@@ -60,7 +64,7 @@ export async function upsertTgUser(db: Db, u: TgWebAppUser, now: number): Promis
     .values({
       tgId: u.id,
       ...tg,
-      displayName: freeName(await takenNames(db), defaultDisplayName(u.first_name, u.last_name)),
+      displayName: defaultDisplayName(u.first_name, u.last_name),
       createdAt: now,
     })
     .onConflictDoUpdate({
@@ -81,9 +85,7 @@ export async function moveCommunityChat(db: Db, fromChatId: number, toChatId: nu
 
 /** checkedAt — членство только что подтверждено (Telegram ответил или человек нажал кнопку в группе). */
 export async function ensureMembership(db: Db, communityId: number, userId: number, checkedAt?: number): Promise<MembershipRow> {
-  const [user] = await db.select().from(users).where(eq(users.id, userId));
-  const displayName = freeName(await takenNames(db, userId, communityId), defaultDisplayName(user.firstName, user.lastName ?? undefined));
-  const insert = db.insert(memberships).values({ communityId, userId, displayName, checkedAt: checkedAt ?? 0 });
+  const insert = db.insert(memberships).values({ communityId, userId, checkedAt: checkedAt ?? 0 });
   await (checkedAt === undefined
     ? insert.onConflictDoNothing()
     : insert.onConflictDoUpdate({ target: [memberships.communityId, memberships.userId], set: { checkedAt, active: true } }));
@@ -97,20 +99,6 @@ export async function ensureMembership(db: Db, communityId: number, userId: numb
 export function effectiveRole(env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow, m: MembershipRow | null): Role {
   if (m?.active && m.telegramAdmin) return 'admin';
   return m?.role ?? 'player';
-}
-
-/** Only identity and visual theme are shared. All sports/payment preferences are local. */
-export function memberUser(user: UserRow, m: MembershipRow): UserRow {
-  return { ...user, displayName: m.displayName ?? defaultDisplayName(user.firstName, user.lastName ?? undefined),
-    kaspiPhone: m.kaspiPhone, profileCompletedAt: m.profileCompletedAt,
-    playingPosition: m.playingPosition, dominantFoot: m.dominantFoot, notificationsEnabled: m.notificationsEnabled };
-}
-
-export async function communityUser(db: Db, communityId: number, userId: number): Promise<UserRow | null> {
-  const [row] = await db.select({ user: users, membership: memberships }).from(memberships)
-    .innerJoin(users, eq(users.id, memberships.userId))
-    .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId)));
-  return row ? memberUser(row.user, row.membership) : null;
 }
 
 /** Always check current Telegram membership; admin privileges are never inferred from a global ID. */

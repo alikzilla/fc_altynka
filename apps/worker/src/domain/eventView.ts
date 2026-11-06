@@ -90,7 +90,7 @@ export async function eventDetail(
   if (!ev || ev.communityId !== viewer.communityId) return null;
   const q = await loadQueue(db, eventId);
   const all = [...q.main, ...q.reserve];
-  const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null), ev.communityId);
+  const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
   const showLevels = viewer.role !== 'player';
   const levels = new Map<number, number>();
   if (showLevels) {

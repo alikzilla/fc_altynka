@@ -2,7 +2,7 @@ import { lineStatus, type NotificationsDto, type NotificationTaskDto } from '@al
 import { and, asc, eq, sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import type { AppEnv } from '../auth/middleware';
-import { billLines, bills, events, memberships, skillAssessments } from '../db/schema';
+import { billLines, bills, events, skillAssessments, users } from '../db/schema';
 
 export const notificationsApi = new Hono<AppEnv>();
 
@@ -16,11 +16,11 @@ notificationsApi.get('/notifications', async c => {
     place: events.place,
     amount: billLines.amount,
     paidAmount: billLines.paidAmount,
-    receiverName: memberships.displayName,
+    receiverName: users.displayName,
   }).from(billLines)
     .innerJoin(bills, eq(bills.id, billLines.billId))
     .innerJoin(events, eq(events.id, bills.eventId))
-    .innerJoin(memberships, and(eq(memberships.userId, bills.receiverUserId), eq(memberships.communityId, communityId)))
+    .innerJoin(users, eq(users.id, bills.receiverUserId))
     .where(and(
       eq(events.communityId, communityId),
       eq(billLines.userId, c.get('user').id),

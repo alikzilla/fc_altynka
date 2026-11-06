@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { communities, memberships } from '../../src/db/schema';
+import { communities, memberships, users } from '../../src/db/schema';
 import { bindCommunity, ensureMembership } from '../../src/domain/members';
 import { createEvent, loadQueue } from '../../src/domain/events';
 import { FakeSync } from '../fakes/fakeSync';
@@ -40,9 +40,9 @@ test('private selection and subscription changes are explicit and local to one t
   const update = tap(501, `notify:${b.id}:1`, 'Общий игрок', 501);
   update.callback_query!.message!.chat.type = 'private';
   await t.bot.handleUpdate(update);
-  const rows = await db().select().from(memberships).where(eq(memberships.userId, u.id));
-  expect(rows.find(m => m.communityId === a.id)?.notificationsEnabled).toBe(false);
-  expect(rows.find(m => m.communityId === b.id)?.notificationsEnabled).toBe(true);
+  // The subscription belongs to the person, whichever team the button was pressed in.
+  const [row] = await db().select().from(users).where(eq(users.id, u.id));
+  expect(row.notificationsEnabled).toBe(true);
 });
 
 test('member and bot lifecycle updates affect only their own team', async () => {

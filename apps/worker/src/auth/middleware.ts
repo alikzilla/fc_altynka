@@ -4,7 +4,7 @@ import type { MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';
 import { users } from '../db/schema';
 import type { Deps } from '../domain/events';
-import { confirmedMembership, effectiveRole, getCommunity, memberUser, upsertTgUser } from '../domain/members';
+import { confirmedMembership, effectiveRole, getCommunity, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
 import { verifyInitData } from './initData';
@@ -56,8 +56,7 @@ export function communityMiddleware(): MiddlewareHandler<AppEnv> {
     const user = c.get('user');
     const m = await confirmedMembership(c.get('deps').db, makeTgClient(c.env), community, user, c.get('deps').now, c.env.ADMIN_TG_ID);
     if (!m) return c.json({ error: 'not_member' }, 403);
-    c.set('user', memberUser(user, m));
-    c.set('community', community);
+        c.set('community', community);
     c.set('role', effectiveRole(c.env, user, m));
     await next();
   };

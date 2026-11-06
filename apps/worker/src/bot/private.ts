@@ -2,7 +2,7 @@ import { escapeHtml, formatDateRu, lineStatus } from '@altynka/core';
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 import type { Bot, Context } from 'grammy';
 import { billLines, bills, events, memberships, users } from '../db/schema';
-import { communityByChat, confirmedCommunities, confirmedMembership, effectiveRole, getCommunity, memberUser, upsertTgUser } from '../domain/members';
+import { communityByChat, confirmedCommunities, confirmedMembership, effectiveRole, getCommunity, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
 import { miniAppLink } from '../telegram/links';
@@ -44,7 +44,7 @@ export function registerPrivateCommands(bot: Bot, env: Env, deps: BotDeps): void
     const role = effectiveRole(env, user, membership);
     try { await ctx.api.setMyCommands(role === 'player' ? playerCommands : organizerCommands, { scope: { type: 'chat', chat_id: ctx.from.id } }); }
     catch { console.warn('Telegram private command menu could not be updated.'); }
-    return { community, user: memberUser(user, membership), role };
+    return { community, user, role };
   };
 
   const perform = async (ctx: Context, action: Action, communityId?: number) => {
@@ -96,8 +96,7 @@ export function registerPrivateCommands(bot: Bot, env: Env, deps: BotDeps): void
     const m = await select(ctx, 'settings', ctx.match[1] ? Number(ctx.match[1]) : undefined);
     if (!m) { await ctx.answerCallbackQuery({ text: 'Выбери команду для настройки' }); return; }
     const enabled = ctx.match[2] === '1';
-    await deps.db.update(memberships).set({ notificationsEnabled: enabled })
-      .where(and(eq(memberships.communityId, m.community.id), eq(memberships.userId, m.user.id)));
+    await deps.db.update(users).set({ notificationsEnabled: enabled }).where(eq(users.id, m.user.id));
     await ctx.answerCallbackQuery({ text: enabled ? 'Уведомления включены' : 'Уведомления выключены' });
     await ctx.editMessageText(`<b>${escapeHtml(m.community.title)}</b>\n\n${settingsText(enabled, true)}`, {
       parse_mode: 'HTML', reply_markup: settingsKeyboard(env, enabled, m.community.id),

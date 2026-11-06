@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { memberships, users } from '../../src/db/schema';
-import { bindCommunity, ensureMembership, communityUser } from '../../src/domain/members';
+import { bindCommunity, ensureMembership } from '../../src/domain/members';
 import { createEvent } from '../../src/domain/events';
 import { apiRequest, db, seedUser } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
@@ -16,17 +16,6 @@ beforeEach(async () => {
 });
 afterEach(teardownApiWorld);
 
-test('editing local profile and subscription never changes another team', async () => {
-  await db().update(users).set({ pmAvailable: true }).where(eq(users.id, w.playerUserId));
-  const r = await apiRequest('/api/me', { as: w.player, communityId: w.communityId, method: 'PATCH',
-    body: { displayName: 'Капитан A', kaspiPhone: '+77011234567', notificationsEnabled: true, playingPosition: 'forward' } });
-  expect(r.status).toBe(200);
-  expect(await r.json()).toMatchObject({ displayName: 'Капитан A', kaspiPhone: '+77011234567', notifications: { enabled: true } });
-  expect(await (await apiRequest('/api/me', { as: w.player, communityId: w.communityId })).json()).toMatchObject({ displayName: 'Капитан A', kaspiPhone: '+77011234567', notifications: { enabled: true } });
-  const other = await apiRequest('/api/me', { as: w.player, communityId: b });
-  expect(await other.json()).toMatchObject({ displayName: 'Игрок', kaspiPhone: null, playingPosition: null, notifications: { enabled: false } });
-});
-
 test('players, events and role changes are confined to the selected team', async () => {
   const event = await createEvent({ db: db(), now: w.clock.now, sync: w.sync }, { communityId: b, createdBy: w.playerUserId, date: '2026-12-01', comment: null });
   expect((await apiRequest(`/api/events/${event}`, { as: w.admin, communityId: w.communityId })).status).toBe(404);
@@ -35,13 +24,6 @@ test('players, events and role changes are confined to the selected team', async
   expect((await apiRequest(`/api/members/${w.orgUserId}`, { as: w.player, communityId: b, method: 'PATCH', body: { role: 'organizer' } })).status).toBe(403);
   const list = await (await apiRequest('/api/players', { as: w.player, communityId: b })).json() as { userId: number }[];
   expect(list.map(p => p.userId)).toEqual([w.playerUserId]);
-});
-
-test('admin renaming a shared player only changes the local roster', async () => {
-  const r = await apiRequest(`/api/members/${w.playerUserId}`, { as: w.admin, communityId: w.communityId, method: 'PATCH', body: { displayName: 'Вратарь A' } });
-  expect(r.status).toBe(200);
-  expect((await communityUser(db(), w.communityId, w.playerUserId))?.displayName).toBe('Вратарь A');
-  expect((await communityUser(db(), b, w.playerUserId))?.displayName).toBe('Игрок');
 });
 
 test('a global account cannot be selected as foreign bill receiver', async () => {

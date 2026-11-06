@@ -20,7 +20,7 @@ export async function resolveReminder(db: Db, billId: number): Promise<OutNotice
   const debtors = dto.lines.filter(l => l.state !== 'paid');
   const raw = (await getBill(db, billId))!;
   const event = (await getEvent(db, raw.eventId))!;
-  const byId = await usersById(db, debtors.map(l => l.userId), event.communityId);
+  const byId = await usersById(db, debtors.map(l => l.userId));
   const amountByTgId: Record<number, number> = {};
   const people = debtors.flatMap(l => {
     const u = byId.get(l.userId);
