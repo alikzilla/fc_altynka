@@ -11,8 +11,9 @@ afterEach(teardownApiWorld);
 const create = (body: unknown) => apiRequest('/api/events', { method: 'POST', as: w.org, body });
 const post = (path: string, body?: unknown) => apiRequest(path, { method: 'POST', as: w.org, body });
 
-test('a bill requires appointment; rejected requests leave signup, phone and bills unchanged', async () => {
+test('legacy: a bill requires appointment; rejected requests leave signup, phone and bills unchanged', async () => {
   const { id } = await (await create({ date: '2026-11-07', communityId: w.communityId })).json() as { id: number };
+  await db().update(events).set({ protocolVersion: 0 }).where(eq(events.id, id));
   await post(`/api/events/${id}/join`);
   await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
   const detail = await (await apiRequest(`/api/events/${id}`, { as: w.org })).json() as EventDetailDto;

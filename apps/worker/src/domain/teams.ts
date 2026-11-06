@@ -1,5 +1,6 @@
+import { guardRosterMutation } from './rosterGuard';
 import type { TeamCount, TeamsDto } from '@altynka/core';
-import { asc, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, teamAssignments } from '../db/schema';
 import { playerRatings } from './ratings';
@@ -7,7 +8,7 @@ import { getEvent, isClosed, loadQueue, type Deps } from './events';
 
 const rosterKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(',');
 
-export async function saveTeams(
+async function saveTeamsUnsafe(
   d: Deps,
   eventId: number,
   v: { teamCount: TeamCount; teams: number[][]; guestLevels: Record<number, number>; refreshRatings?: boolean; ratingSnapshot?: Record<number, number> },
@@ -40,7 +41,7 @@ export async function saveTeams(
   await d.db.batch([
     d.db.delete(teamAssignments).where(eq(teamAssignments.eventId, eventId)),
     ...(rows.length ? [d.db.insert(teamAssignments).values(rows)] : []),
-    d.db.update(events).set({ teamCount: v.teamCount, teamsRoster: rosterKey(flat), ratingSnapshot: JSON.stringify(ratingSnapshot) }).where(eq(events.id, eventId)),
+    d.db.update(events).set({ teamCount: v.teamCount, teamsRoster: rosterKey(flat), ratingSnapshot: JSON.stringify(ratingSnapshot), ...(ev.protocolVersion === 1 ? { teamsPublishedAt: null } : {}) }).where(eq(events.id, eventId)),
     ...Object.entries(v.guestLevels).map(([id, lvl]) =>
       d.db.update(signups).set({ guestLevel: lvl }).where(eq(signups.id, Number(id))),
     ),
@@ -48,7 +49,7 @@ export async function saveTeams(
   return 'ok';
 }
 
-export async function publishTeams(d: Deps, eventId: number): Promise<'ok' | 'no_teams' | 'not_found' | 'closed' | 'stale'> {
+async function publishTeamsUnsafe(d: Deps, eventId: number): Promise<'ok' | 'no_teams' | 'not_found' | 'closed' | 'stale'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
@@ -56,7 +57,8 @@ export async function publishTeams(d: Deps, eventId: number): Promise<'ok' | 'no
   if (ev.teamCount && rosterKey(queue.main.map(s => s.id)) !== ev.teamsRoster) return 'stale';
   const rows = await d.db.select().from(teamAssignments).where(eq(teamAssignments.eventId, eventId)).limit(1);
   if (!ev.teamCount || !rows.length) return 'no_teams';
-  await d.db.update(events).set({ teamsPublishedAt: d.now }).where(eq(events.id, eventId));
+  const published = await d.db.update(events).set({ teamsPublishedAt: d.now }).where(and(eq(events.id, eventId), eq(events.rosterRevision, ev.rosterRevision))).returning({ id: events.id });
+  if (!published.length) return 'stale';
   await d.sync.request(eventId, { parts: ['teams'] });
   return 'ok';
 }
@@ -76,3 +78,6 @@ export async function teamsDto(db: Db, eventId: number, mainIds: number[]): Prom
   const stale = rosterKey(mainIds) !== ev.teamsRoster;
   return { ratingSnapshot: ev.ratingSnapshot ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : undefined, teamCount: ev.teamCount, teams, publishedAt: ev.teamsPublishedAt, stale };
 }
+
+export const saveTeams = (...args: Parameters<typeof saveTeamsUnsafe>): ReturnType<typeof saveTeamsUnsafe> => guardRosterMutation(() => saveTeamsUnsafe(...args), 'closed' as Awaited<ReturnType<typeof saveTeamsUnsafe>>);
+export const publishTeams = (...args: Parameters<typeof publishTeamsUnsafe>): ReturnType<typeof publishTeamsUnsafe> => guardRosterMutation(() => publishTeamsUnsafe(...args), 'closed' as Awaited<ReturnType<typeof publishTeamsUnsafe>>);

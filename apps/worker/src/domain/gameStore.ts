@@ -41,11 +41,3 @@ export async function commitGameCommand(d: Deps, ev: EventRow, meta: GameMutatio
   const latest = await getEvent(d.db, ev.id);
   return latest ? previousGameCommand(latest, meta, command.fingerprint) ?? { kind: 'conflict' } : { kind: 'not_found' };
 }
-
-/** D1/Drizzle wrap SQLite errors in cause; guards are expected state conflicts. */
-export function isGameRosterLocked(error: unknown): boolean {
-  for (let cause = error as { message?: string; cause?: unknown } | undefined; cause; cause = cause.cause as typeof cause) {
-    if (String(cause.message ?? '').includes('game_roster_locked')) return true;
-  }
-  return false;
-}

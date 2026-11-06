@@ -13,6 +13,7 @@ import { teamsApi } from './teams';
 import { billsApi } from './bills';
 import { notificationsApi } from './notifications';
 import { ratingsApi } from './ratings';
+import { gamesApi } from './games';
 import { idParam } from './validate';
 
 const defaultDeps = (env: Env): Deps => ({ db: getDb(env.DB), now: Date.now(), sync: doSyncPort(env) });
@@ -82,3 +83,4 @@ api.route('/', teamsApi);
 api.route('/', billsApi);
 api.route('/', notificationsApi);
 api.route('/', ratingsApi);
+api.route('/', gamesApi);

@@ -1,3 +1,4 @@
+import { guardRosterMutation } from './rosterGuard';
 import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
@@ -102,7 +103,7 @@ export async function createEvent(
   return row.id;
 }
 
-export async function joinEvent(d: Deps, eventId: number, userId: number): Promise<JoinResult> {
+async function joinEventUnsafe(d: Deps, eventId: number, userId: number): Promise<JoinResult> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
   if (!await eventMember(d.db, ev.communityId, userId)) return { kind: 'not_found' };
@@ -141,7 +142,7 @@ export async function joinEvent(d: Deps, eventId: number, userId: number): Promi
   return { kind: p.inMain ? 'main' : 'reserve', position: p.position, restored };
 }
 
-export async function leaveEvent(
+async function leaveEventUnsafe(
   d: Deps,
   eventId: number,
   userId: number,
@@ -164,7 +165,7 @@ export async function leaveEvent(
   return { kind: 'left' };
 }
 
-export async function addGuest(
+async function addGuestUnsafe(
   d: Deps,
   eventId: number,
   invitedBy: number,
@@ -190,7 +191,7 @@ async function eventMember(db: Db, communityId: number, userId: number): Promise
     .where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId), eq(memberships.active, true))).limit(1))[0];
 }
 
-export async function removeSignup(
+async function removeSignupUnsafe(
   d: Deps,
   signupId: number,
   actor: { userId: number; role: Role },
@@ -212,7 +213,7 @@ export async function removeSignup(
   return 'ok';
 }
 
-export async function scheduleEvent(
+async function scheduleEventUnsafe(
   d: Deps,
   eventId: number,
   v: { startTime: string; durationHours: 1 | 2; place: string | null },
@@ -239,7 +240,7 @@ export async function scheduleEvent(
   return 'ok';
 }
 
-export async function cancelEvent(d: Deps, eventId: number): Promise<'ok' | 'not_found' | 'closed'> {
+async function cancelEventUnsafe(d: Deps, eventId: number): Promise<'ok' | 'not_found' | 'closed'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
@@ -248,3 +249,10 @@ export async function cancelEvent(d: Deps, eventId: number): Promise<'ok' | 'not
   await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
   return 'ok';
 }
+
+export const joinEvent = (...args: Parameters<typeof joinEventUnsafe>): ReturnType<typeof joinEventUnsafe> => guardRosterMutation(() => joinEventUnsafe(...args), { kind: 'closed' } as Awaited<ReturnType<typeof joinEventUnsafe>>);
+export const leaveEvent = (...args: Parameters<typeof leaveEventUnsafe>): ReturnType<typeof leaveEventUnsafe> => guardRosterMutation(() => leaveEventUnsafe(...args), { kind: 'closed' } as Awaited<ReturnType<typeof leaveEventUnsafe>>);
+export const addGuest = (...args: Parameters<typeof addGuestUnsafe>): ReturnType<typeof addGuestUnsafe> => guardRosterMutation(() => addGuestUnsafe(...args), { kind: 'closed' } as Awaited<ReturnType<typeof addGuestUnsafe>>);
+export const removeSignup = (...args: Parameters<typeof removeSignupUnsafe>): ReturnType<typeof removeSignupUnsafe> => guardRosterMutation(() => removeSignupUnsafe(...args), 'closed' as Awaited<ReturnType<typeof removeSignupUnsafe>>);
+export const scheduleEvent = (...args: Parameters<typeof scheduleEventUnsafe>): ReturnType<typeof scheduleEventUnsafe> => guardRosterMutation(() => scheduleEventUnsafe(...args), 'closed' as Awaited<ReturnType<typeof scheduleEventUnsafe>>);
+export const cancelEvent = (...args: Parameters<typeof cancelEventUnsafe>): ReturnType<typeof cancelEventUnsafe> => guardRosterMutation(() => cancelEventUnsafe(...args), 'closed' as Awaited<ReturnType<typeof cancelEventUnsafe>>);
