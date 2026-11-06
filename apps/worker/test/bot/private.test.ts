@@ -51,7 +51,7 @@ test('old database membership alone cannot reveal matches or debts to a removed 
   await t.bot.handleUpdate(privateCommand(501, '/newmatch'));
   expect(texts(t)).toContain('участникам группы');
   expect(texts(t)).not.toContain('Секретное поле');
-  expect(JSON.stringify(t.calls)).not.toContain(`startapp=c${c.id}_newmatch`);
+  expect(JSON.stringify(t.calls)).not.toContain('startapp=newmatch');
 });
 
 test('/payments shows only own remaining open obligations with event links', async () => {
@@ -84,13 +84,13 @@ test('/newmatch checks organizer role and installs a role-aware private menu', a
   tg.members.add(501); tg.members.add(502);
   const org = makeTestBot();
   await org.bot.handleUpdate(privateCommand(501, '/newmatch'));
-  expect(JSON.stringify(org.calls)).toContain(`startapp=c${c.id}_newmatch`);
+  expect(JSON.stringify(org.calls)).toContain('startapp=newmatch');
   expect(org.calls.find(c => c.method === 'setMyCommands')?.payload.scope).toEqual({ type: 'chat', chat_id: 501 });
   expect(JSON.stringify(org.calls.find(c => c.method === 'setMyCommands')?.payload.commands)).toContain('newmatch');
   const player = makeTestBot();
   await player.bot.handleUpdate(privateCommand(502, '/newmatch'));
   expect(texts(player)).toContain('организатор');
-  expect(JSON.stringify(player.calls)).not.toContain(`startapp=c${c.id}_newmatch`);
+  expect(JSON.stringify(player.calls)).not.toContain('startapp=newmatch');
   expect(JSON.stringify(player.calls.find(c => c.method === 'setMyCommands')?.payload.commands)).not.toContain('newmatch');
 });
 
@@ -102,7 +102,7 @@ test('newmatch private deep link checks role before opening the creation form', 
   const update = privateCommand(501, '/start newmatch');
   if (update.message?.entities) update.message.entities[0].length = 6;
   await t.bot.handleUpdate(update);
-  expect(JSON.stringify(t.calls.filter(c => c.method === 'sendMessage'))).toContain(`startapp=c${c.id}_newmatch`);
+  expect(JSON.stringify(t.calls.filter(c => c.method === 'sendMessage'))).toContain('startapp=newmatch');
 });
 
 test('/matches returns at most eight active matches in date order and escapes user content', async () => {
@@ -120,7 +120,7 @@ test('/matches returns at most eight active matches in date order and escapes us
   expect(texts(t).indexOf('2 ноября')).toBeLessThan(texts(t).indexOf('9 ноября'));
   const markup = msg.payload.reply_markup as { inline_keyboard: { text: string; url: string }[][] };
   expect(markup.inline_keyboard.filter(row => row[0].url.includes('startapp=e'))).toHaveLength(8);
-  expect(markup.inline_keyboard.at(-1)?.[0].url).toContain(`startapp=c${c.id}_matches`);
+  expect(markup.inline_keyboard.at(-1)?.[0].url).toContain('startapp=matches');
 });
 
 test('group personal commands redirect to private and ordinary conversation is ignored', async () => {
@@ -155,7 +155,7 @@ test('a command menu update failure still allows welcome without leaking the tra
       return prev(method, payload, signal);
     });
     await t.bot.handleUpdate(privateCommand(501, '/start'));
-    expect(texts(t)).toContain('Футбол');
+    expect(texts(t)).toContain('Матчи, составы');
     expect(JSON.stringify(warning.mock.calls)).not.toContain('secret-token');
   } finally { warning.mockRestore(); }
 });
