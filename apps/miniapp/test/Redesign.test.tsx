@@ -26,6 +26,7 @@ const me = {
 };
 const match = {
   id: 1,
+  community: { id: 1, title: "FC Altynka" },
   date: "2026-11-07",
   status: "scheduled",
   startTime: "21:00",
@@ -40,10 +41,13 @@ const payment = {
   kind: "payment",
   id: "payment-1",
   eventId: 9,
+  billId: 4,
   date: "2026-10-31",
   place: "Arena",
   due: 2500,
   receiverName: "Алихан",
+  receiverKaspiPhone: "+77071234567",
+  community: { id: 1, title: "FC Altynka" },
 };
 let identity: typeof me;
 let tasks: unknown[];

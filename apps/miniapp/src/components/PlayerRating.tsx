@@ -1,6 +1,7 @@
 import { formatDateRu, formatRating, SKILLS, type PlayerProfileDto, type PlayerRatingDto } from '@altynka/core';
 import { Link } from 'wouter';
 import { GroupTag } from './GroupTag';
+import { isMyGroup, useMe } from '../state/me';
 
 export function InlineRating({ rating }: { rating: PlayerRatingDto }) {
   return <div className="profile-inline-rating" role="group" aria-label="Рейтинг игрока">
@@ -31,10 +32,13 @@ export function SkillBreakdown({ rating }: { rating: PlayerRatingDto }) {
 }
 
 export function RatingHistory({ history }: { history: PlayerProfileDto['history'] }) {
+  const me = useMe();
   return <section className="rating-history"><h2>Последние матчи</h2>
-    {history.length ? <ul className="card list">{history.map(item => <li key={item.eventId}>
-      <Link className="rating-history-row" href={`/event/${item.eventId}`}><span><GroupTag community={item.community} />{formatDateRu(item.date)}{item.place && <small className="muted">{item.place}</small>}</span>
-        <span className={item.score === null ? 'muted rating-insufficient' : 'rating-small'}>{item.score === null ? 'Недостаточно оценок' : formatRating(item.score)}</span></Link>
-    </li>)}</ul> : <p className="muted">Здесь появятся оценки после сыгранных матчей и завершения голосования.</p>}
+    {history.length ? <ul className="card list">{history.map(item => {
+      const row = <><span><GroupTag community={item.community} />{formatDateRu(item.date)}{item.place && <small className="muted">{item.place}</small>}</span>
+        <span className={item.score === null ? 'muted rating-insufficient' : 'rating-small'}>{item.score === null ? 'Недостаточно оценок' : formatRating(item.score)}</span></>;
+      // A match of a group the person has left is no longer reachable.
+      return <li key={item.eventId}>{isMyGroup(me, item.community.id) ? <Link className="rating-history-row" href={`/event/${item.eventId}`}>{row}</Link> : <div className="rating-history-row">{row}</div>}</li>;
+    })}</ul> : <p className="muted">Здесь появятся оценки после сыгранных матчей и завершения голосования.</p>}
   </section>;
 }

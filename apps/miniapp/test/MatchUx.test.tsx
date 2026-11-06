@@ -6,7 +6,7 @@ import { App } from '../src/App';
 
 const me = { userId: 1, displayName: 'Орг', kaspiPhone: '+77071234567' };
 const signup = { id: 1, seq: 1, userId: 1, name: 'Орг', guestOfName: null, invitedByUserId: null };
-const match = { id: 1, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', main: [signup], reserve: [], teams: null, bill: null, comment: null };
+const match = { id: 1, community: { id: 3, title: 'Футбол по субботам' }, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', main: [signup], reserve: [], teams: null, bill: null, comment: null };
 let role: string;
 let status: string;
 let createFails: boolean;

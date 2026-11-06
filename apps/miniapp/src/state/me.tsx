@@ -11,6 +11,8 @@ export function useMe(): MeDto {
 
 export const creatableCommunities = (me: MeDto) => me.communities.filter(c => c.role !== 'player');
 export const showGroups = (me: MeDto) => me.communities.length > 1;
+/** The person is (still) in this group; items of a left group stay readable but lead nowhere. */
+export const isMyGroup = (me: MeDto, communityId: number) => me.communities.some(c => c.id === communityId);
 
 export const MeReloadContext = createContext<() => void>(() => {});
 export const useReloadMe = () => useContext(MeReloadContext);

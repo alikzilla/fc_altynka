@@ -135,7 +135,7 @@ test('a late survey save cannot navigate after leaving the questionnaire', async
 });
 
 test('own profile integrates the rating into the identity card without a self-assessment card', async () => {
-  (api.get as Mock).mockResolvedValue({ history: [{ eventId: 1, date: '2026-11-04', place: null, score: 7 }] });
+  (api.get as Mock).mockResolvedValue({ history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: 7 }] });
   renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 } } });
   expect(within(screen.getByRole('region', { name: 'Профиль игрока' })).getByText('6,7')).toBeInTheDocument();
   expect(screen.queryByRole('region', { name: 'Общий рейтинг' })).toBeNull();

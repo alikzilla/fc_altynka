@@ -2,14 +2,14 @@ import { computeBill, formatDateRu, formatKzPhone, formatTenge, type BillDto, ty
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
-import { transfer } from '../lib/kaspi';
 import { canManageEvent, useMe } from '../state/me';
-import { copy, haptic } from '../lib/tg';
+import { haptic } from '../lib/tg';
 import { ConfirmButton, EmptyState, useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { MatchAction } from '../components/MatchAction';
 import { ActionSheet } from '../components/ActionSheet';
 import { ReminderDelivery } from './ReminderDelivery';
+import { KaspiPay } from '../components/KaspiPay';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
@@ -196,12 +196,8 @@ function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
   }
   return <section className="card material-coral pay" aria-label="Твоя оплата">
     <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
-    <button className="payment-amount" aria-label={`Скопировать сумму ${formatTenge(amount)}`} onClick={() => copy(String(amount)).then(ok => toast(ok ? 'Сумма скопирована' : 'Не получилось скопировать. Сумма указана выше.'))}>{formatTenge(amount)}<Icon name="copy" /></button>
-    <p className="payment-person">{bill.receiver.name}</p>
-    {!closed && line.state !== 'paid' && <>
-      <button className="btn primary wide" onClick={() => transfer(bill.receiver.kaspiPhone)}>Перевести в Kaspi<Icon name="arrow" /></button>
-      <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>
-    </>}
+    <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} />
+    {!closed && line.state !== 'paid' && <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>}
   </section>;
 }
 
