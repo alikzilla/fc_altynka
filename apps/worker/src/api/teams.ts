@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
+import { TEAM_COLORS, type TeamColor } from '@altynka/core';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { getEvent } from '../domain/events';
-import { publishTeams, saveTeams } from '../domain/teams';
+import { publishTeams, saveTeams, updateTeamColors } from '../domain/teams';
 import { body, idParam, statusFor } from './validate';
 
 export const teamsApi = new Hono<AppEnv>();
@@ -34,4 +35,18 @@ teamsApi.post('/events/:id/teams/publish', async c => {
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
   const r = await publishTeams(c.get('deps'), ev.id);
   return c.json({ kind: r }, r === 'no_teams' ? 409 : statusFor(r));
+});
+
+const colorsBody = z.object({
+  colors: z.array(z.enum(TEAM_COLORS.map(color => color.key) as [TeamColor, ...TeamColor[]])).min(2).max(3),
+  expectedRevision: z.number().int().nonnegative(),
+});
+
+teamsApi.patch('/events/:id/teams/colors', body(colorsBody), async c => {
+  const id = idParam(c.req.param('id'));
+  const ev = id === null ? null : await getEvent(c.get('deps').db, id);
+  if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
+  const value = c.req.valid('json');
+  const kind = await updateTeamColors(c.get('deps'), ev.id, value);
+  return c.json({ kind, ...(kind === 'ok' ? { colors: value.colors, colorsRevision: value.expectedRevision + 1 } : {}) }, kind === 'invalid' ? 400 : statusFor(kind));
 });

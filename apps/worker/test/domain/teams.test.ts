@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
-import { signups } from '../../src/db/schema';
+import { events, signups } from '../../src/db/schema';
 import { addGuest, cancelEvent, createEvent, joinEvent, leaveEvent, loadQueue, type Deps } from '../../src/domain/events';
-import { publishTeams, saveTeams, teamsDto } from '../../src/domain/teams';
+import { publishTeams, saveTeams, teamsDto, updateTeamColors } from '../../src/domain/teams';
+import { renderTeamsPart } from '../../src/sync/teamsPart';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 
@@ -28,7 +29,7 @@ test('saveTeams rejects missing or duplicated players', async () => {
   expect(await saveTeams(d, ev, { teamCount: 2, teams: [ids.slice(0, 5), [...ids.slice(5, 9), ids[0]]], guestLevels: {} })).toBe('invalid');
   expect(await saveTeams(d, ev, { teamCount: 3, teams: split(ids), guestLevels: {} })).toBe('invalid');
   expect(await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} })).toBe('ok');
-  expect(await teamsDto(d.db, ev, ids)).toEqual({ teamCount: 2, teams: split(ids), publishedAt: null, stale: false, ratingSnapshot: Object.fromEntries(ids.map(id => [id, 5])) });
+  expect(await teamsDto(d.db, ev, ids)).toEqual({ colors: ['red', 'blue'], colorsRevision: 0, teamCount: 2, teams: split(ids), publishedAt: null, stale: false, ratingSnapshot: Object.fromEntries(ids.map(id => [id, 5])) });
 });
 
 test('guest level is stored for this event only; levels outside 1..10 are invalid', async () => {
@@ -64,4 +65,40 @@ test('cannot publish stale teams or teams of a cancelled match', async () => {
   expect(await publishTeams(d, ev)).toBe('stale');
   await cancelEvent(d, ev);
   expect(await publishTeams(d, ev)).toBe('closed');
+});
+
+test('recoloring after kickoff preserves frozen roster, ratings and game revision and updates Telegram', async () => {
+  await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} });
+  await publishTeams(d, ev);
+  const state = JSON.stringify({ teamCount: 2, roster: [], games: [], receipts: [], initialPair: [0, 1], currentPair: [0, 1], finishParticipants: null });
+  await d.db.update(events).set({ startedAt: 5001, gameRevision: 4, gameStateJson: state }).where(eq(events.id, ev));
+  expect(await updateTeamColors(d, ev, { colors: ['blue', 'red'], expectedRevision: 0 })).toBe('ok');
+  expect(await teamsDto(d.db, ev, ids)).toMatchObject({ colors: ['blue', 'red'], colorsRevision: 1, teams: split(ids), publishedAt: 5000 });
+  const [stored] = await d.db.select().from(events).where(eq(events.id, ev));
+  expect(stored.gameStateJson).toBe(state);
+  expect(stored.gameRevision).toBe(4);
+  expect(stored.ratingSnapshot).toBe(JSON.stringify(Object.fromEntries(ids.map(id => [id, 5]))));
+  expect(d.sync.calls.at(-1)).toEqual({ eventId: ev, req: { parts: ['teams'] } });
+  const message = await renderTeamsPart(d.db, ev);
+  expect(message!.html.indexOf('Синие')).toBeLessThan(message!.html.indexOf('Красные'));
+});
+
+test('color updates reject duplicates, stale revisions and completed sessions', async () => {
+  await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} });
+  expect(await updateTeamColors(d, ev, { colors: ['red', 'red'], expectedRevision: 0 })).toBe('invalid');
+  expect(await updateTeamColors(d, ev, { colors: ['green', 'white'], expectedRevision: 0 })).toBe('ok');
+  expect(await updateTeamColors(d, ev, { colors: ['white', 'black'], expectedRevision: 0 })).toBe('stale');
+  expect((await teamsDto(d.db, ev, ids))!.colors).toEqual(['green', 'white']);
+  await d.db.update(events).set({ startedAt: 8000, gameStateJson: '{}', completedAt: 9000 }).where(eq(events.id, ev));
+  expect(await updateTeamColors(d, ev, { colors: ['white', 'black'], expectedRevision: 1 })).toBe('closed');
+});
+
+test('two concurrent color updates cannot overwrite each other', async () => {
+  await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} });
+  const result = await Promise.all([
+    updateTeamColors(d, ev, { colors: ['green', 'white'], expectedRevision: 0 }),
+    updateTeamColors(d, ev, { colors: ['blue', 'red'], expectedRevision: 0 }),
+  ]);
+  expect(result.sort()).toEqual(['ok', 'stale']);
+  expect((await teamsDto(d.db, ev, ids))!.colorsRevision).toBe(1);
 });

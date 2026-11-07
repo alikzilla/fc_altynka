@@ -134,3 +134,26 @@ retain navigation and use existing components in both themes.
 The rating slider uses the browser's native drag tracking. It deliberately does not call
 setPointerCapture: that interferes with WebKit's native mouse tracking. The existing sheet and
 edge gestures exclude interactive inputs. Slider focus rings leave room for endpoint labels.
+
+## Team composition and actual kit colors
+
+The team tab uses the approved mobile editor: two/three-team control, an explicit color action,
+counts and organizer-only average ratings, and a visible Обменять action on every player row.
+Its scheduled-match header is compact while preserving the shared participation status/action,
+so the first exchange action appears above the fixed footer on an ordinary phone viewport.
+Swapping opens the existing bottom ActionSheet with players from other teams, without a transfer
+mode. New distributions require confirmation and can be undone. The shared ToastProvider shows
+change feedback with an optional Отменить action for eight seconds, pausing on hover/focus;
+ordinary notifications retain 2.5 seconds. Toast edges align with content at narrow widths too.
+
+Форма и манишки is a shared bottom sheet with six labeled colors. Selecting an occupied color
+swaps the colors without moving players. New semantic dots: green #86c8a2, white #e8e8ee, black
+#666771 in dark theme; #34714e, #ffffff with #655c71 outline, and #27262e in light theme.
+These represent actual uniforms rather than additional brand accents. Selected swatches have
+the existing accent outline and aria-pressed; labels always accompany the color.
+
+Draft/publication state stays visible. Start requires published current lineups and confirms
+the colors against the kits on the field. After kickoff, only colors remain editable; all game
+labels and the Telegram roster use those current colors while numeric team identities stay fixed.
+Color-only changes to saved teams do not rewrite the roster or rating snapshot. Sheets retain
+their opening revision; conflicting background updates cannot silently replace that choice.

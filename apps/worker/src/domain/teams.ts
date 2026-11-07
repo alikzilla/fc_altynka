@@ -1,6 +1,6 @@
 import { guardRosterMutation } from './rosterGuard';
-import type { TeamCount, TeamsDto } from '@altynka/core';
-import { and, asc, eq } from 'drizzle-orm';
+import { TEAM_COLORS, teamColorsFor, type TeamColor, type TeamCount, type TeamsDto } from '@altynka/core';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, teamAssignments, type EventRow } from '../db/schema';
 import { playerRatings } from './ratings';
@@ -81,7 +81,24 @@ export async function teamsDtoFromEvent(db: Db, ev: EventRow, mainIds: number[])
   const teams: number[][] = Array.from({ length: ev.teamCount }, () => []);
   rows.forEach(r => teams[r.teamIndex]?.push(r.signupId));
   const stale = rosterKey(mainIds) !== ev.teamsRoster;
-  return { ratingSnapshot: ev.ratingSnapshot ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : undefined, teamCount: ev.teamCount, teams, publishedAt: ev.teamsPublishedAt, stale };
+  return { colors: teamColorsFor(ev.teamCount, ev.teamColors ? JSON.parse(ev.teamColors) : undefined), colorsRevision: ev.teamColorsRevision, ratingSnapshot: ev.ratingSnapshot ? JSON.parse(ev.ratingSnapshot) as Record<number, number> : undefined, teamCount: ev.teamCount, teams, publishedAt: ev.teamsPublishedAt, stale };
+}
+
+/** Uniform labels are mutable after kickoff; numeric team identity never changes. */
+export async function updateTeamColors(
+  d: Deps, eventId: number, v: { colors: TeamColor[]; expectedRevision: number },
+): Promise<'ok' | 'invalid' | 'not_found' | 'closed' | 'stale'> {
+  const ev = await getEvent(d.db, eventId);
+  if (!ev) return 'not_found';
+  if (ev.completedAt !== null || !['collecting', 'scheduled'].includes(ev.status) || ev.startedAt === null && isClosed(ev, d.now)) return 'closed';
+  if (!ev.teamCount || v.colors.length !== ev.teamCount || new Set(v.colors).size !== v.colors.length || v.colors.some(key => !TEAM_COLORS.some(c => c.key === key))) return 'invalid';
+  if (ev.teamColorsRevision !== v.expectedRevision) return 'stale';
+  const updated = await d.db.update(events).set({ teamColors: JSON.stringify(v.colors), teamColorsRevision: v.expectedRevision + 1 })
+    .where(and(eq(events.id, eventId), eq(events.teamColorsRevision, v.expectedRevision), eq(events.teamCount, ev.teamCount), eq(events.status, ev.status), isNull(events.completedAt)))
+    .returning({ id: events.id });
+  if (!updated.length) return 'stale';
+  if (ev.teamsPublishedAt !== null) await d.sync.request(eventId, { parts: ['teams'] });
+  return 'ok';
 }
 
 export const saveTeams = (...args: Parameters<typeof saveTeamsUnsafe>): ReturnType<typeof saveTeamsUnsafe> => guardRosterMutation(() => saveTeamsUnsafe(...args), 'closed' as Awaited<ReturnType<typeof saveTeamsUnsafe>>);

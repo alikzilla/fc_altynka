@@ -57,6 +57,10 @@
 .bill-total dt { color: var(--text); }
 /* Toasts belong at the safe top, clear of the contextual action and navigation. */
 .toast { top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; z-index: 30; width: auto; border: 0; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; }
+.toast-with-action:popover-open { display: flex; align-items: center; gap: 14px; }
+.toast-message { min-width: 0; flex: 1; overflow-wrap: anywhere; }
+.toast-action { min-height: 44px; flex-shrink: 0; border: 0; border-radius: 12px; padding: 8px 6px; margin-block: -6px; background: none; color: inherit; font-size: 14px; font-weight: 600; }
+.toast-action:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 :root[data-theme='light'] .match-cancelled { background: #e9e3ef; }
 :root[data-theme='light'] .match-cancelled :is(.match-detail-time, .match-detail-place, .match-detail-meta) { color: #655c71; }
 :root[data-theme='light'] .match-action > .btn { box-shadow: inset 0 1px 1px #ffffff38, 0 4px 18px #44324f26; }

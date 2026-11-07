@@ -1,6 +1,10 @@
 import { useState, type ReactNode, type SVGProps } from 'react';
 
 const paths = {
+  swap: <path d="M4 7h14m-4-4 4 4-4 4M20 17H6m4-4-4 4 4 4" />,
+  shuffle: <path d="M3 4h3l12 16h3m-4-4 4 4-4 3M3 20h3L18 4h3m-4-3 4 3-4 4" />,
+  undo: <path d="m8 4-5 5 5 5M3 9h10a6 6 0 0 1 0 12" />,
+  shirt: <path d="m8 3-5 3-2 5 4 2 2-3v11h10V10l2 3 4-2-2-5-5-3c0 4-8 4-8 0Z" />,
   home: <><rect x="3" y="3" width="7" height="7" rx="2" /><rect x="14" y="3" width="7" height="7" rx="2" /><rect x="3" y="14" width="7" height="7" rx="2" /><rect x="14" y="14" width="7" height="7" rx="2" /></>,
   bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></>,
   ball: <><circle cx="12" cy="12" r="9" /><path d="m12 7 4.8 3.5-1.8 5.6H9l-1.8-5.6L12 7Zm0 0V3m4.8 7.5 3.7-1.2M15 16.1l2.3 3.1M9 16.1l-2.3 3.1M7.2 10.5 3.5 9.3" /></>,

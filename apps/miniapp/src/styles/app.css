@@ -1,4 +1,5 @@
 @import './games.css';
+@import './teams.css';
 
 :root {
   color-scheme: dark;
@@ -325,6 +326,7 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
   .profile-card .avatar-large { width: 56px; height: 56px; font-size: 21px; }
   .profile-card h2 { font-size: 20px; }
   .screen { padding-inline: calc(16px + var(--safe-left)) calc(16px + var(--safe-right)); }
+  .toast { left:calc(16px + var(--safe-left)); right:calc(16px + var(--safe-right)); }
   .title { font-size: 27px; }
   .match-card { padding: 18px; }
   .match-date > span { font-size: 57px; }

@@ -4,31 +4,51 @@ import { Icon } from './Icon';
 import { useBackButton } from '../lib/tg';
 import { EdgeBackGesture } from './EdgeBackGesture';
 
-const ToastCtx = createContext<(text: string) => void>(() => {});
+type ToastOptions = { action?: { label: string; onClick: () => void } };
+const ToastCtx = createContext<(text: string | null, options?: ToastOptions) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
-  const [text, setText] = useState<string | null>(null);
+  const [notification, setNotification] = useState<({ text: string } & ToastOptions) | null>(null);
   const toast = useRef<HTMLDivElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const show = useCallback((t: string) => {
-    setText(t);
+  const remaining = useRef(0);
+  const deadline = useRef(0);
+  const show = useCallback((text: string | null, options?: ToastOptions) => {
     clearTimeout(timer.current);
-    timer.current = setTimeout(() => setText(null), 2500);
+    timer.current = undefined;
+    setNotification(text ? { text, ...options } : null);
+    if (!text) return;
+    remaining.current = options?.action ? 8000 : 2500;
+    deadline.current = Date.now() + remaining.current;
+    timer.current = setTimeout(() => setNotification(null), remaining.current);
   }, []);
+  const pause = () => {
+    if (timer.current === undefined) return;
+    remaining.current = Math.max(0, deadline.current - Date.now());
+    clearTimeout(timer.current); timer.current = undefined;
+  };
+  const resume = () => {
+    const node = toast.current;
+    if (!node || node.matches(':hover') || node.contains(document.activeElement)) return;
+    clearTimeout(timer.current);
+    deadline.current = Date.now() + remaining.current;
+    timer.current = setTimeout(() => setNotification(null), remaining.current);
+  };
   useEffect(() => () => clearTimeout(timer.current), []);
   useEffect(() => {
     const node = toast.current;
-    if (!text || !node?.showPopover) return;
+    if (!notification || !node?.showPopover) return;
     // A manual popover paints above native dialogs without taking their focus.
     node.showPopover();
     return () => { if (node.matches(':popover-open')) node.hidePopover(); };
-  }, [text]);
+  }, [notification]);
   return (
     <ToastCtx.Provider value={show}>
       {children}
-      {text && (
-        <div ref={toast} className="toast" role="status" popover="manual">
-          {text}
+      {notification && (
+        <div ref={toast} className={`toast${notification.action ? ' toast-with-action' : ''}`} role="status" popover="manual" onMouseEnter={pause} onMouseLeave={resume} onFocus={pause} onBlur={() => queueMicrotask(resume)}>
+          <span className="toast-message">{notification.text}</span>
+          {notification.action && <button type="button" className="toast-action" onClick={() => { show(null); notification.action?.onClick(); }}>{notification.action.label}</button>}
         </div>
       )}
     </ToastCtx.Provider>

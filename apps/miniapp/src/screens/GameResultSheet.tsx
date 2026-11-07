@@ -1,4 +1,4 @@
-import { resolveFirstRest, TEAMS, type EventDetailDto, type GameProtocolDto, type GameResult, type GameResultInput } from '@altynka/core';
+import { resolveFirstRest, teamAppearance, type EventDetailDto, type GameProtocolDto, type GameResult, type GameResultInput } from '@altynka/core';
 import { Fragment, useEffect, useId, useRef, useState } from 'react';
 import { ActionSheet } from '../components/ActionSheet';
 import { GameTeamName } from '../components/GameTeamName';
@@ -82,35 +82,35 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   let nextNames:string|null = null;
   if (game?.sequence===1 && protocol.games.length===1 && protocol.teamCount===3 && valid) {
     const rest=resolveFirstRest(draft.pair,draft.input.score,sulifa?draft.input.firstRestTeamIndex:undefined);
-    nextNames=[0,1,2].filter(t=>t!==rest).map(t=>TEAMS[t].name).join(' — ');
+    nextNames=[0,1,2].filter(t=>t!==rest).map(t=>teamAppearance(t, ev.teams?.colors).name).join(' — ');
   }
   const totalGoals=draft.input.score[0]+draft.input.score[1];
   const assigned=totals[0]+totals[1];
   const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора гола можно указать позже</p></>;
   return <ActionSheet title={game?`Результат игры ${game.sequence}`:'Результат игры'} onClose={onClose} busy={busy} footer={footer} className="game-result-sheet">
-    {stale && <div className="game-draft-notice"><p>Данные встречи изменились. Сохранён черновик другой игры: {TEAMS[draft.pair[0]].name} {draft.input.score.join(':')} {TEAMS[draft.pair[1]].name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
+    {stale && <div className="game-draft-notice"><p>Данные встречи изменились. Сохранён черновик другой игры: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
     <fieldset className="game-score-fields" aria-label="Счёт матча" disabled={!editable}>
-      {draft.pair.map((team,side)=><Fragment key={team}>{side===1 && <span className="game-score-colon" aria-hidden="true">:</span>}<div className="game-score-side"><GameTeamName index={team}/><div className={`game-score-buttons ${draft.input.score[side]>99?'game-score-long':''}`}><button type="button" aria-label={`Убрать гол команды ${TEAMS[team].name}`} disabled={!editable || !draft.input.score[side]} onClick={()=>score(side,-1)}>−</button><output aria-label={`Голы команды ${TEAMS[team].name}`} aria-live="polite" title={String(draft.input.score[side])}>{draft.input.score[side]}</output><button type="button" aria-label={`Добавить гол команды ${TEAMS[team].name}`} disabled={!editable || draft.input.score[side]===Number.MAX_SAFE_INTEGER} onClick={()=>score(side,1)}>+</button></div></div></Fragment>)}
+      {draft.pair.map((team,side)=><Fragment key={team}>{side===1 && <span className="game-score-colon" aria-hidden="true">:</span>}<div className="game-score-side"><GameTeamName colors={ev.teams?.colors} index={team}/><div className={`game-score-buttons ${draft.input.score[side]>99?'game-score-long':''}`}><button type="button" aria-label={`Убрать гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || !draft.input.score[side]} onClick={()=>score(side,-1)}>−</button><output aria-label={`Голы команды ${teamAppearance(team, ev.teams?.colors).name}`} aria-live="polite" title={String(draft.input.score[side])}>{draft.input.score[side]}</output><button type="button" aria-label={`Добавить гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || draft.input.score[side]===Number.MAX_SAFE_INTEGER} onClick={()=>score(side,1)}>+</button></div></div></Fragment>)}
     </fieldset>
     {draft.input.score.some(n=>n>99) && <p className="game-score-full">Счёт: {draft.input.score.join(':')}</p>}
-    {sulifa && <fieldset className="game-sulifa" disabled={!editable}><legend>Кто сел по сулифа?</legend><p className="muted">Ничья остаётся в таблице. Выбери отдыхающую команду.</p><div className="game-sulifa-options">{draft.pair.map(team=><label key={team}><input type="radio" name="sulifa" checked={draft.input.firstRestTeamIndex===team} onChange={()=>change({...draft.input,firstRestTeamIndex:team})}/><GameTeamName index={team}/></label>)}</div></fieldset>}
+    {sulifa && <fieldset className="game-sulifa" disabled={!editable}><legend>Кто сел по сулифа?</legend><p className="muted">Ничья остаётся в таблице. Выбери отдыхающую команду.</p><div className="game-sulifa-options">{draft.pair.map(team=><label key={team}><input type="radio" name="sulifa" checked={draft.input.firstRestTeamIndex===team} onChange={()=>change({...draft.input,firstRestTeamIndex:team})}/><GameTeamName colors={ev.teams?.colors} index={team}/></label>)}</div></fieldset>}
     <fieldset className="game-scorer-fields" disabled={!editable}>
       <legend><span>Кто забил</span>{totalGoals>0 && <span className="game-goals-total">{assigned} из {totalGoals} указано</span>}</legend>
       <p className="game-goal-help">Добавь гол кнопкой «+», затем выбери автора.</p>
       {totals.some((n,side)=>n>draft.input.score[side]) && <div className="game-draft-notice"><p>В черновике указано больше авторских голов, чем в счёте. Проверь карточки и убери лишние голы.</p><button type="button" className="btn wide" disabled={!editable} onClick={()=>updateGoals(current=>current)}>Убрать лишние авторские голы</button></div>}
       {totalGoals===0 && <p className="game-empty-goals">Пока 0:0<br/>После первого гола здесь появится выбор игрока</p>}
-      {draft.pair.map((team,side)=>draft.input.score[side]>0?<section key={team} aria-label={`Авторы голов: ${TEAMS[team].name}`} className="game-scorer-team">
-        <h3><GameTeamName index={team}/></h3>
+      {draft.pair.map((team,side)=>draft.input.score[side]>0?<section key={team} aria-label={`Авторы голов: ${teamAppearance(team, ev.teams?.colors).name}`} className="game-scorer-team">
+        <h3><GameTeamName colors={ev.teams?.colors} index={team}/></h3>
         {Array.from({length:Math.min(draft.input.score[side],visibleGoals[side])},(_,index)=>{
           const signupId=authorAt(runs[side],index);
           const person=protocol.roster.find(p=>p.signupId===signupId && p.teamIndex===team);
           const name=person?gamePlayerName(person,protocol.roster,ev.main):null;
           const expanded=activeGoal?.side===side && activeGoal.index===index;
           return <div key={index}>
-            <button type="button" className={`game-goal-slot ${name?'assigned':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${TEAMS[team].name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>setActiveGoal(expanded?null:{side,index})}>
+            <button type="button" className={`game-goal-slot ${name?'assigned':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${teamAppearance(team, ev.teams?.colors).name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>setActiveGoal(expanded?null:{side,index})}>
               <span className="game-goal-order">{index+1}.</span><span className="game-goal-identity">{name ?? 'Кто забил?'}<small>{name?'Нажми, чтобы изменить':'Выбрать игрока'}</small></span><span aria-hidden="true">{name?'✓':'+'}</span>
             </button>
-            {expanded && <div className="game-player-picker" id={pickerId} ref={picker} role="group" aria-label={`Выбрать автора гола команды ${TEAMS[team].name}`} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setActiveGoal(null);goalButtons.current.get(`${side}:${index}`)?.focus();}}}>
+            {expanded && <div className="game-player-picker" id={pickerId} ref={picker} role="group" aria-label={`Выбрать автора гола команды ${teamAppearance(team, ev.teams?.colors).name}`} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setActiveGoal(null);goalButtons.current.get(`${side}:${index}`)?.focus();}}}>
               {protocol.roster.filter(p=>p.teamIndex===team).map(player=>{const playerName=gamePlayerName(player,protocol.roster,ev.main);return <button type="button" className="game-player-option" key={player.signupId} aria-label={playerName} aria-pressed={signupId===player.signupId} disabled={!editable} onClick={()=>chooseAuthor(side,index,player.signupId)}><span className="game-player-initial" aria-hidden="true">{player.name[0]}</span><span>{playerName}{player.userId===null && <small className="muted">Гость</small>}</span><span aria-hidden="true">{signupId===player.signupId?'✓':''}</span></button>;})}
               <button type="button" className="game-player-option" aria-pressed={signupId===null} disabled={!editable} onClick={()=>chooseAuthor(side,index,null)}>Оставить без автора<span aria-hidden="true">{signupId===null?'✓':''}</span></button>
             </div>}

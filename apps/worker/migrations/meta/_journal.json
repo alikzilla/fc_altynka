@@ -85,6 +85,13 @@
       "when": 1793976574392,
       "tag": "0011_game_statistics",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "6",
+      "when": 1794060000000,
+      "tag": "0012_team_colors",
+      "breakpoints": true
     }
   ]
 }

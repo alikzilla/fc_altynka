@@ -1,9 +1,11 @@
 import type { Page, Route } from '@playwright/test';
 import { calculateScorers, calculateStandings, nextGamePair, resolveFirstRest, type GamePair, type GameResult, type GameResultInput, type GameRosterPlayer } from '../../packages/core/src/games';
+import { teamColorsFor, type TeamColor } from '../../packages/core/src/teams';
 
 /** Stateful synthetic API for browser behavior; real authorization/CAS live in worker tests. */
 export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; theme?: 'dark'|'light' } = {}) {
-  const count=options.count ?? 3;
+  let count=options.count ?? 3;
+  let colors=teamColorsFor(count),colorsRevision=0;
   const now=Date.parse('2026-11-08T16:00:00Z');
   const people=['Али','Санжик','Айкын','Баур','Бека','Ерпа'].map((name,i)=>({id:i+1,seq:i+1,userId:i===5?null:i+1,name,guestOfName:i===5?'Али':null,invitedByUserId:i===5?1:null,level:6}));
   let teams=count===3?[[1,2],[3,4],[5,6]]:[[1,2,3],[4,5,6]];
@@ -19,7 +21,8 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
   const receipts=new Map<string,{fingerprint:string;revision:number}>();
   const requests:{path:string;body:any}[]=[];
   const world={
-    dropNextResult:false,dropNextFinish:false,requests,
+    dropNextResult:false,dropNextFinish:false,failNextPublish:false,requests,
+    get colors(){return colors;},
     get games(){return games;},get pair(){return pair;},get revision(){return revision;},
     closePayment(){billClosed=true;},
     renameGuest(name:string){people[5].name=name;},
@@ -31,7 +34,7 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
       pair=nextGamePair(count,games);revision++;
     },
     protocol(manage=true){return {state:completedAt!==null?'completed':startedAt!==null?'playing':'not_started',revision,startedAt,completedAt,teamCount:startedAt===null?null:count,roster,currentPair:startedAt!==null&&completedAt===null?pair:null,restingTeamIndex:count===3&&startedAt!==null&&completedAt===null?[0,1,2].find(t=>!pair.includes(t)):null,games,standings:startedAt===null?[]:calculateStandings(count,games),scorers:calculateScorers(roster,games),canStart:manage&&startedAt===null&&publishedAt!==null,canRecord:manage&&startedAt!==null&&completedAt===null,canEdit:manage&&startedAt!==null,canUndo:manage&&completedAt===null&&games.length>0,canFinish:manage&&startedAt!==null&&completedAt===null};},
-    detail(manage=true){return {id:7,community:{id:1,title:'FC Altynka'},viewerRole:manage?'organizer':'player',date:'2026-11-08',serverNow:now,protocolVersion:1,startedAt,completedAt,status:completedAt!==null?'closed':startedAt!==null?'playing':'scheduled',startTime:'20:00',durationHours:2,place:'Arena Football · Абая, 150',comment:null,limit:15,mainCount:people.length,reserveCount:0,my:'main',main:people,reserve:[],teams:{teamCount:count,teams,publishedAt,stale:false},gameProtocol:world.protocol(manage),
+    detail(manage=true){return {id:7,community:{id:1,title:'FC Altynka'},viewerRole:manage?'organizer':'player',date:'2026-11-08',serverNow:now,protocolVersion:1,startedAt,completedAt,status:completedAt!==null?'closed':startedAt!==null?'playing':'scheduled',startTime:'20:00',durationHours:2,place:'Arena Football · Абая, 150',comment:null,limit:15,mainCount:people.length,reserveCount:0,my:'main',main:people,reserve:[],teams:{teamCount:count,teams,colors:teamColorsFor(count,colors),colorsRevision,publishedAt,stale:false},gameProtocol:world.protocol(manage),
       review:completedAt!==null&&finishIds?.length?{state:'open',canFinish:false,completedAt,closesAt:now+72*3600000,gameScore:null}:{state:completedAt!==null?'ineligible':'pending',canFinish:false,completedAt,closesAt:null,gameScore:null},
       bill:billClosed?{id:1,receiver:{userId:1,name:'Али',kaspiPhone:'+77071234567'},fieldAmount:12000,extras:[],total:12000,share:2000,status:'closed',participantSignupIds:people.map(p=>p.id),lines:people.filter(p=>p.userId!==null).map(p=>({id:p.id,userId:p.userId,name:p.name,units:p.id===1?2:1,amount:p.id===1?4000:2000,paidAmount:p.id===1?4000:2000,state:'paid',due:0}))}:null};},
     async attach(page:Page,viewer:{manage?:boolean;userId?:number}={}){
@@ -50,8 +53,13 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
         if(method==='GET')return reply({error:'not_found'},404);
         requests.push({path,body});
         if(!manage)return reply({error:'forbidden'},403);
-        if(path==='/api/events/7/teams'&&method==='PUT'){teams=body.teams;publishedAt=null;return reply({kind:'ok'});}
-        if(path==='/api/events/7/teams/publish'){publishedAt=now;return reply({kind:'ok'});}
+        if(path==='/api/events/7/teams'&&method==='PUT'){count=body.teamCount;teams=body.teams;publishedAt=null;return reply({kind:'ok'});}
+        if(path==='/api/events/7/teams/colors'&&method==='PATCH'){
+          if(completedAt!==null || body.expectedRevision!==colorsRevision)return reply({error:'stale'},409);
+          if(body.colors.length!==count || new Set(body.colors).size!==count)return reply({error:'invalid'},400);
+          colors=body.colors as TeamColor[];colorsRevision++;return reply({kind:'ok',colors,colorsRevision});
+        }
+        if(path==='/api/events/7/teams/publish'){if(world.failNextPublish){world.failNextPublish=false;return reply({error:'offline'},500);}publishedAt=now;return reply({kind:'ok'});}
         const {requestId,expectedRevision,...payload}=body;
         const fingerprint=JSON.stringify({path,method,payload});
         const receipt=receipts.get(requestId);

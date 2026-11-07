@@ -21,6 +21,14 @@ test('latest three results are newest first and all games open in a sheet with e
 
 vi.mock('../src/lib/api'); vi.mock('../src/lib/tg');
 const ev={id:7,protocolVersion:1,viewerRole:'player',community:{id:1,title:'FC Altynka'},gameProtocol:makeProtocol({canRecord:false,canEdit:false,canFinish:false})} as EventDetailDto;
+test('actual kit colors label the current pair, rest and standings without changing statistics',()=>{
+  renderWithApp(<MatchGames ev={{...ev,teams:{teamCount:3,teams:[[1],[2],[3]],colors:['white','green','black'],publishedAt:1,stale:false}}} reload={()=>{}}/>,{me:player});
+  expect(screen.getByText(/Отдыхают/)).toHaveTextContent('Чёрные');
+  const table=screen.getByRole('table',{name:'Таблица команд'});
+  expect(within(table).getByText('Белые')).toBeVisible();
+  expect(within(table).getByText('Зелёные')).toBeVisible();
+  expect(within(table).queryByText('Красные')).toBeNull();
+});
 test('player sees pair, rest, table and empty history without organizer actions',()=>{
   renderWithApp(<MatchGames ev={ev} reload={()=>{}}/>,{me:player});
   expect(screen.getByRole('table',{name:'Таблица команд'})).toBeVisible();

@@ -59,12 +59,14 @@ export function Event() {
   const actionBlocked = !gamePrimary && !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
   const compactGames = ev?.protocolVersion===1 && tab==='games' && ev.startedAt!=null;
+  const compactTeams = tab === 'teams' && !!ev && ev.status !== 'collecting';
+  const compactSummary = compactGames || compactTeams;
   return <Screen title={title} subtitle={weekday} back="/matches" className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
     {loading && !ev && <Loading variant="detail" />}
     {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
     {ev && <>
-      <section className={`card material-plum event-summary ${compactGames?'game-summary':''} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label={compactGames?'Время и место встречи':'Игра и твоё участие'}>
-        {compactGames ? <>
+      <section className={`card material-plum event-summary ${compactSummary?'game-summary':''} ${compactTeams?'team-summary':''} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label={compactGames?'Время и место встречи':'Игра и твоё участие'}>
+        {compactSummary ? <>
           <div className="game-summary-top"><GroupTag community={ev.community} always/><p className="match-detail-time">{ev.startTime && ev.durationHours?timeRange(ev.startTime,ev.durationHours):'Время уточняется'}</p></div>
           <p className="match-detail-place"><Icon name="pin"/><span>{ev.place || 'Поле пока не выбрано'}</span></p>
         </> : <>
@@ -72,8 +74,8 @@ export function Event() {
         <p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p>
         <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
         <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS[ev.status]}</span></p>
-        <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
         </>}
+        {!compactGames && <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />}
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />
       <div className="tabs" role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={`panel-${k}`} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {

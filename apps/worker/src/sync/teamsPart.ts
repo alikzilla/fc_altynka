@@ -1,4 +1,4 @@
-import { TEAMS } from '@altynka/core';
+import { teamAppearance } from '@altynka/core';
 import type { Db } from '../db/client';
 import { getEvent } from '../domain/events';
 import { teamsDto } from '../domain/teams';
@@ -20,8 +20,8 @@ export async function renderTeamsPart(db: Db, eventId: number, env?: LinkEnv): P
     durationHours: ev.durationHours,
     place: ev.place,
     teams: dto.teams.map((ids, i) => ({
-      emoji: TEAMS[i].emoji,
-      name: TEAMS[i].name,
+      emoji: teamAppearance(i, dto.colors).emoji,
+      name: teamAppearance(i, dto.colors).name,
       players: ids.map(id => all.find(p => p.signupId === id)).filter(p => !!p).map(p => plainName(p!)),
     })),
   }, eventId, env);

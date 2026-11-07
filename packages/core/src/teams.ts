@@ -6,6 +6,31 @@ export const TEAMS = [
 
 export type TeamCount = 2 | 3;
 
+export const TEAM_COLORS = [
+  { ...TEAMS[0], label: 'Красный' },
+  { ...TEAMS[1], label: 'Синий' },
+  { ...TEAMS[2], label: 'Жёлтый' },
+  { key: 'green', name: 'Зелёные', emoji: '🟢', label: 'Зелёный' },
+  { key: 'white', name: 'Белые', emoji: '⚪', label: 'Белый' },
+  { key: 'black', name: 'Чёрные', emoji: '⚫', label: 'Чёрный' },
+] as const;
+export type TeamColor = typeof TEAM_COLORS[number]['key'];
+
+export function teamAppearance(index: number, colors?: readonly string[] | null) {
+  return TEAM_COLORS.find(color => color.key === colors?.[index]) ?? TEAM_COLORS[index] ?? TEAM_COLORS[0];
+}
+
+/** Preserve team identities when the number of teams changes. */
+export function teamColorsFor(count: TeamCount, colors?: readonly string[] | null): TeamColor[] {
+  const selected: TeamColor[] = [];
+  for (let i = 0; i < count; i++) {
+    const requested = TEAM_COLORS.find(c => c.key === colors?.[i] && !selected.includes(c.key));
+    const fallback = TEAM_COLORS[i];
+    selected.push(requested?.key ?? (!selected.includes(fallback.key) ? fallback.key : TEAM_COLORS.find(c => !selected.includes(c.key))!.key));
+  }
+  return selected;
+}
+
 export function teamCountFor(mainCount: number): TeamCount {
   return mainCount >= 15 ? 3 : 2;
 }

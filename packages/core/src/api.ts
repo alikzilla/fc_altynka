@@ -2,6 +2,7 @@ import type { Extra, LineState } from './bill';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 import type { MatchReviewSummaryDto, PlayerRatingDto, PlayerSummaryDto } from './ratings';
 import type { GameProtocolDto } from './games';
+import type { TeamColor } from './teams';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
@@ -64,6 +65,8 @@ export interface EventSummaryDto {
 }
 
 export interface TeamsDto {
+  colors?: TeamColor[];
+  colorsRevision?: number;
   ratingSnapshot?: Record<number, number>;
   teamCount: 2 | 3;
   teams: number[][];

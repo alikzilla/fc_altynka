@@ -64,6 +64,8 @@ export const events = sqliteTable('events', {
     .default('collecting'),
   baseLimit: integer('base_limit').notNull().default(10),
   teamCount: integer('team_count').$type<2 | 3>(),
+  teamColors: text('team_colors'),
+  teamColorsRevision: integer('team_colors_revision').notNull().default(0),
   teamsPublishedAt: integer('teams_published_at'),
   /** Снимок основы на момент сохранения составов: отличие = составы устарели. */
   teamsRoster: text('teams_roster'),

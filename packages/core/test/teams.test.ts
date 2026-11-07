@@ -1,4 +1,18 @@
-import { alternativeSplit, balanceTeams, makeRng, teamCountFor, TEAMS, type Rated } from '../src';
+import { alternativeSplit, balanceTeams, makeRng, teamCountFor, teamColorsFor, teamAppearance, TEAMS, type Rated } from '../src';
+
+test('team colors preserve legacy defaults and resolve actual uniforms', () => {
+  expect(teamColorsFor(2)).toEqual(['red', 'blue']);
+  expect(teamColorsFor(3)).toEqual(['red', 'blue', 'yellow']);
+  expect(teamAppearance(1, ['blue', 'green'])).toMatchObject({ key: 'green', name: 'Зелёные' });
+  expect(teamAppearance(0, ['white', 'black'])).toMatchObject({ key: 'white', name: 'Белые' });
+  expect(teamAppearance(1, ['white', 'black'])).toMatchObject({ key: 'black', name: 'Чёрные' });
+});
+
+test('adding a third team preserves selected colors without duplicates', () => {
+  expect(teamColorsFor(3, ['green', 'yellow'])).toEqual(['green', 'yellow', 'red']);
+  expect(teamColorsFor(2, ['blue', 'red', 'yellow'])).toEqual(['blue', 'red']);
+  expect(teamColorsFor(3, ['red', 'red', 'unknown'])).toEqual(['red', 'blue', 'yellow']);
+});
 
 const P = (levels: number[]) => levels.map((level, i) => ({ id: i + 1, level }));
 const sums = (players: Rated[], t: number[][]) =>

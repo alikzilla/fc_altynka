@@ -81,7 +81,7 @@ test('equal long guest names stay distinguishable and keyboard goal selection fi
 test('prepare guest swap, manual start, first sulifa and subsequent rotation with guest goals',async({page})=>{
   await page.setViewportSize({width:390,height:844});const world=gameStatisticsWorld();await world.attach(page);
   await page.goto('/event/7?tab=teams');
-  await page.getByRole('button',{name:'Али',exact:true}).click();await page.getByRole('button',{name:'Ерпа',exact:true}).click();
+  await page.getByRole('button',{name:'Обменять: Али',exact:true}).click();await page.getByRole('button',{name:'Обменять с игроком Ерпа',exact:true}).click();
   await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
   await page.getByRole('button',{name:'Начать встречу',exact:true}).click();

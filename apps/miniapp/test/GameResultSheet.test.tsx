@@ -12,6 +12,14 @@ const ev={id:7} as EventDetailDto;
 beforeEach(()=>{ localStorage.clear(); vi.mocked(api.send).mockResolvedValue({}); });
 const open=(protocol=makeProtocol())=>renderWithApp(<GameResultSheet ev={ev} protocol={protocol} game={null} onClose={()=>{}} onSaved={vi.fn()} reload={()=>{}}/>,{me:organizer});
 
+test('score controls use actual uniforms while result payload keeps team indices',async()=>{
+  renderWithApp(<GameResultSheet ev={{...ev,teams:{teamCount:3,teams:[[1],[2],[3]],colors:['white','green','black'],publishedAt:1,stale:false}}} protocol={makeProtocol()} game={null} onClose={()=>{}} onSaved={()=>{}} reload={()=>{}}/>,{me:organizer});
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Белые'}));
+  await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
+  expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[1,0],scorers:[]}));
+  expect(screen.queryByRole('button',{name:'Добавить гол команды Красные'})).toBeNull();
+});
+
 test('first 0:0 needs sulifa; winning result and scorers are saved together',async()=>{
   open(); const save=screen.getByRole('button',{name:'Сохранить результат'});
   expect(save).toBeDisabled();
