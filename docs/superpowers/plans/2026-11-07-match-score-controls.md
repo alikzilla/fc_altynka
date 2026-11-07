@@ -46,5 +46,5 @@ Files: `screens/MatchGames.tsx`, `styles/games.css`, `MatchGames.test.tsx`, `tes
 ### Task 3: Review and release
 
 - [x] Request a fresh code review; resolve actionable findings and rerun affected checks.
-- [ ] Capture production version/settings and read-only smoke state, verify the local Worker packaging, deploy, then check the served assets and API responses.
-- [ ] Record release evidence and any physical-device validation limit. Commit the implementation and report the published result.
+- [x] Capture production version/settings and read-only smoke state, verify the local Worker packaging, deploy, then check the served assets and API responses.
+- [x] Record release evidence and any physical-device validation limit. Commit the implementation and report the published result.
