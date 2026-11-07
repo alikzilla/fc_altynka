@@ -24,6 +24,8 @@
 - [Ввод счёта и история коротких матчей](match-score-controls-deployment.md) — кнопки счёта, карточки авторов, последние три результата и полный список.
 - [Оптимизация чтения матча](match-read-optimization-review.md) и [публикация](match-read-optimization-deployment.md) — сокращение повторных SQL-чтений, сравнение ответов и проверка CPU.
 
+- [Редактор команд и цвета формы](team-editor-review.md), [публикация](team-editor-deployment.md) — явный обмен, отмена в уведомлении, выбор реальных цветов и миграция 0012.
+
 ## Telegram-бот
 
 - [Сценарии и тексты](bot-copy-draft.md)

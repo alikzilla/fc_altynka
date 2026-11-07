@@ -78,3 +78,10 @@ Files: browser fixture/spec for the editor, documentation and this checklist.
 - Task 4: 38 browser checks passed; one fresh reviewer found four Important issues, fixed in one pass with regressions. See `docs/team-editor-review.md`.
 - Ruling: no deployment/integration; user authorized implementation in the existing workspace. Changes remain reviewable.
 - Ruling: the unrelated automatic-private-message baseline failure remains explicitly reported, without expanding this UI task into a Telegram retry redesign.
+
+## Authorized production release
+
+The user subsequently requested deployment and pushing to `main`. Completed fast-forward
+integration and push, migration 0012 and production deployment after a fresh green suite
+(599 unit/integration tests and 38 browser scenarios). All post-release checks passed;
+see `docs/team-editor-deployment.md`. This supersedes the earlier implementation-only ruling.
