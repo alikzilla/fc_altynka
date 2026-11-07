@@ -1,11 +1,23 @@
 import type { EventDetailDto } from '@altynka/core';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { api } from '../src/lib/api';
 import { MatchGames } from '../src/screens/MatchGames';
 import { organizer, player, renderWithApp } from './render';
 import { makeProtocol } from './gameFixtures';
+
+test('latest three results are newest first and all games open in a sheet with edit permissions',async()=>{
+  const games=Array.from({length:5},(_,i)=>({id:`game-${i+1}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}));
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games,canEdit:false})}} reload={()=>{}}/>,{me:player});
+  const history=screen.getByRole('region',{name:'Последние матчи'});
+  expect(within(history).getAllByRole('listitem').map(li=>li.textContent)).toEqual([expect.stringContaining('Игра 5'),expect.stringContaining('Игра 4'),expect.stringContaining('Игра 3')]);
+  expect(within(history).queryByText('Игра 1')).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Все матчи (5)'}));
+  const sheet=screen.getByRole('dialog',{name:'Все матчи'});
+  expect(within(sheet).getAllByRole('listitem')).toHaveLength(5);
+  expect(within(sheet).queryByRole('button',{name:/Изменить результат/})).toBeNull();
+});
 
 vi.mock('../src/lib/api'); vi.mock('../src/lib/tg');
 const ev={id:7,protocolVersion:1,viewerRole:'player',community:{id:1,title:'FC Altynka'},gameProtocol:makeProtocol({canRecord:false,canEdit:false,canFinish:false})} as EventDetailDto;

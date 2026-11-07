@@ -14,3 +14,10 @@ test('malformed storage and denied storage do not break forms',()=>{
   const spy=vi.spyOn(Storage.prototype,'setItem').mockImplementation(()=>{throw new Error('quota');});
   expect(()=>writeGameDraft(7,1,draft)).not.toThrow(); spy.mockRestore();
 });
+test('optional card metadata preserves unknown positions but malformed metadata leaves the retry payload intact',()=>{
+  const input={score:[3,0] as [number,number],scorers:[{signupId:1,goals:2}]};
+  const goalRuns:[{signupId:number|null;goals:number}[],{signupId:number|null;goals:number}[]]=[[{signupId:1,goals:1},{signupId:null,goals:1},{signupId:1,goals:1}],[]];
+  writeGameDraft(7,1,{...draft,input,goalRuns});expect(readGameDraft(7,1)?.goalRuns).toEqual(goalRuns);
+  const key=localStorage.key(0)!;localStorage.setItem(key,JSON.stringify({...draft,goalRuns:'broken'}));
+  expect(readGameDraft(7,1)).toEqual(draft);
+});

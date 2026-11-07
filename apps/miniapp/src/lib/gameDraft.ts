@@ -1,8 +1,10 @@
 import type { GamePair, GameResultInput } from '@altynka/core';
+import { validGoalRuns, type GoalRuns } from './gameGoalRuns';
 
 export interface GameResultDraft {
   version: 1; gameId: string | null; pair: GamePair; revision: number; requestId: string;
   input: GameResultInput; submitted: boolean;
+  goalRuns?: GoalRuns;
 }
 const key = (eventId: number, userId: number) => `altynka:game-draft:v1:${userId}:${eventId}`;
 const integer = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
@@ -17,6 +19,8 @@ export function readGameDraft(eventId: number, userId: number): GameResultDraft 
     if (!input || !Array.isArray(input.score) || input.score.length !== 2 || !input.score.every(integer) || !Array.isArray(input.scorers) || input.scorers.length > 100) return null;
     if (!input.scorers.every((p: {signupId?:unknown;goals?:unknown}|null)=>p && integer(p.signupId) && p.signupId>0 && integer(p.goals) && p.goals>0)) return null;
     if (input.firstRestTeamIndex !== undefined && (!integer(input.firstRestTeamIndex) || input.firstRestTeamIndex>2)) return null;
+    // Invalid optional presentation metadata must never discard or alter a retry command.
+    if(value.goalRuns!==undefined && !validGoalRuns(value.goalRuns,input)) delete value.goalRuns;
     return value as GameResultDraft;
   } catch { return null; }
 }

@@ -22,11 +22,20 @@ function goalsText(protocol: GameProtocolDto, game: GameResult, team: number, ev
   return entries.join(', ');
 }
 
+function GameResults({games,protocol,ev,onEdit}:{games:readonly GameResult[];protocol:GameProtocolDto;ev:EventDetailDto;onEdit:(game:GameResult)=>void}) {
+  return <ol className="game-results">{games.map(game=><li key={game.id} className="game-result">
+    <div className="row between"><span className="muted">Игра {game.sequence}</span>{protocol.canEdit && <button className="btn-text" aria-label={`Изменить результат игры ${game.sequence}`} onClick={event=>{event.currentTarget.focus();onEdit(game);}}>Изменить</button>}</div>
+    <div className="game-result-pair"><GameTeamName index={game.pair[0]}/><strong>{game.score[0]}:{game.score[1]}</strong><GameTeamName index={game.pair[1]}/></div>
+    {game.pair.map(team=>{const text=goalsText(protocol,game,team,ev);return text?<p className="game-goals" key={team}><span>{TEAMS[team].name}:</span> {text}</p>:null;})}
+  </li>)}</ol>;
+}
+
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
   const me=useMe();
   const protocol=ev.gameProtocol;
   const [result,setResult]=useState<GameResult|null|undefined>(undefined);
   const [menu,setMenu]=useState(false);
+  const [history,setHistory]=useState(false);
   const [finishing,setFinishing]=useState(false);
   const [selected,setSelected]=useState<number[]>([]);
   const [busy,setBusy]=useState(false);
@@ -75,7 +84,7 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       <div className="row between"><p className="game-current-meta">Игра {protocol.games.length+1} · 6 минут</p>{protocol.canFinish && <button className="btn-text" onClick={()=>{setError(null);setMenu(true);}}>Действия</button>}</div>
       <div className="game-pair"><GameTeamName index={protocol.currentPair[0]}/><span className="game-pair-separator">—</span><GameTeamName index={protocol.currentPair[1]}/></div>
       {protocol.restingTeamIndex!==null && <p className="game-rest">Отдыхают: {TEAMS[protocol.restingTeamIndex].name}</p>}
-      {protocol.canRecord && <MatchAction><button className="btn primary wide" onClick={()=>setResult(null)}>Внести результат</button></MatchAction>}
+      {protocol.canRecord && <MatchAction><button className="btn primary wide" onClick={event=>{event.currentTarget.focus();setResult(null);}}>Внести результат</button></MatchAction>}
     </section> : <div className="game-completed"><h2>Итоги встречи</h2><p className="muted">{protocol.games.length?`Сыграно игр: ${protocol.games.length}`:'Результаты не записывались'}</p></div>}
 
     <section className="card game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
@@ -83,16 +92,13 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small> ({t.goalDifference>0?'+':''}{t.goalDifference})</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
     </table></div><p className="muted game-table-note">Победа — 3 очка, ничья — 1.</p></section>
 
-    <section className="game-history" aria-labelledby="game-history-heading"><h2 id="game-history-heading">Результаты <span className="muted">{protocol.games.length}</span></h2>
-      {protocol.games.length?<ol className="game-results">{protocol.games.map(game=><li key={game.id} className="game-result">
-        <div className="row between"><span className="muted">Игра {game.sequence}</span>{protocol.canEdit && <button className="btn-text" aria-label={`Изменить результат игры ${game.sequence}`} onClick={()=>setResult(game)}>Изменить</button>}</div>
-        <div className="game-result-pair"><GameTeamName index={game.pair[0]}/><strong>{game.score[0]}:{game.score[1]}</strong><GameTeamName index={game.pair[1]}/></div>
-        {game.pair.map(team=>{const text=goalsText(protocol,game,team,ev);return text?<p className="game-goals" key={team}><span>{TEAMS[team].name}:</span> {text}</p>:null;})}
-      </li>)}</ol>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
+    <section className="game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние матчи</h2>{protocol.games.length>0 && <button className="btn-text" aria-label={`Все матчи (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все матчи ({protocol.games.length}) <span aria-hidden="true">→</span></button>}</div>
+      {protocol.games.length?<GameResults games={protocol.games.slice(-3).reverse()} protocol={protocol} ev={ev} onEdit={setResult}/>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
     </section>
 
     <section className="game-bombardiers" aria-labelledby="game-scorers-heading"><h2 id="game-scorers-heading">Бомбардиры</h2>{protocol.scorers.length?<ol className="game-scorers-list">{protocol.scorers.map(p=><li key={p.signupId}><span className="game-rank">{p.rank}</span><span className="game-scorer-identity">{gamePlayerName(p,protocol.roster,ev.main)}<small className="muted">{TEAMS[p.teamIndex].name}{p.userId===null?' · гость':''}</small></span><b>{p.goals}</b></li>)}</ol>:<p className="muted">Авторы голов пока не указаны.</p>}</section>
 
+    {history && <ActionSheet title="Все матчи" onClose={()=>setHistory(false)} className="game-history-sheet"><p className="game-history-intro">Сыграно {protocol.games.length} · сначала последние</p><GameResults games={[...protocol.games].reverse()} protocol={protocol} ev={ev} onEdit={setResult}/></ActionSheet>}
     {result!==undefined && <GameResultSheet ev={ev} protocol={protocol} game={result} onClose={()=>setResult(undefined)} onSaved={()=>{setResult(undefined);reload();}} reload={reload}/>}
     {menu && <ActionSheet title="Действия встречи" onClose={()=>setMenu(false)} busy={busy}>
       {protocol.canFinish && <button className="sheet-action" onClick={openFinish}>{pendingFinish?'Проверить завершение':'Завершить встречу'}</button>}

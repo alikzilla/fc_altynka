@@ -45,12 +45,47 @@
 .game-scorers-list > li > b { margin-left: auto; font-size: 19px; font-weight: 550; font-variant-numeric: tabular-nums; }
 .game-scorer-identity { min-width: 0; overflow-wrap: anywhere; font-size: 15px; line-height: 1.4; }
 .game-scorer-identity small { display: block; font-size: 12px; font-weight: 400; margin-top: 2px; }
+/* Stable figures on the match page and its portal-mounted game sheets. */
+:where(.match-screen, .game-result-sheet, .game-history-sheet), :where(.match-screen, .game-result-sheet, .game-history-sheet) * { font-variant-numeric: lining-nums tabular-nums; }
+.game-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
+.match-games .game-history-heading h2 { margin: 0; }
+.game-history-heading > button { min-height: 44px; font-size: 13px; white-space: nowrap; }
+.game-history-intro { margin: 0 0 18px; color: var(--hint); font-size: 13px; }
+.game-result-sheet { height: min(92dvh, 860px); max-height: 92dvh; }
+.game-result-sheet .sheet-content { flex: 1; }
 .game-score-fields, .game-scorer-fields, .game-sulifa { border: 0; padding: 0; margin: 0; min-width: 0; }
-.game-score-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 26px; }
-.game-score-fields > label { display: grid; gap: 12px; font-size: 15px; }
-.game-score-fields input { width: 100%; min-width: 0; min-height: 76px; padding: 12px; border: 1px solid var(--line); border-radius: 18px; background: var(--card); text-align: center; font-size: 36px; font-weight: 550; font-variant-numeric: tabular-nums; }
-.game-score-fields input::-webkit-inner-spin-button, .game-stepper input::-webkit-inner-spin-button { appearance: none; }
-.game-score-fields input, .game-stepper input { -moz-appearance: textfield; }
+.game-score-fields { display: grid; grid-template-columns: minmax(0,1fr) 8px minmax(0,1fr); align-items: center; gap: 40px; position: relative; left: 50%; transform: translateX(-50%); width: calc(100% + 16px); max-width: 368px; margin: 4px 0 24px; }
+.game-score-colon { color: var(--hint); font-size: 28px; padding-top: 28px; text-align: center; }
+.game-score-side { min-width: 0; text-align: center; }
+.game-score-side > .game-team-name { justify-content: center; margin-bottom: 12px; font-size: 14px; }
+.game-score-buttons { display: grid; grid-template-columns: 44px minmax(0,1fr) 44px; align-items: center; gap: 2px; }
+.game-score-buttons button { width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); background: var(--field-bg, var(--card)); color: var(--text); border-radius: 50%; font-size: 26px; font-weight: 400; }
+.game-score-buttons button:disabled { opacity: .3; }
+.game-score-buttons output { display: block; width: 100%; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; text-align: center; font-size: 36px; line-height: 1.2; font-weight: 550; }
+.game-score-buttons.game-score-long output { font-size: 12px; }
+.game-score-full { margin: -12px 0 20px; color: var(--hint); text-align: center; font-size: 13px; overflow-wrap: anywhere; }
+.game-score-buttons button:active:not(:disabled) { transform: scale(.94); }
+.game-result-caption { color: var(--hint); font-size: 12px; margin: 8px 0 0; text-align: center; }
+.game-scorer-fields > legend { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; width: 100%; }
+.game-scorer-fields > legend > :first-child { flex-shrink: 0; }
+.game-goals-total { min-width: 0; overflow-wrap: anywhere; text-align: right; color: var(--hint); font-size: 12px; font-weight: 400; }
+.game-goal-help { color: var(--hint); font-size: 13px; line-height: 1.5; margin: 0 0 18px; }
+.game-empty-goals { padding: 28px 16px; text-align: center; background: var(--field-bg, var(--card)); border-radius: 16px; color: var(--hint); font-size: 14px; line-height: 1.6; margin: 0; }
+.game-goal-slot { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: transparent; color: var(--text); min-height: 60px; margin-top: 8px; }
+.game-goal-slot.active { border-color: var(--accent-ink); background: var(--accent-soft); }
+.game-goal-order { width: 24px; flex-shrink: 0; font-size: 12px; color: var(--hint); }
+.game-goal-identity { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
+.game-goal-identity small { display: block; margin-top: 3px; color: var(--hint); font-size: 11px; }
+.game-goal-slot > :last-child { color: var(--hint); font-size: 18px; }
+.game-goal-slot.assigned > :last-child { color: var(--accent-ink); font-size: 15px; }
+.game-player-picker { margin: 8px 0 12px; background: var(--field-bg, var(--card)); border-radius: 12px; padding: 4px 12px; }
+.game-player-option { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 48px; padding: 8px 0; border: 0; border-bottom: 1px solid var(--line); background: none; color: var(--text); text-align: left; font-size: 14px; }
+.game-player-option:last-child { border-bottom: 0; color: var(--hint); font-size: 12px; }
+.game-player-option > span:nth-child(2) { min-width: 0; overflow-wrap: anywhere; }
+.game-player-option small { display: block; font-size: 11px; }
+.game-player-option > :last-child { margin-left: auto; }
+.game-player-initial { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; }
+.game-more-goals { min-height: 44px; }
 .game-sulifa { margin-bottom: 26px; }
 .game-sulifa legend, .game-scorer-fields legend { font-size: 17px; font-weight: 550; margin-bottom: 10px; }
 .game-sulifa > p { margin: 0 0 12px; font-size: 13px; line-height: 1.5; }
@@ -59,11 +94,6 @@
 .game-sulifa-options input { width: 20px; height: 20px; flex-shrink: 0; }
 .game-scorer-team { margin: 12px 0 24px; }
 .game-scorer-team h3 { font-size: 14px; font-weight: 500; margin: 0 0 8px; }
-.game-scorer-control { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 60px; padding: 6px 0; }
-.game-stepper { display: flex; align-items: center; flex-shrink: 0; }
-.game-stepper button { width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 50%; color: var(--text); background: var(--field-bg, var(--card)); font-size: 22px; }
-.game-stepper input { width: 40px; min-height: 44px; padding: 4px 0; border: 0; background: transparent; text-align: center; font-size: 17px; font-variant-numeric: tabular-nums; }
-.game-unknown { margin: 8px 0 0; font-size: 12px; }
 .game-draft-notice { margin-bottom: 20px; padding: 16px; background: var(--accent-soft); border-radius: 16px; }
 .game-draft-notice > p { font-size: 14px; line-height: 1.5; margin: 0 0 12px; }
 .match-screen .tabs:has(#tab-games) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -76,8 +106,10 @@
   .game-rank { margin-right: 5px; }
   .game-standings th, .game-standings td { padding-inline: 2px; }
   .game-result-pair { gap: 6px; font-size: 13px; }
-  .game-score-fields { gap: 12px; }
-  .game-score-fields input { min-height: 68px; font-size: 32px; }
-  .game-stepper button { width: 44px; }
-  .game-stepper input { width: 34px; }
+  .game-score-fields { gap: 20px; width: calc(100% + 32px); }
 }
+
+@media (min-width: 360px) and (max-width: 374px) { .game-score-fields { gap: 32px; } }
+@media (max-width: 374px) { .game-score-buttons output { font-size: 32px; } }
+.match-games .game-current .match-action { position: static; inset: auto; width: auto; padding: 0; margin-top: 18px; background: none; pointer-events: auto; }
+.match-screen:has(.game-current .match-action) { padding-bottom: calc(110px + var(--safe-bottom)); }
