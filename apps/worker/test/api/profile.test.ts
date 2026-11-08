@@ -57,3 +57,12 @@ test('clearing a legacy phone does not reopen setup when its completion timestam
   expect((await patch({ kaspiPhone: null })).status).toBe(200);
   expect(await get()).toMatchObject({ profileCompleted: true, kaspiPhone: null });
 });
+test('pinned achievement persists, clears and rejects unknown ids', async () => {
+  expect(await get()).toMatchObject({ pinnedAchievement: null });
+  expect((await patch({ pinnedAchievement: 'scorer' })).status).toBe(200);
+  expect(await get()).toMatchObject({ pinnedAchievement: 'scorer' });
+  expect((await patch({ pinnedAchievement: 'sniper' })).status).toBe(400);
+  expect(await get()).toMatchObject({ pinnedAchievement: 'scorer' });
+  await patch({ pinnedAchievement: null });
+  expect(await get()).toMatchObject({ pinnedAchievement: null });
+});

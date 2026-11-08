@@ -201,3 +201,9 @@ test('a first survey after rated games replaces only the initial estimate', asyn
   await request('/api/me/skills', w.player, skills, 'PUT');
   expect(await (await request('/api/me')).json()).toMatchObject({ rating: { value: 6.5, initial: 6, matchesCount: 1 } });
 });
+test('a peer in the same group sees the pinned achievement on the sports profile', async () => {
+  expect((await request(`/api/players/${w.playerUserId}`, w.org)).status).toBe(200);
+  expect(await (await request(`/api/players/${w.playerUserId}`, w.org)).json()).toMatchObject({ pinnedAchievement: null });
+  expect((await request('/api/me', w.player, { pinnedAchievement: 'winner' }, 'PATCH')).status).toBe(200);
+  expect(await (await request(`/api/players/${w.playerUserId}`, w.org)).json()).toMatchObject({ pinnedAchievement: 'winner' });
+});

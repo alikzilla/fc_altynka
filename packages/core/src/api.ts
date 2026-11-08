@@ -3,6 +3,7 @@ import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 import type { MatchReviewSummaryDto, PlayerRatingDto, PlayerSummaryDto } from './ratings';
 import type { GameProtocolDto } from './games';
 import type { TeamColor } from './teams';
+import type { AchievementId } from './achievements';
 
 export type Role = 'admin' | 'organizer' | 'player';
 export type EventStatus = 'collecting' | 'scheduled' | 'playing' | 'billing' | 'closed' | 'cancelled';
@@ -20,6 +21,7 @@ export interface MeDto {
   profileCompleted?: boolean;
   playingPosition?: PlayingPosition | null;
   dominantFoot?: DominantFoot | null;
+  pinnedAchievement?: AchievementId | null;
   theme?: AppTheme;
   notifications?: { enabled: boolean; available: boolean };
   /** Confirmed groups, sorted by title; empty for a person without groups. */

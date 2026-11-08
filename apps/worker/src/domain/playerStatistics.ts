@@ -28,5 +28,5 @@ export async function playerGameStatistics(db: Db, userId: number, viewerId: num
       community: { id: row.communityId, title: row.communityTitle }, score: row.score,
       colors: teamColorsFor(state.teamCount, row.colors ? JSON.parse(row.colors) as string[] : null) });
   }
-  return { statistics: aggregatePlayerStatistics(history), gameHistory: history.slice(0,20) };
+  return { statistics: aggregatePlayerStatistics(history), gameHistory: history };
 }

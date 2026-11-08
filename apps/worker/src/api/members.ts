@@ -1,4 +1,4 @@
-import { APP_THEMES, DOMINANT_FEET, PLAYING_POSITIONS, normalizeKzPhone, type AppTheme, type DominantFoot, type PlayingPosition, type MeDto, type MemberDto } from '@altynka/core';
+import { ACHIEVEMENT_IDS, APP_THEMES, DOMINANT_FEET, PLAYING_POSITIONS, normalizeKzPhone, type AchievementId, type AppTheme, type DominantFoot, type PlayingPosition, type MeDto, type MemberDto } from '@altynka/core';
 import { and, eq } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
 import { z } from 'zod';
@@ -15,7 +15,7 @@ import { body, idParam } from './validate';
 const name = z.string().trim().min(1).max(24);
 
 export const membersApi = new Hono<AppEnv>();
-const profileDetails = (u: UserRow) => ({ profileCompleted: u.profileCompletedAt !== null || !!u.kaspiPhone, playingPosition: u.playingPosition, dominantFoot: u.dominantFoot, theme: u.theme });
+const profileDetails = (u: UserRow) => ({ profileCompleted: u.profileCompletedAt !== null || !!u.kaspiPhone, playingPosition: u.playingPosition, dominantFoot: u.dominantFoot, theme: u.theme, pinnedAchievement: u.pinnedAchievement ?? null });
 
 async function meDto(c: Context<AppEnv>, u: UserRow, groups: MyMembership[]): Promise<MeDto> {
   const { db, now } = c.get('deps');
@@ -38,17 +38,18 @@ membersApi.get('/me', async c => {
   return c.json<MeDto>(await meDto(c, c.get('user'), groups));
 });
 
-membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone: z.string().max(40).nullable().optional(), notificationsEnabled: z.boolean().optional(), profileCompleted: z.literal(true).optional(), playingPosition: z.enum(PLAYING_POSITIONS).nullable().optional(), dominantFoot: z.enum(DOMINANT_FEET).nullable().optional(), theme: z.enum(APP_THEMES).optional() })), async c => {
+membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone: z.string().max(40).nullable().optional(), notificationsEnabled: z.boolean().optional(), profileCompleted: z.literal(true).optional(), playingPosition: z.enum(PLAYING_POSITIONS).nullable().optional(), dominantFoot: z.enum(DOMINANT_FEET).nullable().optional(), theme: z.enum(APP_THEMES).optional(), pinnedAchievement: z.enum(ACHIEVEMENT_IDS).nullable().optional() })), async c => {
   const v = c.req.valid('json');
   const { db, now } = c.get('deps');
   const me = c.get('user');
-  const set: { displayName?: string; kaspiPhone?: string | null; notificationsEnabled?: boolean; profileCompletedAt?: number; playingPosition?: PlayingPosition | null; dominantFoot?: DominantFoot | null; theme?: AppTheme } = {};
+  const set: { displayName?: string; kaspiPhone?: string | null; notificationsEnabled?: boolean; profileCompletedAt?: number; playingPosition?: PlayingPosition | null; dominantFoot?: DominantFoot | null; theme?: AppTheme; pinnedAchievement?: AchievementId | null } = {};
   if (v.theme !== undefined) set.theme = v.theme;
   // Keep legacy saved profiles completed even if their phone is now being removed.
   if (me.kaspiPhone && me.profileCompletedAt === null) set.profileCompletedAt = now;
   if (v.profileCompleted && me.profileCompletedAt === null) set.profileCompletedAt = now;
   if (v.playingPosition !== undefined) set.playingPosition = v.playingPosition;
   if (v.dominantFoot !== undefined) set.dominantFoot = v.dominantFoot;
+  if (v.pinnedAchievement !== undefined) set.pinnedAchievement = v.pinnedAchievement;
   if (v.notificationsEnabled !== undefined) {
     if (v.notificationsEnabled && !me.pmAvailable) return c.json({ error: 'write_access_required' }, 409);
     set.notificationsEnabled = v.notificationsEnabled;

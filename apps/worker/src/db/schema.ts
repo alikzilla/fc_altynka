@@ -20,6 +20,7 @@ export const users = sqliteTable('users', {
   playingPosition: text('playing_position', { enum: ['goalkeeper', 'defender', 'midfielder', 'forward', 'universal'] }),
   dominantFoot: text('dominant_foot', { enum: ['right', 'left', 'both'] }),
   theme: text('theme', { enum: ['dark', 'light'] }).notNull().default('dark'),
+  pinnedAchievement: text('pinned_achievement', { enum: ['scorer', 'winner', 'rhythm', 'veteran', 'hat-trick'] }),
   notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
   pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
   createdAt: integer('created_at').notNull(),

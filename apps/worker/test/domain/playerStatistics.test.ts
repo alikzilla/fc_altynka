@@ -37,13 +37,13 @@ test('peer statistics and role exclude private groups while own history survives
   const outsider=await seedUser('Outsider');
   expect(await playerProfile(db(),w.target.id,outsider.id,2)).toBeNull();
 });
-test('cancelled and unstarted protocols are excluded, totals are not truncated to 20 history rows',async()=>{
+test('cancelled and unstarted protocols are excluded, history and totals include every meeting',async()=>{
   const w=await world();
   for(let i=0;i<22;i++)await session(w.a.id,w.target.id,{date:`2026-10-${String(i+1).padStart(2,'0')}`});
   await session(w.a.id,w.target.id,{status:'cancelled'});await session(w.a.id,w.target.id,{startedAt:null});
   const profile=await playerProfile(db(),w.target.id,w.target.id,2);
   expect(profile).toMatchObject({statistics:{meetings:22,games:22,goals:22}});
-  expect(profile!.gameHistory).toHaveLength(20);
+  expect(profile!.gameHistory).toHaveLength(22);
   expect(profile!.gameHistory[0].date).toBe('2026-10-22');
 });
 test('the home feed carries the viewer result of a finished match: team, rank and own goals',async()=>{

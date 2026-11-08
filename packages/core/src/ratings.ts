@@ -1,6 +1,7 @@
 import type { DominantFoot, PlayingPosition } from './profile';
 import type { Role } from './api';
 import type { PlayerMeetingStatistics, PlayerStatistics } from './playerStatistics';
+import type { AchievementId } from './achievements';
 
 export const SKILLS = [
   { key: 'teamwork', label: 'Игра в команде', hint: 'Открывания, помощь партнёрам и взаимодействие' },
@@ -49,6 +50,7 @@ export interface PlayerProfileDto extends PlayerSummaryDto {
   role: Role;
   statistics: PlayerStatistics;
   gameHistory: PlayerMeetingStatistics[];
+  pinnedAchievement: AchievementId | null;
   history: { eventId: number; date: string; place: string | null; score: number | null; community: { id: number; title: string }; protocolVersion?: 0 | 1 }[];
 }
 export interface ReviewInput {
