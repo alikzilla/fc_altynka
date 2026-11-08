@@ -38,5 +38,5 @@ Unknown scorers/guests and duplicate names; updated or removed games; active ses
 ### Task 4: Merge, deploy and production verification
 
 - [x] Capture current deployment/settings/protocol state and expected profile counts; 45 production checks before deploy.
-- [ ] Fast-forward merge into main, push main, dry-run and deploy via existing Wrangler workflow.
-- [ ] Verify served assets, profiles/access controls and unchanged stored protocol data; document deployment version and checks.
+- [x] Fast-forward merge into main, push main, dry-run and deploy via existing Wrangler workflow; code commit 4c99cac, Worker b4a03965-3d2f-4c28-91f7-0c3c3c7934b9.
+- [x] Verify served assets, profiles/access controls and unchanged stored protocol data; 45 production checks and 16 independently recomputed profiles passed. See `docs/player-profile-statistics-deployment.md`.
