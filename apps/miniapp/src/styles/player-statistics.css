@@ -3,14 +3,14 @@
 .player-card-top { display:grid; grid-template-columns:72px minmax(0,1fr) 68px; align-items:center; gap:12px; }
 .player-sports-card .avatar-large { width:72px; height:72px; background:#ffffff14; box-shadow:inset 0 0 0 1px #ffffff38; color:#f7edf7; font-size:28px; font-weight:450; }
 .player-identity { min-width:0; }
-.player-identity h2 { color:#f7f1f9; font-size:21px; line-height:1.15; font-weight:600; letter-spacing:-.035em; overflow-wrap:anywhere; text-wrap:balance; }
+.player-identity h2 { color:#f7f1f9; font-size:18px; line-height:1.2; font-weight:600; letter-spacing:-.035em; overflow-wrap:anywhere; text-wrap:balance; }
 .player-social { display:flex; align-items:center; gap:6px; min-width:0; margin-top:4px; }
 .player-telegram { min-width:0; overflow:hidden; color:var(--plum-ink); font-size:12px; line-height:1.4; white-space:nowrap; text-overflow:ellipsis; }
 .player-social-dot { flex-shrink:0; }
-.player-role { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif; font-size:18px; font-weight:400; font-variant-emoji:emoji; line-height:1; }
+.player-role { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; flex-shrink:0; font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif; font-size:14px; font-weight:400; font-variant-emoji:emoji; line-height:1; }
 .player-social-dot { color:var(--plum-ink); font-size:12px; line-height:1; }
 .player-position-row { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.player-position-edit { flex-shrink:0; min-height:44px; margin:-12px -6px; padding:0 6px; display:inline-flex; align-items:center; color:var(--plum-ink-strong); font-size:13px; font-weight:600; line-height:1.4; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; border-radius:10px; }
+.player-position-edit { flex-shrink:0; min-height:44px; margin:-13px -6px; padding:0 6px; display:inline-flex; align-items:center; color:var(--plum-ink-strong); font-size:12px; font-weight:500; line-height:1.4; text-decoration:underline; text-decoration-thickness:1px; text-underline-offset:3px; border-radius:10px; }
 .player-position-edit:focus-visible { outline:2px solid currentColor; outline-offset:2px; }
 .rating-caption { display:block; margin-top:2px; white-space:nowrap; color:var(--plum-ink); font-size:12px; line-height:1.3; text-align:center; }
 .player-statistics-section { display:flex; flex-direction:column; background:#ffffff0d; border-radius:20px; padding:15px 12px 14px; gap:18px; }
@@ -106,7 +106,7 @@
   .player-sports-card { padding:20px 16px 16px; }
   .player-card-top { grid-template-columns:60px minmax(0,1fr) 56px; gap:9px; }
   .player-sports-card .avatar-large { width:60px; height:60px; font-size:24px; }
-  .player-identity h2 { font-size:19px; }
+  .player-identity h2 { font-size:17px; }
   .player-telegram { font-size:12px; }
   .rating-emblem { width:56px; }
   .rating-badge { width:64px; }
