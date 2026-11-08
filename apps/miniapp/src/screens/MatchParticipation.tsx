@@ -2,7 +2,7 @@ import type { EventDetailDto } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
-import { isOpen } from '../lib/labels';
+import { isOpen, STATUS_LABEL } from '../lib/labels';
 import { haptic } from '../lib/tg';
 import { canManageEvent, useMe } from '../state/me';
 import { Icon } from '../components/Icon';
@@ -45,7 +45,13 @@ export function MatchParticipation({ ev, reload, suppressAction = false }: { ev:
     } finally { locked.current = false; setBusy(false); reload(); }
   }
 
-  if (!open) return <div className="match-personal"><span className="match-personal-status"><Icon name={ev.status === 'cancelled' ? 'close' : 'check'} />{ev.status === 'cancelled' ? 'Матч отменён' : ev.my ? 'Ты играл' : 'Запись закрыта'}</span>{ev.my && ev.status !== 'cancelled' && <span className="match-personal-detail">Запись закрыта</span>}</div>;
+  if (!open) {
+    // After signup closes the row says what the match is doing now, so the card above the tabs needs no extra status line.
+    const phase = STATUS_LABEL[ev.status];
+    const cancelled = ev.status === 'cancelled';
+    const played = !!ev.my && !cancelled;
+    return <div className="match-personal"><span className="match-personal-status">{(played || cancelled) && <Icon name={cancelled ? 'close' : 'check'} />}{played ? ev.status === 'playing' ? 'Ты играешь' : 'Ты играл' : phase}</span>{played && <span className="match-personal-detail">{phase}</span>}</div>;
+  }
   const joinLabel = busy ? 'Записываем…' : ev.mainCount >= ev.limit ? 'Встать в резерв' : 'Иду';
   return <>
     <div className="match-personal">

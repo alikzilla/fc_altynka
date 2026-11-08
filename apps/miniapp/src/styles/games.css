@@ -1,9 +1,4 @@
 .match-games { display: grid; gap: 24px; }
-.match-screen .event-summary.game-summary { padding: 16px; border-radius: 24px; }
-.game-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.game-summary-top .group-tag { align-self: auto; max-width: 48%; }
-.game-summary .match-detail-time { font-size: 20px; white-space: nowrap; }
-.game-summary .match-detail-place { font-size: 12px; margin-top: 8px; }
 .match-games h2 { margin: 0 0 14px; font-size: 18px; font-weight: 550; }
 .game-team-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .game-team-name .team-dot { width: 8px; height: 8px; flex: 0 0 8px; margin: 0; }

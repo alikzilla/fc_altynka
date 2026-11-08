@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'rea
 import { Link, useLocation, useParams } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
 import { canManageEvent } from '../state/me';
-import { isOpen, STATUS_LABEL, timeRange } from '../lib/labels';
+import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { matchOrigin } from '../lib/navHistory';
 import { Icon } from '../components/Icon';
@@ -64,24 +64,14 @@ export function Event() {
   const gamePrimary = !!ev && ev.protocolVersion===1 && canManageEvent(ev) && (tab==='teams' && !!ev.gameProtocol?.canStart || tab==='games' && !!ev.gameProtocol?.canRecord);
   const actionBlocked = !gamePrimary && !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
-  const compactGames = ev?.protocolVersion===1 && tab==='games' && ev.startedAt!=null;
-  const compactTeams = tab === 'teams' && !!ev && ev.status !== 'collecting';
-  const compactSummary = compactGames || compactTeams;
   return <Screen title={title} subtitle={weekday ?? (pending ? <Sk w="5.5em" /> : undefined)} back={matchOrigin()} className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
     {pending && <EventSkeleton />}
     {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
     {ev && <>
-      <section className={`card material-plum event-summary ${reveal} ${compactSummary?'game-summary':''} ${compactTeams?'team-summary':''} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label={compactGames?'Время и место матча':'Матч и твоё участие'}>
-        {compactSummary ? <>
-          <div className="game-summary-top"><GroupTag community={ev.community} always/><p className="match-detail-time">{ev.startTime && ev.durationHours?timeRange(ev.startTime,ev.durationHours):'Время уточняется'}</p></div>
-          <p className="match-detail-place"><Icon name="pin"/><span>{ev.place || 'Поле пока не выбрано'}</span></p>
-        </> : <>
-        <GroupTag community={ev.community} always />
-        <p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p>
+      <section className={`card material-plum event-summary ${reveal} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Матч и твоё участие">
+        <div className="match-summary-top"><GroupTag community={ev.community} always /><p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p></div>
         <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
-        <p className="match-detail-meta"><span>{ev.mainCount} из {ev.limit} игроков</span><i aria-hidden="true" /><span>{STATUS_LABEL[ev.status]}</span></p>
-        </>}
-        {!compactGames && <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />}
+        <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />
       <div className={`tabs ${reveal}`} role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={tab === k ? `panel-${k}` : undefined} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {

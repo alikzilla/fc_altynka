@@ -49,6 +49,18 @@ test.each(['list', 'teams', 'bill'])('participation is available in the shared c
   expect(screen.getByRole('tab', { name: 'Оплата' })).toBeVisible();
 });
 
+test.each(['list', 'teams', 'games', 'bill'])('the card above the tabs keeps one layout on %s', async tab => {
+  ev.protocolVersion = 1; ev.status = 'playing'; ev.my = 'main'; ev.main = [signup]; ev.mainCount = 1;
+  open(tab);
+  const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
+  expect(within(card).getByText('FC Altynka')).toBeVisible();
+  expect(within(card).getByText('20:00–22:00')).toBeVisible();
+  expect(within(card).getByText('Arena Football · Абая, 150')).toBeVisible();
+  expect(within(card).getByText('Ты играешь')).toBeVisible();
+  expect(within(card).getByText('Матч идёт')).toBeVisible();
+  expect(within(card).queryByText(/из 15 игроков/)).not.toBeInTheDocument();
+});
+
 test('the match card names its group even for a single-group player', async () => {
   open();
   const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });

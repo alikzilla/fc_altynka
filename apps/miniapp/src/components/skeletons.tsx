@@ -167,10 +167,8 @@ export function ProfileStatisticsSkeleton() {
 
 function EventSummarySkeleton() {
   return <section className="card material-plum event-summary">
-    <SkGroupTag show />
-    <p className="match-detail-time"><Sk w="64%" /></p>
+    <div className="match-summary-top"><SkGroupTag show /><p className="match-detail-time"><Sk w="5.6em" /></p></div>
     <p className="match-detail-place"><Icon name="pin" /><span><Sk w="9em" /></span></p>
-    <p className="match-detail-meta"><span><Sk w="7.5em" /></span><i /><span><Sk w="5em" /></span></p>
     <div className="match-personal"><span className="match-personal-status"><Sk w="8em" /></span><span className="btn-text"><Sk w="4.5em" /></span></div>
   </section>;
 }

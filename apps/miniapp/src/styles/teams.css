@@ -1,7 +1,4 @@
 .team-editor { display:grid; gap:16px; min-width:0; }
-.team-summary .match-personal { min-height:44px; margin-top:4px; padding-top:0; border-top:0; }
-.team-summary .match-personal-status { font-size:13px; }
-.team-summary .match-personal>.btn-text { font-size:12px; }
 .team-editor-title { display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .team-editor-title h2 { font-size:23px; font-weight:600; letter-spacing:-.03em; }
 .team-editor-title>.muted { font-size:12px; }
