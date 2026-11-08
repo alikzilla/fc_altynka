@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
+import { Sk } from './ui';
 
 const format = (value: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
 const tier = (value?: number) => value === undefined ? 'unknown' : value < 2 ? 'neutral' : value < 4 ? 'green' : value < 8 ? 'yellow' : value < 10 ? 'orange' : 'red';
@@ -41,12 +42,15 @@ interface Props {
   name: string; username?: string | null; photoUrl?: string | null; role: Role;
   playingPosition?: PlayingPosition | null; dominantFoot?: DominantFoot | null;
   rating?: PlayerRatingDto | null; statistics?: PlayerStatistics;
+  /** Statistics are on their way: bars in place of the figures instead of dashes. */
+  statisticsPending?: boolean;
   /** Own profile only: where the position and foot sheet opens. */
   editPositionHref?: string;
 }
 const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
-export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,editPositionHref}:Props) {
+export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref}:Props) {
   const personRole=roles[role];
+  const pending=statisticsPending && !statistics ? <Sk w="1.1em"/> : null;
   return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large/>
       <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div></div>
@@ -55,10 +59,10 @@ export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,do
     <div className="player-statistics-section"><div className="player-position-row"><p className="player-position-line">{playingPosition ? playingPositionLabel[playingPosition] : 'Позиция не указана'}</p>
         {editPositionHref && <Link className="player-position-edit" href={editPositionHref} aria-label="Изменить позицию и рабочую ногу">Изменить</Link>}</div>
       <dl className="player-statistics" aria-label="Статистика за всё время и рабочая нога">
-        <div className="goals"><dt>Голы</dt><dd>{statistics?.goals??'—'}</dd></div>
+        <div className="goals"><dt>Голы</dt><dd>{pending ?? statistics?.goals ?? '—'}</dd></div>
         <div className="assists"><dt>Ассисты</dt><dd aria-label="Пока не считаются">—</dd></div>
-        <div><dt>Игры</dt><dd>{statistics?.games??'—'}</dd></div>
-        <div className="wins-stat"><dt>Побед</dt><dd>{statistics?.winPercentage==null?'—':<>{statistics.winPercentage}<small>%</small></>}</dd></div>
+        <div><dt>Игры</dt><dd>{pending ?? statistics?.games ?? '—'}</dd></div>
+        <div className="wins-stat"><dt>Побед</dt><dd>{pending ?? (statistics?.winPercentage==null?'—':<>{statistics.winPercentage}<small>%</small></>)}</dd></div>
         <div className="foot-stat"><dt>Нога</dt><WorkingFoot foot={dominantFoot}/></div>
       </dl>
     </div>

@@ -21,7 +21,7 @@ function MeetingRow({ meeting, showGroup, onOpen }: { meeting: PlayerMeetingStat
   </button>;
 }
 
-export function PlayerGameHistory({profile}:{profile:PlayerProfileDto}) {
+export function PlayerGameHistory({profile,className=''}:{profile:PlayerProfileDto;className?:string}) {
   const [selected,setSelected]=useState<PlayerMeetingStatistics|null>(null);
   const [allOpen,setAllOpen]=useState(false);
   const meetings=profile.gameHistory??[];
@@ -30,7 +30,7 @@ export function PlayerGameHistory({profile}:{profile:PlayerProfileDto}) {
   const showGroup=new Set(meetings.map(row=>row.community.id)).size>1;
   const rows=(list:PlayerMeetingStatistics[])=>list.map(row=><MeetingRow key={row.eventId} meeting={row} showGroup={showGroup} onOpen={()=>setSelected(row)}/>);
   return <>
-    <section className="card material-graphite player-meeting-history" aria-labelledby="played-meetings-title">
+    <section className={`card material-graphite player-meeting-history ${className}`} aria-labelledby="played-meetings-title">
       <div className="player-meeting-heading"><h2 id="played-meetings-title">Сыгранные матчи</h2>
         {meetings.length>3 && <button type="button" className="achievements-all" aria-label="Все сыгранные матчи" onClick={()=>setAllOpen(true)}>Все {meetings.length}<Icon name="back" className="chevron-right"/></button>}</div>
       {meetings.length ? <div className="player-meeting-rows">{rows(meetings.slice(0,3))}</div>

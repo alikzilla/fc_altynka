@@ -135,8 +135,6 @@
 :root[data-theme='light'] .team-red .team-dot { background: #b63e49; }
 :root[data-theme='light'] .team-blue .team-dot { background: #3f69ac; }
 :root[data-theme='light'] .team-yellow .team-dot { background: #9c7b10; }
-:root[data-theme='light'] .skeleton { background: #e6e0ed; }
-:root[data-theme='light'] .skeleton i { background: #cec3db; }
 
 @media (hover: hover) and (pointer: fine) {
   :root[data-theme='light'] .event-row:hover { background: #6a47850a; }

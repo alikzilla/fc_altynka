@@ -4,25 +4,29 @@ import { Link, useLocation } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
 import { api } from '../lib/api';
 import { datePart, MatchRow } from '../components/MatchCard';
-import { creatableCommunities, useMe } from '../state/me';
+import { creatableCommunities, showGroups, useMe } from '../state/me';
 import { ConnectGroupButton, CONNECT_BOT_TEXT } from '../components/ConnectGroup';
-import { Screen, EmptyState, ErrorNote, Loading } from '../components/ui';
+import { Screen, EmptyState, ErrorNote, useReveal } from '../components/ui';
+import { ActiveMatchesSkeleton, PastMatchesSkeleton } from '../components/skeletons';
 import { useResource } from '../hooks/useResource';
 
 function ActiveMatches() {
   const me = useMe();
   const canCreate = creatableCommunities(me).length > 0;
   const { data, loading, error, reload } = useResource<EventsListDto>('/api/events');
+  const reveal = useReveal(loading && !data);
   const events = data?.active.filter(event => event.status === 'collecting' || event.status === 'scheduled' || event.status === 'playing').sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id) ?? [];
   return <>
-    {loading && !data && <Loading />}
+    {loading && !data && <ActiveMatchesSkeleton groups={showGroups(me)} />}
     {error && <ErrorNote text="Не получилось загрузить активные матчи" retry={reload} />}
-    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные матчи</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующий матч.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
+    {data && (events.length ? <><p className={`muted ${reveal}`}>Открытые сборы и назначенные матчи</p><div className={`card archive-list material-blue ${reveal}`}>{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState className={reveal} title="Нет активных матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующий матч.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
   </>;
 }
 
 function PastMatches() {
+  const me = useMe();
   const { data, loading, error, reload } = useResource<MatchArchiveDto>('/api/matches');
+  const reveal = useReveal(loading && !data);
   const [pages, setPages] = useState<MatchArchiveDto[]>([]);
   const [busy, setBusy] = useState(false);
   const [moreError, setMoreError] = useState(false);
@@ -52,10 +56,10 @@ function PastMatches() {
     finally { locked.current = false; if (live.current) setBusy(false); }
   }
   return <>
-    {loading && !data && <Loading />}
+    {loading && !data && <PastMatchesSkeleton groups={showGroups(me)} />}
     {error && <ErrorNote text="Не получилось загрузить прошлые матчи" retry={reload} />}
-    {data && !events.length && <EmptyState title="Прошлых матчей пока нет" text="После игры здесь останутся составы и счёт." />}
-    {[...groups].map(([month, rows], index) => <section className="archive-month" key={month} aria-labelledby={`month-${month}`}><h2 id={`month-${month}`}>{datePart(`${month}-01`, { month: 'long', year: 'numeric' }).replace(' г.', '')}</h2><div className={`card archive-list ${index % 2 ? 'material-blue' : 'material-graphite'}`}>{rows.map(event => <MatchRow key={event.id} event={event} />)}</div></section>)}
+    {data && !events.length && <EmptyState className={reveal} title="Прошлых матчей пока нет" text="После игры здесь останутся составы и счёт." />}
+    {[...groups].map(([month, rows], index) => <section className={`archive-month ${reveal}`} key={month} aria-labelledby={`month-${month}`}><h2 id={`month-${month}`}>{datePart(`${month}-01`, { month: 'long', year: 'numeric' }).replace(' г.', '')}</h2><div className={`card archive-list ${index % 2 ? 'material-blue' : 'material-graphite'}`}>{rows.map(event => <MatchRow key={event.id} event={event} />)}</div></section>)}
     {moreError && <p className="field-error" role="alert">Не получилось загрузить следующие матчи</p>}
     {cursor && <button className="btn wide" onClick={more} disabled={busy || loading}>{busy ? 'Загружаем…' : moreError ? 'Повторить загрузку' : 'Показать ещё'}</button>}
   </>;

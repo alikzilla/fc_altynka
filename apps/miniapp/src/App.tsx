@@ -22,7 +22,8 @@ import { api } from './lib/api';
 import { queryClient } from './lib/queryClient';
 import { ScreenSearchContext } from './state/screenSearch';
 import { ready, startParam } from './lib/tg';
-import { ErrorNote, Loading, ToastProvider } from './components/ui';
+import { ErrorNote, ToastProvider } from './components/ui';
+import { RouteSkeleton } from './components/skeletons';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
@@ -67,17 +68,20 @@ function TeamApp() {
       </main>
     );
   }
-  if (!me) return <main className="screen"><h1 className="title">FC Altynka</h1><Loading variant="detail" /></main>;
   const overlayBackground = path === '/new' ? background.current : scheduleId ? scheduleParent : null;
+  const screenPath = overlayBackground ? overlayBackground.split('?')[0] : path;
+  const screenSearch = overlayBackground ? overlayBackground.split('?')[1] ?? '' : search;
+  // Until the account arrives the screen already shows its own heading and card silhouettes.
+  if (!me) return <RouteSkeleton path={screenPath} search={screenSearch} />;
   return (
     <MeContext.Provider value={me}>
       <MeReloadContext.Provider value={reloadMe}>
         <MeUpdateContext.Provider value={updateMe}>
           <ToastProvider>
             <NotificationsProvider>
-              <ScreenSearchContext.Provider value={overlayBackground ? overlayBackground.split('?')[1] ?? '' : search}>
-                <Suspense fallback={<main className="screen"><Loading variant="detail" /></main>}>
-                <Switch location={overlayBackground ? overlayBackground.split('?')[0] : path}>
+              <ScreenSearchContext.Provider value={screenSearch}>
+                <Suspense fallback={<RouteSkeleton path={screenPath} search={screenSearch} />}>
+                <Switch location={screenPath}>
                   <Route path="/" component={Home} />
                   <Route path="/matches" component={Matches} />
                   <Route path="/notifications" component={Notifications} />

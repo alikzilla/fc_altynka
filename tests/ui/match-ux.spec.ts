@@ -190,16 +190,20 @@ for (const width of [320, 390]) {
         await route.fallback();
       });
       await page.goto(path);
+      // The dock appears with the account: measure the screen's own skeleton, not the pre-account frame.
+      await expect(page.locator('.nav')).toBeVisible();
       const loading = page.locator('main .loading').first();
       await expect(loading).toBeVisible();
       const sizes = await loading.evaluate(el => {
         const screen = el.closest('main')!;
         const box = screen.getBoundingClientRect();
         const css = getComputedStyle(screen);
-        return { width: el.getBoundingClientRect().width, available: box.width - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight), mainHeight: box.bottom, skeletonWidths: [...el.querySelectorAll('.skeleton')].map(s => s.getBoundingClientRect().width) };
+        return { width: el.getBoundingClientRect().width, available: box.width - parseFloat(css.paddingLeft) - parseFloat(css.paddingRight), mainHeight: box.bottom, skeletonWidths: [...el.querySelectorAll('.skeleton-layout > *')].map(s => s.getBoundingClientRect().width) };
       });
-      expect(Math.abs(sizes.width - sizes.available)).toBeLessThan(1);
-      expect(sizes.skeletonWidths.every(value => Math.abs(value - sizes.width) < 1)).toBe(true);
+      expect(Math.abs(sizes.width - sizes.available), path).toBeLessThan(1);
+      expect(sizes.skeletonWidths.length).toBeGreaterThan(0);
+      // Cards span the content column; the match carousel bleeds past it exactly as when loaded.
+      expect(sizes.skeletonWidths.every(value => value >= sizes.width - 1)).toBe(true);
       expect(sizes.mainHeight).toBeGreaterThanOrEqual(843);
       if (path === '/' && width === 390) await page.screenshot({ path: 'artifacts/ui/ux-loading-390.png', fullPage: true });
       release();
@@ -220,7 +224,9 @@ test('initial authentication skeleton fills width and viewport', async ({ page }
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: '+77071234567', communities: [{ id: 4, title: 'Футбол по субботам', role: 'organizer' }] } }); });
   await page.goto('/');
-  await expect(page.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
+  // One status per loading resource: the match card and the tasks.
+  await expect(page.getByRole('status', { name: 'Загрузка…' })).toHaveCount(2);
+  await expect(page.getByRole('status', { name: 'Загрузка…' }).first()).toBeVisible();
   expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(844);
   await page.screenshot({ path: 'artifacts/ui/ux-auth-loading-390.png', fullPage: true });
   release();

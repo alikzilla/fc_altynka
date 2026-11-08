@@ -77,7 +77,7 @@ function DetailSheet({ row, pinned, onPin, onClose }: { row: PlayerAchievement; 
   </ActionSheet>;
 }
 
-export function PlayerAchievements({ statistics, pinned, onPin }: { statistics: PlayerStatistics; pinned: AchievementId | null; onPin?: (id: AchievementId) => Promise<void> }) {
+export function PlayerAchievements({ statistics, pinned, onPin, className = '' }: { statistics: PlayerStatistics; pinned: AchievementId | null; onPin?: (id: AchievementId) => Promise<void>; className?: string }) {
   const rows = playerAchievements(statistics);
   // Закреплённое сразу после успешного запроса, пока профиль перезапрашивается.
   const [justPinned, setJustPinned] = useState<AchievementId | null>(null);
@@ -88,7 +88,7 @@ export function PlayerAchievements({ statistics, pinned, onPin }: { statistics: 
   const [listOpen, setListOpen] = useState(false);
   const [openId, setOpenId] = useState<AchievementId | null>(null);
   const opened = rows.find(row => row.id === openId);
-  return <section className="card material-graphite achievements-card" aria-labelledby="achievements-title">
+  return <section className={`card material-graphite achievements-card ${className}`} aria-labelledby="achievements-title">
     <div className="achievements-heading">
       <h2 id="achievements-title">Достижения</h2>
       <button type="button" className="achievements-all" aria-label="Все достижения" onClick={() => setListOpen(true)}>Все {rows.length}<Icon name="back" className="chevron-right"/></button>

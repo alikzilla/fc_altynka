@@ -7,7 +7,8 @@ import { useResource } from '../hooks/useResource';
 import { resourceReceivedAt } from '../lib/queryClient';
 import { Avatar } from '../components/Icon';
 import { ReviewRater } from './ReviewRater';
-import { ConfirmButton, ErrorNote, Loading, Screen } from '../components/ui';
+import { ConfirmButton, ErrorNote, Screen } from '../components/ui';
+import { ReviewSkeleton } from '../components/skeletons';
 
 export function MatchReview({ eventId: givenId }: { eventId?: number }) {
   const params = useParams<{ id: string }>();
@@ -45,7 +46,7 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
     } finally { locked.current = false; setBusy(false); }
   }
   return <Screen title="Оценка матча" back={`/event/${eventId}`}>
-    {loading && !review && <Loading />}{error && <ErrorNote text="Не получилось загрузить опрос" retry={reload} />}
+    {loading && !review && <ReviewSkeleton />}{error && <ErrorNote text="Не получилось загрузить опрос" retry={reload} />}
     {review && (review.state === 'open' ? <>
       <div className="card material-blue"><h2>Как прошёл матч?</h2><p>Оцени, как сыграл каждый участник, от 1 до 10. Твоё имя рядом с оценками никто не увидит.</p><p className="muted">Можно пропустить любого игрока. После отправки изменить ответы нельзя.</p><p className="muted">До {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt!)} · Алматы</p></div>
       <section className="card review-entry-card" aria-labelledby="review-entry-title">

@@ -2,6 +2,7 @@
 @import './teams.css';
 @import './player-statistics.css';
 @import './achievements.css';
+@import './skeletons.css';
 
 :root {
   color-scheme: dark;
@@ -264,19 +265,6 @@ h2.match-day::first-letter { text-transform: uppercase; }
 .empty-state p { font-size: 14px; line-height: 1.6; color: var(--hint); max-width: 38ch; }
 .empty-action { margin-top: 10px; }
 .empty-action .btn { padding-inline: 22px; }
-.loading { width: 100%; min-width: 0; display: flex; flex-direction: column; flex: 1; }
-.skeleton-layout { width: 100%; display: flex; flex-direction: column; flex: 1; gap: 16px; }
-.skeleton { width: 100%; border-radius: 24px; background: #201e27; animation: pulse 1.6s ease-in-out infinite; padding: 20px; display: flex; flex-direction: column; gap: 12px; }
-.skeleton-row { min-height: 80px; flex: 1; }
-.skeleton i { display: block; border-radius: 8px; background: #35313f; height: 12px; width: 72%; }
-.skeleton i:last-child { width: 46%; height: 9px; }
-.skeleton-feature { min-height: 180px; }
-.loading-home .skeleton-feature { min-height: 310px; border-radius: 37px; }
-.loading-home { flex: 0; }
-.loading-home .skeleton-feature i:nth-child(2) { height: 56px; width: 58%; margin-block: 16px; }
-.loading-form .skeleton-row { min-height: 66px; max-height: 100px; }
-.loading-inline { flex: 0; }
-.loading-inline .skeleton-row { min-height: 76px; }
 .event-summary { gap: 14px; }
 .match-progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); list-style: none; margin: 0; padding: 0; gap: 8px; }
 .match-progress li { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 7px; color: var(--hint); font-size: 12px; }

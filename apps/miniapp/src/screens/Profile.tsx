@@ -5,7 +5,8 @@ import { Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
 import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
-import { ErrorNote, Screen, useToast } from '../components/ui';
+import { ErrorNote, Screen, useReveal, useToast } from '../components/ui';
+import { ProfileStatisticsSkeleton } from '../components/skeletons';
 import { PlayerSportsCard } from '../components/PlayerSports';
 import { PlayerAchievements } from '../components/PlayerAchievements';
 import { PlayerGameHistory } from '../components/PlayerGameHistory';
@@ -24,6 +25,8 @@ export function Profile({ settings }: { settings?: string }) {
   const me = useMe();
   const [, navigate] = useLocation();
   const sportingProfile = useResource<PlayerProfileDto>(`/api/players/${me.userId}`);
+  const statisticsPending = sportingProfile.loading && !sportingProfile.data;
+  const reveal = useReveal(statisticsPending);
   const telegramName = me.telegram ? [me.telegram.firstName, me.telegram.lastName].filter(Boolean).join(' ') : me.displayName;
   const reloadMe = useReloadMe();
   const updateMe = useUpdateMe();
@@ -64,11 +67,12 @@ export function Profile({ settings }: { settings?: string }) {
   return (
     <Screen title="Профиль">
       <PlayerSportsCard name={telegramName || me.displayName} username={me.telegram?.username} photoUrl={me.telegram?.photoUrl}
-        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} editPositionHref="/profile/settings/football"/>
+        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} statisticsPending={statisticsPending} editPositionHref="/profile/settings/football"/>
       {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
       {sportingProfile.error && <ErrorNote text="Не получилось загрузить статистику" retry={sportingProfile.reload}/>}
-      {sportingProfile.data?.statistics && <PlayerAchievements statistics={sportingProfile.data.statistics} pinned={sportingProfile.data.pinnedAchievement ?? null} onPin={async id => { await api.send('PATCH', '/api/me', { pinnedAchievement: id }); }}/>}
-      {sportingProfile.data && <PlayerGameHistory profile={sportingProfile.data}/>}
+      {statisticsPending && <ProfileStatisticsSkeleton />}
+      {sportingProfile.data?.statistics && <PlayerAchievements className={reveal} statistics={sportingProfile.data.statistics} pinned={sportingProfile.data.pinnedAchievement ?? null} onPin={async id => { await api.send('PATCH', '/api/me', { pinnedAchievement: id }); }}/>}
+      {sportingProfile.data && <PlayerGameHistory profile={sportingProfile.data} className={reveal}/>}
       {!completed && <><h2 className="section">В команде</h2>
       <form className="card material-blue form profile-form" onSubmit={save} aria-busy={busy}>
         <fieldset className="form-fields" disabled={busy}>

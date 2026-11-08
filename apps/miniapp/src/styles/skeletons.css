@@ -1,0 +1,36 @@
+/* Скелеты: загруженная разметка без данных. Карточки сохраняют свой материал, текст заменяют полосы
+   высотой с его строку — после загрузки ничего не сдвигается и не меняет цвет. */
+:root { --sk: #35313f; }
+:root[data-theme='light'] { --sk: #e0d8e8; }
+:is(.material-plum, .material-blue, .material-coral) { --sk: #ffffff26; }
+
+/* Шаг между карточками скелета наследуется от экрана или вкладки, как у настоящих карточек. */
+.loading { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: inherit; }
+.skeleton-layout { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: inherit; }
+
+/* Полоса стоит внутри строки текста: высоту задаёт строка, а не полоса. */
+/* Сама полоса нулевой высоты на средней линии, рисует её ::before — при любом шрифте и межстрочном
+   интервале она не раздвигает строку. */
+.sk { position: relative; display: inline-block; vertical-align: middle; max-width: 100%; height: 0; animation: pulse 1.6s ease-in-out infinite; }
+.sk::before { content: ''; position: absolute; inset: -.375em 0 auto; height: .75em; border-radius: 6px; background: var(--sk); }
+/* Кнопка-плейсхолдер блочная: у строчной под ней остаётся зазор под нижние выносные элементы. */
+.btn.sk-fill { display: flex; }
+.sk-fill { background: var(--sk) !important; box-shadow: none !important; color: transparent !important; animation: pulse 1.6s ease-in-out infinite; }
+.sk-pulse { animation: pulse 1.6s ease-in-out infinite; }
+.sk-round { border-radius: 50%; }
+.sk-icon { width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; }
+.sk-dots i { background: var(--sk) !important; }
+.sk-progress { display: block; height: 4px; border-radius: 4px; background: #ffffff14; }
+:root[data-theme='light'] .sk-progress { background: var(--sk); }
+.sk-table-row { font-size: 13px; line-height: 2.8; }
+
+/* Вкладки и поля без интерактивности: те же размеры, что у кнопок и полей ввода. */
+.tabs > .tab-sk { display: grid; place-items: center; min-height: 44px; padding: 11px 4px; border-radius: 20px; font-size: 14px; font-weight: 500; color: var(--hint); }
+.tabs > .tab-sk.on { background: #39344b; color: #f4eefa; box-shadow: var(--rim); }
+:root[data-theme='light'] .tabs > .tab-sk.on { background: #fff; color: #49315f; box-shadow: 0 1px 5px #30203d14; }
+.sk-search { display: block; width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid var(--field-border); border-radius: 17px; background: var(--field-bg); color: var(--hint); font-size: 16px; }
+.schedule-duration .sk-chip { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; }
+
+/* Данные проявляются на месте скелета; из кеша — сразу. */
+.reveal { animation: reveal 220ms var(--ease-out) both; }
+@keyframes reveal { from { opacity: 0; } }
