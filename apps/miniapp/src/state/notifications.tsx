@@ -5,6 +5,8 @@ import { useResource } from '../hooks/useResource';
 
 type NotificationsResource = ReturnType<typeof useResource<NotificationsDto>>;
 const NotificationsContext = createContext<NotificationsResource | null>(null);
+// Bottom sheets with their own route sit over the page underneath; opening or closing one keeps its scroll.
+const SHEET_PATH = /^\/(?:new|event\/\d+\/schedule|profile\/settings\/[^/]+|players\/\d+)$/;
 
 export function NotificationsProvider({ children }: { children: ReactNode }) {
   const resource = useResource<NotificationsDto>('/api/notifications');
@@ -12,9 +14,9 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
   const previousPath = useRef(path);
   useEffect(() => {
     if (previousPath.current !== path) {
-      const wasSheet = previousPath.current === '/new';
+      const sheetChange = SHEET_PATH.test(previousPath.current) || SHEET_PATH.test(path);
       previousPath.current = path;
-      if (path !== '/new' && !wasSheet) window.scrollTo(0, 0);
+      if (!sheetChange) window.scrollTo(0, 0);
     }
   }, [path]);
   return <NotificationsContext.Provider value={resource}>{children}</NotificationsContext.Provider>;

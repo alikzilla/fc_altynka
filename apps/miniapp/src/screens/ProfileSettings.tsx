@@ -13,7 +13,7 @@ export type SettingsSection = 'payment' | 'name' | 'football';
 const sections: { id: SettingsSection; title: string }[] = [
   { id: 'payment', title: 'Оплата' },
   { id: 'name', title: 'Изменить имя' },
-  { id: 'football', title: 'Футбольные данные' },
+  { id: 'football', title: 'Позиция и рабочая нога' },
 ];
 
 export const isSettingsSection = (value: string | undefined): value is SettingsSection => sections.some(item => item.id === value);

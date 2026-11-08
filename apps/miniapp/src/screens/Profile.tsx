@@ -63,7 +63,7 @@ export function Profile({ settings }: { settings?: string }) {
   return (
     <Screen title="Профиль">
       <PlayerSportsCard name={telegramName || me.displayName} username={me.telegram?.username} photoUrl={me.telegram?.photoUrl}
-        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics}/>
+        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} editPositionHref="/profile/settings/football"/>
       {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
       {sportingProfile.error && <ErrorNote text="Не получилось загрузить статистику" retry={sportingProfile.reload}/>}
       {sportingProfile.data?.statistics && <PlayerAchievements statistics={sportingProfile.data.statistics}/>}
@@ -91,7 +91,6 @@ export function Profile({ settings }: { settings?: string }) {
       <nav className="profile-management" aria-labelledby="profile-editing">
         <Link className="card task-preview material-graphite" href="/profile/settings/name"><span className="task-icon"><Icon name="user" /></span><span className="task-copy"><b>Изменить имя</b><small>{me.displayName}</small></span><Icon name="back" className="chevron-right" /></Link>
         <Link className="card task-preview material-graphite" href="/profile/settings/payment"><span className="task-icon"><Icon name="receipt" /></span><span className="task-copy"><b>Изменить оплату</b><small>Номер Kaspi для переводов</small></span><Icon name="back" className="chevron-right" /></Link>
-        <Link className="card task-preview material-graphite" href="/profile/settings/football"><span className="task-icon"><Icon name="ball" /></span><span className="task-copy"><b>Изменить футбольные данные</b><small>Позиция на поле и рабочая нога</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
       {isSettingsSection(settings) && <ProfileSettingsSheet section={settings} onClose={() => navigate('/profile', { replace: true })} />}

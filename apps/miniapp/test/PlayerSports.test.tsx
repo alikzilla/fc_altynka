@@ -10,8 +10,9 @@ const props={name:'Игрок',username:'player',role:'organizer' as const,playi
 test('approved card exposes real stats, compact identity, integer rating and correct working insole',()=>{
   const {container}=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
   expect(screen.getByText('@player')).toBeInTheDocument();
-  expect(screen.getByText('Организатор')).toHaveClass('player-role');
-  expect([...container.querySelector('.player-social')!.children].map(n=>n.className)).toEqual(['player-role','player-telegram']);
+  expect(screen.getByRole('img',{name:'Организатор'})).toHaveTextContent('🧑‍✈️');
+  expect([...container.querySelector('.player-social')!.children].map(n=>n.className)).toEqual(['player-role','player-social-dot','player-telegram']);
+  expect(screen.queryByRole('link',{name:/Изменить позицию/})).toBeNull();
   expect(screen.getByRole('button',{name:/Рейтинг 10 из 10/})).toHaveTextContent('10');
   expect(screen.queryByText('10,0')).not.toBeInTheDocument();
   expect(screen.getByText('Нападающий').closest('.player-statistics-section')).not.toBeNull();

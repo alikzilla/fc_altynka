@@ -87,3 +87,21 @@ test('profile settings open as a bottom sheet over the profile', async ({ page }
   await sheet.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page).toHaveURL('/profile');
 });
+
+test('opening and closing a settings sheet keeps the profile scroll position', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await mockApp(page, 'dark');
+  await page.goto('/profile');
+  const link = page.getByRole('link', { name: /Изменить оплату/ });
+  await link.scrollIntoViewIfNeeded();
+  const before = await page.evaluate(() => scrollY);
+  expect(before).toBeGreaterThan(0);
+  await link.click();
+  await expect(page.getByRole('dialog', { name: 'Оплата' })).toBeVisible();
+  expect(await page.evaluate(() => scrollY)).toBe(before);
+  await page.getByRole('dialog', { name: 'Оплата' }).getByRole('button', { name: 'Закрыть', exact: true }).click();
+  await expect(page).toHaveURL('/profile');
+  expect(await page.evaluate(() => scrollY)).toBe(before);
+  await page.getByRole('link', { name: 'Изменить позицию и рабочую ногу' }).click();
+  await expect(page.getByRole('dialog', { name: 'Позиция и рабочая нога' })).toBeVisible();
+});

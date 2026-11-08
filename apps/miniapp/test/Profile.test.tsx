@@ -9,12 +9,13 @@ import { requestWriteAccess, openTelegramLink } from '../src/lib/tg';
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/lib/tg');
 
-test('profile shows three direct edit actions and two system switches without an intermediate menu', () => {
+test('profile shows name and payment edit actions, the position edit in the card, and two system switches without an intermediate menu', () => {
   renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, theme: 'dark' } });
   expect(screen.getByRole('heading', { name: 'Настройка профиля' })).toBeInTheDocument();
   expect(screen.getByRole('link', { name: /Изменить имя/ })).toHaveAttribute('href', '/profile/settings/name');
   expect(screen.getByRole('link', { name: /Изменить оплату/ })).toHaveAttribute('href', '/profile/settings/payment');
-  expect(screen.getByRole('link', { name: /Изменить футбольные данные/ })).toHaveAttribute('href', '/profile/settings/football');
+  expect(screen.getByRole('link', { name: 'Изменить позицию и рабочую ногу' })).toHaveAttribute('href', '/profile/settings/football');
+  expect(screen.queryByRole('link', { name: /Изменить футбольные данные/ })).toBeNull();
   expect(screen.getByRole('heading', { name: 'Системные настройки' })).toBeInTheDocument();
   expect(screen.getAllByRole('switch')).toHaveLength(2);
   expect(screen.getByRole('switch', { name: 'Тёмная тема' })).toBeChecked();
@@ -205,14 +206,14 @@ test('football summary uses real values and offers editing without assigning def
 
 test('with one group the role line shows only the role, without the group name', () => {
   renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, communities: [{ id: 1, title: 'Очень длинное название футбольной группы', role: 'admin' }] } });
-  expect(screen.getByText('Администратор')).toHaveClass('player-role');
+  expect(screen.getByRole('img', { name: 'Администратор' })).toHaveTextContent('🧑‍💻');
   expect(screen.queryByText(/Очень длинное название/)).toBeNull();
 });
 
 test('with two groups the role line has no group name and history rows carry group tags', async () => {
   (api.get as Mock).mockResolvedValue({ history: [{ eventId: 3, date: '2026-11-01', place: null, score: 7, community: { id: 2, title: 'Футбол по средам' } }] });
   renderWithApp(<Profile />, { me: { ...twoGroups, profileCompleted: true, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }, { id: 2, title: 'Футбол по средам', role: 'player' }] } });
-  expect(screen.getByText('Организатор')).toHaveClass('player-role');
-  expect(screen.getByText('Организатор').textContent).not.toMatch(/FC Altynka/);
+  expect(screen.getByRole('img', { name: 'Организатор' })).toHaveTextContent('🧑‍✈️');
+  expect(screen.getByRole('img', { name: 'Организатор' }).textContent).not.toMatch(/FC Altynka/);
   expect(await screen.findByText('Футбол по средам')).toBeInTheDocument();
 });

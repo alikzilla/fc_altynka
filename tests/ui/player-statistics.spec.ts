@@ -25,8 +25,10 @@ for(const theme of ['dark','light'])for(const width of [320,390])test(`complete 
   const card=page.getByRole('region',{name:'Профиль игрока'});
   await expect(card.locator('.player-statistics dd').first()).toHaveText('3');
   await expect(card.locator('.player-statistics dt')).toHaveText(['Голы','Ассисты','Игры','Побед','Нога']);
-  await expect(card.getByText('Администратор',{exact:true})).toHaveClass(/player-role/);
-  await expect(page.getByRole('link',{name:/Изменить футбольные данные/})).toBeVisible();
+  await expect(card.getByRole('img',{name:'Администратор'})).toHaveClass(/player-role/);
+  const edit=card.getByRole('link',{name:'Изменить позицию и рабочую ногу'});await expect(edit).toBeVisible();
+  const [line,link]=await Promise.all([card.locator('.player-position-line').boundingBox(),edit.boundingBox()]);
+  expect(link!.x).toBeGreaterThan(line!.x+line!.width);expect(Math.abs((link!.y+link!.height/2)-(line!.y+line!.height/2))).toBeLessThan(2);
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const meeting=page.locator('.player-meeting');
   await expect(meeting.locator('h3')).toHaveText('пятница, 6 ноября');

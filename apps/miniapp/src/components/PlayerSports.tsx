@@ -1,5 +1,6 @@
 import { playerAchievements, playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
 import { useState } from 'react';
+import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
 
@@ -40,15 +41,19 @@ interface Props {
   name: string; username?: string | null; photoUrl?: string | null; role: Role;
   playingPosition?: PlayingPosition | null; dominantFoot?: DominantFoot | null;
   rating?: PlayerRatingDto | null; statistics?: PlayerStatistics;
+  /** Own profile only: where the position and foot sheet opens. */
+  editPositionHref?: string;
 }
-export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics}:Props) {
-  const roles={admin:'Администратор',organizer:'Организатор',player:'Игрок'};
+const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
+export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,editPositionHref}:Props) {
+  const personRole=roles[role];
   return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large/>
-      <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role">{roles[role]}</span>{username && <span className="player-telegram">@{username}</span>}</div></div>
+      <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div></div>
       <RatingBadge rating={rating}/>
     </div>
-    <div className="player-statistics-section"><p className="player-position-line">{playingPosition ? playingPositionLabel[playingPosition] : 'Позиция не указана'}</p>
+    <div className="player-statistics-section"><div className="player-position-row"><p className="player-position-line">{playingPosition ? playingPositionLabel[playingPosition] : 'Позиция не указана'}</p>
+        {editPositionHref && <Link className="player-position-edit" href={editPositionHref} aria-label="Изменить позицию и рабочую ногу">Изменить</Link>}</div>
       <dl className="player-statistics" aria-label="Статистика за всё время и рабочая нога">
         <div className="goals"><dt>Голы</dt><dd>{statistics?.goals??'—'}</dd></div>
         <div className="assists"><dt>Ассисты</dt><dd aria-label="Пока не считаются">—</dd></div>
