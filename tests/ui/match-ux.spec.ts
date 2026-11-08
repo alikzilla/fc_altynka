@@ -7,6 +7,8 @@ const player = { id: 1, seq: 1, userId: 1, name: 'Организатор', invit
 const draft = { id: 7, community: identity.community, date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 1, reserveCount: 0, my: 'main', comment: null, main: [player], reserve: [], teams: null, bill: null };
 
 test.beforeEach(async ({ page }) => {
+  // Fixtures type 2026-11-08 as a future match date; keep «today» before it.
+  await page.clock.setFixedTime(new Date('2026-11-07T10:00:00+05:00'));
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;

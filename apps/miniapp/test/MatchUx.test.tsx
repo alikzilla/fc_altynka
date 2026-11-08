@@ -33,13 +33,16 @@ beforeEach(() => {
     throw new Error(`Unexpected ${path}`);
   }));
 });
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 function open(path = '/') {
   const loc = memoryLocation({ path, record: true });
   return { ...render(<Router hook={loc.hook} searchHook={loc.searchHook}><App /></Router>), loc };
 }
 
 test('creation opens over the current screen; failure preserves fields; success closes and shows active matches', async () => {
+  // The test types 2026-11-08 as a future match date; keep «today» before it.
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-07T05:00:00Z'));
   const { loc } = open('/profile');
   await screen.findByRole('heading', { name: 'Профиль' });
   await userEvent.click(screen.getByRole('link', { name: 'Создать матч' }));

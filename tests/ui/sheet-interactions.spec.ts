@@ -121,6 +121,8 @@ test('mouse drag can dismiss; lost capture and blur do not leave the sheet stuck
 });
 
 test('pending submission ignores swipe dismiss and reduced-motion still supports touch', async ({ page }) => {
+  // The sheet types 2026-11-08 as a future match date; keep «today» before it.
+  await page.clock.setFixedTime(new Date('2026-11-07T10:00:00+05:00'));
   await page.emulateMedia({ reducedMotion: 'reduce' });
   let release = () => {};
   const pending = new Promise<void>(resolve => { release = resolve; });
