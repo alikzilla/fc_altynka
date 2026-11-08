@@ -10,7 +10,7 @@ const goalsText = (n: number) => `${n} ${plural(n, 'гол', 'гола', 'гол
 function MeetingRow({ meeting, showGroup, onOpen }: { meeting: PlayerMeetingStatistics; showGroup: boolean; onOpen: () => void }) {
   const date = formatDateRu(meeting.date);
   return <button type="button" className="player-meeting-row" onClick={onOpen}
-    aria-label={`${date}: ${goalsText(meeting.goals)}, победы ${meeting.wins}, ничьи ${meeting.draws}, поражения ${meeting.losses}`}>
+    aria-label={`${date}: ${goalsText(meeting.goals)}, победы ${meeting.wins}, ничьи ${meeting.draws}, поражения ${meeting.losses}${showGroup ? ` · ${meeting.community.title}` : ''}`}>
     <span className="player-meeting-when">
       <strong>{date}</strong>
       <span className="player-meeting-dots" aria-hidden="true">{[...meeting.results].sort((a, b) => a.sequence - b.sequence).map(game => <i key={game.id} data-outcome={game.outcome}/>)}</span>

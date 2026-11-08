@@ -68,3 +68,11 @@ test('a failed pin shows an error and keeps the button usable', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось закрепить. Попробуй ещё раз.');
   expect(screen.getByRole('button', { name: 'Закрепить в профиле' })).toBeEnabled();
 });
+test('a successful pin shows as pinned at once, before the profile reloads', async () => {
+  const onPin = vi.fn().mockResolvedValue(undefined);
+  renderWithApp(<PlayerAchievements statistics={stats({ wins: 12 })} pinned={null} onPin={onPin}/>, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Все достижения' }));
+  await userEvent.click(screen.getByRole('button', { name: /Победитель/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Закрепить в профиле' }));
+  expect(await screen.findByRole('button', { name: 'Закреплено в профиле ✓' })).toBeDisabled();
+});

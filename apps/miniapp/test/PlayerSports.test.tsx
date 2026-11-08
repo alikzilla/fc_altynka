@@ -75,3 +75,7 @@ test('the short-games sheet carries the rating and place removed from the row', 
   expect(sheet).toHaveTextContent('Оценка 8,2');
   expect(sheet).toHaveTextContent('Школа Аксай');
 });
+test('with several groups the row name includes the group for screen readers', () => {
+  renderWithApp(<PlayerGameHistory profile={profileWith([m1, meeting(9,'2026-10-29',['win'],[0],2)])}/>, { me: player });
+  expect(screen.getAllByRole('button', { name: /гол/ })[1]).toHaveAccessibleName(/· Среда$/);
+});

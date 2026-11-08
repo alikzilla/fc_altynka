@@ -1,6 +1,6 @@
 import { ACHIEVEMENT_TIER_LABEL, ACHIEVEMENT_TIER_TO, ACHIEVEMENT_TIERS, ACHIEVEMENT_TOTAL_LEVELS, isAchievementId, playerAchievements, plural, unlockedLevels,
   type AchievementId, type AchievementSymbol, type AchievementTier, type PlayerAchievement, type PlayerStatistics } from '@altynka/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActionSheet } from './ActionSheet';
 import { Icon } from './Icon';
 
@@ -79,7 +79,11 @@ function DetailSheet({ row, pinned, onPin, onClose }: { row: PlayerAchievement; 
 
 export function PlayerAchievements({ statistics, pinned, onPin }: { statistics: PlayerStatistics; pinned: AchievementId | null; onPin?: (id: AchievementId) => Promise<void> }) {
   const rows = playerAchievements(statistics);
-  const pinnedId = isAchievementId(pinned) ? pinned : null;
+  // Закреплённое сразу после успешного запроса, пока профиль перезапрашивается.
+  const [justPinned, setJustPinned] = useState<AchievementId | null>(null);
+  useEffect(() => setJustPinned(null), [pinned]);
+  const pinnedId = justPinned ?? (isAchievementId(pinned) ? pinned : null);
+  const pin = onPin && (async (id: AchievementId) => { await onPin(id); setJustPinned(id); });
   const pinnedRow = rows.find(row => row.id === pinnedId) ?? null;
   const [listOpen, setListOpen] = useState(false);
   const [openId, setOpenId] = useState<AchievementId | null>(null);
@@ -102,6 +106,6 @@ export function PlayerAchievements({ statistics, pinned, onPin }: { statistics: 
         </button>
       </li>)}</ul>
     </ActionSheet>}
-    {opened && <DetailSheet row={opened} pinned={opened.id === pinnedId} onPin={onPin} onClose={() => setOpenId(null)}/>}
+    {opened && <DetailSheet row={opened} pinned={opened.id === pinnedId} onPin={pin} onClose={() => setOpenId(null)}/>}
   </section>;
 }
