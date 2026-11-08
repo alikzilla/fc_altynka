@@ -25,8 +25,14 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
     const button = action.getByRole('button', { name: 'Иду', exact: true });
     await expect(button).toBeVisible();
     const initial = (await button.boundingBox())!;
-    const dock = (await page.getByRole('navigation').boundingBox())!;
-    expect(initial.y + initial.height).toBeLessThanOrEqual(dock.y - 11);
+    // On a short phone (≤ 640 px) the dock steps aside while the contextual action is shown.
+    if (width === 320) {
+      await expect(page.locator('.nav-shell')).toBeHidden();
+      expect(initial.y + initial.height).toBeLessThanOrEqual(568 - 10);
+    } else {
+      const dock = (await page.getByRole('navigation').boundingBox())!;
+      expect(initial.y + initial.height).toBeLessThanOrEqual(dock.y - 11);
+    }
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     const scrolled = (await button.boundingBox())!;
     expect(Math.abs(scrolled.y - initial.y)).toBeLessThan(1);
@@ -77,7 +83,7 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
     });
     const before = await positions();
     await page.screenshot({ path: `artifacts/ui/match-payment-${theme}-${width}.png`, fullPage: true });
-    await card.getByRole('button', { name: 'Я скинул' }).click();
+    await card.getByRole('button', { name: 'Я перевёл' }).click();
     await expect(card.locator('.payment-label')).toHaveText('Ты отметил оплату');
     expect(await positions()).toEqual(before);
     await expect(card.getByRole('button', { name: 'Перевести в Kaspi' })).toHaveCount(0);
@@ -90,11 +96,11 @@ test('organizer gets one scheduling action with safe areas and a confirmed cance
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
   await teamApiRoute(page, r => r.fulfill({ json: new URL(r.request().url()).pathname === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: '+77071234567' } : new URL(r.request().url()).pathname === '/api/notifications' ? { tasks: [] } : { ...event, status: 'collecting', startTime: null, durationHours: null, my: 'main', main: [member, ...roster] } }));
   await page.goto('/event/7?tab=bill');
-  await expect(page.getByRole('link', { name: 'Назначить игру' })).toHaveCount(1);
+  await expect(page.getByRole('link', { name: 'Назначить матч' })).toHaveCount(1);
   await page.evaluate(() => { document.documentElement.style.setProperty('--tg-safe-area-inset-bottom', '34px'); document.documentElement.style.setProperty('--tg-safe-area-inset-top', '24px'); document.documentElement.style.setProperty('--tg-content-safe-area-inset-top', '36px'); });
   const action = (await page.locator('.match-action .btn').boundingBox())!;
-  const nav = (await page.getByRole('navigation').boundingBox())!;
-  expect(action.y + action.height).toBeLessThanOrEqual(nav.y - 11);
+  await expect(page.locator('.nav-shell')).toBeHidden();
+  expect(action.y + action.height).toBeLessThanOrEqual(568 - 34 - 10);
   await page.getByRole('button', { name: 'Действия матча' }).click();
   const dialog = page.getByRole('dialog', { name: 'Действия матча' });
   await expect(dialog).toBeVisible();
@@ -102,7 +108,7 @@ test('organizer gets one scheduling action with safe areas and a confirmed cance
   await expect(dialog.getByRole('button', { name: 'Точно отменить матч?' })).toBeVisible();
 });
 
-test('failed participation shows a top-layer notification above the open sheet', async ({ page }) => {
+test('failed participation stays inside the open sheet next to the exit action', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
   await teamApiRoute(page, r => {
@@ -113,12 +119,10 @@ test('failed participation shows a top-layer notification above the open sheet',
   await page.goto('/event/7');
   await page.getByRole('button', { name: 'Изменить', exact: true }).click();
   const dialog = page.getByRole('dialog', { name: 'Твоё участие' });
-  await dialog.getByRole('button', { name: 'Не иду', exact: true }).click();
-  const toast = page.locator('.toast');
-  await expect(toast).toContainText('Не получилось');
-  expect(await toast.evaluate(el => el.matches(':popover-open'))).toBe(true);
-  expect((await toast.boundingBox())!.y).toBeLessThan(100);
+  await dialog.getByRole('button', { name: 'Не иду, выйти из списка', exact: true }).click();
+  await expect(dialog.getByRole('alert')).toContainText('Не получилось выйти из списка');
   await expect(dialog).toBeVisible();
+  await expect(dialog.getByRole('button', { name: 'Не иду, выйти из списка', exact: true })).toBeEnabled();
   await page.screenshot({ path: 'artifacts/ui/match-toast-error-320.png' });
 });
 

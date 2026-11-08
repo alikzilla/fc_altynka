@@ -10,11 +10,11 @@ import { makeProtocol } from './gameFixtures';
 test('latest three results are newest first and all games open in a sheet with edit permissions',async()=>{
   const games=Array.from({length:5},(_,i)=>({id:`game-${i+1}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}));
   renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games,canEdit:false})}} reload={()=>{}}/>,{me:player});
-  const history=screen.getByRole('region',{name:'Последние матчи'});
+  const history=screen.getByRole('region',{name:'Последние игры'});
   expect(within(history).getAllByRole('listitem').map(li=>li.textContent)).toEqual([expect.stringContaining('Игра 5'),expect.stringContaining('Игра 4'),expect.stringContaining('Игра 3')]);
   expect(within(history).queryByText('Игра 1')).toBeNull();
-  await userEvent.click(screen.getByRole('button',{name:'Все матчи (5)'}));
-  const sheet=screen.getByRole('dialog',{name:'Все матчи'});
+  await userEvent.click(screen.getByRole('button',{name:'Все игры (5)'}));
+  const sheet=screen.getByRole('dialog',{name:'Все игры'});
   expect(within(sheet).getAllByRole('listitem')).toHaveLength(5);
   expect(within(sheet).queryByRole('button',{name:/Изменить результат/})).toBeNull();
 });
@@ -53,7 +53,7 @@ test('ambiguous finish freezes participants and preserves its command across clo
   vi.mocked(api.send).mockRejectedValueOnce(new Error('response lost')).mockResolvedValueOnce({});
   renderWithApp(<MatchGames ev={{...ev,viewerRole:'organizer',gameProtocol:makeProtocol()}} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(screen.getByRole('button',{name:'Действия'}));
-  await userEvent.click(screen.getByRole('button',{name:'Завершить встречу'}));
+  await userEvent.click(screen.getByRole('button',{name:'Завершить матч'}));
   await userEvent.click(screen.getByRole('button',{name:'Подтвердить завершение'}));
   expect(await screen.findByRole('alert')).toHaveTextContent(/завершение/);
   for(const checkbox of screen.getAllByRole('checkbox'))expect(checkbox).toBeDisabled();

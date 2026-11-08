@@ -179,7 +179,7 @@ test('failed setup preserves both drafts and can be retried', async () => {
   await userEvent.type(screen.getByLabelText('Имя в списках'), 'Дамир');
   await userEvent.type(screen.getByLabelText('Номер Kaspi'), '8 707 123 45 67');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
-  expect(await screen.findByText('Не получилось сохранить')).toBeInTheDocument();
+  expect(await screen.findByText('Не получилось сохранить. Попробуй ещё раз.')).toBeInTheDocument();
   expect(screen.getByLabelText('Имя в списках')).toHaveValue('Дамир');
   expect(screen.getByLabelText('Номер Kaspi')).toHaveValue('8 707 123 45 67');
   expect(screen.getByRole('button', { name: 'Сохранить' })).toBeEnabled();
@@ -205,14 +205,14 @@ test('football summary uses real values and offers editing without assigning def
 
 test('with one group the role line shows only the role, without the group name', () => {
   renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, communities: [{ id: 1, title: 'Очень длинное название футбольной группы', role: 'admin' }] } });
-  expect(screen.getByRole('img',{name:'Администратор'})).toHaveClass('player-role');
+  expect(screen.getByText('Администратор')).toHaveClass('player-role');
   expect(screen.queryByText(/Очень длинное название/)).toBeNull();
 });
 
 test('with two groups the role line has no group name and history rows carry group tags', async () => {
   (api.get as Mock).mockResolvedValue({ history: [{ eventId: 3, date: '2026-11-01', place: null, score: 7, community: { id: 2, title: 'Футбол по средам' } }] });
   renderWithApp(<Profile />, { me: { ...twoGroups, profileCompleted: true, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, communities: [{ id: 1, title: 'FC Altynka', role: 'organizer' }, { id: 2, title: 'Футбол по средам', role: 'player' }] } });
-  expect(screen.getByRole('img',{name:'Организатор'})).toHaveClass('player-role');
-  expect(screen.getByRole('img',{name:'Организатор'}).textContent).not.toMatch(/FC Altynka/);
+  expect(screen.getByText('Организатор')).toHaveClass('player-role');
+  expect(screen.getByText('Организатор').textContent).not.toMatch(/FC Altynka/);
   expect(await screen.findByText('Футбол по средам')).toBeInTheDocument();
 });

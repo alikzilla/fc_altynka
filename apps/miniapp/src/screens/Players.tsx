@@ -17,7 +17,7 @@ function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; com
     if (busy) return;
     setBusy(true);
     try { await api.send('PATCH', `/api/members/${member.userId}?communityId=${communityId}`, body); onSaved(); }
-    catch (err) { toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить'); }
+    catch (err) { toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить. Попробуй ещё раз.', { tone: 'error' }); }
     finally { setBusy(false); }
   }
   return <div className="editor form">
@@ -66,7 +66,7 @@ export function Players({ selectedUserId }: { selectedUserId?: number } = {}) {
     {loading && !data && <Loading />}{error && <ErrorNote text="Не получилось загрузить игроков" retry={reload} />}
     {empty && <EmptyState title={search ? 'Игрок не найден' : 'В команде пока никого'} text={search ? 'Попробуй другое имя.' : 'Игроки появятся после открытия приложения из группы.'} />}
     {data?.groups.map(group => <GroupSection key={group.community.id} group={group} titled={showGroups(me)} search={search} onChanged={reload} />)}
-    <p className="muted">Рейтинг помогает собирать равные команды. Сначала он основан на анкете, затем уточняется оценками матчей.</p>
+    <p className="muted">Рейтинг помогает собирать равные команды. Сначала он основан на анкете навыков, которая весит как три матча. Дальше учитываются оценки за последние 10 матчей, где набралось минимум три голоса.</p>
     {selectedUserId !== undefined && <PlayerProfileSheet key={selectedUserId} userId={selectedUserId} onClose={() => navigate('/players', { replace: true })} />}
   </Screen>;
 }

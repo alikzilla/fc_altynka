@@ -29,5 +29,21 @@ queryClient.getQueryCache().subscribe(event => {
 
 export const resourceKey = (path: string | null) => ['api', path] as const;
 
-// Any successful write may change lists, tasks and details: mark everything stale, refetch what is on screen.
-if (typeof window !== 'undefined') window.addEventListener('altynka:mutation', () => { void queryClient.invalidateQueries({ queryKey: ['api'] }); });
+/**
+ * Match, bill and game writes change lists, tasks and match details, but not the person or the player
+ * directory: those refresh only after writes to the account, groups or skills. A goal recorded on the
+ * pitch therefore refetches the match and tasks, not /api/me and every profile.
+ */
+const PERSON_WRITE = /^\/api\/(me|communities|players|profile|skills)(\/|$)/;
+const PERSON_READ = /^\/api\/(me|players)(\/|$)/;
+export function shouldRefresh(writePath: string | undefined, readPath: unknown): boolean {
+  if (typeof readPath !== 'string' || writePath === undefined || PERSON_WRITE.test(writePath)) return true;
+  // A finished match changes profile statistics and ratings; a bill may save the receiver's own Kaspi number.
+  if (/\/finish$|\/review$|\/bill$/.test(writePath)) return true;
+  return !PERSON_READ.test(readPath);
+}
+
+if (typeof window !== 'undefined') window.addEventListener('altynka:mutation', event => {
+  const writePath = (event as CustomEvent<{ path?: string } | undefined>).detail?.path;
+  void queryClient.invalidateQueries({ queryKey: ['api'], predicate: query => shouldRefresh(writePath, query.queryKey[1]) });
+});

@@ -22,7 +22,9 @@
 .team-editor-players { list-style:none; padding:0; margin:0; }
 .team-editor-player { display:flex; align-items:center; justify-content:space-between; min-height:64px; padding-block:8px; gap:10px; border-top:1px solid var(--line); }
 .team-player-identity { min-width:0; overflow-wrap:anywhere; font-size:14px; }
-.team-player-identity .player-profile-link { padding:0; font-size:14px; line-height:1.4; min-height:28px; }
+.team-player-identity .player-profile-link { position:relative; padding:0; font-size:14px; line-height:1.4; min-height:28px; }
+/* A 44 px tall hit area without changing the row: the swap action sits beside, not above. */
+.team-player-identity .player-profile-link::after { content:''; position:absolute; inset:-8px -2px; }
 .team-player-meta { font-size:12px; color:var(--hint); font-variant-numeric:tabular-nums; }
 .team-swap-trigger { display:inline-flex; align-items:center; gap:5px; flex-shrink:0; padding-inline:0; font-size:12px; }
 .team-swap-trigger svg { width:16px; height:16px; }
@@ -61,11 +63,11 @@
 :root[data-theme='light'] .team-black .team-dot { background:#27262e; }
 @media(max-width:359px) {
   .team-count-control button { padding-inline:9px; font-size:12px; }
-  .team-editor-setup>.team-text-action { font-size:11px; gap:5px; white-space:nowrap; }
+  .team-editor-setup>.team-text-action { font-size:12px; gap:5px; white-space:nowrap; }
   .team-editor .team-editor-card { padding-inline:14px; }
-  .team-swap-trigger { font-size:11px; }
+  .team-swap-trigger { font-size:12px; }
 }
-@media(max-width:309px) {
+@media(max-width:339px) {
   .team-editor-setup { flex-wrap:wrap; }
   .team-editor-setup>.team-text-action { margin-left:auto; }
 }

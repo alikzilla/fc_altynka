@@ -26,12 +26,12 @@ test('swap, toast undo, uniform colors, publish and active recolor keep team ide
   await colors.getByRole('button',{name:'Синий цвет для команды 1',exact:true}).click();
   await expect(colors.getByRole('button',{name:'Красный цвет для команды 2',exact:true})).toHaveAttribute('aria-pressed','true');
   await colors.getByRole('button',{name:'Применить цвета',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toBeVisible();
   expect(world.colors).toEqual(['blue','red']);
-  await page.getByRole('button',{name:'Начать встречу',exact:true}).click();
-  await page.getByRole('dialog',{name:'Начать встречу?'}).getByRole('button',{name:'Начать встречу',exact:true}).click();
+  await page.getByRole('button',{name:'Начать матч',exact:true}).click();
+  await page.getByRole('dialog',{name:'Начать матч?'}).getByRole('button',{name:'Начать матч',exact:true}).click();
   await expect(page).toHaveURL(/tab=games/);
   await page.getByRole('tab',{name:'Составы',exact:true}).click();
   await expect(page.getByRole('button',{name:/Обменять:/})).toHaveCount(0);
@@ -41,7 +41,7 @@ test('swap, toast undo, uniform colors, publish and active recolor keep team ide
   await colors.getByRole('button',{name:'Применить цвета',exact:true}).click();
   await expect(page.getByRole('group',{name:'Зелёные',exact:true}).getByRole('button',{name:'Али',exact:true})).toBeVisible();
   const revision=world.revision;
-  await page.getByRole('tab',{name:'Игра',exact:true}).click();
+  await page.getByRole('tab',{name:'Игры',exact:true}).click();
   await expect(page.locator('.game-current')).toContainText('Зелёные');
   expect(world.revision).toBe(revision);
   expect(world.games).toHaveLength(0);
@@ -54,10 +54,10 @@ test('failed publication retains the edited draft and retries without a false co
   await page.getByRole('button',{name:'Обменять с игроком Баур',exact:true}).click();
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Твой вариант сохранён');
-  await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toHaveCount(0);
   await expect(page.getByRole('button',{name:'Опубликовать составы',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toBeVisible();
+  await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toBeVisible();
   expect(world.detail().teams.teams[1]).toContain(1);
 });
 

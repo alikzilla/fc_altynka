@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { billLines } from '../db/schema';
-import { billDto, closeBill, getBill, markPaid, remindDebtors, setLinePaid, upsertBill } from '../domain/bills';
+import { billDto, closeBill, getBill, markPaid, remindDebtors, setLinePaid, unmarkOwnPaid, upsertBill } from '../domain/bills';
 import { canManage, getEvent } from '../domain/events';
 import { eq } from 'drizzle-orm';
 import { body, idParam, statusFor } from './validate';
@@ -45,6 +45,15 @@ billsApi.post('/bills/:id/paid', async c => {
   if (!bill) return c.json({ error: 'not_found' }, 404);
   const r = await markPaid(c.get('deps'), bill.id, c.get('user').id, c.get('user').id);
   return c.json({ kind: r }, r === 'not_in_bill' ? 404 : statusFor(r));
+});
+
+// The payer takes back their own mark within a short window, e.g. after tapping it by mistake.
+billsApi.delete('/bills/:id/paid', async c => {
+  const bill = await ownBill(c.get, c.req.param('id'));
+  if (!bill) return c.json({ error: 'not_found' }, 404);
+  const r = await unmarkOwnPaid(c.get('deps'), bill.id, c.get('user').id);
+  if (r === 'not_in_bill') return c.json({ error: 'not_found' }, 404);
+  return r === 'ok' ? c.json({ kind: r }) : c.json({ error: r }, 409);
 });
 
 billsApi.post('/bill-lines/:id', body(z.object({ paid: z.boolean() })), async c => {

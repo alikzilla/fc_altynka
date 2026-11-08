@@ -73,7 +73,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
     } catch (failure) {
       if (failure instanceof ApiError && failure.status>=400 && failure.status<500) {
         setDraft(current=>({...current,submitted:false,requestId:crypto.randomUUID()}));
-        if (failure.status===409) { setConflict(true); reload(); setError('Данные встречи изменились. Обнови запись перед сохранением.'); }
+        if (failure.status===409) { setConflict(true); reload(); setError('Данные матча изменились. Обнови запись перед сохранением.'); }
         else setError(failure.status===403?'Изменять результаты может организатор этой группы.':'Проверь результат, забивших и выбор по сулифа.');
       } else setError('Не удалось подтвердить сохранение. Повтори отправку — игра не продублируется.');
     } finally { locked.current=false; setBusy(false); }
@@ -88,7 +88,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const assigned=totals[0]+totals[1];
   const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора гола можно указать позже</p></>;
   return <ActionSheet title={game?`Результат игры ${game.sequence}`:'Результат игры'} onClose={onClose} busy={busy} footer={footer} className="game-result-sheet">
-    {stale && <div className="game-draft-notice"><p>Данные встречи изменились. Сохранён черновик другой игры: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
+    {stale && <div className="game-draft-notice"><p>Данные матча изменились. Сохранён черновик другой игры: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
     <fieldset className="game-score-fields" aria-label="Счёт матча" disabled={!editable}>
       {draft.pair.map((team,side)=><Fragment key={team}>{side===1 && <span className="game-score-colon" aria-hidden="true">:</span>}<div className="game-score-side"><GameTeamName colors={ev.teams?.colors} index={team}/><div className={`game-score-buttons ${draft.input.score[side]>99?'game-score-long':''}`}><button type="button" aria-label={`Убрать гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || !draft.input.score[side]} onClick={()=>score(side,-1)}>−</button><output aria-label={`Голы команды ${teamAppearance(team, ev.teams?.colors).name}`} aria-live="polite" title={String(draft.input.score[side])}>{draft.input.score[side]}</output><button type="button" aria-label={`Добавить гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || draft.input.score[side]===Number.MAX_SAFE_INTEGER} onClick={()=>score(side,1)}>+</button></div></div></Fragment>)}
     </fieldset>
@@ -106,10 +106,14 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
           const person=protocol.roster.find(p=>p.signupId===signupId && p.teamIndex===team);
           const name=person?gamePlayerName(person,protocol.roster,ev.main):null;
           const expanded=activeGoal?.side===side && activeGoal.index===index;
-          return <div key={index}>
+          // A player who scores twice in a row is common: offer the previous author in one tap.
+          const previousId=index>0?authorAt(runs[side],index-1):null;
+          const previous=signupId===null && previousId!==null && previousId!==undefined ? protocol.roster.find(p=>p.signupId===previousId && p.teamIndex===team) : undefined;
+          return <div key={index} className={previous && !expanded ? 'game-goal-row with-repeat' : 'game-goal-row'}>
             <button type="button" className={`game-goal-slot ${name?'assigned':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${teamAppearance(team, ev.teams?.colors).name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>setActiveGoal(expanded?null:{side,index})}>
               <span className="game-goal-order">{index+1}.</span><span className="game-goal-identity">{name ?? 'Кто забил?'}<small>{name?'Нажми, чтобы изменить':'Выбрать игрока'}</small></span><span aria-hidden="true">{name?'✓':'+'}</span>
             </button>
+            {previous && !expanded && <button type="button" className="game-goal-repeat" disabled={!editable} onClick={()=>chooseAuthor(side,index,previous.signupId)}>{gamePlayerName(previous,protocol.roster,ev.main)} ещё раз</button>}
             {expanded && <div className="game-player-picker" id={pickerId} ref={picker} role="group" aria-label={`Выбрать автора гола команды ${teamAppearance(team, ev.teams?.colors).name}`} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setActiveGoal(null);goalButtons.current.get(`${side}:${index}`)?.focus();}}}>
               {protocol.roster.filter(p=>p.teamIndex===team).map(player=>{const playerName=gamePlayerName(player,protocol.roster,ev.main);return <button type="button" className="game-player-option" key={player.signupId} aria-label={playerName} aria-pressed={signupId===player.signupId} disabled={!editable} onClick={()=>chooseAuthor(side,index,player.signupId)}><span className="game-player-initial" aria-hidden="true">{player.name[0]}</span><span>{playerName}{player.userId===null && <small className="muted">Гость</small>}</span><span aria-hidden="true">{signupId===player.signupId?'✓':''}</span></button>;})}
               <button type="button" className="game-player-option" aria-pressed={signupId===null} disabled={!editable} onClick={()=>chooseAuthor(side,index,null)}>Оставить без автора<span aria-hidden="true">{signupId===null?'✓':''}</span></button>

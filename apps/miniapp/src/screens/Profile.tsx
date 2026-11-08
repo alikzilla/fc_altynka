@@ -1,6 +1,6 @@
 import { formatKzPhone, normalizeKzPhone, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
 import { useRef, useState } from 'react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
 import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
@@ -10,6 +10,7 @@ import { PlayerAchievements, PlayerSportsCard } from '../components/PlayerSports
 import { PlayerGameHistory } from '../components/PlayerGameHistory';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
+import { isSettingsSection, ProfileSettingsSheet } from './ProfileSettings';
 
 /** Only the role: group names can be long. With several groups, the highest role. */
 function roleLine(me: MeDto) {
@@ -18,8 +19,9 @@ function roleLine(me: MeDto) {
   return me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role);
 }
 
-export function Profile() {
+export function Profile({ settings }: { settings?: string }) {
   const me = useMe();
+  const [, navigate] = useLocation();
   const sportingProfile = useResource<PlayerProfileDto>(`/api/players/${me.userId}`);
   const telegramName = me.telegram ? [me.telegram.firstName, me.telegram.lastName].filter(Boolean).join(' ') : me.displayName;
   const reloadMe = useReloadMe();
@@ -52,7 +54,7 @@ export function Profile() {
     } catch (err) {
       if (err instanceof ApiError && err.code === 'name_taken') setNameError('Это имя уже занято — добавь букву фамилии или номер');
       else if (err instanceof ApiError && err.code === 'receiver_needs_phone') setPhoneError('Тебе переводят по открытому счёту — номер нужен');
-      else toast('Не получилось сохранить');
+      else toast('Не получилось сохранить. Попробуй ещё раз.', { tone: 'error' });
     } finally {
       saving.current = false;
       setBusy(false);
@@ -92,6 +94,7 @@ export function Profile() {
         <Link className="card task-preview material-graphite" href="/profile/settings/football"><span className="task-icon"><Icon name="ball" /></span><span className="task-copy"><b>Изменить футбольные данные</b><small>Позиция на поле и рабочая нога</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
+      {isSettingsSection(settings) && <ProfileSettingsSheet section={settings} onClose={() => navigate('/profile', { replace: true })} />}
       <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Игроки'}</h2>
       <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
     </Screen>

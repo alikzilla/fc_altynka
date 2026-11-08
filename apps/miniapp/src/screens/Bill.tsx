@@ -10,6 +10,7 @@ import { MatchAction } from '../components/MatchAction';
 import { ActionSheet } from '../components/ActionSheet';
 import { ReminderDelivery } from './ReminderDelivery';
 import { KaspiPay } from '../components/KaspiPay';
+import { PaymentMark, useReturnFromKaspi } from '../components/PaymentMark';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
@@ -88,7 +89,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       if (err instanceof ApiError && err.code === 'bad_phone') setPhoneError('Проверь номер');
       else if (err instanceof ApiError && err.code === 'receiver_phone_locked') setPhoneError(PHONE_IN_PROFILE);
       else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError('Нужен номер Kaspi получателя');
-      else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность игры' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала игры' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
+      else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность матча' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала матча' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
     }
     locked.current = false;
     if (live.current) setBusy(false);
@@ -178,26 +179,15 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
 
 function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
   const me = useMe();
-  const toast = useToast();
-  const [busy, setBusy] = useState(false);
-  const locked = useRef(false);
+  const kaspi = useReturnFromKaspi();
   const line = bill.lines.find(l => l.userId === me.userId);
   if (!line || bill.receiver.userId === me.userId) return null;
   const closed = bill.status === 'closed';
   const amount = line.state === 'underpaid' ? line.due : line.amount;
-  async function paid() {
-    if (locked.current || closed || line?.state === 'paid') return;
-    locked.current = true; setBusy(true);
-    try {
-      await api.send('POST', `/api/bills/${bill.id}/paid`);
-      haptic('success'); toast('Ты отметил оплату');
-    } catch { toast('Не получилось отметить'); }
-    finally { locked.current = false; setBusy(false); reload(); }
-  }
   return <section className="card material-coral pay" aria-label="Твоя оплата">
     <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
-    <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} />
-    {!closed && line.state !== 'paid' && <button className="btn-text payment-mark" onClick={paid} disabled={busy}>{busy ? 'Отмечаем…' : 'Я скинул'}</button>}
+    <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} onTransfer={kaspi.onTransfer} />
+    {!closed && line.state !== 'paid' && <PaymentMark billId={bill.id} returnedFromKaspi={kaspi.returned} canUndo onChanged={reload} />}
   </section>;
 }
 
@@ -207,7 +197,7 @@ function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; r
     try {
       await api.send('POST', `/api/bill-lines/${id}`, { paid });
     } catch {
-      toast('Не получилось обновить');
+      toast('Не получилось обновить отметку оплаты. Попробуй ещё раз.', { tone: 'error' });
     }
     reload();
   };
@@ -221,7 +211,7 @@ function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; r
           </span>
           <span className="muted">{l.state === 'underpaid' ? `доплатить ${formatTenge(l.due)}` : formatTenge(l.amount)}</span>
           {editable && l.userId !== bill.receiver.userId && (
-            <input type="checkbox" aria-label={`${l.name} скинул`} checked={l.state === 'paid'} onChange={e => toggle(l.id, e.target.checked)} />
+            <input type="checkbox" aria-label={`${l.name} перевёл`} checked={l.state === 'paid'} onChange={e => toggle(l.id, e.target.checked)} />
           )}
         </li>
       ))}
@@ -236,9 +226,9 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const manage = canManageEvent(ev);
   const bill = ev.bill;
   const canBill = manage && (ev.protocolVersion === 1 ? ev.startedAt != null && ev.status !== 'cancelled' && bill?.status !== 'closed' : ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
-  if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь игру' : 'Игра ещё не назначена'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности игры.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить игру</Link></MatchAction>}</div>;
+  if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь матч' : 'Матч ещё не назначен'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности матча.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить матч</Link></MatchAction>}</div>;
   if (!bill) {
-    if (ev.status === 'scheduled') return <EmptyState title="Счёт будет доступен после начала игры" text={ev.protocolVersion === 1 ? 'Организатор подтвердит составы и начнёт встречу. До этого идёт набор игроков.' : `Начало — ${formatDateRu(ev.date)}${ev.startTime ? `, ${ev.startTime}` : ''}. До этого идёт набор игроков.`} />;
+    if (ev.status === 'scheduled') return <EmptyState title="Счёт будет доступен после начала матча" text={ev.protocolVersion === 1 ? 'Организатор подтвердит составы и начнёт матч. До этого идёт набор игроков.' : `Начало — ${formatDateRu(ev.date)}${ev.startTime ? `, ${ev.startTime}` : ''}. До этого идёт набор игроков.`} />;
     if (!canBill) return <EmptyState title="Счёт ещё не выставлен" />;
     if (!bill && !ev.main.length && !ev.reserve.length) return <EmptyState title="Некому выставить счёт" text="Сначала добавь участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">Перейти к участникам</Link>} />;
     return <><EmptyState title="Счёт пока не выставлен" text="Укажи расходы и получателя. После отправки счёта запись закроется." action={actionBlocked ? <button className="btn" onClick={() => setEditing(true)}>Выставить счёт</button> : <MatchAction><button className="btn primary wide" onClick={() => setEditing(true)}>Выставить счёт</button></MatchAction>} />{editing && <BillForm key="bill-editor" ev={ev} reload={reload} onDone={() => setEditing(false)} />}</>;
@@ -249,7 +239,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
       await api.send('POST', path);
       toast(ok);
     } catch {
-      toast('Не получилось');
+      toast('Не получилось. Проверь интернет и попробуй ещё раз.', { tone: 'error' });
     }
     reload();
   };

@@ -31,7 +31,7 @@ test('debt of a group the person left is paid from the card, without the match p
   await userEvent.click(screen.getByRole('button', { name: 'Перевести в Kaspi' }));
   expect(copy).toHaveBeenCalledWith('+77071234567');
   expect(openLink).toHaveBeenCalledWith('https://kaspi.kz/');
-  await userEvent.click(screen.getByRole('button', { name: 'Я оплатил' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/paid');
   expect(invalidate).toHaveBeenCalledWith({ queryKey: expect.arrayContaining(['/api/notifications']) });
 });
@@ -45,7 +45,7 @@ test('compact card of a left group does not link to the match', () => {
 test('debt of a current group still opens the match bill', () => {
   renderWithApp(<TaskCard task={payment(1, 'FC Altynka')} />, { me: player });
   expect(screen.getByRole('link', { name: /Перейти к оплате/ })).toHaveAttribute('href', '/event/5?tab=bill');
-  expect(screen.queryByRole('button', { name: 'Я оплатил' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Я перевёл' })).toBeNull();
 });
 
 test('group tag shows for a group the person is not in, even with one group', () => {

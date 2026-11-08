@@ -2,27 +2,30 @@ import {
   DOMINANT_FEET, PLAYING_POSITIONS, dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel,
   type DominantFoot, type PlayingPosition, type MeDto,
 } from '@altynka/core';
-import { useRef, useState } from 'react';
-import { Redirect } from 'wouter';
+import { useId, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
-import { Screen, useToast } from '../components/ui';
+import { useToast } from '../components/ui';
+import { ActionSheet } from '../components/ActionSheet';
 
-type Section = 'payment' | 'name' | 'football';
-const sections: { id: Section; title: string }[] = [
+export type SettingsSection = 'payment' | 'name' | 'football';
+const sections: { id: SettingsSection; title: string }[] = [
   { id: 'payment', title: 'Оплата' },
-  { id: 'name', title: 'Имя в списках' },
+  { id: 'name', title: 'Изменить имя' },
   { id: 'football', title: 'Футбольные данные' },
 ];
 
-export function ProfileSettings({ section }: { section?: string }) {
-  const selected = sections.find(item => item.id === section);
-  if (selected) return <SettingsForm key={selected.id} section={selected.id} title={selected.title} />;
-  return <Redirect to="/profile" />;
+export const isSettingsSection = (value: string | undefined): value is SettingsSection => sections.some(item => item.id === value);
+
+/** Name, Kaspi number and football data are edited in a bottom sheet over the profile. */
+export function ProfileSettingsSheet({ section, onClose }: { section: SettingsSection; onClose: () => void }) {
+  const selected = sections.find(item => item.id === section)!;
+  return <SettingsForm key={selected.id} section={selected.id} title={selected.title} onClose={onClose} />;
 }
 
-function SettingsForm({ section, title }: { section: Section; title: string }) {
+function SettingsForm({ section, title, onClose }: { section: SettingsSection; title: string; onClose: () => void }) {
+  const formId = useId();
   const me = useMe();
   const reloadMe = useReloadMe();
   const updateMe = useUpdateMe();
@@ -57,6 +60,7 @@ function SettingsForm({ section, title }: { section: Section; title: string }) {
       haptic('success');
       toast('Сохранено');
       reloadMe();
+      onClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'name_taken') setError('Это имя уже занято — добавь букву фамилии или номер');
       else if (err instanceof ApiError && err.code === 'receiver_needs_phone') setError('Тебе переводят по открытому счёту — номер нужен');
@@ -67,8 +71,8 @@ function SettingsForm({ section, title }: { section: Section; title: string }) {
     }
   }
 
-  return <Screen title={title} back="/profile">
-    <form className="card material-blue form profile-form" onSubmit={save} aria-busy={busy}>
+  return <ActionSheet title={title} onClose={onClose} busy={busy} footer={<button type="submit" form={formId} className="btn primary wide" disabled={busy || (section === 'name' && !name.trim())}>{busy ? 'Сохраняем…' : 'Сохранить'}</button>}>
+    <form id={formId} className="form profile-form profile-settings-form" onSubmit={save} aria-busy={busy}>
       <fieldset className="form-fields" disabled={busy}>
         {section === 'payment' && <>
           <label>Номер Kaspi<input type="tel" autoComplete="tel" inputMode="tel" placeholder="+7 707 123 45 67" value={phone} aria-invalid={!!error} aria-describedby={error ? 'profile-settings-error' : undefined} onChange={event => setPhone(event.target.value)} /></label>
@@ -86,7 +90,6 @@ function SettingsForm({ section, title }: { section: Section; title: string }) {
         </>}
       </fieldset>
       {error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>}
-      <button className="btn primary wide" disabled={busy || (section === 'name' && !name.trim())}>{busy ? 'Сохраняем…' : 'Сохранить'}</button>
     </form>
-  </Screen>;
+  </ActionSheet>;
 }

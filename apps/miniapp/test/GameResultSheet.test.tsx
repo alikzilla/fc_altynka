@@ -56,7 +56,7 @@ test('lost response locks the submitted payload and retries exactly the same req
 
 test('a pending old pair can check its receipt after reload, without transferring the score to the new pair',async()=>{
   writeGameDraft(7,1,{version:1,gameId:null,pair:[0,2],revision:0,requestId:'old-request',input:{score:[3,0],scorers:[]},submitted:true});
-  open(); expect(screen.getByText(/другой игры|Данные встречи изменились/)).toBeVisible();
+  open(); expect(screen.getByText(/другой игры|Данные матча изменились/)).toBeVisible();
   await userEvent.click(screen.getByRole('button',{name:'Проверить сохранение'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({requestId:'old-request',expectedRevision:0,score:[3,0]}));
 });
@@ -84,4 +84,15 @@ test('zero-score legacy draft explains excess authors and can repair them withou
   expect(screen.getByLabelText('Голы команды Красные')).toHaveTextContent('0');
   await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
   expect(api.send).toHaveBeenCalledWith('POST',expect.any(String),expect.objectContaining({score:[0,0],scorers:[],requestId:'legacy',firstRestTeamIndex:0}));
+});
+
+test('the previous author is offered in one tap for the next goal',async()=>{
+  open(); await userEvent.click(screen.getByRole('radio',{name:'Красные'}));
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Красные'})); await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Красные'}));
+  await userEvent.click(screen.getByRole('button',{name:'Гол 1 команды Красные: выбрать автора'})); await userEvent.click(screen.getByRole('button',{name:'Али'}));
+  await userEvent.click(screen.getByRole('button',{name:'Али ещё раз'}));
+  expect(screen.getByRole('button',{name:'Гол 2 команды Красные: Али'})).toBeInTheDocument();
+  expect(screen.queryByRole('button',{name:'Али ещё раз'})).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
+  expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[2,0],scorers:[{signupId:1,goals:2}]}));
 });

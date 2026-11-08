@@ -28,6 +28,7 @@ export function ReviewRater({ players, scores, gameScore, onScore, onGameScore, 
   const game = step === players.length;
   const value = game ? gameScore ?? undefined : scores[person.userId];
   const total = players.length + 1;
+  const rated = players.filter(p => scores[p.userId] !== undefined).length;
 
   function move(next: number, immediate = false) {
     if (busy || transitioning.current || next < 0 || next >= total || next === step) return;
@@ -39,6 +40,7 @@ export function ReviewRater({ players, scores, gameScore, onScore, onGameScore, 
   const change = (next: number) => game ? onGameScore(next) : onScore(person.userId, next);
   return <ActionSheet title="Оценка игроков" onClose={onClose} busy={busy} footer={<div className="review-rater-footer">
     {error && <p className="field-error" role="alert">{error}</p>}
+    {game && <p className="review-recap" aria-live="polite">Оценено игроков: {rated} из {players.length}{players.length - rated ? ` · пропущено: ${players.length - rated}` : ''} · матч {gameScore === null ? 'без оценки' : `${gameScore} / 10`}</p>}
     <button className="btn primary wide" disabled={busy || leaving || (game ? !Object.keys(scores).length && gameScore === null : value === undefined)} onClick={event => { if (game) void onSubmit(); else move(step + 1, event.detail === 0); }}>
       {busy ? 'Отправляем…' : game ? 'Отправить оценки' : 'Далее'}
     </button>
@@ -51,8 +53,8 @@ export function ReviewRater({ players, scores, gameScore, onScore, onGameScore, 
     <div className="skills-progress review-progress"><span className="muted">{step + 1} из {total}</span><progress value={step + 1} max={total} aria-label="Прогресс оценки" /></div>
     <div className="review-step-window">
       <section key={step} className={`card material-blue review-step ${leaving ? 'is-leaving' : ''}`} style={{ '--step-direction': direction } as CSSProperties}>
-        <div className="review-person">{!game && <Avatar name={person.name} />}<div><h3 ref={heading} tabIndex={-1}>{game ? 'Игра в целом' : person.name}</h3><p className="muted">{game ? 'Твоё общее впечатление от матча' : 'Как проявил себя в этом матче?'}</p></div></div>
-        <RatingSlider label={game ? 'Игра в целом' : `Оценка: ${person.name}`} value={value} disabled={busy || leaving} kind={game ? 'match' : 'player'}
+        <div className="review-person">{!game && <Avatar name={person.name} />}<div><h3 ref={heading} tabIndex={-1}>{game ? 'Матч в целом' : person.name}</h3><p className="muted">{game ? 'Твоё общее впечатление от матча' : 'Как проявил себя в этом матче?'}</p></div></div>
+        <RatingSlider label={game ? 'Матч в целом' : `Оценка: ${person.name}`} value={value} disabled={busy || leaving} kind={game ? 'match' : 'player'}
           onChange={change} />
       </section>
     </div>

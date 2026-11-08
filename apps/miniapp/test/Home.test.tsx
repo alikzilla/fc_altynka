@@ -67,3 +67,33 @@ test('without groups the empty home explains how to connect the bot', async () =
   await userEvent.click(screen.getByRole('button', { name: 'Добавить в группу' }));
   expect(openTelegramLink).toHaveBeenCalled();
 });
+
+test('a match played yesterday leads Home with the player result, payment and survey', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-08T09:00:00Z'));
+  const finished: EventSummaryDto = { ...ev, id: 9, date: '2026-11-07', status: 'billing', place: 'Arena', my: 'main', protocolVersion: 1, startedAt: 1, completedAt: 2,
+    myResult: { teamIndex: 1, teamCount: 3, teamRank: 1, colors: ['red', 'blue', 'yellow'], games: 6, goals: 2, wins: 4, draws: 1, losses: 1 } };
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications'
+    ? { tasks: [{ kind: 'payment', id: 'p9', eventId: 9, billId: 3, date: '2026-11-07', place: 'Arena', due: 2000, receiverName: 'Орг', receiverKaspiPhone: '+77071234567', community: ev.community },
+        { kind: 'review', id: 'r9', eventId: 9, date: '2026-11-07', place: 'Arena', closesAt: 0, community: ev.community }] }
+    : { active: [finished], past: [] }));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  const card = await screen.findByRole('article', { name: 'Синие — первое место' });
+  expect(within(card).getByText('4')).toBeInTheDocument();
+  expect(within(card).getByText('твоих гола')).toBeInTheDocument();
+  expect(await within(card).findByRole('link', { name: /Оплатить 2\s000/ })).toHaveAttribute('href', '/event/9?tab=bill');
+  expect(within(card).getByRole('link', { name: /Оценить матч/ })).toHaveAttribute('href', '/event/9/review');
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Последний матч');
+  expect(screen.queryByRole('heading', { name: 'Нужно сделать' })).toBeNull();
+  vi.useRealTimers();
+});
+
+test('list rows show the personal signup status', async () => {
+  const later: EventSummaryDto = { ...ev, id: 6, date: '2026-11-14', my: 'main' };
+  const third: EventSummaryDto = { ...ev, id: 7, date: '2026-11-21', my: null, mainCount: 4 };
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [ev, later, third], past: [] }));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  const section = await screen.findByRole('region', { name: 'Дальше играем' });
+  expect(within(section).getByText('В основе')).toBeInTheDocument();
+  expect(within(section).getByLabelText('Записано 4 из 10')).toHaveTextContent('4/10');
+});

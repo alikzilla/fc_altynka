@@ -17,7 +17,7 @@ function ActiveMatches() {
   return <>
     {loading && !data && <Loading />}
     {error && <ErrorNote text="Не получилось загрузить активные матчи" retry={reload} />}
-    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные игры</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующую игру.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
+    {data && (events.length ? <><p className="muted">Открытые сборы и назначенные матчи</p><div className="card archive-list material-blue">{events.map(event => <MatchRow key={event.id} event={event} />)}</div></> : <EmptyState title="Нет активных матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующий матч.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link href="/new" className="btn primary">Создать матч</Link>} />)}
   </>;
 }
 

@@ -67,7 +67,7 @@ test('carousel and all five destinations work on a narrow phone', async ({ page 
   await page.getByRole('button', { name: 'Предыдущий матч' }).click();
   await expect(page.getByText('1 из 2', { exact: true })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Основная навигация' });
-  for (const [label, title] of [['Матчи', 'Матчи'], ['Задачи', 'Уведомления'], ['Профиль', 'Профиль'], ['Создать матч', 'Новый матч'], ['Главная', 'Ближайший матч']]) {
+  for (const [label, title] of [['Матчи', 'Матчи'], ['Задачи', 'Задачи'], ['Профиль', 'Профиль'], ['Создать матч', 'Новый матч'], ['Главная', 'Ближайший матч']]) {
     await nav.getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
@@ -88,12 +88,13 @@ test('payment obligation opens the real bill and clears after the member marks p
   await page.goto('/notifications');
   await page.getByRole('link', { name: 'Перейти к оплате' }).click();
   await expect(page.getByRole('button', { name: 'Перевести в Kaspi', exact: true })).toBeVisible();
-  await page.getByRole('button', { name: 'Я скинул' }).click();
+  await page.getByRole('button', { name: 'Я перевёл' }).click();
   await expect(page.locator('.payment-label')).toHaveText('Ты отметил оплату');
   await page.getByRole('navigation').getByRole('link', { name: 'Задачи' }).click();
   await expect(page.getByRole('heading', { name: 'Новых задач нет' })).toBeVisible();
-  // A player keeps the dock entry, but the sheet explains that only organizers create matches.
-  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  // A player gets four dock destinations; opening creation directly still explains who creates matches.
+  await expect(page.getByRole('navigation').getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
+  await page.goto('/new');
   await expect(page.getByRole('dialog').getByText(/Создавать матчи может организатор/)).toBeVisible();
   await expect(page.getByRole('dialog').getByRole('button', { name: 'Создать матч' })).toHaveCount(0);
 });

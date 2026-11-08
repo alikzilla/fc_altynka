@@ -86,8 +86,8 @@ test('creation preserves the past matches background tab when opened and closed'
 
 test('collecting bill tab explains prerequisite and links to appointment instead of showing a bill form', async () => {
   open('/event/1?tab=bill');
-  expect(await screen.findByRole('link', { name: 'Назначить игру' })).toHaveAttribute('href', '/event/1/schedule');
-  expect(screen.getByText('Сначала назначь игру')).toBeVisible();
+  expect(await screen.findByRole('link', { name: 'Назначить матч' })).toHaveAttribute('href', '/event/1/schedule');
+  expect(await screen.findByText('Сначала назначь матч')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Выставить счёт' })).not.toBeInTheDocument();
 });
 

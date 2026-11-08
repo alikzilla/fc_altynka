@@ -33,7 +33,7 @@ function billAction() {
 test('future scheduled game cannot open a bill even after time is assigned', () => {
   renderWithApp(<Bill ev={{ ...evWith(2), status: 'scheduled', serverNow: Date.parse('2026-11-07T15:59:59Z') }} reload={() => {}} />, { me: organizer });
   expect(screen.queryByRole('button', { name: 'Выставить счёт' })).not.toBeInTheDocument();
-  expect(screen.getByText('Счёт будет доступен после начала игры')).toBeVisible();
+  expect(screen.getByText('Счёт будет доступен после начала матча')).toBeVisible();
 });
 
 test('organizer opens the bill in a sheet while retaining the payment screen', async () => {
@@ -122,7 +122,7 @@ test('closed bill with outstanding due is read-only', () => {
   const closed = { ...bill, status: 'closed' as const };
   renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Перевести в Kaspi' })).not.toBeInTheDocument();
-  expect(screen.queryByRole('button', { name: 'Я скинул' })).not.toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Я перевёл' })).not.toBeInTheDocument();
   expect(screen.getByText('Расчёт закрыт')).toBeVisible();
 });
 
@@ -166,7 +166,7 @@ test('bad phone error shows next to the field', async () => {
   expect(await screen.findByText('Проверь номер')).toBeInTheDocument();
 });
 
-test('player: transfer copies phone and opens Kaspi; "Я скинул" posts paid', async () => {
+test('player: transfer copies phone and opens Kaspi; "Я перевёл" posts paid', async () => {
   (copy as Mock).mockResolvedValue(true);
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: player });
@@ -175,7 +175,7 @@ test('player: transfer copies phone and opens Kaspi; "Я скинул" posts pai
   await userEvent.click(screen.getByRole('button', { name: 'Перевести в Kaspi' }));
   expect(copy).toHaveBeenCalledWith('+77071234567');
   expect(openLink).toHaveBeenCalledWith('https://kaspi.kz/');
-  await userEvent.click(screen.getByRole('button', { name: 'Я скинул' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/paid');
 });
 
@@ -194,7 +194,7 @@ test('player without a bill sees a placeholder', () => {
 test('receiver toggles a line and reminds debtors', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
-  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок скинул' }));
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
   const remind = screen.getByRole('button', { name: 'Напомнить должникам' });
   await userEvent.click(remind);
@@ -235,4 +235,25 @@ test('locked receiver phone from the server is explained', async () => {
   await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
   await userEvent.click(billAction());
   expect(await screen.findByText('Номер получатель меняет в своём профиле')).toBeInTheDocument();
+});
+
+test('after returning from Kaspi the mark becomes a visible button and can be undone from the notification', async () => {
+  (copy as Mock).mockResolvedValue(true);
+  (api.send as Mock).mockResolvedValue({ kind: 'ok' });
+  renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: player });
+  expect(screen.getByText(/Отметку увидит получатель/)).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Перевести в Kaspi' }));
+  act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+  await userEvent.click(screen.getByRole('button', { name: 'Перевёл? Отметь оплату' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/paid');
+  await userEvent.click(await screen.findByRole('button', { name: 'Отменить' }));
+  expect(api.send).toHaveBeenLastCalledWith('DELETE', '/api/bills/3/paid');
+  expect(await screen.findByText('Отметка об оплате снята')).toBeInTheDocument();
+});
+
+test('a failed payment mark stays next to the button instead of vanishing', async () => {
+  (api.send as Mock).mockRejectedValue(new Error('offline'));
+  renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
+  expect(await within(screen.getByRole('region', { name: 'Твоя оплата' })).findByRole('alert')).toHaveTextContent('Не получилось отметить оплату');
 });

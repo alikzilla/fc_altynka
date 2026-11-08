@@ -49,7 +49,7 @@ test('EventList: "Не иду" when signed up', async () => {
   renderWithApp(<MatchList ev={{ ...ev, my: 'main' }} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Иду' })).toBeNull();
   await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Не иду' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Не иду, выйти из списка' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events/5/leave');
 });
 
@@ -67,7 +67,7 @@ test('EventList: remove needs two taps', async () => {
 test('EventList: organizer cannot move a reservist out of turn and sees schedule button', async () => {
   const { history } = renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: organizer });
   expect(screen.queryByRole('button', { name: 'В основу' })).not.toBeInTheDocument();
-  await userEvent.click(screen.getByRole('link', { name: 'Назначить игру' }));
+  await userEvent.click(screen.getByRole('link', { name: 'Назначить матч' }));
   expect(history.at(-1)).toBe('/event/5/schedule');
 });
 

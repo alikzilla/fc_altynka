@@ -2,30 +2,41 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api, ApiError } from '../src/lib/api';
-import { ProfileSettings } from '../src/screens/ProfileSettings';
+import { ProfileSettingsSheet } from '../src/screens/ProfileSettings';
+import { Profile } from '../src/screens/Profile';
 import { organizer, player, renderWithApp } from './render';
 
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/lib/tg');
+const close = vi.fn();
+beforeEach(() => close.mockClear());
 
-test.each([undefined, 'unknown'])('settings %s returns directly to profile', section => {
-  const { history } = renderWithApp(<ProfileSettings section={section} />, { me: player });
-  expect(history.at(-1)).toBe('/profile');
+test('the profile opens a settings section as a bottom sheet over itself', async () => {
+  (api.get as Mock).mockResolvedValue({ statistics: null, gameHistory: [], history: [] });
+  renderWithApp(<Profile settings="name" />, { me: { ...player, profileCompleted: true } });
+  expect(screen.getByRole('heading', { level: 1, name: 'Профиль' })).toBeInTheDocument();
+  expect(await screen.findByRole('dialog', { name: 'Изменить имя' })).toBeInTheDocument();
+});
+
+test('an unknown section shows the profile without a sheet', () => {
+  (api.get as Mock).mockResolvedValue({ statistics: null, gameHistory: [], history: [] });
+  renderWithApp(<Profile settings="unknown" />, { me: { ...player, profileCompleted: true } });
+  expect(screen.queryByRole('dialog')).toBeNull();
 });
 
 test('payment settings normalize just the payment number without changing setup or drafts in other sections', async () => {
   (api.send as Mock).mockResolvedValue({ ...player, kaspiPhone: '+77071234567', profileCompleted: true });
-  renderWithApp(<ProfileSettings section="payment" />, { me: { ...player, profileCompleted: true } });
+  renderWithApp(<ProfileSettingsSheet section="payment" onClose={close} />, { me: { ...player, profileCompleted: true } });
   await userEvent.type(screen.getByLabelText('Номер Kaspi'), '8 707 123 45 67');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(api.send).toHaveBeenCalledWith('PATCH', '/api/me', { kaspiPhone: '+77071234567' });
   expect(await screen.findByText('Сохранено')).toBeInTheDocument();
-  expect(screen.getByRole('link', { name: 'Назад' })).toHaveAttribute('href', '/profile');
+  expect(close).toHaveBeenCalled();
 });
 
 test('receiver restriction stays next to the payment field and preserves the draft', async () => {
   (api.send as Mock).mockRejectedValue(new ApiError(409, 'receiver_needs_phone'));
-  renderWithApp(<ProfileSettings section="payment" />, { me: { ...organizer, profileCompleted: true } });
+  renderWithApp(<ProfileSettingsSheet section="payment" onClose={close} />, { me: { ...organizer, profileCompleted: true } });
   await userEvent.clear(screen.getByLabelText('Номер Kaspi'));
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Тебе переводят по открытому счёту — номер нужен');
@@ -34,7 +45,7 @@ test('receiver restriction stays next to the payment field and preserves the dra
 });
 
 test('payment settings reject an invalid number before the server', async () => {
-  renderWithApp(<ProfileSettings section="payment" />, { me: player });
+  renderWithApp(<ProfileSettingsSheet section="payment" onClose={close} />, { me: player });
   await userEvent.type(screen.getByLabelText('Номер Kaspi'), 'abc');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(screen.getByRole('alert')).toHaveTextContent('Проверь номер');
@@ -43,7 +54,7 @@ test('payment settings reject an invalid number before the server', async () => 
 
 test('name settings trim the name and preserve it on a taken-name error', async () => {
   (api.send as Mock).mockRejectedValue(new ApiError(409, 'name_taken'));
-  renderWithApp(<ProfileSettings section="name" />, { me: player });
+  renderWithApp(<ProfileSettingsSheet section="name" onClose={close} />, { me: player });
   await userEvent.clear(screen.getByLabelText('Имя в списках'));
   await userEvent.type(screen.getByLabelText('Имя в списках'), '  Дамир  ');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
@@ -54,7 +65,7 @@ test('name settings trim the name and preserve it on a taken-name error', async 
 
 test('football settings start empty, save native choices, and explicitly clear both to null', async () => {
   (api.send as Mock).mockResolvedValue({ ...player, playingPosition: 'defender', dominantFoot: 'right' });
-  renderWithApp(<ProfileSettings section="football" />, { me: player });
+  renderWithApp(<ProfileSettingsSheet section="football" onClose={close} />, { me: player });
   expect(screen.getByLabelText('Позиция на поле')).toHaveValue('');
   expect(screen.getByLabelText('Рабочая нога')).toHaveValue('');
   await userEvent.selectOptions(screen.getByLabelText('Позиция на поле'), 'defender');
@@ -69,7 +80,7 @@ test('football settings start empty, save native choices, and explicitly clear b
 
 test('football failure keeps chosen values and permits another save', async () => {
   (api.send as Mock).mockRejectedValue(new Error('offline'));
-  renderWithApp(<ProfileSettings section="football" />, { me: { ...player, playingPosition: 'forward', dominantFoot: 'both' } });
+  renderWithApp(<ProfileSettingsSheet section="football" onClose={close} />, { me: { ...player, playingPosition: 'forward', dominantFoot: 'both' } });
   await userEvent.selectOptions(screen.getByLabelText('Позиция на поле'), 'midfielder');
   await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
   expect(await screen.findByText('Не получилось сохранить. Попробуй ещё раз.')).toBeInTheDocument();
@@ -80,7 +91,7 @@ test('football failure keeps chosen values and permits another save', async () =
 
 test('an in-flight settings save prevents duplicate submissions', async () => {
   (api.send as Mock).mockImplementation(() => new Promise(() => {}));
-  renderWithApp(<ProfileSettings section="football" />, { me: player });
+  renderWithApp(<ProfileSettingsSheet section="football" onClose={close} />, { me: player });
   await userEvent.dblClick(screen.getByRole('button', { name: 'Сохранить' }));
   expect(api.send).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Сохраняем…' })).toBeDisabled();

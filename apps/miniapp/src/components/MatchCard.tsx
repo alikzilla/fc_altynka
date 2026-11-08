@@ -32,9 +32,7 @@ export function MatchCard({
       <div className="row between match-status">
         <span className="chip">
           <i className="status-dot" />
-          {e.status === "scheduled" || e.status === "playing"
-            ? STATUS_LABEL[e.status]
-            : "Идёт сбор"}
+          {STATUS_LABEL[e.status]}
         </span>
         <span>{datePart(e.date, { weekday: "long" })}</span>
       </div>
@@ -85,9 +83,9 @@ export function MatchCard({
       <Link
         className="btn primary match-link"
         href={`/event/${e.id}`}
-        aria-label={`Открыть игру ${formatDateRu(e.date)}`}
+        aria-label={`Открыть матч ${formatDateRu(e.date)}`}
       >
-        Открыть игру
+        Открыть матч
         <Icon name="arrow" />
       </Link>
     </article>
@@ -112,7 +110,20 @@ export function MatchRow({ event: e }: { event: EventSummaryDto }) {
           <span className="status-text">{STATUS_LABEL[e.status]}</span>
         )}
       </span>
+      <RowStatus event={e} />
       <Icon name="back" className="chevron-right" />
     </Link>
   );
+}
+
+/** Personal status at a glance on every row: signup position for open matches, team result for finished ones. */
+function RowStatus({ event: e }: { event: EventSummaryDto }) {
+  if (e.myResult) {
+    const r = e.myResult;
+    return <span className="row-chip result" aria-label={`Твоя команда: ${r.wins} побед, ${r.draws} ничьих, ${r.losses} поражений`}>{r.wins}–{r.draws}–{r.losses}</span>;
+  }
+  if (e.status !== "collecting" && e.status !== "scheduled") return null;
+  if (e.my === "main") return <span className="row-chip on">В основе</span>;
+  if (e.my === "reserve") return <span className="row-chip reserve">Резерв</span>;
+  return <span className="row-chip" aria-label={`Записано ${e.mainCount} из ${e.limit}`}>{e.mainCount}/{e.limit}</span>;
 }

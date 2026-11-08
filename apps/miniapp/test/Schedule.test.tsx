@@ -48,7 +48,7 @@ async function chooseSchool(sheet: HTMLElement) {
 
 test('scheduling and venue selection overlay the same match, retain its tab and submit the selected school', async () => {
   const { loc } = open('/event/7?tab=bill');
-  await userEvent.click(await screen.findByRole('link', { name: 'Назначить игру' }));
+  await userEvent.click(await screen.findByRole('link', { name: 'Назначить матч' }));
   const sheet = await appointment();
   expect(screen.getByRole('heading', { name: '8 ноября' })).toBeInTheDocument();
   expect(screen.getByRole('tab', { name: 'Оплата' })).toHaveAttribute('aria-selected', 'true');
@@ -58,7 +58,7 @@ test('scheduling and venue selection overlay the same match, retain its tab and 
   await chooseSchool(sheet);
   expect(within(sheet).getByLabelText('Начало')).toHaveValue('22:30');
   expect(within(sheet).getByRole('button', { name: /2 часа/ })).toHaveAttribute('aria-pressed', 'true');
-  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить игру' }));
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить матч' }));
   await waitFor(() => expect(attempts).toEqual([{ startTime: '22:30', durationHours: 2, place: 'Школа Аксай' }]));
   await waitFor(() => expect(sheet).not.toBeInTheDocument());
   expect(loc.history?.at(-1)).toBe('/event/7?tab=bill');
@@ -82,17 +82,17 @@ test('a legacy place survives saving without a replacement and closing the picke
   await userEvent.click(within(picker).getByRole('button', { name: 'Закрыть' }));
   await waitFor(() => expect(picker).not.toBeInTheDocument());
   expect(within(sheet).getByRole('button', { name: /Место проведения/ })).toHaveTextContent('Arena · старое поле');
-  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить игру' }));
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить матч' }));
   await waitFor(() => expect(attempts).toEqual([{ startTime: '21:00', durationHours: 1, place: 'Arena · старое поле' }]));
 });
 
 test('save failure retains the venue and pending save blocks duplicate submission and Telegram Back', async () => {
   fail = true; open(); const sheet = await appointment(); await chooseSchool(sheet);
-  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить игру' }));
-  expect(await within(sheet).findByRole('alert')).toHaveTextContent('Не получилось назначить игру');
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить матч' }));
+  expect(await within(sheet).findByRole('alert')).toHaveTextContent('Не получилось назначить матч');
   expect(within(sheet).getByRole('button', { name: /Место проведения/ })).toHaveTextContent('Школа Аксай');
   fail = false; delay = true;
-  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить игру' }));
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить матч' }));
   expect(within(sheet).getByRole('button', { name: 'Сохраняем…' })).toBeDisabled();
   expect(within(sheet).getByRole('button', { name: 'Закрыть' })).toBeDisabled();
   act(() => getBackAction()?.());
@@ -103,12 +103,12 @@ test('save failure retains the venue and pending save blocks duplicate submissio
 
 test('late save response never navigates back after leaving the sheet', async () => {
   delay = true; const { loc } = open(); const sheet = await appointment();
-  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить игру' }));
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Назначить матч' }));
   act(() => loc.navigate('/matches'));
   await screen.findByRole('heading', { name: 'Матчи' });
   await act(async () => release?.());
   expect(loc.history?.at(-1)).toBe('/matches');
-  expect(screen.queryByText('Игра назначена, группа получила уведомление')).not.toBeInTheDocument();
+  expect(screen.queryByText('Матч назначен, группа получила уведомление')).not.toBeInTheDocument();
 });
 
 test('Telegram Back dismisses only the venue picker and leaving both sheets restores body scrolling', async () => {
@@ -127,7 +127,7 @@ test('Telegram Back dismisses only the venue picker and leaving both sheets rest
 });
 
 test('editing from the match menu replaces that menu and closing scheduling returns to the match', async () => {
-  event = { ...event, status: 'scheduled', startTime: '21:00', durationHours: 1 };
+  event = { ...event, date: '2099-11-08', status: 'scheduled', startTime: '21:00', durationHours: 1 };
   open('/event/7');
   await userEvent.click(await screen.findByRole('button', { name: 'Действия матча' }));
   await userEvent.click(screen.getByRole('link', { name: 'Изменить время и поле' }));

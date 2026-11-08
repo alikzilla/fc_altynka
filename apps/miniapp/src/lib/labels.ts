@@ -1,13 +1,7 @@
-import type { EventStatus, EventSummaryDto } from '@altynka/core';
+import { EVENT_STATUS_LABEL, type EventStatus, type EventSummaryDto } from '@altynka/core';
 
-export const STATUS_LABEL: Record<EventStatus, string> = {
-  collecting: 'Время уточняется',
-  scheduled: 'Игра назначена',
-  playing: 'Игра началась',
-  billing: 'Сбор денег',
-  closed: 'Прошёл',
-  cancelled: 'Отменён',
-};
+/** One status wording for every list, card and match page; it lives in core next to the DTO it labels. */
+export const STATUS_LABEL = EVENT_STATUS_LABEL;
 
 export function timeRange(start: string, hours: number): string {
   const [h, m] = start.split(':').map(Number);
@@ -15,7 +9,7 @@ export function timeRange(start: string, hours: number): string {
 }
 
 export function whenLine(e: Pick<EventSummaryDto, 'startTime' | 'durationHours' | 'place' | 'status'>): string {
-  if (e.status === 'cancelled') return 'Отменён';
+  if (e.status === 'cancelled') return EVENT_STATUS_LABEL.cancelled;
   const t = e.startTime && e.durationHours ? timeRange(e.startTime, e.durationHours) : 'Время уточняется';
   return e.place ? `${t} · ${e.place}` : t;
 }

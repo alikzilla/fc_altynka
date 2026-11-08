@@ -44,7 +44,9 @@ test('a person without groups opens the profile and sees connection instructions
   await expect(page.getByRole('button', { name: 'Сменить' })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect(headers.every(h => h === undefined)).toBe(true);
-  await dock(page).getByRole('link', { name: 'Создать матч' }).click();
+  // Without a group there is nothing to create in, so the dock keeps four destinations; the sheet still explains how to connect.
+  await expect(dock(page).getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
+  await page.goto('/new');
   const sheet = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(sheet.getByText(/Добавь бота в Telegram-группу/)).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Добавить в группу' })).toBeVisible();
@@ -113,7 +115,7 @@ test('organizer rights follow the match group, not a global role', async ({ page
     return r.fulfill({ json: [] });
   });
   await page.goto('/event/10/schedule');
-  await expect(page.getByRole('dialog', { name: 'Назначить игру' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Назначить матч' })).toBeVisible();
   await expect(page.getByText('Игру назначает организатор')).toHaveCount(0);
   await page.goto('/event/20/schedule');
   await expect(page.getByText('Игру назначает организатор')).toBeVisible();

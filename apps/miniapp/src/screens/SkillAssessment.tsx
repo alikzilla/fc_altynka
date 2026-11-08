@@ -58,15 +58,3 @@ export function SkillAssessment() {
     </>}
   </Screen>;
 }
-
-export function SkillsPrompt() {
-  const me = useMe();
-  const [path, navigate] = useLocation();
-  const key = `altynka:skills-prompt:${me.userId}`;
-  const [dismissed, setDismissed] = useState(() => { try { return sessionStorage.getItem(key) === 'later'; } catch { return false; } });
-  const dismiss = () => { setDismissed(true); try { sessionStorage.setItem(key, 'later'); } catch { /* The prompt still closes when storage is unavailable. */ } };
-  if (!me.rating || me.rating.selfAssessment || dismissed || !['/', '/matches', '/profile', '/players'].includes(path)) return null;
-  return <ActionSheet title="Как ты играешь?" onClose={dismiss} footer={<div className="skills-prompt-actions"><button className="btn primary wide" onClick={() => { dismiss(); navigate('/profile/skills'); }}>Оценить свои навыки</button><button className="btn-text" onClick={dismiss}>Позже</button></div>}>
-    <p>Восемь коротких вопросов о твоей игре помогут собрать равные команды.</p><p className="muted">Около минуты. Затем рейтинг будут уточнять анонимные оценки после матчей.</p>
-  </ActionSheet>;
-}

@@ -23,7 +23,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
     if (locked.current || !canRemove(s)) return;
     locked.current = true; setBusy(true);
     try { await api.send('DELETE', `/api/signups/${s.id}`); toast(`${s.name} убран из списка`); setSelected(null); }
-    catch { toast('Не получилось убрать игрока'); }
+    catch { toast('Не получилось убрать игрока. Попробуй ещё раз.', { tone: 'error' }); }
     finally { locked.current = false; setBusy(false); reload(); }
   }
   const row = (s: SignupDto, i: number) => <li key={s.id} className={`person ${s.userId === me.userId ? 'me' : ''}`}>
@@ -37,7 +37,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
       {ev.comment && <p className="match-comment">{ev.comment}</p>}
       <ul className="card list material-graphite">{ev.main.length ? ev.main.map(row) : <li className="match-empty-row muted">Пока никого</li>}</ul>
     </section>
-    {ev.reserve.length > 0 && <section><div className="section-heading"><h2>Резерв <span className="match-count">{ev.reserve.length}</span></h2></div><ul className="card list material-graphite">{ev.reserve.map(row)}</ul></section>}
+    {ev.reserve.length > 0 && <section><div className="section-heading"><h2>Резерв <span className="match-count">{ev.reserve.length}</span></h2></div><ul className="card list material-graphite">{ev.reserve.map(row)}</ul><p className="muted list-note">Если кто-то из основы выйдет, его место займёт первый в резерве.</p></section>}
     {addingGuest && open && <AddGuestSheet eventId={ev.id} onClose={() => setAddingGuest(false)} onAdded={reload} />}
     {profileId !== null && <PlayerProfileSheet userId={profileId} onClose={() => setProfileId(null)} />}
     {selected && canRemove(selected) && <ActionSheet title={selected.name} onClose={() => setSelected(null)} busy={busy}><ConfirmButton className="sheet-action danger-text" label="Убрать из списка" confirmLabel="Точно убрать?" disabled={busy} onConfirm={() => remove(selected)} /></ActionSheet>}

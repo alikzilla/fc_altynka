@@ -153,7 +153,7 @@ test("organizer reaches creation from the central action; a billed match does no
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
   expect(within(nav).getAllByRole("link")).toHaveLength(5);
   expect(
-    await screen.findByRole("link", { name: /Открыть игру/ }),
+    await screen.findByRole("link", { name: /Открыть матч/ }),
   ).toHaveAttribute("href", "/event/1");
   await userEvent.click(
     within(nav).getByRole("link", { name: "Создать матч" }),
@@ -170,7 +170,8 @@ test("player sees the creation sheet with an explanation instead of a form", asy
   await screen.findByText(/Создавать матчи может организатор группы/);
   expect(screen.queryByLabelText("Дата")).not.toBeInTheDocument();
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-  expect(within(nav).getAllByRole("link")).toHaveLength(5);
+  expect(within(nav).queryByRole("link", { name: "Создать матч" })).toBeNull();
+  expect(within(nav).getAllByRole("link")).toHaveLength(4);
 });
 
 test("the latest played match remains on home while its bill is open", async () => {
@@ -223,7 +224,7 @@ test("payment tasks link to the existing bill and disappear after a successful p
   open("/notifications");
   const pay = await screen.findByRole("link", { name: /Перейти к оплате/ });
   expect(pay).toHaveAttribute("href", "/event/9?tab=bill");
-  expect(screen.getByText(/Перевести Алихан/)).toBeVisible();
+  expect(screen.getByText(/Получатель — Алихан/)).toBeVisible();
   await act(() => api.send("POST", "/api/bills/1/paid"));
   expect(
     await screen.findByRole("heading", { name: "Новых задач нет" }),

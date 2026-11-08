@@ -46,3 +46,12 @@ test('cancelled and unstarted protocols are excluded, totals are not truncated t
   expect(profile!.gameHistory).toHaveLength(20);
   expect(profile!.gameHistory[0].date).toBe('2026-10-22');
 });
+test('the home feed carries the viewer result of a finished match: team, rank and own goals',async()=>{
+  const { listEvents } = await import('../../src/domain/eventView');
+  const w=await world();const {ev}=await session(w.a.id,w.target.id,{goals:2});
+  await db().update(events).set({completedAt:2}).where(eq(events.id,ev.id));
+  const mine=await listEvents(db(),[{id:w.a.id,title:'Shared'}],w.target.id,Date.parse('2026-11-08T10:00:00Z'));
+  expect(mine.past.find(row=>row.id===ev.id)?.myResult).toEqual({games:1,goals:2,wins:1,draws:0,losses:0,teamIndex:0,teamCount:2,teamRank:1,colors:['red','blue']});
+  const theirs=await listEvents(db(),[{id:w.a.id,title:'Shared'}],w.viewer.id,Date.parse('2026-11-08T10:00:00Z'));
+  expect(theirs.past.find(row=>row.id===ev.id)?.myResult).toBeNull();
+});

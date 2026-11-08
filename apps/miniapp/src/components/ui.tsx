@@ -4,7 +4,7 @@ import { Icon } from './Icon';
 import { useBackButton } from '../lib/tg';
 import { EdgeBackGesture } from './EdgeBackGesture';
 
-type ToastOptions = { action?: { label: string; onClick: () => void } };
+type ToastOptions = { action?: { label: string; onClick: () => void }; tone?: 'error' };
 const ToastCtx = createContext<(text: string | null, options?: ToastOptions) => void>(() => {});
 
 export function ToastProvider({ children }: { children: ReactNode }) {
@@ -18,7 +18,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     timer.current = undefined;
     setNotification(text ? { text, ...options } : null);
     if (!text) return;
-    remaining.current = options?.action ? 8000 : 2500;
+    remaining.current = options?.action ? 8000 : options?.tone === 'error' ? 6000 : 2500;
     deadline.current = Date.now() + remaining.current;
     timer.current = setTimeout(() => setNotification(null), remaining.current);
   }, []);
@@ -45,32 +45,31 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={show}>
       {children}
-      {notification && (
-        <div ref={toast} className={`toast${notification.action ? ' toast-with-action' : ''}`} role="status" popover="manual" onMouseEnter={pause} onMouseLeave={resume} onFocus={pause} onBlur={() => queueMicrotask(resume)}>
-          <span className="toast-message">{notification.text}</span>
-          {notification.action && <button type="button" className="toast-action" onClick={() => { show(null); notification.action?.onClick(); }}>{notification.action.label}</button>}
-        </div>
-      )}
+      {/* Live regions stay mounted: screen readers skip a region that arrives already filled. */}
+      {([false, true] as const).map(urgent => <div key={String(urgent)} className="toast-region" {...urgent ? { 'aria-live': 'assertive' as const, 'aria-atomic': true } : { role: 'status' }}>
+        {notification && (notification.tone === 'error') === urgent && (
+          <div ref={toast} className={`toast${notification.action ? ' toast-with-action' : ''}${notification.tone === 'error' ? ' toast-error' : ''}`} popover="manual" onMouseEnter={pause} onMouseLeave={resume} onFocus={pause} onBlur={() => queueMicrotask(resume)}>
+            <span className="toast-message">{notification.text}</span>
+            {notification.action && <button type="button" className="toast-action" onClick={() => { show(null); notification.action?.onClick(); }}>{notification.action.label}</button>}
+          </div>
+        )}
+      </div>)}
     </ToastCtx.Provider>
   );
 }
 
 export const useToast = () => useContext(ToastCtx);
 
-/** Опасное действие: первое нажатие спрашивает, второе выполняет. */
+/** Опасное действие: первое нажатие спрашивает, второе выполняет. Вопрос остаётся, пока фокус на кнопке. */
 export function ConfirmButton(p: { label: string; confirmLabel: string; onConfirm: () => void; className?: string; disabled?: boolean }) {
   const [armed, setArmed] = useState(false);
-  useEffect(() => {
-    if (!armed) return;
-    const t = setTimeout(() => setArmed(false), 3000);
-    return () => clearTimeout(t);
-  }, [armed]);
-  return (
+  return <>
     <button
       type="button"
-      className={`${p.className ?? 'btn-text'} ${armed ? 'danger' : ''}`}
-      aria-label={armed ? p.confirmLabel : p.label}
+      className={`${p.className ?? 'btn-text'} ${armed ? 'danger armed' : ''}`}
       disabled={p.disabled}
+      onBlur={() => setArmed(false)}
+      onKeyDown={e => { if (armed && e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setArmed(false); } }}
       onClick={() => {
         if (!armed) return setArmed(true);
         setArmed(false);
@@ -79,7 +78,8 @@ export function ConfirmButton(p: { label: string; confirmLabel: string; onConfir
     >
       {armed ? p.confirmLabel : p.label}
     </button>
-  );
+    <span className="sr-only" aria-live="assertive">{armed ? `${p.confirmLabel} Нажми ещё раз, чтобы подтвердить.` : ''}</span>
+  </>;
 }
 
 /** Экран с заголовком; back — куда вести системной кнопкой «Назад». */
