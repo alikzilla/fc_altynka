@@ -11,18 +11,18 @@ function RatingRing({ value }: { value?: number }) {
       <circle className="rank-core" cx="36" cy="36" r="23" />
       <circle className="rank-track" cx="36" cy="36" r="29" />
       {value !== undefined && <circle className="rank-progress" cx="36" cy="36" r="29" pathLength="100" strokeDasharray={`${Math.max(0,Math.min(10,value))*10} 100`} transform="rotate(-90 36 36)" />}
-    </svg><strong>{value === undefined ? '—' : format(value)}</strong>
+    </svg><strong>{value === undefined ? '?' : format(value)}</strong>
   </span>;
 }
 function RatingBadge({ rating }: { rating?: PlayerRatingDto | null }) {
   const [open,setOpen] = useState(false);
   const examples = [{value:1,range:'1',label:'Серый'},{value:2.9,range:'2–3',label:'Зелёный'},{value:5.5,range:'4–7',label:'Жёлтый'},{value:8.8,range:'8–9',label:'Оранжевый'},{value:10,range:'10',label:'Красный'}];
-  return <><div role="group" aria-label="Рейтинг игрока"><button type="button" className="rating-badge" aria-haspopup="dialog" aria-label={rating ? `Рейтинг ${format(rating.value)} из 10. Показать шкалу` : 'Рейтинг пока не указан. Показать шкалу'} onClick={()=>setOpen(true)}><RatingRing value={rating?.value} /></button></div>
+  return <><div role="group" aria-label="Рейтинг игрока"><button type="button" className="rating-badge" aria-haspopup="dialog" aria-label={rating ? `Рейтинг ${format(rating.value)} из 10. Показать шкалу` : 'Рейтинг пока не указан. Показать шкалу'} onClick={()=>setOpen(true)}><RatingRing value={rating?.value} /><small className="rating-caption">{rating ? 'Рейтинг' : 'Нет рейтинга'}</small></button></div>
     {open && <ActionSheet title="Шкала рейтинга" onClose={()=>setOpen(false)}>
       <p className="rating-scale-intro">Рейтинг — от 1 до 10. Чем он выше, тем полнее кольцо.</p>
       <div className="rating-legend">{examples.map(row=><div className="rating-legend-item" key={row.range}><RatingRing value={row.value}/><b>{row.range}</b><span>{row.label}</span></div>)}</div>
       <p className="rating-scale-note">Цвет соответствует целому уровню. Числа внутри колец — примеры рейтинга.</p>
-      {rating && <p className="rating-scale-note">{rating.matchesCount ? `В рейтинге учтено встреч: ${rating.matchesCount}.` : rating.selfAssessment ? 'Текущий рейтинг — по стартовой анкете.' : 'Текущий рейтинг пока предварительный.'}</p>}
+      {rating && <p className="rating-scale-note">{rating.matchesCount ? `В рейтинге учтено матчей: ${rating.matchesCount}.` : rating.selfAssessment ? 'Текущий рейтинг — по стартовой анкете.' : 'Текущий рейтинг пока предварительный.'}</p>}
     </ActionSheet>}
   </>;
 }
@@ -42,20 +42,19 @@ interface Props {
   rating?: PlayerRatingDto | null; statistics?: PlayerStatistics;
 }
 export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics}:Props) {
-  const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
-  const personRole=roles[role];
+  const roles={admin:'Администратор',organizer:'Организатор',player:'Игрок'};
   return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large/>
-      <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <span className="player-telegram">@{username}</span>}</div></div>
+      <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role">{roles[role]}</span>{username && <span className="player-telegram">@{username}</span>}</div></div>
       <RatingBadge rating={rating}/>
     </div>
     <div className="player-statistics-section"><p className="player-position-line">{playingPosition ? playingPositionLabel[playingPosition] : 'Позиция не указана'}</p>
       <dl className="player-statistics" aria-label="Статистика за всё время и рабочая нога">
         <div className="goals"><dt>Голы</dt><dd>{statistics?.goals??'—'}</dd></div>
-        <div className="assists"><dt>Ассисты</dt><dd>0</dd></div>
+        <div className="assists"><dt>Ассисты</dt><dd aria-label="Пока не считаются">—</dd></div>
         <div><dt>Игры</dt><dd>{statistics?.games??'—'}</dd></div>
         <div className="wins-stat"><dt>Побед</dt><dd>{statistics?.winPercentage==null?'—':<>{statistics.winPercentage}<small>%</small></>}</dd></div>
-        <div className="foot-stat"><dt>Ноги</dt><WorkingFoot foot={dominantFoot}/></div>
+        <div className="foot-stat"><dt>Нога</dt><WorkingFoot foot={dominantFoot}/></div>
       </dl>
     </div>
   </section>;

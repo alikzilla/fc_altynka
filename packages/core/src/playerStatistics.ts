@@ -1,5 +1,5 @@
-import type { GamePair, GameScore, GameState } from './games';
-import type { TeamColor } from './teams';
+import { calculateStandings, type GamePair, type GameScore, type GameState } from './games';
+import type { TeamColor, TeamCount } from './teams';
 
 export interface PlayerShortGame {
   id: string; sequence: number; pair: GamePair; score: GameScore;
@@ -36,6 +36,19 @@ export function summarizePlayerProtocol(state: GameState, userId: number): Playe
     wins: results.filter(g => g.outcome === 'win').length,
     draws: results.filter(g => g.outcome === 'draw').length,
     losses: results.filter(g => g.outcome === 'loss').length, results };
+}
+
+/** The viewer's own outcome of a finished match, for the result card that closes the night. */
+export interface MyMatchResult extends Omit<PlayerProtocolSummary, 'results'> {
+  teamIndex: number; teamCount: TeamCount; teamRank: number; colors: TeamColor[];
+}
+
+export function myMatchResult(state: GameState, userId: number, colors: TeamColor[]): MyMatchResult | null {
+  const player = state.roster.find(p => p.userId === userId);
+  if (!player || !state.games.length) return null;
+  const { results: _results, ...summary } = summarizePlayerProtocol(state, userId);
+  const teamRank = calculateStandings(state.teamCount, state.games).find(row => row.teamIndex === player.teamIndex)?.rank ?? 1;
+  return { ...summary, teamIndex: player.teamIndex, teamCount: state.teamCount, teamRank, colors };
 }
 
 export function aggregatePlayerStatistics(rows: readonly PlayerProtocolSummary[]): PlayerStatistics {

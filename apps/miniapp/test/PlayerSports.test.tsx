@@ -10,12 +10,12 @@ const props={name:'Игрок',username:'player',role:'organizer' as const,playi
 test('approved card exposes real stats, compact identity, integer rating and correct working insole',()=>{
   const {container}=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
   expect(screen.getByText('@player')).toBeInTheDocument();
-  expect(screen.getByRole('img',{name:'Организатор'})).toHaveTextContent('🧑‍✈️');
+  expect(screen.getByText('Организатор')).toHaveClass('player-role');
   expect([...container.querySelector('.player-social')!.children].map(n=>n.className)).toEqual(['player-role','player-telegram']);
   expect(screen.getByRole('button',{name:/Рейтинг 10 из 10/})).toHaveTextContent('10');
   expect(screen.queryByText('10,0')).not.toBeInTheDocument();
   expect(screen.getByText('Нападающий').closest('.player-statistics-section')).not.toBeNull();
-  expect([...container.querySelectorAll('.player-statistics dt')].map(n=>n.textContent)).toEqual(['Голы','Ассисты','Игры','Побед','Ноги']);
+  expect([...container.querySelectorAll('.player-statistics dt')].map(n=>n.textContent)).toEqual(['Голы','Ассисты','Игры','Побед','Нога']);
   expect(container.querySelector('[data-side="left"]')).toHaveAttribute('data-active','true');
   expect(container.querySelector('[data-side="right"]')).toHaveAttribute('data-active','false');
 });

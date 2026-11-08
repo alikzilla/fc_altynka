@@ -62,6 +62,8 @@ export interface EventSummaryDto {
   reserveCount: number;
   my: 'main' | 'reserve' | null;
   community: CommunityDto;
+  /** Only on finished matches in the home feed: the viewer's own result. */
+  myResult?: import('./playerStatistics').MyMatchResult | null;
 }
 
 export interface TeamsDto {

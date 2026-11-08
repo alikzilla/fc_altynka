@@ -8,12 +8,13 @@ import { Icon } from './Icon';
 const openSheets = new Set<HTMLDialogElement>();
 let previousOverflow = '';
 
-export function ActionSheet({ title, onClose, busy = false, children, footer, className = '' }: { title: string; onClose: () => void; busy?: boolean; children: ReactNode; footer?: ReactNode; className?: string }) {
+export function ActionSheet({ title, description, closeLabel = 'Закрыть', onClose, busy = false, children, footer, className = '' }: { title: string; description?: string; closeLabel?: string; onClose: () => void; busy?: boolean; children: ReactNode; footer?: ReactNode; className?: string }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const locked = useRef(busy);
   locked.current = busy;
   const backdrop = useRef(false);
   const titleId = useId();
+  const descriptionId = useId();
   const { dismiss, closing } = useBottomSheet(dialog, onClose, locked);
   useBackButton(dismiss);
   useEffect(() => {
@@ -30,7 +31,7 @@ export function ActionSheet({ title, onClose, busy = false, children, footer, cl
       if (focus?.isConnected) focus.focus();
     };
   }, []);
-  return createPortal(<dialog ref={dialog} className={`create-sheet action-sheet ${className}`} aria-labelledby={titleId} aria-modal="true" aria-busy={busy} onCancel={e => { e.preventDefault(); dismiss(); }} onKeyDown={e => {
+  return createPortal(<dialog ref={dialog} className={`create-sheet action-sheet ${className}`} aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} aria-modal="true" aria-busy={busy} onCancel={e => { e.preventDefault(); dismiss(); }} onKeyDown={e => {
     if (e.key !== 'Tab') return;
     const collapsed = [...e.currentTarget.querySelectorAll('details:not([open])')];
     const controls = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]:not([aria-disabled="true"]), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary')].filter(control => control.getClientRects().length > 0 && collapsed.every(details => !details.contains(control) || details.querySelector(':scope > summary')?.contains(control)));
@@ -50,7 +51,7 @@ export function ActionSheet({ title, onClose, busy = false, children, footer, cl
   }}>
     <EdgeBackGesture onBack={dismiss} disabled={busy || closing} />
     <div className="sheet-drag-area" aria-hidden="true"><span /></div>
-    <header className="sheet-heading"><h2 id={titleId} tabIndex={-1}>{title}</h2><button className="sheet-close" aria-label="Закрыть" type="button" onClick={dismiss} disabled={busy || closing}><Icon name="close" /></button></header>
+    <header className="sheet-heading">{description ? <div><h2 id={titleId} tabIndex={-1}>{title}</h2><p className="muted" id={descriptionId}>{description}</p></div> : <h2 id={titleId} tabIndex={-1}>{title}</h2>}<button className="sheet-close" aria-label={closeLabel} type="button" onClick={dismiss} disabled={busy || closing}><Icon name="close" /></button></header>
     <div className="sheet-content">{children}</div>
     {footer && <footer className="sheet-footer">{footer}</footer>}
   </dialog>, document.body);

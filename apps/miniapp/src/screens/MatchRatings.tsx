@@ -17,15 +17,15 @@ export function MatchRatings({ ev, reload }: { ev: EventDetailDto; reload: () =>
     if (locked.current || !selected.length) return;
     locked.current = true; setBusy(true); setError(null);
     try { await api.send('POST', `/api/events/${ev.id}/finish`, { participantSignupIds: selected }); setFinishing(false); reload(); }
-    catch { setError('Не получилось завершить игру. Проверь участников и попробуй ещё раз.'); }
+    catch { setError('Не получилось завершить матч. Проверь участников и попробуй ещё раз.'); }
     finally { locked.current = false; setBusy(false); }
   }
   return <>
     <section className="card match-rating-entry" aria-label="Оценки матча">
-      <h2>{review.canFinish ? 'Игра закончилась?' : review.state === 'open' ? 'Как прошла игра?' : review.state === 'closed' ? 'Оценки матча' : 'После игры'}</h2>
-      <p className="muted">{review.canFinish ? 'Подтверди тех, кто вышел на поле, чтобы открыть анонимные оценки.' : review.state === 'open' ? 'Оцени участников и сам матч. Можно пропустить любого игрока.' : review.state === 'submitted' ? 'Твои оценки отправлены. Итоги появятся после окончания голосования.' : review.state === 'skipped' ? 'Ты пропустил опрос. Результаты появятся после окончания голосования.' : review.state === 'closed' ? review.gameScore === null ? 'Голосование завершено. Итоги доступны при наличии минимум трёх оценок.' : `Игра в целом — ${formatRating(review.gameScore)} / 10` : 'Анонимный опрос открыт для подтверждённых участников матча.'}</p>
-      {review.canFinish ? <button className="btn wide" onClick={() => { setSelected(ev.main.map(s => s.id)); setFinishing(true); }}>Завершить игру</button>
-        : <Link className={`btn wide ${review.state === 'open' ? 'primary' : ''}`} href={`/event/${ev.id}/review`}>{review.state === 'open' ? 'Оценить игру' : review.state === 'closed' ? 'Посмотреть оценки' : 'Открыть опрос'}</Link>}
+      <h2>{review.canFinish ? 'Матч закончился?' : review.state === 'open' ? 'Как прошёл матч?' : review.state === 'closed' ? 'Оценки матча' : 'После матча'}</h2>
+      <p className="muted">{review.canFinish ? 'Подтверди тех, кто вышел на поле, чтобы открыть анонимные оценки.' : review.state === 'open' ? 'Оцени участников и сам матч. Можно пропустить любого игрока.' : review.state === 'submitted' ? 'Твои оценки отправлены. Итоги появятся после окончания голосования.' : review.state === 'skipped' ? 'Ты пропустил опрос. Результаты появятся после окончания голосования.' : review.state === 'closed' ? review.gameScore === null ? 'Голосование завершено. Итоги доступны при наличии минимум трёх оценок.' : `Матч в целом — ${formatRating(review.gameScore)} / 10` : 'Анонимный опрос открыт для подтверждённых участников матча.'}</p>
+      {review.canFinish ? <button className="btn wide" onClick={() => { setSelected(ev.main.map(s => s.id)); setFinishing(true); }}>Завершить матч</button>
+        : <Link className={`btn wide ${review.state === 'open' ? 'primary' : ''}`} href={`/event/${ev.id}/review`}>{review.state === 'open' ? 'Оценить матч' : review.state === 'closed' ? 'Посмотреть оценки' : 'Открыть опрос'}</Link>}
     </section>
     {finishing && <ActionSheet title="Кто играл?" onClose={() => setFinishing(false)} busy={busy} footer={<button className="btn primary wide" disabled={busy || !selected.length} onClick={finish}>{busy ? 'Подтверждаем…' : 'Подтвердить участников'}</button>}>
       <p className="muted">Убери тех, кто не пришёл, и отметь сыгравших из резерва. Список фиксируется; оплата на него не влияет.</p>

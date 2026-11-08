@@ -20,7 +20,7 @@ export function Schedule({ eventId, onClose }: { eventId?: string; onClose?: () 
   const { data, error, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
   const ev = useMatchPhase(data, reload);
   const close = onClose ?? (() => navigate(`/event/${id}`, { replace: true }));
-  const title = ev?.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру';
+  const title = ev?.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить матч';
   if (ev && !canManageEvent(ev)) return <ActionSheet title="Назначить игру" onClose={close}><EmptyState title="Игру назначает организатор" text="Время и место появятся в карточке матча после назначения." /></ActionSheet>;
   if (!ev || ev.status !== 'collecting' && ev.status !== 'scheduled') return <ActionSheet title={title} onClose={close}>
     {error && <ErrorNote text="Не получилось загрузить сбор" retry={reload} />}
@@ -49,17 +49,17 @@ function ScheduleDraft({ ev, onClose }: { ev: EventDetailDto; onClose: () => voi
     try {
       await api.send('POST', `/api/events/${ev.id}/schedule`, { startTime, durationHours: hours, place: place.trim() || undefined });
       if (!mounted.current) return;
-      toast('Игра назначена, группа получила уведомление');
+      toast('Матч назначен, группа получила уведомление');
       onClose();
     } catch (err) {
-      if (mounted.current) setSaveError(err instanceof ApiError && err.code === 'past_start' ? 'Выбери будущее время начала игры' : err instanceof ApiError && err.status === 409 ? 'Матч уже закрыт для изменений. Вернись к матчу, чтобы увидеть его состояние.' : 'Не получилось назначить игру. Данные сохранены — попробуй ещё раз.');
+      if (mounted.current) setSaveError(err instanceof ApiError && err.code === 'past_start' ? 'Выбери будущее время начала матча' : err instanceof ApiError && err.status === 409 ? 'Матч уже закрыт для изменений. Вернись к матчу, чтобы увидеть его состояние.' : 'Не получилось назначить матч. Данные сохранены — попробуй ещё раз.');
     } finally {
       locked.current = false;
       if (mounted.current) setBusy(false);
     }
   }
   return <>
-    <ActionSheet title={ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить игру'} onClose={onClose} busy={busy} className={`schedule-sheet${picking ? ' sheet-covered' : ''}`} footer={<button type="submit" form={formId} className="btn primary wide" disabled={busy}>{busy ? 'Сохраняем…' : ev.status === 'scheduled' ? 'Сохранить изменения' : 'Назначить игру'}</button>}>
+    <ActionSheet title={ev.status === 'scheduled' ? 'Изменить время и поле' : 'Назначить матч'} onClose={onClose} busy={busy} className={`schedule-sheet${picking ? ' sheet-covered' : ''}`} footer={<button type="submit" form={formId} className="btn primary wide" disabled={busy}>{busy ? 'Сохраняем…' : ev.status === 'scheduled' ? 'Сохранить изменения' : 'Назначить матч'}</button>}>
       <form id={formId} className="form" onSubmit={submit}>
         <fieldset disabled={busy} className="form-fields">
           <label>Начало<TemporalInput type="time" required value={startTime} onChange={e => setStartTime(e.target.value)} /></label>
@@ -72,7 +72,7 @@ function ScheduleDraft({ ev, onClose }: { ev: EventDetailDto; onClose: () => voi
             </button>
             {venue && <div className="venue-summary"><a className="venue-map-link" href={venue.mapUrl} target="_blank" rel="noopener noreferrer" onClick={e => { e.preventDefault(); openLink(venue.mapUrl); }}>Открыть в 2ГИС <Icon name="arrow" /></a><span className="venue-rate">{venueRate(venue)}</span></div>}
           </div>
-          <p className="muted">Участники получат время и место игры в уведомлении.</p>
+          <p className="muted">Участники получат время и место матча в уведомлении.</p>
         </fieldset>
         {saveError && <p className="field-error" role="alert">{saveError}</p>}
       </form>

@@ -187,7 +187,8 @@ for (const width of [320, 390]) {
     await page.route('**/api/me', route => route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: null, communities: [{ id: 4, title: 'Футбол по субботам', role: 'player' }] } }));
     await page.goto('/matches');
     await expect(page.locator('.empty-state')).toBeVisible();
-    await page.getByRole('link', { name: 'Создать матч' }).click();
+    await expect(page.getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
+    await page.goto('/new');
     await expect(page.getByRole('dialog').getByText(/Создавать матчи может организатор/)).toBeVisible();
     await page.getByRole('button', { name: 'Закрыть создание матча' }).click();
     await page.goto('/notifications');

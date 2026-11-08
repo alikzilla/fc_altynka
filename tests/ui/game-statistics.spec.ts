@@ -26,12 +26,12 @@ test('latest three games lead to complete history, with nested editing and focus
   const world=gameStatisticsWorld({started:true});
   for(let i=0;i<7;i++)world.add({score:[1,0],scorers:[]});
   await world.attach(page);await page.goto('/event/7?tab=games');
-  const history=page.getByRole('region',{name:'Последние матчи'});
+  const history=page.getByRole('region',{name:'Последние игры'});
   await expect(history.locator('.game-result')).toHaveCount(3);
   await expect(history.locator('.game-result').first()).toContainText('Игра 7');
   await expect(history.getByText('Игра 1',{exact:true})).toHaveCount(0);
-  const trigger=page.getByRole('button',{name:'Все матчи (7)',exact:true});await trigger.click();
-  const sheet=page.getByRole('dialog',{name:'Все матчи',exact:true});
+  const trigger=page.getByRole('button',{name:'Все игры (7)',exact:true});await trigger.click();
+  const sheet=page.getByRole('dialog',{name:'Все игры',exact:true});
   await expect(sheet.locator('.game-result')).toHaveCount(7);
   const edit=sheet.getByRole('button',{name:'Изменить результат игры 1',exact:true});await edit.click();
   const editor=page.getByRole('dialog',{name:'Результат игры 1',exact:true});
@@ -82,10 +82,10 @@ test('prepare guest swap, manual start, first sulifa and subsequent rotation wit
   await page.setViewportSize({width:390,height:844});const world=gameStatisticsWorld();await world.attach(page);
   await page.goto('/event/7?tab=teams');
   await page.getByRole('button',{name:'Обменять: Али',exact:true}).click();await page.getByRole('button',{name:'Обменять с игроком Ерпа',exact:true}).click();
-  await expect(page.getByRole('button',{name:'Начать встречу',exact:true})).toHaveCount(0);
+  await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
-  await page.getByRole('button',{name:'Начать встречу',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:'Начать встречу',exact:true}).click();
+  await page.getByRole('button',{name:'Начать матч',exact:true}).click();
+  await page.getByRole('dialog').getByRole('button',{name:'Начать матч',exact:true}).click();
   await expect(page).toHaveURL('/event/7?tab=games');
   await expect(page.getByRole('region',{name:'Текущая игра'})).toContainText('Красные');
   await result(page,[0,0],'Красные');expect(world.pair).toEqual([1,2]);
@@ -101,7 +101,7 @@ test('prepare guest swap, manual start, first sulifa and subsequent rotation wit
   await expect(page.locator('.game-scorers-list')).toContainText('Ерпа');
   await expect(page.locator('.game-scorers-list')).toContainText('2');
   await page.reload();await expect(page.getByRole('region',{name:'Текущая игра'})).toContainText('Игра 5');
-  await page.getByRole('tab',{name:'Составы',exact:true}).click();await expect(page.getByRole('button',{name:'Поделить',exact:true})).toHaveCount(0);
+  await page.getByRole('tab',{name:'Составы',exact:true}).click();await expect(page.getByRole('button',{name:'Разделить на команды',exact:true})).toHaveCount(0);
 });
 
 test('lost response survives reload and checks the old receipt without recording the next pair',async({page})=>{
@@ -121,27 +121,27 @@ test('two organizers see a conflict rather than transferring an old result to a 
   await page.getByRole('button',{name:'Внести результат',exact:true}).click();await setScore(page,'Красные',1);
   const second=await context.newPage();await world.attach(second,{userId:2});await second.goto('/event/7?tab=games');await result(second,[1,0]);
   await page.getByRole('button',{name:'Сохранить результат',exact:true}).click();
-  await expect(page.getByRole('alert')).toContainText('Данные встречи изменились');expect(world.games).toHaveLength(1);
+  await expect(page.getByRole('alert')).toContainText('Данные матча изменились');expect(world.games).toHaveLength(1);
   await expect(page.getByRole('button',{name:'Сохранить результат',exact:true})).toBeDisabled();await second.close();
 });
 
 test('lost finish response preserves participants, survives closing, and reconciles completion after refresh',async({page})=>{
   const world=gameStatisticsWorld({started:true});world.add({score:[1,0],scorers:[]});world.dropNextFinish=true;
   await world.attach(page);await page.goto('/event/7?tab=games');
-  await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Завершить встречу',exact:true}).click();
+  await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Завершить матч',exact:true}).click();
   await page.getByRole('button',{name:'Подтвердить завершение',exact:true}).click();await expect(page.getByRole('alert')).toContainText('Повтори');
   for(const checkbox of await page.getByRole('checkbox').all())await expect(checkbox).toBeDisabled();
   await page.getByRole('button',{name:'Закрыть',exact:true}).click();await page.getByRole('button',{name:'Действия',exact:true}).click();
   await expect(page.getByRole('button',{name:'Отменить последнюю запись',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Проверить завершение',exact:true}).click();await page.getByRole('button',{name:'Повторить завершение',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);const sends=world.requests.filter(r=>r.path.endsWith('/finish'));expect(sends).toHaveLength(2);expect(sends[0].body).toEqual(sends[1].body);
-  await page.reload();await expect(page.getByText('Итоги встречи',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Внести результат',exact:true})).toHaveCount(0);
+  await page.reload();await expect(page.getByText('Итоги матча',{exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Внести результат',exact:true})).toHaveCount(0);
 });
 
 test('closed payment still allows results and sport completion, with history corrections and undo',async({page})=>{
   const world=gameStatisticsWorld({started:true,count:2});world.closePayment();await world.attach(page);
   await page.goto('/matches?view=active');await page.getByRole('link',{name:/8 ноября/}).click();
-  await page.getByRole('tab',{name:'Игра',exact:true}).click();await result(page,[2,0]);await result(page,[0,1]);
+  await page.getByRole('tab',{name:'Игры',exact:true}).click();await result(page,[2,0]);await result(page,[0,1]);
   const secondPair=[...world.games[1].pair];
   await page.getByRole('button',{name:'Изменить результат игры 1',exact:true}).click();
   await setScore(page,'Красные',0);await setScore(page,'Синие',1);
@@ -149,8 +149,8 @@ test('closed payment still allows results and sport completion, with history cor
   expect(world.games[1].pair).toEqual(secondPair);
   await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Отменить последнюю запись',exact:true}).click();await page.getByRole('button',{name:'Убрать результат игры 2?',exact:true}).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);expect(world.games).toHaveLength(1);
-  await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Завершить встречу',exact:true}).click();await page.getByRole('button',{name:'Подтвердить завершение',exact:true}).click();
-  await expect(page.getByText('Итоги встречи', {exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Внести результат',exact:true})).toHaveCount(0);
+  await page.getByRole('button',{name:'Действия',exact:true}).click();await page.getByRole('button',{name:'Завершить матч',exact:true}).click();await page.getByRole('button',{name:'Подтвердить завершение',exact:true}).click();
+  await expect(page.getByText('Итоги матча', {exact:true})).toBeVisible();await expect(page.getByRole('button',{name:'Внести результат',exact:true})).toHaveCount(0);
 });
 
 for(const theme of ['dark','light'] as const)for(const width of [320,390])test(`game protocol and form fit ${width}px ${theme}`,async({page})=>{

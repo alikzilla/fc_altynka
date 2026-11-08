@@ -67,8 +67,9 @@ for (const width of [280, 320, 390]) test(`profile setup stays saved and footbal
   await fits();
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Профиль', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('link', { name: /Изменить футбольные данные/ }).click();
-  await page.getByLabel('Позиция на поле').selectOption('goalkeeper');
-  await page.getByLabel('Рабочая нога').selectOption('left');
+  const football = page.getByRole('dialog', { name: 'Футбольные данные' });
+  await football.getByLabel('Позиция на поле').selectOption('goalkeeper');
+  await football.getByLabel('Рабочая нога').selectOption('left');
   await fits();
   await page.screenshot({ path: `artifacts/ui/profile-football-settings-${width}.png`, fullPage: true });
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
@@ -95,7 +96,7 @@ test('profile destination remains current while editing settings', async ({ page
     : { tasks: [] } }));
   await page.goto('/profile/settings/football');
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Профиль', exact: true })).toHaveAttribute('aria-current', 'page');
-  await page.getByRole('link', { name: 'Назад', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Футбольные данные' }).getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page).toHaveURL('/profile');
   await expect(page.getByRole('navigation', { name: 'Настройка профиля' }).getByRole('link')).toHaveCount(3);
   await page.goto('/profile/settings');
@@ -133,7 +134,7 @@ for (const width of [320, 390]) test(`system switches apply and persist light th
   expect(await select.evaluate(el => getComputedStyle(el).backgroundRepeat)).toBe('no-repeat');
   expect(await select.evaluate(el => getComputedStyle(el).backgroundSize)).toMatch(/^16px(?: auto)?$/);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-  await page.getByRole('link', { name: 'Назад', exact: true }).click();
+  await page.getByRole('dialog', { name: 'Футбольные данные' }).getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page).toHaveURL('/profile');
   await page.getByRole('switch', { name: 'Тёмная тема' }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -192,15 +193,15 @@ test('an obsolete theme failure cannot undo a newer successful choice after navi
     await page.goto('/profile');
     await page.getByRole('switch', { name: 'Тёмная тема' }).click();
     await expect.poll(() => attempts).toBe(1);
-    await page.getByRole('link', { name: /Изменить имя/ }).click();
-    await page.getByRole('link', { name: 'Назад', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: 'Задачи' }).click();
+    await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: 'Профиль' }).click();
     await page.getByRole('switch', { name: 'Тёмная тема' }).click();
     await expect.poll(() => attempts).toBe(2);
     await expect(page.getByRole('switch', { name: 'Тёмная тема' })).toBeEnabled();
     const failed = page.waitForResponse(r => new URL(r.url()).pathname === '/api/me' && r.status() === 500);
     releaseFirst(); await failed;
-    await page.getByRole('link', { name: /Изменить имя/ }).click();
-    await page.getByRole('link', { name: 'Назад', exact: true }).click();
+    await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: 'Задачи' }).click();
+    await page.getByRole('navigation', { name: 'Основная навигация' }).getByRole('link', { name: 'Профиль' }).click();
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
     expect(me.theme).toBe('light');
   } finally { releaseFirst(); }

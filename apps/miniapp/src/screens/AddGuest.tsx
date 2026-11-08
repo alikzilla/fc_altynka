@@ -23,7 +23,7 @@ export function AddGuestSheet({ eventId, onClose, onAdded }: { eventId: number; 
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'guest_exists') toast(`${guest} уже в списке`);
-      else toast(err instanceof ApiError && err.status === 409 ? 'Запись закрыта' : 'Не получилось добавить');
+      else toast(err instanceof ApiError && err.status === 409 ? 'Запись уже закрыта' : 'Не получилось добавить друга. Попробуй ещё раз.', { tone: 'error' });
       locked.current = false; setBusy(false);
     }
   }

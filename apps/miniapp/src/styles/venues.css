@@ -5,7 +5,7 @@
 .schedule-duration button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; }
 .schedule-duration b { font-size: 15px; font-weight: 550; }
 .schedule-duration small { color: var(--hint); font-size: 12px; }
-.venue-trigger { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 58px; padding: 14px; border: 1px solid #3c3548; border-radius: 17px; background: #1e1d25; text-align: left; }
+.venue-trigger { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; min-height: 58px; padding: 14px; border: 1px solid var(--field-border); border-radius: 17px; background: var(--field-bg); text-align: left; }
 .venue-trigger > span { flex: 1; min-width: 0; color: var(--hint); font-size: 15px; overflow-wrap: anywhere; }
 .venue-trigger.has-place { border-color: var(--accent); background: var(--accent-soft); }
 .venue-trigger.has-place > span { color: var(--text); }
@@ -30,6 +30,5 @@
 .venue-check svg { width: 15px; height: 15px; }
 .venue-meta { padding: 4px 20px 12px; }
 .venue-selection-caption { margin-bottom: 10px; color: var(--hint); font-size: 12px; }
-:root[data-theme='light'] .venue-trigger { background: #f8f6fa; border-color: #c8becf; }
 :root[data-theme='light'] .venue-trigger.has-place { background: var(--accent-soft); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .schedule-sheet.sheet-covered { transform: none; } }

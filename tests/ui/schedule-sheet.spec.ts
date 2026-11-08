@@ -25,8 +25,8 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390]) {
     await page.setViewportSize({ width, height });
     const submissions = await setup(page, theme);
     await page.goto('/event/7?tab=bill');
-    await page.getByRole('link', { name: 'Назначить игру' }).click();
-    const sheet = page.getByRole('dialog', { name: 'Назначить игру', exact: true });
+    await page.getByRole('link', { name: 'Назначить матч' }).click();
+    const sheet = page.getByRole('dialog', { name: 'Назначить матч', exact: true });
     await expect(sheet.getByLabel('Начало')).toBeVisible();
     await expect(page.locator('main h1')).toHaveText('8 ноября');
     await expect(page.locator('#tab-bill')).toHaveAttribute('aria-selected', 'true');
@@ -60,7 +60,7 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390]) {
     await expect(sheet.getByLabel('Начало')).toHaveValue('22:30');
     await expect(sheet.getByRole('button', { name: /2 часа/ })).toHaveAttribute('aria-pressed', 'true');
     await expect(venueTrigger).toContainText('Школа Аксай');
-    const submit = sheet.getByRole('button', { name: 'Назначить игру', exact: true });
+    const submit = sheet.getByRole('button', { name: 'Назначить матч', exact: true });
     const before = (await submit.boundingBox())!;
     await sheet.locator('.sheet-content').evaluate(el => { el.scrollTop = el.scrollHeight; });
     const after = (await submit.boundingBox())!;
@@ -81,8 +81,8 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390]) {
 test('Escape closes only the top sheet; browser Back with two sheets restores scrolling', async ({ page }) => {
   await setup(page);
   await page.goto('/event/7');
-  await page.getByRole('link', { name: 'Назначить игру' }).click();
-  const sheet = page.getByRole('dialog', { name: 'Назначить игру', exact: true });
+  await page.getByRole('link', { name: 'Назначить матч' }).click();
+  const sheet = page.getByRole('dialog', { name: 'Назначить матч', exact: true });
   const trigger = sheet.getByRole('button', { name: /Место проведения/ });
   await trigger.click();
   await page.keyboard.press('Escape');

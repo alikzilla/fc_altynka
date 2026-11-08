@@ -1,4 +1,4 @@
-import { matchPhase, splitQueue, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
+import { matchPhase, myMatchResult, splitQueue, teamColorsFor, type GameState, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, signups, type EventRow, type SignupRow } from '../db/schema';
@@ -57,7 +57,23 @@ export async function listEvents(db: Db, groups: CommunityDto[], viewerUserId: n
     for (const row of rows) queues.set(row.eventId,[...(queues.get(row.eventId) ?? []),row]);
   }
   const sum = (ev: SummaryEvent) => summary(ev, splitQueue(queues.get(ev.id) ?? [],ev.baseLimit), viewerUserId, now, byId.get(ev.communityId)!);
-  return { active: active.map(sum), past: past.map(sum) };
+  const result = { active: active.map(sum), past: past.map(sum) };
+  await attachMyResults(db, [...result.active, ...result.past], viewerUserId);
+  return result;
+}
+
+/** The home result card needs the viewer's outcome of the latest finished matches only. */
+async function attachMyResults(db: Db, list: EventSummaryDto[], viewerUserId: number) {
+  const finished = list.filter(ev => ev.protocolVersion === 1 && ev.startedAt != null && (ev.status === 'billing' || ev.status === 'closed'))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id).slice(0, 3);
+  if (!finished.length) return;
+  const rows = await db.select({ id: events.id, state: events.gameStateJson, colors: events.teamColors }).from(events).where(inArray(events.id, finished.map(ev => ev.id)));
+  for (const row of rows) {
+    if (!row.state) continue;
+    const state = JSON.parse(row.state) as GameState;
+    const target = finished.find(ev => ev.id === row.id)!;
+    target.myResult = myMatchResult(state, viewerUserId, teamColorsFor(state.teamCount, row.colors ? JSON.parse(row.colors) as string[] : null));
+  }
 }
 
 export interface ArchiveCursor { date: string; id: number }

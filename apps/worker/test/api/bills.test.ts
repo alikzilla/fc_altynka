@@ -71,3 +71,29 @@ test('bill remembers who it was split between', async () => {
   const after = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
   expect(after.bill!.participantSignupIds).toEqual([orgSignup]);
 });
+
+test('payer can take back their own mark within a minute; the bill reopens', async () => {
+  const { id } = (await (await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } })).json()) as { id: number };
+  await db().update(events).set({protocolVersion:0}).where(eq(events.id,id));
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  await apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body: { startTime: '21:00', durationHours: 1 } });
+  w.clock.now = Date.parse('2026-11-07T16:00:00Z');
+  w.tg.members.add(w.org.id); w.tg.members.add(w.player.id);
+  const d = (await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto;
+  const bill = (await (await apiRequest(`/api/events/${id}/bill`, { method: 'PUT', as: w.org, body: { receiverUserId: w.orgUserId, receiverKaspiPhone: '87071234567', fieldAmount: 4000, extras: [], participantSignupIds: d.main.map(s => s.id) } })).json()) as BillDto;
+  const undo = () => apiRequest(`/api/bills/${bill.id}/paid`, { method: 'DELETE', as: w.player });
+  expect((await undo()).status).toBe(409);
+  await apiRequest(`/api/bills/${bill.id}/paid`, { method: 'POST', as: w.player });
+  expect(((await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto).status).toBe('closed');
+  w.clock.now += 30_000;
+  expect((await undo()).status).toBe(200);
+  const reopened = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  expect(reopened.status).toBe('billing');
+  expect(reopened.bill).toMatchObject({ status: 'open' });
+  expect(reopened.bill!.lines.find(l => l.userId !== w.orgUserId)?.state).toBe('unpaid');
+  await apiRequest(`/api/bills/${bill.id}/paid`, { method: 'POST', as: w.player });
+  w.clock.now += 61_000;
+  expect(await (await undo()).json()).toEqual({ error: 'expired' });
+  expect((await apiRequest(`/api/bills/${bill.id}/paid`, { method: 'DELETE', as: w.org })).status).toBe(409);
+});

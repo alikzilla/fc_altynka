@@ -1,20 +1,22 @@
 import type { MeDto } from '@altynka/core';
-import { useEffect, useRef } from 'react';
-import { Route, Switch, useLocation, useSearch } from 'wouter';
+import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Redirect, Route, Switch, useLocation, useSearch } from 'wouter';
 import { MeContext, MeReloadContext, MeUpdateContext } from './state/me';
 import { NotificationsProvider } from './state/notifications';
 import { Nav } from './components/Nav';
 import { Event } from './screens/Event';
 import { Home } from './screens/Home';
-import { NewEvent } from './screens/NewEvent';
-import { Players } from './screens/Players';
-import { SkillAssessment, SkillsPrompt } from './screens/SkillAssessment';
-import { MatchReview } from './screens/MatchReview';
 import { Profile } from './screens/Profile';
-import { ProfileSettings } from './screens/ProfileSettings';
-import { Schedule } from './screens/Schedule';
 import { Matches } from './screens/Matches';
 import { Notifications } from './screens/Notifications';
+import { SkillsPrompt } from './components/SkillsPrompt';
+
+// Rarely visited screens load on demand; the first paint carries Home, Matches, the match page and Profile.
+const NewEvent = lazy(() => import('./screens/NewEvent').then(m => ({ default: m.NewEvent })));
+const Players = lazy(() => import('./screens/Players').then(m => ({ default: m.Players })));
+const SkillAssessment = lazy(() => import('./screens/SkillAssessment').then(m => ({ default: m.SkillAssessment })));
+const MatchReview = lazy(() => import('./screens/MatchReview').then(m => ({ default: m.MatchReview })));
+const Schedule = lazy(() => import('./screens/Schedule').then(m => ({ default: m.Schedule })));
 import { contextForStartParam } from './lib/startParam';
 import { api } from './lib/api';
 import { queryClient } from './lib/queryClient';
@@ -23,6 +25,7 @@ import { ready, startParam } from './lib/tg';
 import { ErrorNote, Loading, ToastProvider } from './components/ui';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
+import { rememberOrigin } from './lib/navHistory';
 
 export function App() {
   const [, navigate] = useLocation();
@@ -50,6 +53,7 @@ function TeamApp() {
   const background = useRef('/matches');
   const scheduleId = /^\/event\/(\d+)\/schedule$/.exec(path)?.[1];
   if (path !== '/new' && !scheduleId) background.current = path + (search ? `?${search}` : '');
+  rememberOrigin(path);
   const scheduleParent = scheduleId && background.current.split('?')[0] === `/event/${scheduleId}` ? background.current : `/event/${scheduleId}${search ? `?${search}` : ''}`;
   const { data: me, error, reload: reloadMe, replace: updateMe } = useResource<MeDto>('/api/me');
   useEffect(() => { if (me?.theme) applyTheme(me.theme); }, [me?.theme]);
@@ -72,6 +76,7 @@ function TeamApp() {
           <ToastProvider>
             <NotificationsProvider>
               <ScreenSearchContext.Provider value={overlayBackground ? overlayBackground.split('?')[1] ?? '' : search}>
+                <Suspense fallback={<main className="screen"><Loading variant="detail" /></main>}>
                 <Switch location={overlayBackground ? overlayBackground.split('?')[0] : path}>
                   <Route path="/" component={Home} />
                   <Route path="/matches" component={Matches} />
@@ -81,19 +86,22 @@ function TeamApp() {
                   <Route path="/event/:id" component={Event} />
                   <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
                   <Route path="/players"><Players /></Route>
-                  <Route path="/profile/skills" component={SkillAssessment} />
-                  <Route path="/profile/settings/:section">{params => <ProfileSettings section={params.section} />}</Route>
-                  <Route path="/profile/settings"><ProfileSettings /></Route>
-                  <Route path="/profile" component={Profile} />
+                  <Route path="/profile/skills"><SkillAssessment /></Route>
+                  <Route path="/profile/settings/:section">{params => <Profile settings={params.section} />}</Route>
+                  <Route path="/profile/settings"><Redirect to="/profile" /></Route>
+                  <Route path="/profile"><Profile /></Route>
                   <Route><Home /></Route>
                 </Switch>
+                </Suspense>
               </ScreenSearchContext.Provider>
               <Nav />
               <SkillsPrompt />
-              {path === '/new' && (
-                <NewEvent onClose={() => navigate(background.current, { replace: true })} />
-              )}
-              {scheduleId && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
+              <Suspense fallback={null}>
+                {path === '/new' && (
+                  <NewEvent onClose={() => navigate(background.current, { replace: true })} />
+                )}
+                {scheduleId && <Schedule key={scheduleId} eventId={scheduleId} onClose={() => navigate(scheduleParent, { replace: true })} />}
+              </Suspense>
             </NotificationsProvider>
           </ToastProvider>
         </MeUpdateContext.Provider>

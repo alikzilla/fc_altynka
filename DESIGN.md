@@ -38,7 +38,7 @@ Primary buttons use a pale pearly fill with dark text. Coral surfaces receive a 
 
 ## Typography and frame
 
-Apple system stack with bundled Onest Variable fallback, optical sizing enabled. Screen titles 28 px / 600, 27 px below 360 px; section headings 18 px / 550; body 16 px; metadata 12–14 px. Navigation labels are 11 px. The main calendar day is 62 px / 450, 57 px on narrow phones, accompanied by the month at 24/22 px. Dates, amounts and roster counts use tabular figures.
+Apple system stack with bundled Onest Variable fallback, optical sizing enabled. Screen titles 28 px / 600, 27 px below 360 px; section headings 18 px / 550; body 16 px; metadata 12–14 px. Navigation labels are 12 px; 12 px is the text floor everywhere. The main calendar day is 62 px / 450, 57 px on narrow phones, accompanied by the month at 24/22 px. Dates, amounts and roster counts use tabular figures.
 
 One centred column caps at 440 px, with 20 px gutters and 16 px below 360 px. Content groups use 20 px gaps. Cards use approximately 30 px corners; the featured match uses 37 px and 21 px padding. Device and Telegram safe areas are included. At least 148 px plus bottom inset is reserved for the fixed dock.
 
@@ -56,7 +56,7 @@ Home leads with active collecting/scheduled matches, sorted by date/id. Native s
 
 Matches has Active and Past tabs with URL state and keyboard support. Active shows collecting/scheduled matches in ascending date order. Past groups billing/closed/cancelled matches by month and loads 20 at a time with retry that retains previous pages. Refresh invalidates older pages and discards stale pagination responses. Task cards link to the existing bill or scheduling route; successful mutations and app return refresh obligations and match lists. Payment detail also refreshes on return from an external app.
 
-Creation opens a native bottom sheet over the current screen; the background tab/query and scroll context are retained. It uses the same opaque graphite material, 32 px top corners, safe-area footer and a 240 ms upward entry with a faster downward exit. A visible grabber and the header support touch/mouse dragging. Pulling down from unoccupied content at scroll-top also dismisses; upward/ongoing scrolling and form controls retain native behavior. Short, horizontal, cancelled and multi-pointer gestures reset cleanly. A gesture starting inside cannot become a backdrop click. Viewport resize adjusts keyboard clearance. Telegram vertical minimize swipes are temporarily suspended on supported clients and restored on cleanup. The title receives focus without opening a mobile keyboard. Tab stays inside; Escape, backdrop, close and Telegram Back dismiss it. During submission controls are locked. Date, optional comment and, only for a person who can create in more than one group, a «Группа» radio list fit one step. With a single creatable group there is no group field and the submit reads «Создать матч»; with several, the list shows one row per group, nothing is preselected and «Открыть запись» stays disabled until a group is chosen. A person with no groups at all sees the connect-bot instruction and «Добавить в группу» instead of the form; a person whose groups are all player-only sees «Создавать матчи может организатор группы…» (ask a group admin for the organizer role), the secondary line about connecting their own group, and the same button; failures preserve input. Success closes the sheet and opens Active matches. Browser Back may leave a pending request; its late response must not navigate the person away from their new screen.
+Creation opens a native bottom sheet over the current screen; the background tab/query and scroll context are retained. It uses the same opaque graphite material, 32 px top corners, safe-area footer and a 240 ms upward entry with a faster downward exit. A visible grabber and the header support touch/mouse dragging. Pulling down from unoccupied content at scroll-top also dismisses; upward/ongoing scrolling and form controls retain native behavior. Short, horizontal, cancelled and multi-pointer gestures reset cleanly. A gesture starting inside cannot become a backdrop click. Viewport resize adjusts keyboard clearance. Telegram vertical minimize swipes are temporarily suspended on supported clients and restored on cleanup. The title receives focus without opening a mobile keyboard. Tab stays inside; Escape, backdrop, close and Telegram Back dismiss it. During submission controls are locked. Date, optional comment and, only for a person who can create in more than one group, a native «Группа» select fit one step. With a single creatable group there is no group field and the submit reads «Создать матч»; with several, the select lists every group, nothing is preselected and «Открыть запись» stays disabled until a group is chosen. A person with no groups at all sees the connect-bot instruction and «Добавить в группу» instead of the form; a person whose groups are all player-only sees «Создавать матчи может организатор группы…» (ask a group admin for the organizer role), the secondary line about connecting their own group, and the same button; failures preserve input. Success closes the sheet and opens Active matches. Browser Back may leave a pending request; its late response must not navigate the person away from their new screen.
 
 Match details lead with day/month and weekday, followed by one plum card: prominent time, venue, roster count, short match status and personal participation. Participation remains visible on Участники, Составы and Оплата; the existing list/teams/bill query values remain compatible. There is no permanent step indicator. The organizer note sits before the roster. Main and reserve lists remain separate; a reservist sees their queue position. Изменить opens an explicit exit action; organizer cancellation stays in a separate confirmed menu, and player management opens from each row's contextual menu.
 
@@ -70,7 +70,7 @@ Profile displays verified Telegram photo, full name and username. Missing or bro
 
 The approved sports profile uses a 72px avatar (60px below 360px), name, then a compact role emoji before the Telegram handle. Player ⚽️, organizer 🧑‍✈️, administrator 🧑‍💻 use native Apple Color Emoji on Apple devices and native fallback elsewhere. The rating is a continuous ring without a visible caption: level 1 grey, 2–3 green, 4–7 yellow, 8–9 orange, 10 red, following inspected FACEIT assets. Fractional values remain precise; whole values omit the decimal zero. The ring opens a sheet with five continuous examples.
 
-An inset panel contains the position above five cells: goals, assists (currently zero), short games, win percentage, working foot. The foot uses two mirrored insole silhouettes without toes; active opacity 1 and inactive .25. Achievements and played meetings follow the card, then existing profile editing/system settings and player management. Each played-meeting date appears once in its heading; there is no second date tile at the right. Short-game history opens in the shared ActionSheet. Peer profiles use the same sports content and retain their own sheet, without personal settings. Statistics loading does not invent zeros; empty confirmed profiles show actual zero counts. Per-user totals come from saved protocol identities, never current display names or guessed guest links.
+An inset panel contains the position above five cells: goals, assists (shown as «—» until assists are recorded), short games, win percentage, working foot. The foot uses two mirrored insole silhouettes without toes; active opacity 1 and inactive .25. Achievements and played meetings follow the card, then existing profile editing/system settings and player management. Each played-meeting date appears once in its heading; there is no second date tile at the right. Short-game history opens in the shared ActionSheet. Peer profiles use the same sports content and retain their own sheet, without personal settings. Statistics loading does not invent zeros; empty confirmed profiles show actual zero counts. Per-user totals come from saved protocol identities, never current display names or guessed guest links.
 
 Scheduling opens in the shared ActionSheet over the current match and retains its tab.
 The venue field is a button opening a second ActionSheet; it never opens a keyboard.
@@ -93,7 +93,7 @@ Skeleton containers span the full content width without nested gutters. Screen f
 
 Form controls and their flex/grid parents have a zero minimum width and are bounded to their content column. `TemporalInput` places the 50 px frame, border and padding on a wrapper around a native date/time input; the native control has no padding, avoiding iOS WebKit's percentage-width sizing bug. Focus is drawn around the whole frame. Native value editing and validation remain available. Selects use a consistent chevron and appearance reset, preserving the 50 px form height (44 px for compact guest levels) on WebKit; long selected values truncate within the control. Checkbox controls do not inherit text-field padding.
 
-The profile shows Telegram identity and a compact football summary (primary playing position and dominant foot). Name/Kaspi setup appears until the first accepted save; completion lives on the server and remains complete after a phone is removed. Returning users edit their number through the direct payment action, alongside name and football actions. Football values stay unspecified until chosen and can be cleared. Native selectors retain the shared form sizing; submitted setup fields are disabled while saving, and failed saves retain drafts. Profile navigation stays active throughout its settings routes; forms return directly to Profile.
+The profile shows Telegram identity and a compact football summary (primary playing position and dominant foot). Name/Kaspi setup appears until the first accepted save; completion lives on the server and remains complete after a phone is removed. Returning users edit their number through the direct payment action, alongside name and football actions. Football values stay unspecified until chosen and can be cleared. Native selectors retain the shared form sizing; submitted setup fields are disabled while saving, and failed saves retain drafts. Name, payment and football settings open as bottom sheets over Profile (`/profile/settings/:section` keeps deep links); closing or saving returns to `/profile` and Profile navigation stays active throughout.
 
 Profile identity and football details share one plum card. Its upper row places the avatar on the left, with name, Telegram handle and account role on the right. A divider separates the football information below: position and dominant foot share one two-column row, including on narrow phones. Настройка профиля contains three direct graphite actions: Изменить имя, Изменить оплату, Изменить футбольные данные. They use the same icon/copy/chevron format as organizer controls. Системные настройки contains two accessible switches, Уведомления and Тёмная тема. Notification permission recovery stays adjacent to its switch when necessary. Игроки команды is available to everyone: under Управление for organizers/admins and Команда for players. Role and club-name controls appear only for admins, separately from sports profiles.
 
@@ -148,7 +148,7 @@ so the first exchange action appears above the fixed footer on an ordinary phone
 Swapping opens the existing bottom ActionSheet with players from other teams, without a transfer
 mode. New distributions require confirmation and can be undone. The shared ToastProvider shows
 change feedback with an optional Отменить action for eight seconds, pausing on hover/focus;
-ordinary notifications retain 2.5 seconds. Toast edges align with content at narrow widths too.
+ordinary notifications retain 2.5 seconds and errors 6 seconds. Both live regions stay mounted (polite `status` and assertive error region) so screen readers announce the text when it arrives. Toast edges align with content at narrow widths too.
 
 Форма и манишки is a shared bottom sheet with six labeled colors. Selecting an occupied color
 swaps the colors without moving players. New semantic dots: green #86c8a2, white #e8e8ee, black
@@ -161,3 +161,34 @@ the colors against the kits on the field. After kickoff, only colors remain edit
 labels and the Telegram roster use those current colors while numeric team identities stay fixed.
 Color-only changes to saved teams do not rewrite the roster or rating snapshot. Sheets retain
 their opening revision; conflicting background updates cannot silently replace that choice.
+
+## UX audit refinements (2026-11-08)
+
+Vocabulary: **Матч** is the whole event, **Игра N** is a short game inside it; «встреча» is not used in the
+app. Event statuses come from one core map (`EVENT_STATUS_LABEL`): Идёт сбор, Матч назначен, Матч идёт,
+Сбор оплаты, Матч завершён, Матч отменён. The protocol tab is «Игры»; the tasks screen is «Задачи».
+
+Anxious moments carry their consequence before the action. «Не иду, выйти из списка» names who takes
+the main-roster spot (or the lost reserve position) and offers «Остаюсь». The payment mark reads «Я перевёл»
+everywhere, states that the receiver will check it against the Kaspi transfer, becomes a visible
+«Перевёл? Отметь оплату» button once the person returns from Kaspi, and can be undone from its 8-second toast
+(the server accepts the payer's own undo within a minute). Participation and payment failures stay inline beside the control
+with «Повторить» instead of vanishing. ConfirmButton keeps its question until blur or Escape (no timer)
+and announces it assertively. The final rating step shows a recap before «Отправить оценки».
+
+A finished match from the last two days leads Home as a plum result card: team colour and place,
+wins/draws/losses, own goals, then «Оплатить», «Оценить матч» and «Таблица и бомбардиры». Its payment
+and survey tasks are not repeated under «Нужно сделать». Every match row carries a personal chip
+(В основе, Резерв, n/limit, or the W–D–L of a finished match). Without an explicit tab the match page
+opens on «Игры» while playing and «Оплата» while billing; its back control returns to the list it was
+opened from.
+
+Pitch conditions: form fields use `--field-bg`/`--field-border` (border at least 3:1 in both themes);
+on viewports 640 px tall or shorter the dock steps aside while a contextual match action is shown; the
+protocol keeps «⋯» (finish match, undo last result) beside «Внести результат»; a goal slot offers
+«{previous author} ещё раз». Profile links in the team editor have a 44 px hit area. `forced-colors`
+gives controls system borders; names hyphenate by syllable. Players see four dock destinations; the
+central ＋ appears only for someone who can create a match. The skills prompt waits for the first
+signup (or a visit to Profile/Players). Account role reads as text, an unrated ring shows «?» with
+«Нет рейтинга». Secondary ink on materials uses `--plum-ink`, `--blue-ink`, `--coral-ink`.
+

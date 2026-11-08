@@ -24,8 +24,8 @@ for(const theme of ['dark','light'])for(const width of [320,390])test(`complete 
   await page.setViewportSize({width,height:844});await mock(page,theme);await page.goto('/profile');
   const card=page.getByRole('region',{name:'Профиль игрока'});
   await expect(card.locator('.player-statistics dd').first()).toHaveText('3');
-  await expect(card.locator('.player-statistics dt')).toHaveText(['Голы','Ассисты','Игры','Побед','Ноги']);
-  await expect(card.getByRole('img',{name:'Администратор'})).toHaveText('🧑‍💻');
+  await expect(card.locator('.player-statistics dt')).toHaveText(['Голы','Ассисты','Игры','Побед','Нога']);
+  await expect(card.getByText('Администратор',{exact:true})).toHaveClass(/player-role/);
   await expect(page.getByRole('link',{name:/Изменить футбольные данные/})).toBeVisible();
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
   const meeting=page.locator('.player-meeting');

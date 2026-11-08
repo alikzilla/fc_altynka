@@ -44,15 +44,15 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
       else setFailure('Не получилось отправить. Оценки сохранены на экране — попробуй ещё раз.');
     } finally { locked.current = false; setBusy(false); }
   }
-  return <Screen title="Оценка игры" back={`/event/${eventId}`}>
+  return <Screen title="Оценка матча" back={`/event/${eventId}`}>
     {loading && !review && <Loading />}{error && <ErrorNote text="Не получилось загрузить опрос" retry={reload} />}
     {review && (review.state === 'open' ? <>
-      <div className="card material-blue"><h2>Как прошёл матч?</h2><p>Оцени игру участников от 1 до 10. Твоё имя рядом с оценками никто не увидит.</p><p className="muted">Можно пропустить любого игрока. После отправки изменить ответы нельзя.</p><p className="muted">До {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt!)} · Алматы</p></div>
+      <div className="card material-blue"><h2>Как прошёл матч?</h2><p>Оцени, как сыграл каждый участник, от 1 до 10. Твоё имя рядом с оценками никто не увидит.</p><p className="muted">Можно пропустить любого игрока. После отправки изменить ответы нельзя.</p><p className="muted">До {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt!)} · Алматы</p></div>
       <section className="card review-entry-card" aria-labelledby="review-entry-title">
         <h2 id="review-entry-title">Оценка игроков</h2>
         <div className="review-entry-players">{review.participants.filter(p => p.userId !== me.userId).slice(0, 4).map(person => <Avatar key={person.userId} name={person.name} />)}<span className="muted">Оценено {Object.keys(scores).length} из {review.participants.filter(p => p.userId !== me.userId).length}</span></div>
-        <p className="muted">По одному игроку за раз. В конце — впечатление от самой игры.</p>
-        {gameScore !== null && <p className="muted">Игра в целом: {gameScore} / 10</p>}
+        <p className="muted">По одному игроку за раз. В конце — впечатление от матча в целом.</p>
+        {gameScore !== null && <p className="muted">Матч в целом: {gameScore} / 10</p>}
         <button className="btn primary wide" onClick={() => setRatingOpen(true)}>{Object.keys(scores).length || gameScore !== null ? 'Продолжить оценку' : 'Оценить'}</button>
       </section>
       {failure && !ratingOpen && <p className="field-error" role="alert">{failure}</p>}
@@ -61,8 +61,8 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
         onGameScore={setGameScore} onClose={() => setRatingOpen(false)} onSubmit={() => send()} />}
 
       <ConfirmButton className="btn-text" label="Пропустить опрос" confirmLabel="Пропустить без оценок?" disabled={busy} onConfirm={() => send(true)} />
-    </> : review.state === 'submitted' || review.state === 'skipped' ? <section className="card material-blue"><h2>{review.state === 'submitted' ? 'Оценки отправлены' : 'Опрос пропущен'}</h2><p className="muted">Результаты появятся после окончания голосования, если наберётся минимум три оценки.</p><Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>
-      : review.state === 'closed' ? <section className="rating-history"><h2>Оценки за матч</h2><p className="muted">Показаны средние при наличии минимум трёх оценок. Авторы и отдельные голоса скрыты.</p><ul className="card list">{review.participants.map(person => <li key={person.userId}><Link className="rating-history-row" href={`/players/${person.userId}`}><span>{person.name}</span><span className={person.score === null ? 'muted rating-insufficient' : 'rating-small'}>{person.score === null ? 'Недостаточно оценок' : formatRating(person.score)}</span></Link></li>)}</ul><div className="card"><h3>Игра в целом</h3><p>{review.gameScore === null ? 'Недостаточно оценок' : `${formatRating(review.gameScore)} / 10`}</p></div></section>
-      : <section className="card"><h2>{review.state === 'ineligible' ? 'Опрос для участников матча' : review.state === 'legacy' ? 'Для этой игры опрос недоступен' : 'Ждём завершения игры'}</h2><p className="muted">Оценки доступны после подтверждения организатором фактических участников новой игры.</p><Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>)}
+    </> : review.state === 'submitted' || review.state === 'skipped' ? <section className="card material-blue review-done"><h2>{review.state === 'submitted' ? 'Спасибо, оценки отправлены' : 'Опрос пропущен'}</h2><p className="muted">{review.state === 'submitted' ? 'Твоё имя рядом с оценками никто не увидит. Средние появятся, когда голосование закончится и наберётся минимум три оценки на игрока.' : 'Средние появятся, когда голосование закончится и наберётся минимум три оценки на игрока.'}</p>{review.closesAt && <p className="muted">Голосование до {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt)} · Алматы</p>}<Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>
+      : review.state === 'closed' ? <section className="rating-history"><h2>Оценки за матч</h2><p className="muted">Показаны средние при наличии минимум трёх оценок. Авторы и отдельные голоса скрыты.</p><ul className="card list">{review.participants.map(person => <li key={person.userId}><Link className="rating-history-row" href={`/players/${person.userId}`}><span>{person.name}</span><span className={person.score === null ? 'muted rating-insufficient' : 'rating-small'}>{person.score === null ? 'Недостаточно оценок' : formatRating(person.score)}</span></Link></li>)}</ul><div className="card"><h3>Матч в целом</h3><p>{review.gameScore === null ? 'Недостаточно оценок' : `${formatRating(review.gameScore)} / 10`}</p></div></section>
+      : <section className="card"><h2>{review.state === 'ineligible' ? 'Опрос для участников матча' : review.state === 'legacy' ? 'Для этого матча опрос недоступен' : 'Ждём завершения матча'}</h2><p className="muted">Оценки доступны после подтверждения организатором фактических участников матча.</p><Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>)}
   </Screen>;
 }

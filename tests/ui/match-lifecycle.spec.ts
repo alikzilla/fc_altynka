@@ -19,15 +19,15 @@ test('signup remains available before scheduling, then closes and unlocks billin
   });
   await page.goto('/event/7?tab=bill');
   await expect(page.getByRole('button', { name: 'Иду', exact: true })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Назначить игру' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Назначить матч' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Выставить счёт', exact: true })).toHaveCount(0);
   phase = 'scheduled';
   await page.evaluate(() => dispatchEvent(new Event('focus')));
-  await expect(page.getByText('Счёт будет доступен после начала игры')).toBeVisible();
+  await expect(page.getByText('Счёт будет доступен после начала матча')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Иду', exact: true })).toBeVisible();
   phase = 'playing';
   await page.clock.runFor(1200);
-  await expect(page.getByText('Игра началась', { exact: true })).toBeVisible();
+  await expect(page.getByText('Матч идёт', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Иду', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Выставить счёт' })).toBeVisible();

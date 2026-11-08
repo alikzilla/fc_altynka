@@ -175,6 +175,30 @@ export async function markPaid(
   return 'ok';
 }
 
+/** How long the payer can take back their own payment mark; it covers a mistaken tap, not a dispute. */
+export const OWN_PAYMENT_UNDO_MS = 60_000;
+
+export async function unmarkOwnPaid(d: Deps, billId: number, userId: number): Promise<'ok' | 'not_in_bill' | 'not_marked' | 'expired'> {
+  const bill = await getBill(d.db, billId);
+  if (!bill) return 'not_in_bill';
+  const [line] = await d.db.select().from(billLines).where(and(eq(billLines.billId, billId), eq(billLines.userId, userId)));
+  if (!line) return 'not_in_bill';
+  if (line.markedBy !== userId || line.paidAt === null) return 'not_marked';
+  if (d.now - line.paidAt > OWN_PAYMENT_UNDO_MS) return 'expired';
+  await d.db.update(billLines).set({ paidAmount: null, markedBy: null, paidAt: null }).where(eq(billLines.id, line.id));
+  let parts: ('bill' | 'event')[] = ['bill'];
+  if (bill.status === 'closed') {
+    // The mark being undone closed the bill a moment ago; reopen it so the debt is visible again.
+    await d.db.batch([
+      d.db.update(bills).set({ status: 'open' }).where(eq(bills.id, bill.id)),
+      d.db.update(events).set({ status: 'billing' }).where(eq(events.id, bill.eventId)),
+    ]);
+    parts = ['bill', 'event'];
+  }
+  await d.sync.request(bill.eventId, { parts });
+  return 'ok';
+}
+
 export async function setLinePaid(
   d: Deps,
   lineId: number,

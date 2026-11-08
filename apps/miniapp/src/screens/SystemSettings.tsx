@@ -44,7 +44,7 @@ export function SystemSettings() {
       reloadMe();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'write_access_required') botSettings();
-      else toast('Не получилось изменить уведомления. Попробуй ещё раз.');
+      else toast('Не получилось изменить уведомления. Попробуй ещё раз.', { tone: 'error' });
     } finally { saving.current = false; setBusy(false); }
   }
 
@@ -63,7 +63,7 @@ export function SystemSettings() {
     } catch {
       if (operation !== latestThemeOperation) return;
       setTheme(previous); applyTheme(previous);
-      toast('Не получилось сохранить тему. Попробуй ещё раз.');
+      toast('Не получилось сохранить тему. Попробуй ещё раз.', { tone: 'error' });
     } finally { saving.current = false; setBusy(false); }
   }
 

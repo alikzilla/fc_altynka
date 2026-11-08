@@ -51,7 +51,7 @@ test.each(['list', 'teams', 'bill'])('participation is available in the shared c
 
 test('the match card names its group even for a single-group player', async () => {
   open();
-  const card = await screen.findByRole('region', { name: 'Игра и твоё участие' });
+  const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
   expect(within(card).getByText('FC Altynka')).toBeVisible();
 });
 
@@ -83,8 +83,12 @@ test('changing participation opens an explicit exit without leaving on the first
   open('teams');
   await userEvent.click(await screen.findByRole('button', { name: 'Изменить' }));
   const dialog = screen.getByRole('dialog', { name: 'Твоё участие' });
+  expect(within(dialog).getByText(/Место в основе освободится/)).toBeVisible();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Остаюсь' }));
+  expect(screen.queryByRole('dialog', { name: 'Твоё участие' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
   expect(requests).toEqual([]);
-  await userEvent.click(within(dialog).getByRole('button', { name: 'Не иду' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Твоё участие' })).getByRole('button', { name: 'Не иду, выйти из списка' }));
   await waitFor(() => expect(requests).toContain('POST /api/events/7/leave'));
 });
 
@@ -96,14 +100,14 @@ test('participation request stays locked when changing tabs', async () => {
   expect(screen.getByRole('button', { name: 'Записываем…' })).toBeDisabled();
   expect(requests).toEqual(['POST /api/events/7/join']);
   await act(async () => finishJoin?.());
-  expect(await within(screen.getByRole('region', { name: 'Игра и твоё участие' })).findByText('Ты в основе')).toBeVisible();
+  expect(await within(screen.getByRole('region', { name: 'Матч и твоё участие' })).findByText('Ты в основе')).toBeVisible();
   expect(screen.queryByRole('button', { name: 'Иду' })).not.toBeInTheDocument();
 });
 
 test('organizer scheduling has priority over own signup', async () => {
   me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
   open();
-  const schedule = await screen.findByRole('link', { name: 'Назначить игру' });
+  const schedule = await screen.findByRole('link', { name: 'Назначить матч' });
   expect(schedule.closest('.match-action')).not.toBeNull();
   expect(schedule).toHaveAttribute('href', '/event/7/schedule');
   expect(screen.getByRole('button', { name: 'Иду' }).closest('.match-action')).toBeNull();
@@ -160,5 +164,5 @@ test('organizer in another group gets no organizer controls when viewerRole is p
   open();
   await screen.findByRole('button', { name: 'Иду' });
   expect(screen.queryByRole('button', { name: 'Действия матча' })).toBeNull();
-  expect(screen.queryByRole('link', { name: 'Назначить игру' })).toBeNull();
+  expect(screen.queryByRole('link', { name: 'Назначить матч' })).toBeNull();
 });

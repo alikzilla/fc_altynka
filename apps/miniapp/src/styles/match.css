@@ -42,12 +42,23 @@
 .match-screen .team { padding: 18px; }
 .match-screen .team .list { padding: 0; }
 .pay { display: block; padding: 20px; }
-.payment-label { color: #f1d5cc; font-size: 14px; line-height: 21px; min-height: 21px; }
+.payment-label { color: var(--coral-ink); font-size: 14px; line-height: 21px; min-height: 21px; }
 .payment-amount { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; background: none; border: 0; padding: 0; margin-top: 4px; color: inherit; text-align: left; font-size: 36px; line-height: 1.2; font-weight: 550; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
-.payment-amount svg { width: 17px; height: 17px; color: #f1d5cc; }
-.payment-person { color: #f1d5cc; font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
+.payment-amount svg { width: 17px; height: 17px; color: var(--coral-ink); }
+.payment-person { color: var(--coral-ink); font-size: 13px; margin-top: 4px; overflow-wrap: anywhere; }
 .pay > .btn { margin-top: 16px; }
 .payment-mark { display: block; width: 100%; margin-top: 6px; color: #ffe6de; }
+.payment-mark-block { margin-top: 6px; }
+.payment-mark-prominent { width: 100%; margin-top: 10px; background: linear-gradient(155deg, #6b3a30, #43211b); color: #fff1ec; } /* taste-skill-ignore: coral material control */
+.payment-mark-note { color: var(--coral-ink); font-size: 13px; line-height: 1.4; text-align: center; margin-top: 2px; text-wrap: pretty; }
+.payment-mark-block .field-error { margin-top: 8px; color: #ffd0d8; }
+.payment-person-label { color: #e6bfb3; }
+.sheet-note { font-size: 14px; line-height: 1.45; color: var(--text); text-wrap: pretty; }
+.inline-failure { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
+.inline-failure .btn-text { min-height: 44px; padding-inline: 4px; }
+.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.btn-text.armed, .sheet-action.armed { font-weight: 650; }
+.btn.armed { background: var(--danger-soft); color: var(--danger); }
 .bill-summary h2 { font-size: 17px; font-weight: 550; }
 .bill-summary dl { margin: 0; }
 .bill-summary dl > div { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 8px; font-size: 14px; }
@@ -55,8 +66,7 @@
 .bill-summary dd { margin: 0; flex-shrink: 0; font-variant-numeric: tabular-nums; }
 .bill-summary .bill-total { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 10px; font-weight: 550; }
 .bill-total dt { color: var(--text); }
-/* Toasts belong at the safe top, clear of the contextual action and navigation. */
-.toast { top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; z-index: 30; width: auto; border: 0; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; }
+.toast-error { background: var(--danger-surface); color: var(--on-danger-surface); }
 .toast-with-action:popover-open { display: flex; align-items: center; gap: 14px; }
 .toast-message { min-width: 0; flex: 1; overflow-wrap: anywhere; }
 .toast-action { min-height: 44px; flex-shrink: 0; border: 0; border-radius: 12px; padding: 8px 6px; margin-block: -6px; background: none; color: inherit; font-size: 14px; font-weight: 600; }
@@ -85,3 +95,17 @@
   .match-cancelled { background: var(--card); }
   .match-action > .btn { box-shadow: none; }
 }
+
+/* Short phones (≤ 640 px tall): the next step outranks the dock. The match page keeps its own back
+   control, so the dock steps aside while a contextual action is shown. */
+@media (max-height: 640px) {
+  body:has(.match-action) .nav-shell { display: none; }
+  .match-action { bottom: calc(14px + var(--safe-bottom)); }
+  .screen:has(.match-action) { padding-bottom: calc(96px + var(--safe-bottom)); }
+}
+/* The protocol's secondary actions ride beside the primary one, inside the thumb zone. */
+.match-action-pair { display: flex; gap: 10px; width: 100%; max-width: 400px; pointer-events: auto; }
+.match-action-pair > .btn { min-height: 54px; font-size: 16px; box-shadow: var(--rim), 0 4px 18px #0005; }
+.match-action-pair > .btn.primary { flex: 1; }
+.match-action-more { flex: 0 0 54px; width: 54px; padding: 0; border-radius: 50%; }
+.match-action-more svg { width: 22px; height: 22px; }

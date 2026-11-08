@@ -19,6 +19,9 @@ export function EdgeBackGesture({ onBack, disabled = false }: { onBack: (() => v
     let drag: Drag | null = null;
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const reset = () => {
+      // The non-passive move listener lives only while an edge pull is in progress, so ordinary
+      // scrolling never waits for the main thread.
+      document.removeEventListener('touchmove', move);
       drag = null;
       cue.removeAttribute('data-active');
       cue.removeAttribute('data-ready');
@@ -47,6 +50,7 @@ export function EdgeBackGesture({ onBack, disabled = false }: { onBack: (() => v
       cue.dataset.side = direction === 1 ? 'left' : 'right';
       cue.style.left = `${(direction === 1 ? left : right) - box.left}px`;
       cue.style.top = `${Math.max(64, Math.min(window.innerHeight - 96, touch.clientY)) - box.top}px`;
+      document.addEventListener('touchmove', move, { passive: false });
     };
 
     const move = (event: TouchEvent) => {
@@ -86,7 +90,6 @@ export function EdgeBackGesture({ onBack, disabled = false }: { onBack: (() => v
     };
 
     document.addEventListener('touchstart', start, { passive: true });
-    document.addEventListener('touchmove', move, { passive: false });
     document.addEventListener('touchend', end, { passive: true });
     document.addEventListener('touchcancel', reset, { passive: true });
     window.addEventListener('blur', reset);

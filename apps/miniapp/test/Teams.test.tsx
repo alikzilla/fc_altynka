@@ -28,10 +28,10 @@ test('manual start confirms the full-session lineup and moves to games', async (
   const reload=vi.fn();
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',startedAt:null,currentPair:null,canStart:true,canRecord:false}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   const {history}=renderWithApp(<Teams ev={manual} reload={reload}/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Начать встречу'}));
-  const dialog=screen.getByRole('dialog',{name:'Начать встречу?'});
-  expect(within(dialog).getByText(/на всю встречу/)).toBeVisible();
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать встречу'}));
+  await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
+  const dialog=screen.getByRole('dialog',{name:'Начать матч?'});
+  expect(within(dialog).getByText(/на весь матч/)).toBeVisible();
+  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/5/games/start',expect.objectContaining({expectedRevision:1,requestId:expect.any(String)}));
   expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5?tab=games');
 });
@@ -42,7 +42,7 @@ test('swapping a guest changes the draft and requires publishing before start', 
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(within(team('Красные')).getByRole('button',{name:'Обменять: Игрок1'}));
   await userEvent.click(screen.getByRole('button',{name:'Обменять с игроком Гость'}));
-  expect(screen.queryByRole('button',{name:'Начать встречу'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Начать матч'})).toBeNull();
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect((api.send as Mock).mock.calls[0][2].teams[0]).toContain(10);
   expect((api.send as Mock).mock.calls[0][2].teams[1]).toContain(1);
@@ -52,25 +52,25 @@ test('a failed start keeps one request identity for a safe retry', async () => {
   (api.send as Mock).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({});
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',canStart:true}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Начать встречу'}));
-  const dialog=screen.getByRole('dialog',{name:'Начать встречу?'});
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать встречу'}));
+  await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
+  const dialog=screen.getByRole('dialog',{name:'Начать матч?'});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
   expect(await screen.findByRole('alert')).toHaveTextContent('Попробуй ещё раз');
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать встречу'}));
+  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
   expect((api.send as Mock).mock.calls[0][2]).toEqual((api.send as Mock).mock.calls[1][2]);
 });
 
 test('started sessions show frozen names and no team editing controls', () => {
   const started={...ev,status:'playing' as const,protocolVersion:1 as const,gameProtocol:makeProtocol(),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={started} reload={()=>{}}/>,{me:organizer});
-  expect(screen.queryByRole('button',{name:'Поделить'})).toBeNull();
-  expect(screen.queryByRole('button',{name:'Начать встречу'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Разделить на команды'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Начать матч'})).toBeNull();
   expect(screen.getByRole('button',{name:'Али'})).toBeVisible();
 });
 
 test('organizer splits 10 players into 2 teams of 5 with visible averages', async () => {
   renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
   expect(namesIn('Красные')).toHaveLength(5);
   expect(namesIn('Синие')).toHaveLength(5);
   expect(screen.queryByRole('group', { name: 'Жёлтые' })).toBeNull();
@@ -80,13 +80,13 @@ test('organizer splits 10 players into 2 teams of 5 with visible averages', asyn
 test('switching to 3 teams splits into three groups', async () => {
   renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: organizer });
   await userEvent.click(screen.getByRole('button', { name: '3 команды' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
   expect(namesIn('Жёлтые').length).toBeGreaterThan(0);
 });
 
 test('explicit swap opens a bottom sheet and notification undo restores both players', async () => {
   renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
   const a = namesIn('Красные')[0]!;
   const b = namesIn('Синие')[0]!;
   await userEvent.click(within(team('Красные')).getByRole('button', { name: `Обменять: ${a}` }));
@@ -105,7 +105,7 @@ test('explicit swap opens a bottom sheet and notification undo restores both pla
 test('publish sends PUT then POST', async () => {
   const reload = vi.fn();
   renderWithApp(<Teams ev={ev} reload={reload} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'Поделить' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
   await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
   const calls = (api.send as Mock).mock.calls;
   expect(calls[0][0]).toBe('PUT');
@@ -213,7 +213,7 @@ test('changing team count persists reviewed colors in both directions',async()=>
 test('a failed publication retains the reviewed lineup', async () => {
   (api.send as Mock).mockRejectedValueOnce(new Error('offline'));
   renderWithApp(<Teams ev={ev} reload={()=>{}}/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Поделить'}));
+  await userEvent.click(screen.getByRole('button',{name:'Разделить на команды'}));
   const red=namesIn('Красные');
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(namesIn('Красные')).toEqual(red);
@@ -240,7 +240,7 @@ test('a failed republication never leaves the start action enabled', async () =>
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',canStart:true}),teams:{teamCount:2 as const,teams:[[1,2,3,4,5],[6,7,8,9,10]],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
-  expect(screen.queryByRole('button',{name:'Начать встречу'})).toBeNull();
+  expect(screen.queryByRole('button',{name:'Начать матч'})).toBeNull();
 });
 
 test('an organizer can change uniform colors after kickoff without editing the lineup', async () => {
@@ -259,7 +259,7 @@ test('player sees published teams without levels', () => {
   renderWithApp(<Teams ev={{ ...pub, viewerRole: 'player' }} reload={() => {}} />, { me: player });
   expect(within(team('Красные')).getByText('Игрок1')).toBeInTheDocument();
   expect(screen.queryByText(/Сумма/)).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Поделить' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Разделить на команды' })).toBeNull();
 });
 
 test('player sees a placeholder before publication', () => {

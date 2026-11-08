@@ -20,12 +20,12 @@ test('the application notification exposes an undo action without changing ordin
   expect(within(notification).getByText('Игроки поменялись командами')).toBeVisible();
   fireEvent.click(within(notification).getByRole('button', { name: 'Отменить' }));
   expect(onUndo).toHaveBeenCalledTimes(1);
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
   expect(screen.getByRole('status')).toHaveTextContent('Составы опубликованы');
   expect(within(screen.getByRole('status')).queryByRole('button')).toBeNull();
   fireEvent.click(screen.getByRole('button', { name: 'Закрыть уведомление' }));
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
 
 test('undo remains available for eight seconds while ordinary notifications keep their existing timeout', () => {
@@ -35,10 +35,10 @@ test('undo remains available for eight seconds while ordinary notifications keep
   act(() => vi.advanceTimersByTime(3000));
   expect(within(screen.getByRole('status')).getByRole('button', { name: 'Отменить' })).toBeVisible();
   act(() => vi.advanceTimersByTime(5000));
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
   fireEvent.click(screen.getByRole('button', { name: 'Опубликовать' }));
   act(() => vi.advanceTimersByTime(2500));
-  expect(screen.queryByRole('status')).toBeNull();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
 
 test('an action may replace its notification with feedback', () => {
@@ -51,4 +51,23 @@ test('an action may replace its notification with feedback', () => {
   fireEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Отменить' }));
   expect(screen.getByRole('status')).toHaveTextContent('Обмен отменён');
   expect(within(screen.getByRole('status')).queryByRole('button')).toBeNull();
+});
+
+test('live regions stay mounted so a screen reader hears the message; errors are assertive and last longer', () => {
+  vi.useFakeTimers();
+  function Failure() {
+    const toast = useToast();
+    return <button onClick={() => toast('Не получилось записаться', { tone: 'error' })}>Записаться</button>;
+  }
+  const { container } = render(<ToastProvider><Failure /></ToastProvider>);
+  const urgent = container.querySelector('[aria-live="assertive"]')!;
+  expect(urgent).toBeEmptyDOMElement();
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  fireEvent.click(screen.getByRole('button', { name: 'Записаться' }));
+  expect(urgent).toHaveTextContent('Не получилось записаться');
+  expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  act(() => vi.advanceTimersByTime(2500));
+  expect(urgent).toHaveTextContent('Не получилось записаться');
+  act(() => vi.advanceTimersByTime(3500));
+  expect(urgent).toBeEmptyDOMElement();
 });

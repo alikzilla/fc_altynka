@@ -115,13 +115,13 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await page.setViewportSize({ width: 390, height: 844 });
   await mockApp(page);
   await page.goto('/event/1');
-  await page.getByRole('button', { name: 'Завершить игру', exact: true }).click();
+  await page.getByRole('button', { name: 'Завершить матч', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: 'Данияр', exact: true })).toBeChecked();
   await expect(page.getByRole('checkbox', { name: /Руслан/ })).not.toBeChecked();
   await page.getByRole('checkbox', { name: /Руслан/ }).check();
   await page.screenshot({ path: 'artifacts/ratings/finish-dark-390.png' });
   await page.getByRole('button', { name: 'Подтвердить участников', exact: true }).click();
-  await page.getByRole('link', { name: 'Оценить игру', exact: true }).click();
+  await page.getByRole('link', { name: 'Оценить матч', exact: true }).click();
   await page.getByRole('button', { name: 'Оценить', exact: true }).click();
   const reviewSheet = page.getByRole('dialog', { name: 'Оценка игроков' });
   await expect(reviewSheet.getByLabel('Оценка: Данияр', { exact: true })).toHaveCount(0);
@@ -131,7 +131,7 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await reviewSheet.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(reviewSheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();
   await reviewSheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
-  await expect(reviewSheet.getByRole('heading', { name: 'Игра в целом', exact: true })).toBeVisible();
+  await expect(reviewSheet.getByRole('heading', { name: 'Матч в целом', exact: true })).toBeVisible();
   await reviewSheet.getByRole('slider').press('End');
   await reviewSheet.getByRole('slider').press('ArrowLeft');
   await reviewSheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
@@ -139,7 +139,7 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await page.screenshot({ path: 'artifacts/ratings/review-dark-390.png', fullPage: true });
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Оценки отправлены', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
 });
 
 test('closed results display aggregate scores and insufficient data without vote authors', async ({ page }) => {
@@ -211,12 +211,12 @@ test('review waits for Next after release, preserves a closed draft and permits 
   await page.getByRole('button', { name: 'Продолжить оценку', exact: true }).click();
   await expect(sheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();
   await sheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
-  await expect(sheet.getByRole('slider', { name: 'Игра в целом', exact: true })).toBeVisible();
+  await expect(sheet.getByRole('slider', { name: 'Матч в целом', exact: true })).toBeVisible();
   expect(submissions).toEqual([]);
   await sheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
   await page.screenshot({ path: 'artifacts/ratings/game-rating-dark-390.png' });
   await sheet.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Оценки отправлены', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
   expect(submissions).toEqual([{ scores: [{ userId: 2, score: 8 }], gameScore: null, skipped: false }]);
 });
 
@@ -302,13 +302,13 @@ test('a failed final review retains ratings and can be submitted again', async (
   await page.getByRole('button', { name: 'Оценить', exact: true }).click();
   const sheet = page.getByRole('dialog');
   for (let i = 0; i < 2; i++) await sheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
-  await expect(sheet.getByRole('slider', { name: 'Игра в целом', exact: true })).toBeVisible();
+  await expect(sheet.getByRole('slider', { name: 'Матч в целом', exact: true })).toBeVisible();
   await sheet.getByRole('slider').press('End');
   await sheet.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
   await expect(sheet.getByRole('alert')).toContainText('Не получилось отправить');
   await expect(sheet.getByRole('slider')).toHaveValue('10');
   await sheet.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
-  await expect(page.getByRole('heading', { name: 'Оценки отправлены', exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
   expect(attempts).toBe(2);
 });
 

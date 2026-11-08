@@ -56,12 +56,12 @@ test('review opens a sequential sheet, allows skipping a player and submits the 
   expect(within(dialog).getByRole('heading', { name: 'Арман' })).toBeInTheDocument();
   expect(within(dialog).queryByRole('heading', { name: 'Игрок' })).toBeNull();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить игрока' }));
-  expect(await within(dialog).findByRole('heading', { name: 'Игра в целом' })).toBeInTheDocument();
+  expect(await within(dialog).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
   fireEvent.change(within(dialog).getByRole('slider'), { target: { value: '8' } });
   expect(api.send).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'Отправить оценки' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/review', { scores: [], gameScore: 8, skipped: false });
-  expect(await screen.findByText('Оценки отправлены')).toBeInTheDocument();
+  expect(await screen.findByText('Спасибо, оценки отправлены')).toBeInTheDocument();
 });
 
 test('rating a player stays on the same player until Next is pressed', async () => {
@@ -76,7 +76,7 @@ test('rating a player stays on the same player until Next is pressed', async () 
   expect(slider).toBeEnabled();
   expect(within(dialog).getByRole('heading', { name: 'Арман' })).toBeInTheDocument();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
-  expect(await within(dialog).findByRole('heading', { name: 'Игра в целом' })).toBeInTheDocument();
+  expect(await within(dialog).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
   expect(api.send).not.toHaveBeenCalled();
 });
 
@@ -92,7 +92,7 @@ test('finish confirms the actual roster with main preselected and reserve option
   (api.send as Mock).mockResolvedValue({});
   const ev = { id: 8, main: [{ id: 1, userId: 1, name: 'Орг' }], reserve: [{ id: 2, userId: 2, name: 'Игрок' }], review: { ...openReview, state: 'pending', canFinish: true, completedAt: null, closesAt: null } };
   renderWithApp(<MatchRatings ev={ev as never} reload={vi.fn()} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'Завершить игру' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Завершить матч' }));
   expect(screen.getByRole('checkbox', { name: 'Орг' })).toBeChecked();
   expect(screen.getByRole('checkbox', { name: /Игрок/ })).not.toBeChecked();
   await userEvent.click(screen.getByRole('checkbox', { name: /Игрок/ }));

@@ -50,3 +50,13 @@ export function defaultDisplayName(first: string, last?: string | null): string 
 export function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
+
+/** One wording for a match's status in every list, card and page (матч — whole event, игра N — short game). */
+export const EVENT_STATUS_LABEL: Record<import('./api').EventStatus, string> = {
+  collecting: 'Идёт сбор',
+  scheduled: 'Матч назначен',
+  playing: 'Матч идёт',
+  billing: 'Сбор оплаты',
+  closed: 'Матч завершён',
+  cancelled: 'Матч отменён',
+};

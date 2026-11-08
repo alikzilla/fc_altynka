@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/events' ? { active: [match], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : match });
+    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/events' ? { active: [match], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/players' ? { groups: [{ community: me.community, role: 'organizer', players: [] }] } : match });
   });
 });
 
@@ -33,8 +33,8 @@ async function swipe(page: Page, from: number, to: number, selector = 'main', y 
 
 for (const [side, from, to] of [['left', 8, 150], ['right', 382, 240]] as const) {
   test(`${side} edge invokes the screen back destination`, async ({ page }) => {
-    await page.goto('/profile/settings/name');
-    await expect(page.getByRole('heading', { name: 'Имя в списках', exact: true })).toBeVisible();
+    await page.goto('/players');
+    await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
     await touch(page, 'touchstart', from, 300);
     await touch(page, 'touchmove', to, 302);
     await expect(page.locator('.edge-back-cue[data-active]')).toBeVisible();
@@ -61,8 +61,8 @@ for (const [side, from, to] of [['left', 8, 150], ['right', 382, 240]] as const)
 }
 
 test('short pulls, reversals, vertical movement, multitouch and cancelled gestures stay on the page', async ({ page }) => {
-  await page.goto('/profile/settings/name');
-  await expect(page.getByRole('heading', { name: 'Имя в списках', exact: true })).toBeVisible();
+  await page.goto('/players');
+  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
   await swipe(page, 8, 27);
   await swipe(page, 180, 340);
   await touch(page, 'touchstart', 8, 300);
@@ -78,17 +78,17 @@ test('short pulls, reversals, vertical movement, multitouch and cancelled gestur
   await touch(page, 'touchstart', 8, 300);
   await touch(page, 'touchmove', 130, 300, 'main', 2);
   await touch(page, 'touchend', 130, 300);
-  await expect(page).toHaveURL('/profile/settings/name');
+  await expect(page).toHaveURL('/players');
   await expect(page.locator('.edge-back-cue[data-active]')).toHaveCount(0);
   await swipe(page, 8, 150);
   await expect(page).toHaveURL('/profile');
 });
 
 test('root tabs and gestures starting on inputs do not navigate', async ({ page }) => {
-  await page.goto('/profile/settings/name');
-  await expect(page.getByLabel('Имя в списках')).toBeVisible();
+  await page.goto('/players');
+  await expect(page.getByRole('searchbox')).toBeVisible();
   await swipe(page, 8, 150, 'input');
-  await expect(page).toHaveURL('/profile/settings/name');
+  await expect(page).toHaveURL('/players');
   await page.goto('/matches');
   await expect(page.getByRole('heading', { name: 'Матчи', exact: true })).toBeVisible();
   await swipe(page, 8, 150);
@@ -113,8 +113,8 @@ test('trusted touchscreen gestures navigate from both edges and retain native ve
   test.skip(browserName !== 'chromium', 'Trusted touch injection uses the Chromium DevTools protocol.');
   const cdp = await page.context().newCDPSession(page);
   for (const [from, direction] of [[8, 1], [382, -1]]) {
-    await page.goto('/profile/settings/name');
-    await expect(page.getByRole('heading', { name: 'Имя в списках', exact: true })).toBeVisible();
+    await page.goto('/players');
+    await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y: 360 }] });
     for (const distance of [14, 40, 75, 120, 150]) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from + distance * direction, y: 360 }] });
@@ -123,8 +123,8 @@ test('trusted touchscreen gestures navigate from both edges and retain native ve
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
     await expect(page).toHaveURL('/profile');
   }
-  await page.goto('/profile/settings/name');
-  await expect(page.getByRole('heading', { name: 'Имя в списках', exact: true })).toBeVisible();
+  await page.goto('/players');
+  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
   await page.locator('main').evaluate(main => { main.style.minHeight = '1800px'; });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 650 }] });
   for (const y of [630, 580, 510, 420, 300]) {
@@ -132,7 +132,7 @@ test('trusted touchscreen gestures navigate from both edges and retain native ve
   }
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
-  await expect(page).toHaveURL('/profile/settings/name');
+  await expect(page).toHaveURL('/players');
 });
 
 test('saving locks the sheet against edge navigation', async ({ page }) => {
@@ -158,8 +158,8 @@ test('saving locks the sheet against edge navigation', async ({ page }) => {
 
 test('reduced motion keeps back navigation available', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/profile/settings/name');
-  await expect(page.getByRole('heading', { name: 'Имя в списках', exact: true })).toBeVisible();
+  await page.goto('/players');
+  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
   await swipe(page, 8, 150);
   await expect(page).toHaveURL('/profile');
 });

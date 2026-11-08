@@ -19,7 +19,7 @@ for (const width of [280, 320, 390, 430]) {
     await page.setViewportSize({ width, height: 740 });
     for (const path of ['/new', '/event/1/schedule', '/profile/settings/name', '/profile/settings/payment', '/profile/settings/football', '/event/1?tab=list', '/event/1?tab=bill', '/event/1?tab=teams', '/players']) {
       await page.goto(path);
-      let scope = path === '/new' || path.endsWith('/schedule') ? page.getByRole('dialog') : page.locator('main');
+      let scope = path === '/new' || path.endsWith('/schedule') || path.startsWith('/profile/settings') ? page.getByRole('dialog') : page.locator('main');
       await expect(scope).toBeVisible();
       await expect(page.locator('.loading')).toHaveCount(0);
       if (path === '/new') {
@@ -31,10 +31,10 @@ for (const width of [280, 320, 390, 430]) {
         await page.getByRole('button', { name: /Место проведения/ }).click();
         await page.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
       }
-      if (path === '/profile/settings/name') await page.getByLabel('Имя в списках').fill('ДлинноеИмяУчастникаКлуба');
+      if (path === '/profile/settings/name') await scope.getByLabel('Имя в списках').fill('ДлинноеИмяУчастникаКлуба');
       if (path === '/profile/settings/football') {
-        await page.getByLabel('Позиция на поле').selectOption('midfielder');
-        await page.getByLabel('Рабочая нога').selectOption('both');
+        await scope.getByLabel('Позиция на поле').selectOption('midfielder');
+        await scope.getByLabel('Рабочая нога').selectOption('both');
       }
       if (path.includes('tab=bill')) {
         await page.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
@@ -48,7 +48,7 @@ for (const width of [280, 320, 390, 430]) {
         scope = page.getByRole('dialog', { name: 'Привести друга' });
         await page.getByLabel('Имя друга').fill('ДругСОченьДлиннымИменем');
       }
-      if (path.includes('tab=teams')) await page.getByRole('button', { name: 'Поделить', exact: true }).click();
+      if (path.includes('tab=teams')) await page.getByRole('button', { name: 'Разделить на команды', exact: true }).click();
       if (path === '/players') await page.getByRole('button', { name: 'Управление: Организатор', exact: true }).click();
       const issues = await scope.evaluate(root => [...root.querySelectorAll<HTMLElement>('input, select, textarea')].flatMap(el => {
         const box = el.getBoundingClientRect();
@@ -62,7 +62,7 @@ for (const width of [280, 320, 390, 430]) {
         return box.left < left - 1 || box.right > right + 1 || box.left < 0 || box.right > innerWidth || short ? [{ field: el.outerHTML.slice(0, 120), box: { left: box.left, right: box.right, height }, frame: { left, right } }] : [];
       }));
       expect(issues, `${info.project.name}: ${path}`).toEqual([]);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `horizontal scroll: ${path}`).toBe(true);
       if (width === 320 && (path === '/new' || path.endsWith('/schedule'))) {
         await page.getByRole('heading').first().focus();
         await page.screenshot({ path: `artifacts/ui/input-${info.project.name}-${path === '/new' ? 'date' : 'time'}-320.png` });

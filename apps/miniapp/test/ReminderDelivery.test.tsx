@@ -105,7 +105,7 @@ test('the organizer queues private reminders without claiming they were already 
 test('payment marking confirms only the player action and hides organizer reminder status', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={{ ...event, viewerRole: 'player' }} reload={() => {}} />, { me: player });
-  await userEvent.click(screen.getByRole('button', { name: 'Я скинул' }));
-  expect(await screen.findByText('Ты отметил оплату')).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
+  expect(await screen.findByText('Оплата отмечена. Получатель сверит перевод')).toBeInTheDocument();
   expect(api.get).not.toHaveBeenCalled();
 });
