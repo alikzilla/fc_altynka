@@ -1,4 +1,4 @@
-import { SKILLS, type MatchReviewDto, type PlayerProfileDto } from '@altynka/core';
+import { SKILLS, aggregatePlayerStatistics, type MatchReviewDto, type PlayerProfileDto } from '@altynka/core';
 import { act, fireEvent, screen, within } from '@testing-library/react';
 import { Link, Route, Switch } from 'wouter';
 import userEvent from '@testing-library/user-event';
@@ -34,13 +34,13 @@ test('skills have no preselected answers, show a summary and send all eight valu
 });
 
 test('public profile sheet places the rating with identity and keeps match history', async () => {
-  const profile: PlayerProfileDto = { userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: null }] };
+  const profile: PlayerProfileDto = { telegramUsername:null,role:'player',statistics:aggregatePlayerStatistics([]),gameHistory:[],userId: 12, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { value: 6.7, initial: 6, selfAssessment: Object.fromEntries(SKILLS.map(s => [s.key, 6])) as never, matchesCount: 3 }, history: [{ eventId: 1, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-04', place: null, score: null }] };
   (api.get as Mock).mockResolvedValue(profile);
   renderWithApp(<PlayerProfileSheet userId={12} onClose={vi.fn()} />, { me: player });
   const dialog = screen.getByRole('dialog');
   expect(await within(dialog).findByText('6,7')).toBeInTheDocument();
   expect(within(dialog).queryByText('Самооценка')).toBeNull();
-  expect(within(dialog).getByText('6,7').closest('.player-profile-identity')).not.toBeNull();
+  expect(within(dialog).getByText('6,7').closest('.player-sports-card')).not.toBeNull();
   expect(within(dialog).getByText('Недостаточно оценок')).toBeInTheDocument();
   expect(within(dialog).queryByText(/Kaspi/)).toBeNull();
 });

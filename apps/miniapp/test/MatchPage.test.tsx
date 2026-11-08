@@ -15,6 +15,7 @@ let delayJoin: boolean;
 beforeEach(() => {
   me = { userId: 2, displayName: 'Айдос Нуспеков', kaspiPhone: null, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }] };
   ev = { id: 7, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'player', date: '2026-11-08', status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Arena Football · Абая, 150', comment: 'Берём две футболки', limit: 15, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null };
+  ev.serverNow=Date.parse('2026-11-08T05:00:00Z');
   requests = []; delayJoin = false; finishJoin = undefined;
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     if (path === '/api/me') return Response.json(me);

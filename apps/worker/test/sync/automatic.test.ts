@@ -1,3 +1,4 @@
+import { FUTURE_START, futureDate, futureTime } from '../futureClock';
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { communities, events, users } from '../../src/db/schema';
@@ -11,8 +12,8 @@ import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../hel
 
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
-const START = Date.parse('2026-11-07T05:00:00Z'); // 10:00 Алматы
-const KICKOFF = Date.parse('2026-11-07T16:00:00Z');
+const START = FUTURE_START; // 10:00 Алматы
+const KICKOFF = futureTime('16:00:00');
 let now: number;
 let tg: FakeTg;
 let clock: ReturnType<typeof vi.spyOn>;
@@ -31,7 +32,7 @@ async function world() {
   await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   tg.members.add(101); tg.members.add(501);
   const d = { db: db(), get now() { return now; }, sync: new FakeSync() };
-  const ev = await createEvent(d, { communityId: community.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  const ev = await createEvent(d, { communityId: community.id, date: futureDate(), comment: null, createdBy: org.id });
   await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   await joinEvent(d, ev, org.id); await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Шанырак' });
@@ -107,7 +108,7 @@ test('rescheduling replaces the reminder deadline and a late scheduled match not
 test('automatic payment reminders start after 24h, respect quiet hours, and stop after three successful sends', async () => {
   const w = await world(); await w.bill();
   // Bill created at 21:00: first reminder is deferred to 10:00 the day after tomorrow.
-  expect(await w.alarm()).toBe(Date.parse('2026-11-09T05:00:00Z'));
+  expect(await w.alarm()).toBe(futureTime('05:00:00',2));
   for (let i = 0; i < 3; i++) {
     now = (await w.alarm())!; await w.flush();
     expect(w.reminders()).toHaveLength(i + 1);
@@ -123,7 +124,7 @@ test('manual reminder postpones the automatic delivery for a full 24 hours', asy
   now = due - HOUR;
   await w.stub.request(w.ev, { parts: [], notices: [{ kind: 'reminder', billId }] }); await w.flush();
   expect(w.reminders()).toHaveLength(1);
-  expect(await w.alarm()).toBe(Date.parse('2026-11-10T05:00:00Z'));
+  expect(await w.alarm()).toBe(futureTime('05:00:00',3));
   now = due; await w.flush();
   expect(w.reminders()).toHaveLength(1);
 });
@@ -145,7 +146,7 @@ test.each(['paid', 'closed', 'disabled', 'unavailable', 'not_member'] as const)(
 test('a historical bill arms from current sync time instead of immediately notifying', async () => {
   const w = await world(); await w.bill();
   await runInDurableObject(w.stub, async (_i, s) => { await s.storage.deleteAll(); });
-  now = Date.parse('2026-11-20T05:00:00Z');
+  now = futureTime('05:00:00',13);
   await w.stub.request(w.ev, { parts: ['bill'] }); await w.flush();
   expect(w.reminders()).toHaveLength(0);
   expect(await w.alarm()).toBe(now + DAY);
@@ -156,11 +157,11 @@ test('finish invites actual unsubmitted account participants once, with direct r
   await addGuest(w.d, w.ev, w.payer.id, 'Друг');
   await w.finish();
   expect(w.personal()).toHaveLength(0); // 22:00, wait until morning
-  expect(await w.alarm()).toBe(Date.parse('2026-11-08T05:00:00Z'));
+  expect(await w.alarm()).toBe(futureTime('05:00:00',1));
   now = (await w.alarm())!; await w.flush();
   const invites = () => w.personal().filter(m => m.html.includes('Оцени игру'));
   expect(invites()).toHaveLength(1);
-  expect(invites()[0].html).toContain('10 ноября');
+  expect(invites()[0].html).toContain(new Intl.DateTimeFormat('ru-RU',{timeZone:'Asia/Almaty',day:'numeric',month:'long'}).format(new Date(futureTime('16:00:00',3))));
   expect(invites()[0].keyboard?.inline_keyboard[0][0]).toMatchObject({ text: 'Оценить игру', url: expect.stringContaining(`startapp=r${w.ev}`) });
   await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
   expect(invites()).toHaveLength(1);

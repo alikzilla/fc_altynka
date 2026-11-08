@@ -1,7 +1,7 @@
-import { dominantFootLabel, playingPositionLabel, type PlayerProfileDto } from '@altynka/core';
+import type { PlayerProfileDto } from '@altynka/core';
 import { ActionSheet } from '../components/ActionSheet';
-import { Avatar } from '../components/Icon';
-import { RatingHistory, InlineRating } from '../components/PlayerRating';
+import { PlayerAchievements, PlayerSportsCard } from '../components/PlayerSports';
+import { PlayerGameHistory } from '../components/PlayerGameHistory';
 import { ErrorNote, Loading } from '../components/ui';
 import { useResource } from '../hooks/useResource';
 
@@ -11,8 +11,9 @@ export function PlayerProfileSheet({ userId, onClose }: { userId: number; onClos
     {loading && !data && <Loading />}
     {error && <ErrorNote text={error.status === 404 ? 'Игрок не найден в команде' : 'Не получилось загрузить профиль'} retry={reload} />}
     {data && <div className="player-profile-content">
-      <section className="card material-plum player-profile-identity"><div className="player-profile-person"><Avatar name={data.displayName} large /><div><h3>{data.displayName}</h3><p className="muted">{data.playingPosition ? playingPositionLabel[data.playingPosition] : 'Позиция не указана'} · {data.dominantFoot ? `${dominantFootLabel[data.dominantFoot].toLocaleLowerCase('ru')} нога` : 'Рабочая нога не указана'}</p></div></div><InlineRating rating={data.rating} /></section>
-      <RatingHistory history={data.history} />
+      <PlayerSportsCard name={data.displayName} username={data.telegramUsername} role={data.role??'player'} playingPosition={data.playingPosition} dominantFoot={data.dominantFoot} rating={data.rating} statistics={data.statistics}/>
+      {data.statistics && <PlayerAchievements statistics={data.statistics}/>}
+      <PlayerGameHistory profile={data}/>
     </div>}
   </ActionSheet>;
 }

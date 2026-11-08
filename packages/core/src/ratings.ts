@@ -1,4 +1,6 @@
 import type { DominantFoot, PlayingPosition } from './profile';
+import type { Role } from './api';
+import type { PlayerMeetingStatistics, PlayerStatistics } from './playerStatistics';
 
 export const SKILLS = [
   { key: 'teamwork', label: 'Игра в команде', hint: 'Открывания, помощь партнёрам и взаимодействие' },
@@ -43,7 +45,11 @@ export interface PlayerSummaryDto {
   rating: PlayerRatingDto;
 }
 export interface PlayerProfileDto extends PlayerSummaryDto {
-  history: { eventId: number; date: string; place: string | null; score: number | null; community: { id: number; title: string } }[];
+  telegramUsername: string | null;
+  role: Role;
+  statistics: PlayerStatistics;
+  gameHistory: PlayerMeetingStatistics[];
+  history: { eventId: number; date: string; place: string | null; score: number | null; community: { id: number; title: string }; protocolVersion?: 0 | 1 }[];
 }
 export interface ReviewInput {
   scores: { userId: number; score: number }[];

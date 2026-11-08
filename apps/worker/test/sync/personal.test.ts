@@ -1,3 +1,4 @@
+import { FUTURE_START, futureDate, futureTime } from '../futureClock';
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { events, communities, users } from '../../src/db/schema';
@@ -19,14 +20,14 @@ async function world(enabled = true) {
   await setMemberProfile(org.id, { kaspiPhone: '+77071234567' });
   tg.members.add(501); tg.members.add(101);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
-  const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  const ev = await createEvent(d, { communityId: c.id, date: futureDate(), comment: null, createdBy: org.id });
   // Legacy appointment fixture; manual sessions are covered by gameFinish tests.
   await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
   await joinEvent(d, ev, org.id); await joinEvent(d, ev, payer.id);
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: 'Шанырак' });
   const ids = (await loadQueue(d.db, ev)).main.map(s => s.id);
   const input = { receiverUserId: org.id, fieldAmount: 4000, extras: [], participantSignupIds: ids };
-  d.now = Date.parse('2026-11-07T16:00:00Z');
+  d.now = futureTime('16:00:00');
   const r = await upsertBill(d, ev, input);
   if (r.kind !== 'ok') throw new Error(r.kind);
   const stub = env.EVENT_SYNC.get(env.EVENT_SYNC.idFromName(`event:${ev}`));
@@ -140,7 +141,7 @@ test('guest promotion goes to the inviter; stale moves for someone who left are 
   await setMemberProfile(inviter.id, { notificationsEnabled: true, pmAvailable: true });
   tg.members.add(501);
   const d = { db: db(), now: Date.now(), sync: new FakeSync() };
-  const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: inviter.id });
+  const ev = await createEvent(d, { communityId: c.id, date: futureDate(), comment: null, createdBy: inviter.id });
   const fillers = await Promise.all(Array.from({ length: 10 }, (_, i) => seedUser(`Игрок ${i}`, { communityId: c.id })));
   for (const u of fillers) await joinEvent(d, ev, u.id);
   const guest = await addGuest(d, ev, inviter.id, 'Ержан');
@@ -165,7 +166,7 @@ test('queued messages of a previous group never post into the newly bound group'
 test('removed member is not mentioned by movement fallback', async () => {
   const c = await seedCommunity(); const d = { db: db(), now: Date.now(), sync: new FakeSync() };
   const us = await Promise.all(Array.from({ length: 11 }, (_, i) => seedUser(`Игрок${i}`, { communityId: c.id })));
-  const ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: us[0].id });
+  const ev = await createEvent(d, { communityId: c.id, date: futureDate(), comment: null, createdBy: us[0].id });
   for (const u of us) await joinEvent(d, ev, u.id);
   await leaveEvent(d, ev, us[0].id);
   const signup = (await loadQueue(d.db, ev)).main.at(-1)!;

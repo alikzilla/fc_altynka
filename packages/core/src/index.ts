@@ -7,3 +7,4 @@ export * from './profile';
 export * from './ratings';
 export * from './lifecycle';
 export * from './games';
+export * from './playerStatistics';

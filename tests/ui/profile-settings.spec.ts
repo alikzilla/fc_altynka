@@ -15,13 +15,13 @@ for (const width of [280, 390]) for (const role of ['player', 'organizer']) test
   await expect(card.getByText(name, { exact: true })).toBeVisible();
   await expect(card.getByText(`@${username}`)).toBeVisible();
   await expect(card.getByText('Полузащитник', { exact: true })).toBeVisible();
-  await expect(card.getByText('Обе', { exact: true })).toBeVisible();
+  await expect(card.getByRole('img', { name: 'Обе ноги' })).toBeVisible();
   const avatar = (await card.locator('.avatar').boundingBox())!;
   const heading = (await card.getByRole('heading').boundingBox())!;
   expect(avatar.x + avatar.width).toBeLessThanOrEqual(heading.x);
-  const football = await card.locator('.profile-card-football').boundingBox();
+  const football = await card.locator('.player-statistics-section').boundingBox();
   expect(football!.y).toBeGreaterThanOrEqual(Math.max(avatar.y + avatar.height, heading.y + heading.height));
-  const cells = await card.locator('.profile-card-football > div').all();
+  const cells = await card.locator('.player-statistics > div').all();
   expect(Math.abs((await cells[0].boundingBox())!.y - (await cells[1].boundingBox())!.y)).toBeLessThan(1);
   const editing = page.getByRole('navigation', { name: 'Настройка профиля', exact: true });
   await expect(editing.getByRole('link')).toHaveCount(3);
@@ -74,7 +74,7 @@ for (const width of [280, 320, 390]) test(`profile setup stays saved and footbal
   await page.getByRole('button', { name: 'Сохранить', exact: true }).click();
   await page.goto('/profile');
   await expect(page.getByText('Вратарь', { exact: true })).toBeVisible();
-  await expect(page.getByText('Левая', { exact: true })).toBeVisible();
+  await expect(page.getByRole('img', { name: 'Левая нога' })).toBeVisible();
   await expect(page.getByLabel('Номер Kaspi')).toHaveCount(0);
   await page.screenshot({ path: `artifacts/ui/profile-saved-${width}.png`, fullPage: true });
   await page.getByRole('link', { name: /Изменить оплату/ }).click();

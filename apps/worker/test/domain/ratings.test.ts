@@ -71,6 +71,16 @@ test('foreign profile history is limited to shared groups', async () => {
   expect(await playerProfile(db(), w.u1.id, w.u4.id, NOW)).toBeNull();
 });
 
+test('peer review history hides a group the target left even when another group is still shared', async () => {
+  const w=await world();
+  await db().insert(memberships).values({communityId:w.b.id,userId:w.u2.id,checkedAt:1});
+  await db().update(memberships).set({active:false}).where(eq(memberships.communityId,w.a.id));
+  // Viewer stays in A; only the target has left it.
+  await db().update(memberships).set({active:true}).where(eq(memberships.userId,w.u2.id));
+  const profile=await playerProfile(db(),w.u1.id,w.u2.id,NOW);
+  expect(profile!.history.map(row=>row.eventId)).toEqual([w.evB]);
+});
+
 test('initial level averages all memberships, active or not', async () => {
   const a = await group(-1, 'A');
   const b = await group(-2, 'B');

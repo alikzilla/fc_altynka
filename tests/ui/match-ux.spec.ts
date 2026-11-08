@@ -140,7 +140,7 @@ test('a late create response cannot pull a person away after browser Back', asyn
 test('appointment is the prerequisite for billing; assigning time unlocks the bill form', async ({ page }) => {
   let scheduled = false;
   let started = false;
-  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' } : draft }));
+  await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, serverNow:Date.parse(`${draft.date}T14:00:00Z`), status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' } : draft }));
   await page.route('**/api/events/7/schedule', route => {
     expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Школа Аксай' });
     scheduled = true;

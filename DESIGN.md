@@ -68,6 +68,10 @@ Transient notifications appear at the safe top inset throughout the app, above c
 
 Profile displays verified Telegram photo, full name and username. Missing or broken photos use initials. Editable club display name and Kaspi phone remain separate. Authorized users reach player management from profile.
 
+The approved sports profile uses a 72px avatar (60px below 360px), name, then a compact role emoji before the Telegram handle. Player ⚽️, organizer 🧑‍✈️, administrator 🧑‍💻 use native Apple Color Emoji on Apple devices and native fallback elsewhere. The rating is a continuous ring without a visible caption: level 1 grey, 2–3 green, 4–7 yellow, 8–9 orange, 10 red, following inspected FACEIT assets. Fractional values remain precise; whole values omit the decimal zero. The ring opens a sheet with five continuous examples.
+
+An inset panel contains the position above five cells: goals, assists (currently zero), short games, win percentage, working foot. The foot uses two mirrored insole silhouettes without toes; active opacity 1 and inactive .25. Achievements and played meetings follow the card, then existing profile editing/system settings and player management. Each played-meeting date appears once in its heading; there is no second date tile at the right. Short-game history opens in the shared ActionSheet. Peer profiles use the same sports content and retain their own sheet, without personal settings. Statistics loading does not invent zeros; empty confirmed profiles show actual zero counts. Per-user totals come from saved protocol identities, never current display names or guessed guest links.
+
 Scheduling opens in the shared ActionSheet over the current match and retains its tab.
 The venue field is a button opening a second ActionSheet; it never opens a keyboard.
 The catalogue currently contains only Школа Аксай and the supplied 2GIS link.

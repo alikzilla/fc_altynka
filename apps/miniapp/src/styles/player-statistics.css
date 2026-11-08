@@ -1,0 +1,118 @@
+/* Approved profile material; 440px canvas = 20px + 400px + 20px. */
+.player-sports-card { gap:18px; padding:22px 20px 20px; border-radius:32px; }
+.player-card-top { display:grid; grid-template-columns:72px minmax(0,1fr) 68px; align-items:center; gap:12px; }
+.player-sports-card .avatar-large { width:72px; height:72px; background:#ffffff14; box-shadow:inset 0 0 0 1px #ffffff38; color:#f7edf7; font-size:28px; font-weight:450; }
+.player-identity { min-width:0; }
+.player-identity h2 { color:#f7f1f9; font-size:21px; line-height:1.15; font-weight:600; letter-spacing:-.035em; overflow-wrap:anywhere; text-wrap:balance; }
+.player-social { display:flex; flex-wrap:wrap; align-items:center; gap:6px; margin-top:4px; }
+.player-telegram { color:#ded0e0; font-size:12px; line-height:1.4; overflow-wrap:anywhere; }
+.player-role { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px; flex-shrink:0; font-family:'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif; font-size:18px; font-weight:400; font-variant-emoji:emoji; line-height:1; }
+.player-statistics-section { display:flex; flex-direction:column; background:#ffffff0d; border-radius:20px; padding:15px 12px 14px; gap:18px; }
+.player-position-line { color:#e6d6e9; font-size:13px; line-height:1.4; font-weight:500; }
+.player-statistics { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; margin:0; }
+.player-statistics>div { display:flex; flex-direction:column-reverse; gap:8px; align-items:center; min-width:0; }
+.player-statistics dt { color:#ded0e0; font-size:11px; line-height:1.35; white-space:nowrap; }
+.player-statistics .assists dt { letter-spacing:-.04em; }
+.player-statistics dd { margin:0; color:#faf4fb; font-size:25px; line-height:1; font-weight:550; font-variant-numeric:tabular-nums; letter-spacing:-.035em; white-space:nowrap; }
+.player-statistics .wins-stat dd { font-size:22px; }
+.wins-stat small { font-size:11px; margin-left:1px; }
+.dominant-feet { display:block; width:43px; height:29px; }
+.dominant-feet g[data-active=true] { opacity:1; }
+.dominant-feet g[data-active=false] { opacity:.25; }
+.player-statistics .foot-stat dd { color:#fff; }
+.rating-badge { display:flex; align-items:center; justify-content:center; width:68px; border:0; padding:0; background:transparent; border-radius:50%; }
+.rating-emblem { --rank-color:#8c8295; display:grid; position:relative; width:68px; height:68px; place-items:center; flex-shrink:0; }
+.rating-emblem[data-tier=neutral] { --rank-color:#b8b8b8; }
+.rating-emblem[data-tier=green] { --rank-color:#47e36e; }
+.rating-emblem[data-tier=yellow] { --rank-color:#ffcd25; }
+.rating-emblem[data-tier=orange] { --rank-color:#ff6c20; }
+.rating-emblem[data-tier=red] { --rank-color:#e80128; }
+.rating-emblem>svg { position:absolute; inset:0; width:100%; height:100%; stroke-width:3.5; stroke-linecap:round; }
+.rank-track { stroke:#ffffff1c; }
+.rank-progress { stroke:var(--rank-color); }
+.rank-core { fill:var(--rank-color); fill-opacity:.075; }
+.rating-emblem>strong { position:relative; z-index:1; color:var(--rank-color); font-size:24px; line-height:1; font-weight:600; letter-spacing:-.045em; font-variant-numeric:tabular-nums; padding-right:1px; }
+.rating-scale-intro { color:var(--text); font-size:14px; line-height:1.6; }
+.rating-legend { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:7px; margin:26px 0; }
+.rating-legend-item { display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0; }
+.rating-legend-item>.rating-emblem { width:60px; height:60px; }
+.rating-legend-item .rating-emblem>strong { font-size:24px; }
+.rating-legend-item>b { color:var(--text); font-size:12px; font-weight:500; font-variant-numeric:tabular-nums; }
+.rating-legend-item>span:last-child { color:var(--hint); font-size:11px; }
+.rating-scale-note { color:var(--hint); font-size:12px; line-height:1.6; }
+:root[data-theme=light] .rating-legend .rank-core { fill:#19191f; fill-opacity:1; }
+:root[data-theme=light] .rating-legend .rank-track { stroke:#d9d2e1; }
+.achievements-section { display:flex; flex-direction:column; gap:16px; }
+.achievements-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
+.achievements-heading h2,.player-meeting-history>h2 { font-size:18px; font-weight:550; letter-spacing:-.025em; }
+.achievements-heading>span { color:var(--hint); font-size:12px; font-variant-numeric:tabular-nums; }
+.achievements-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+.achievement { display:flex; flex-direction:column; align-items:stretch; background:#15151b; border-radius:24px; padding:17px 15px 15px; min-width:0; }
+.achievement-symbol { display:flex; align-items:center; justify-content:space-between; color:#94909f; margin-bottom:16px; }
+.achievement-symbol>svg { width:24px; height:24px; stroke-width:1.5; }
+.achievement-symbol>svg+svg { width:14px; height:14px; color:#dfdff7; }
+.achievement h3 { color:#c5c0cf; font-size:14px; line-height:1.25; font-weight:550; letter-spacing:-.02em; }
+.achievement p { color:#a39cab; font-size:12px; line-height:1.5; margin-top:7px; }
+.achievement-progress { display:flex; flex-direction:column; gap:8px; margin-top:auto; padding-top:16px; }
+.achievement-progress>span { color:#b5afbe; font-size:11px; font-variant-numeric:tabular-nums; font-weight:500; }
+.achievement progress { display:block; width:100%; height:3px; appearance:none; border:0; border-radius:3px; background:#ffffff0c; }
+.achievement progress::-webkit-progress-bar { background:#ffffff0c; border-radius:3px; }
+.achievement progress::-webkit-progress-value { background:#aaa0ba; border-radius:3px; }
+.achievement progress::-moz-progress-bar { background:#aaa0ba; border-radius:3px; }
+.achievement.is-earned { background:radial-gradient(ellipse 120% 70% at 30% -30%,#7b79a140,transparent),#1d2034; }
+.achievement.is-earned :is(h3,.achievement-progress>span) { color:#eceafa; }
+.achievement.is-earned :is(.achievement-symbol,p) { color:#c3c2dd; }
+.achievement.is-earned progress::-webkit-progress-value { background:#c5c4e7; }
+.achievement.is-earned progress::-moz-progress-bar { background:#c5c4e7; }
+:root[data-theme=light] .achievement { background:#eae7ef; }
+:root[data-theme=light] .achievement h3 { color:#655d70; }
+:root[data-theme=light] .achievement :is(p,.achievement-progress>span) { color:#6b6273; }
+:root[data-theme=light] .achievement-symbol { color:#817888; }
+:root[data-theme=light] .achievement progress,:root[data-theme=light] .achievement progress::-webkit-progress-bar { background:#d9d3e0; }
+:root[data-theme=light] .achievement.is-earned { background:radial-gradient(ellipse 130% 90% at 30% -30%,#7d83cb70,transparent),#202944; }
+:root[data-theme=light] .achievement.is-earned :is(h3,.achievement-progress>span) { color:#f1eff9; }
+:root[data-theme=light] .achievement.is-earned :is(p,.achievement-symbol) { color:#cccce1; }
+:root[data-theme=light] .achievement.is-earned progress,:root[data-theme=light] .achievement.is-earned progress::-webkit-progress-bar { background:#ffffff20; }
+.player-meeting-history { display:flex; flex-direction:column; gap:16px; }
+.player-meeting { gap:16px; box-shadow:none; }
+.player-meeting-date h3 { font-size:17px; font-weight:550; letter-spacing:-.02em; }
+.player-meeting-date p { color:var(--hint); font-size:13px; margin-top:5px; }
+.session-totals { display:flex; gap:24px; }
+.session-totals span { color:var(--hint); font-size:13px; }
+.session-totals b { color:var(--text); font-size:18px; font-weight:500; margin-right:4px; font-variant-numeric:tabular-nums; }
+.history-results { color:var(--hint); font-size:12px; }
+.session-rating { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:13px; }
+.session-rating strong { font-size:20px; font-weight:500; }
+.history-link { width:100%; display:flex; justify-content:space-between; align-items:center; min-height:44px; padding:12px 0 0; border:0; border-top:1px solid var(--line); background:transparent; color:var(--accent-ink); font-size:14px; text-align:left; }
+.history-link svg { width:18px; height:18px; }
+.player-empty-history h3 { font-size:16px; font-weight:500; }
+.player-empty-history p { color:var(--hint); font-size:13px; line-height:1.6; }
+.player-short-games { margin-top:12px; }
+.player-short-game { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 16px; padding:17px 0; border-top:1px solid var(--line); }
+.player-short-game h3 { font-size:14px; font-weight:500; }
+.player-short-game p { color:var(--hint); font-size:12px; margin-top:6px; }
+.player-short-result { text-align:right; }
+.player-short-result strong { font-size:22px; font-weight:500; letter-spacing:-.03em; font-variant-numeric:tabular-nums; }
+.player-short-game[data-outcome=win] .player-short-result p { color:#a8c7b1; }
+:root[data-theme=light] .player-short-game[data-outcome=win] .player-short-result p { color:#366742; }
+.player-short-goals { color:var(--hint); font-size:12px; grid-column:1/-1; }
+@media(max-width:359px) {
+  .player-sports-card { padding:20px 16px 16px; }
+  .player-card-top { grid-template-columns:60px minmax(0,1fr) 56px; gap:9px; }
+  .player-sports-card .avatar-large { width:60px; height:60px; font-size:24px; }
+  .player-identity h2 { font-size:19px; }
+  .player-telegram { font-size:11px; }
+  .rating-badge,.rating-emblem { width:56px; }
+  .rating-emblem { height:56px; }
+  .rating-emblem>strong { font-size:24px; }
+  .player-statistics dd { font-size:20px; }
+  .player-statistics .wins-stat dd { font-size:18px; }
+  .dominant-feet { width:38px; height:25px; }
+  .rating-legend-item>.rating-emblem { width:48px; height:48px; }
+  .rating-legend-item .rating-emblem>strong { font-size:24px; }
+  .rating-legend-item>span:last-child { display:none; }
+  .achievement { padding:16px 13px 14px; border-radius:21px; }
+  .achievement h3 { font-size:13px; }
+  .achievement p { font-size:11px; }
+}
+@media(prefers-reduced-motion:reduce) { .player-sports-card * { transition:none; } }

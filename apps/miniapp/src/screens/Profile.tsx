@@ -1,26 +1,26 @@
-import { dominantFootLabel, formatKzPhone, normalizeKzPhone, playingPositionLabel, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
+import { formatKzPhone, normalizeKzPhone, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
-import { Avatar, Icon } from '../components/Icon';
+import { Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
 import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
-import { Screen, useToast } from '../components/ui';
-import { InlineRating, RatingHistory } from '../components/PlayerRating';
+import { ErrorNote, Screen, useToast } from '../components/ui';
+import { PlayerAchievements, PlayerSportsCard } from '../components/PlayerSports';
+import { PlayerGameHistory } from '../components/PlayerGameHistory';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
 
-const ROLE_LABEL = { admin: 'Администратор', organizer: 'Организатор', player: 'Игрок' } as const;
 /** Only the role: group names can be long. With several groups, the highest role. */
 function roleLine(me: MeDto) {
-  if (!me.communities.length) return 'Без группы';
+  if (!me.communities.length) return 'player';
   const rank = { admin: 2, organizer: 1, player: 0 } as const;
-  return ROLE_LABEL[me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role)];
+  return me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role);
 }
 
 export function Profile() {
   const me = useMe();
-  const sportingProfile = useResource<PlayerProfileDto>(me.rating ? `/api/players/${me.userId}` : null);
+  const sportingProfile = useResource<PlayerProfileDto>(`/api/players/${me.userId}`);
   const telegramName = me.telegram ? [me.telegram.firstName, me.telegram.lastName].filter(Boolean).join(' ') : me.displayName;
   const reloadMe = useReloadMe();
   const updateMe = useUpdateMe();
@@ -60,23 +60,12 @@ export function Profile() {
   }
   return (
     <Screen title="Профиль">
-      <section className="card material-plum profile-card" aria-label="Профиль игрока">
-        <div className="profile-card-top">
-          <Avatar name={telegramName} photoUrl={me.telegram?.photoUrl} large />
-        <div className="profile-card-details">
-          <h2>{telegramName}</h2>
-          {me.telegram?.username && <span className="profile-handle">@{me.telegram.username}</span>}
-          <span className="profile-role">{roleLine(me)}</span>
-        </div>
-        </div>
-        {me.rating && <InlineRating rating={me.rating} />}
-          <dl className="profile-card-football">
-            <div><dt>Позиция на поле</dt><dd>{me.playingPosition ? playingPositionLabel[me.playingPosition] : 'Не указана'}</dd></div>
-            <div><dt>Рабочая нога</dt><dd>{me.dominantFoot ? dominantFootLabel[me.dominantFoot] : 'Не указана'}</dd></div>
-          </dl>
-      </section>
+      <PlayerSportsCard name={telegramName || me.displayName} username={me.telegram?.username} photoUrl={me.telegram?.photoUrl}
+        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics}/>
       {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
-      {sportingProfile.data && <RatingHistory history={sportingProfile.data.history} />}
+      {sportingProfile.error && <ErrorNote text="Не получилось загрузить статистику" retry={sportingProfile.reload}/>}
+      {sportingProfile.data?.statistics && <PlayerAchievements statistics={sportingProfile.data.statistics}/>}
+      {sportingProfile.data && <PlayerGameHistory profile={sportingProfile.data}/>}
       {!completed && <><h2 className="section">В команде</h2>
       <form className="card material-blue form profile-form" onSubmit={save} aria-busy={busy}>
         <fieldset className="form-fields" disabled={busy}>

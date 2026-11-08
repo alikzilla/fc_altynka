@@ -1,3 +1,4 @@
+import { FUTURE_START, futureDate, futureTime } from '../futureClock';
 import { env, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { events } from '../../src/db/schema';
@@ -18,10 +19,10 @@ const eventRow = async () => (await db().select().from(events).where(eq(events.i
 beforeEach(async () => {
   tg = new FakeTg();
   __setTgClientForTests(tg);
-  d = { db: db(), now: Date.now(), sync: new FakeSync() };
+  d = { db: db(), now: FUTURE_START, sync: new FakeSync() };
   const c = await seedCommunity();
   const org = await seedUser('Орг', { communityId: c.id, role: 'organizer' });
-  ev = await createEvent(d, { communityId: c.id, date: '2026-11-07', comment: null, createdBy: org.id });
+  ev = await createEvent(d, { communityId: c.id, date: futureDate(), comment: null, createdBy: org.id });
   await d.db.update(events).set({protocolVersion:0}).where(eq(events.id,ev));
 });
 afterEach(() => __setTgClientForTests(null));
@@ -31,7 +32,7 @@ test('first sync sends and pins, next edits', async () => {
   expect(await runDurableObjectAlarm(stub())).toBe(true);
   expect(tg.sent).toHaveLength(1);
   expect(tg.sent[0]).toMatchObject({ chatId: -100500 });
-  expect(tg.sent[0].html).toContain('суббота, 7 ноября');
+  expect(tg.sent[0].html).toContain(new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(FUTURE_START)));
   expect(tg.pinned).toEqual([{ chatId: -100500, messageId: tg.sent[0].messageId }]);
   expect((await eventRow()).eventMessageId).toBe(tg.sent[0].messageId);
   await stub().request(ev, { parts: ['event'] });
@@ -44,7 +45,7 @@ test('kickoff alarm refreshes the Telegram card and removes signup buttons', asy
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   await stub().request(ev, { parts: ['event'] });
   await runDurableObjectAlarm(stub());
-  const kickoff = Date.parse('2026-11-07T16:00:00Z');
+  const kickoff = futureTime('16:00:00');
   expect(await runInDurableObject(stub(), (_i, st) => st.storage.getAlarm())).toBe(kickoff);
   const clock = vi.spyOn(Date, 'now').mockReturnValue(kickoff);
   try {
@@ -60,7 +61,7 @@ test('manual session does not schedule automatic kickoff or close Telegram regis
   await scheduleEvent(d,ev,{startTime:'21:00',durationHours:1,place:null});
   await stub().request(ev,{parts:['event']}); await runDurableObjectAlarm(stub());
   expect(await runInDurableObject(stub(),(_i,state)=>state.storage.getAlarm())).toBeNull();
-  const clock=vi.spyOn(Date,'now').mockReturnValue(Date.parse('2026-11-07T17:00:00Z'));
+  const clock=vi.spyOn(Date,'now').mockReturnValue(futureTime('17:00:00'));
   try {
     await stub().request(ev,{parts:['event']}); await runDurableObjectAlarm(stub());
     const message=tg.edited.at(-1)!;
@@ -151,7 +152,7 @@ test('reminder notice lists debtors with amounts due', async () => {
   const { scheduleEvent } = await import('../../src/domain/events');
   await scheduleEvent(d, ev, { startTime: '21:00', durationHours: 1, place: null });
   const ids = (await loadQueue(db(), ev)).main.map(s => s.id);
-  const r = (await upsertBill({ ...d, now: Date.parse('2026-11-07T16:00:00Z') }, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
+  const r = (await upsertBill({ ...d, now: futureTime('16:00:00') }, ev, { receiverUserId: a.id, fieldAmount: 4000, extras: [], participantSignupIds: ids })) as { billId: number };
   await stub().request(ev, { parts: ['bill'], notices: [{ kind: 'reminder', billId: r.billId }] });
   await runDurableObjectAlarm(stub());
   const billMsg = tg.sent.find(m => m.html.includes('<b>Оплата'))!;

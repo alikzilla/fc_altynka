@@ -1,5 +1,6 @@
 @import './games.css';
 @import './teams.css';
+@import './player-statistics.css';
 
 :root {
   color-scheme: dark;

@@ -4,6 +4,7 @@ import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
 import { seedCommunity, seedUser } from '../helpers';
+import { vi } from 'vitest';
 
 export interface ApiWorld {
   clock: { now: number };
@@ -21,7 +22,8 @@ export async function setupApiWorld(): Promise<ApiWorld> {
   const tg = new FakeTg();
   const sync = new FakeSync();
   __setTgClientForTests(tg);
-  const clock = { now: Date.now() };
+  const clock = { now: Date.parse('2026-11-07T05:00:00Z') };
+  vi.spyOn(Date,'now').mockImplementation(()=>clock.now);
   setDepsFactoryForTests(env => ({ db: getDb(env.DB), now: clock.now, sync }));
   const c = await seedCommunity();
   await seedUser('Админ', { communityId: c.id, tgId: 1, telegramAdmin: true });
@@ -42,6 +44,7 @@ export async function setupApiWorld(): Promise<ApiWorld> {
 }
 
 export function teardownApiWorld(): void {
+  vi.restoreAllMocks();
   __setTgClientForTests(null);
   setDepsFactoryForTests(null);
 }

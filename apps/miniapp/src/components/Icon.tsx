@@ -1,6 +1,10 @@
 import { useState, type ReactNode, type SVGProps } from 'react';
 
 const paths = {
+  flame: <path d="M13 3c1 5-4 5-2 9-2-1-3-3-3-5-3 3-5 7-3 11a8 8 0 0 0 14-1c2-5-2-10-6-14Z" />,
+  trophy: <path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4" />,
+  target: <><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="m12 12 8-8m-3 0h3v3"/></>,
+  shield: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></>,
   swap: <path d="M4 7h14m-4-4 4 4-4 4M20 17H6m4-4-4 4 4 4" />,
   shuffle: <path d="M3 4h3l12 16h3m-4-4 4 4-4 3M3 20h3L18 4h3m-4-3 4 3-4 4" />,
   undo: <path d="m8 4-5 5 5 5M3 9h10a6 6 0 0 1 0 12" />,

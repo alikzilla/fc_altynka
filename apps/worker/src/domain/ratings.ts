@@ -11,6 +11,7 @@ import { peerUserIds } from './members';
 import { getEvent } from './events';
 import { parseGameState } from './gameStore';
 import { usersById } from '../sync/parts';
+import { playerGameStatistics } from './playerStatistics';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
@@ -66,10 +67,12 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   if (userId !== viewerId && !(await peerUserIds(db, viewerId)).includes(userId)) return null;
   const player = (await playerRatings(db, [userId], now)).get(userId);
   if (!player) return null;
-  const shared = userId === viewerId ? sql`` : sql`AND c.active = 1 AND e.community_id IN (
-    SELECT community_id FROM memberships WHERE user_id = ${viewerId} AND active = 1)`;
+  const shared = userId === viewerId ? sql`` : sql`AND c.active = 1 AND EXISTS (
+    SELECT 1 FROM memberships mine JOIN memberships theirs ON theirs.community_id=mine.community_id
+    WHERE mine.community_id=e.community_id AND mine.user_id=${viewerId} AND mine.active=1
+      AND theirs.user_id=${userId} AND theirs.active=1)`;
   const rows = await db.all<Omit<PlayerProfileDto['history'][number], 'community'> & { communityId: number; communityTitle: string }>(sql`
-    SELECT e.id AS eventId, e.date, e.place, c.id AS communityId, c.title AS communityTitle,
+    SELECT e.id AS eventId, e.date, e.place, e.protocol_version AS protocolVersion, c.id AS communityId, c.title AS communityTitle,
       CASE WHEN count(v.score) >= ${MIN_REVIEW_VOTES} THEN round(avg(v.score), 1) ELSE NULL END AS score
     FROM match_participants p JOIN match_reviews r ON r.event_id = p.event_id
     JOIN events e ON e.id = p.event_id JOIN communities c ON c.id = e.community_id
@@ -77,7 +80,16 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
     WHERE p.user_id = ${userId} AND e.status <> 'cancelled' AND r.closes_at <= ${now} ${shared}
     GROUP BY e.id ORDER BY r.completed_at DESC, e.id DESC LIMIT 20`);
   const history = rows.map(({ communityId, communityTitle, ...h }) => ({ ...h, community: { id: communityId, title: communityTitle } }));
-  return { ...player, history };
+  const [games, details, roles] = await Promise.all([
+    playerGameStatistics(db, userId, viewerId, now),
+    db.select({ username: users.username }).from(users).where(eq(users.id,userId)),
+    db.all<{role:'organizer'|'player';telegramAdmin:number}>(sql`
+      SELECT m.role,m.telegram_admin AS telegramAdmin FROM memberships m JOIN communities c ON c.id=m.community_id
+      WHERE m.user_id=${userId} AND m.active=1 AND c.active=1 ${userId===viewerId?sql``:sql`AND EXISTS (
+        SELECT 1 FROM memberships mine WHERE mine.community_id=m.community_id AND mine.user_id=${viewerId} AND mine.active=1)`}`),
+  ]);
+  const role = roles.some(r=>r.telegramAdmin) ? 'admin' : roles.some(r=>r.role==='organizer') ? 'organizer' : 'player';
+  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, role };
 }
 
 export function canFinishMatch(ev: EventRow, now: number): boolean {

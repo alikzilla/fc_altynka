@@ -13,7 +13,11 @@ const GROUP = { id: 1, title: 'FC Altynka' };
 export async function teamApiRoute(page: Page, handler: (route: Route) => unknown) {
   let role = 'player';
   let community = GROUP;
-  const withGroup = (items: unknown) => Array.isArray(items) ? items.map(i => i && typeof i === 'object' && !('community' in i) ? { ...i, community } : i) : items;
+  // Compact legacy fixtures describe a scheduled phase, not the machine's current day.
+  // Clock-boundary specs supply serverNow explicitly and retain their own timeline.
+  const withClock = (item: any) => item?.status==='scheduled' && item.serverNow===undefined && item.date
+    ? {...item,serverNow:Date.parse(`${item.date}T${item.startTime??'23:59'}:00+05:00`)-3600000} : item;
+  const withGroup = (items: unknown) => Array.isArray(items) ? items.map(i => withClock(i && typeof i === 'object' && !('community' in i) ? { ...i, community } : i)) : items;
   const adapt = (path: string, body: any): any => {
     if (!body || typeof body !== 'object') return body;
     if (path === '/api/me') {
@@ -28,7 +32,7 @@ export async function teamApiRoute(page: Page, handler: (route: Route) => unknow
     if (path === '/api/notifications') return { ...body, tasks: withGroup(body.tasks) };
     if (path === '/api/players') return Array.isArray(body) ? { groups: [{ community, role, players: body }] } : body;
     if (/^\/api\/players\/\d+$/.test(path) && Array.isArray(body.history)) return { ...body, history: withGroup(body.history) };
-    if (/^\/api\/events\/\d+$/.test(path) && 'status' in body) return { ...body, community: body.community ?? community, viewerRole: body.viewerRole ?? role };
+    if (/^\/api\/events\/\d+$/.test(path) && 'status' in body) return withClock({ ...body, community: body.community ?? community, viewerRole: body.viewerRole ?? role });
     return body;
   };
   await page.route('**/api/**', route => {
