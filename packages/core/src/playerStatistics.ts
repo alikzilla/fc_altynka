@@ -13,6 +13,8 @@ export interface PlayerStatistics {
   meetings: number; games: number; goals: number; assists: 0;
   wins: number; draws: number; losses: number; winPercentage: number | null;
   bestGoalsInMeeting: number;
+  /** Встречи, где игрок забил три и больше. */
+  hatTricks: number;
 }
 export interface PlayerMeetingStatistics extends PlayerProtocolSummary {
   eventId: number; date: string; place: string | null;
@@ -53,24 +55,14 @@ export function myMatchResult(state: GameState, userId: number, colors: TeamColo
 
 export function aggregatePlayerStatistics(rows: readonly PlayerProtocolSummary[]): PlayerStatistics {
   const result: PlayerStatistics = { meetings: 0, games: 0, goals: 0, assists: 0,
-    wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0 };
+    wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0 };
   for (const row of rows) {
     if (!row.games) continue;
     result.meetings++;
     for (const key of ['games', 'goals', 'wins', 'draws', 'losses'] as const) result[key] += row[key];
     result.bestGoalsInMeeting = Math.max(result.bestGoalsInMeeting, row.goals);
+    if (row.goals >= 3) result.hatTricks++;
   }
   result.winPercentage = result.games ? Math.round(result.wins / result.games * 100) : null;
   return result;
-}
-
-export function playerAchievements(stats: PlayerStatistics) {
-  return [
-    { id: 'first-goal', title: 'Первый гол', description: 'Забей свой первый мяч', current: stats.goals, target: 1, symbol: 'ball' },
-    { id: 'hat-trick', title: 'Хет-трик', description: '3 гола за одну встречу', current: stats.bestGoalsInMeeting, target: 3, symbol: 'flame' },
-    { id: 'first-win', title: 'Первая победа', description: 'Выиграй короткую игру', current: stats.wins, target: 1, symbol: 'trophy' },
-    { id: 'sniper', title: 'Снайпер', description: '10 голов за всё время', current: stats.goals, target: 10, symbol: 'target' },
-    { id: 'ten-games', title: 'В ритме игры', description: 'Сыграй 10 коротких игр', current: stats.games, target: 10, symbol: 'shirt' },
-    { id: 'ten-meetings', title: 'Железный', description: 'Сыграй 10 встреч', current: stats.meetings, target: 10, symbol: 'shield' },
-  ].map(row => ({ ...row, earned: row.current >= row.target }));
 }
