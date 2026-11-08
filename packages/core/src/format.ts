@@ -20,6 +20,15 @@ export function todayAlmaty(now: Date): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TIME_ZONE, year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
 }
 
+/** How far the match day is from today: «Сегодня», «Завтра», «Через 5 дней»; null once the day has passed. */
+export function matchCountdown(date: string, today: string): string | null {
+  const days = Math.round((Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000);
+  if (days < 0) return null;
+  if (days === 0) return 'Сегодня';
+  if (days === 1) return 'Завтра';
+  return `Через ${days} ${plural(days, 'день', 'дня', 'дней')}`;
+}
+
 /** '2026-11-07' → 'суббота, 7 ноября' */
 export function formatDateRu(date: string): string {
   const d = new Date(`${date}T12:00:00Z`);

@@ -1,4 +1,4 @@
-import { formatDateRu, type EventSummaryDto } from "@altynka/core";
+import { formatDateRu, matchCountdown, todayAlmaty, type EventSummaryDto } from "@altynka/core";
 import { Link } from "wouter";
 import { GroupTag } from "./GroupTag";
 import { Icon } from "./Icon";
@@ -12,6 +12,7 @@ export function datePart(date: string, options: Intl.DateTimeFormatOptions) {
   }).format(new Date(`${date}T12:00:00+05:00`));
 }
 
+/** One big answer — how soon — then a single when/where line and two tags: your place and the roster. */
 export function MatchCard({
   event,
   index,
@@ -20,64 +21,32 @@ export function MatchCard({
   index: number;
 }) {
   const e = useMatchPhase(event)!;
-  const month = datePart(e.date, { day: "numeric", month: "long" })
-    .split(" ")
-    .slice(1)
-    .join(" ");
+  const countdown =
+    e.status === "playing"
+      ? "Идёт игра"
+      : (matchCountdown(e.date, todayAlmaty(new Date())) ?? STATUS_LABEL[e.status]);
+  const time =
+    e.startTime && e.durationHours
+      ? timeRange(e.startTime, e.durationHours)
+      : "Время уточняется";
+  const roster = `${e.mainCount} / ${e.limit}${e.reserveCount ? ` · резерв ${e.reserveCount}` : ""}`;
   return (
     <article
       className={`card match-card ${index % 2 ? "material-blue" : "material-plum"}`}
       aria-label={`Матч ${formatDateRu(e.date)}`}
     >
-      <div className="row between match-status">
-        <span className="chip">
-          <i className="status-dot" />
-          {STATUS_LABEL[e.status]}
-        </span>
-        <span>{datePart(e.date, { weekday: "long" })}</span>
-      </div>
-      <h2 className="match-date" aria-label={formatDateRu(e.date)}>
-        <span>{e.date.slice(8)}</span>
-        <small>{month}</small>
-      </h2>
-      <div className="match-time">
-        {e.startTime && e.durationHours
-          ? timeRange(e.startTime, e.durationHours)
-          : "Время уточняется"}
-      </div>
-      <div className="match-place">
-        <Icon name="pin" />
-        <span>{e.place || "Поле уточняется"}</span>
-      </div>
-      <div className="match-roster">
-        <div className="row between">
-          <span>
-            <strong>{e.mainCount}</strong> / {e.limit} игроков
-          </span>
-          <span>
-            {e.reserveCount
-              ? `Резерв: ${e.reserveCount}`
-              : e.mainCount < e.limit
-                ? `Свободно: ${e.limit - e.mainCount}`
-                : "Мест нет"}
-          </span>
-        </div>
-        <div className="roster-slots" aria-hidden="true">
-          {Array.from({ length: Math.min(e.limit, 30) }, (_, i) => (
-            <span key={i} className={i < e.mainCount ? "filled" : ""} />
-          ))}
-        </div>
-      </div>
-      <div className={`attendance ${e.my === "reserve" ? "reserve" : ""}`}>
-        <Icon name={e.my === "main" ? "check" : "clock"} />
-        <span>
-          {e.status === "playing"
-            ? "Запись закрыта"
-            : e.my === "main"
-              ? "Ты в основе"
-              : e.my === "reserve"
-                ? "Ты в резерве"
-                : "Запись открыта"}
+      <h2 className="match-day">{formatDateRu(e.date)}</h2>
+      <p className="match-headline">{countdown}</p>
+      <p className="match-when">
+        {time} · {e.place || "Поле уточняется"}
+      </p>
+      <div className="match-tags">
+        <MyTag event={e} />
+        <span
+          className="match-tag"
+          aria-label={`Записано ${e.mainCount} из ${e.limit}${e.reserveCount ? `, в резерве ${e.reserveCount}` : ""}`}
+        >
+          {roster}
         </span>
       </div>
       <Link
@@ -89,6 +58,29 @@ export function MatchCard({
         <Icon name="arrow" />
       </Link>
     </article>
+  );
+}
+
+function MyTag({ event: e }: { event: EventSummaryDto }) {
+  if (e.my === "main")
+    return (
+      <span className="match-tag on">
+        <Icon name="check" />
+        Ты в основе
+      </span>
+    );
+  if (e.my === "reserve")
+    return (
+      <span className="match-tag reserve">
+        {e.myReservePosition
+          ? `Ты в резерве · №${e.myReservePosition}`
+          : "Ты в резерве"}
+      </span>
+    );
+  return (
+    <span className="match-tag">
+      {e.status === "playing" ? "Запись закрыта" : "Запись открыта"}
+    </span>
   );
 }
 

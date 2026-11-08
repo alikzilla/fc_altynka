@@ -63,6 +63,8 @@ export interface EventSummaryDto {
   mainCount: number;
   reserveCount: number;
   my: 'main' | 'reserve' | null;
+  /** The viewer's place in the reserve queue (1-based); null outside the reserve. Optional for older responses. */
+  myReservePosition?: number | null;
   community: CommunityDto;
   /** Only on finished matches in the home feed: the viewer's own result. */
   myResult?: import('./playerStatistics').MyMatchResult | null;

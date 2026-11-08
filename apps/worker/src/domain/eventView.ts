@@ -14,7 +14,8 @@ const { gameStateJson: _protocolJson, ...summaryColumns } = getTableColumns(even
 type SummaryEvent = Omit<EventRow, 'gameStateJson'>;
 
 function summary(ev: SummaryEvent, q: QueueSplit<SignupRow>, viewerUserId: number, now: number, community: CommunityDto): EventSummaryDto {
-  const my = q.main.some(s => s.userId === viewerUserId) ? 'main' : q.reserve.some(s => s.userId === viewerUserId) ? 'reserve' : null;
+  const reserveIndex = q.reserve.findIndex(s => s.userId === viewerUserId);
+  const my = q.main.some(s => s.userId === viewerUserId) ? 'main' : reserveIndex >= 0 ? 'reserve' : null;
   return {
     id: ev.id,
     protocolVersion: ev.protocolVersion, startedAt: ev.startedAt, completedAt: ev.completedAt,
@@ -28,6 +29,7 @@ function summary(ev: SummaryEvent, q: QueueSplit<SignupRow>, viewerUserId: numbe
     mainCount: q.main.length,
     reserveCount: q.reserve.length,
     my,
+    myReservePosition: reserveIndex >= 0 ? reserveIndex + 1 : null,
     community: { id: community.id, title: community.title },
   };
 }

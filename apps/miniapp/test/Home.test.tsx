@@ -13,20 +13,48 @@ vi.mock('../src/lib/tg');
 
 const ev: EventSummaryDto = {
   id: 5, community: { id: 1, title: 'FC Altynka' }, date: '2026-11-07', status: 'collecting', startTime: null, durationHours: null, place: null,
-  limit: 10, mainCount: 9, reserveCount: 2, my: 'reserve',
+  limit: 10, mainCount: 9, reserveCount: 2, my: 'reserve', myReservePosition: 1,
 };
 
 beforeEach(() => {
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [ev], past: [] } satisfies EventsListDto));
 });
 
-test('Home shows occupancy and reserve status without offering creation to players', async () => {
+test('the upcoming card leads with how soon the match is, then one line and two tags', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-05T09:00:00Z'));
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] }
+    : { active: [{ ...ev, status: 'scheduled', startTime: '20:00', durationHours: 2, place: 'Школа Аксай' }], past: [] } satisfies EventsListDto));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  const card = await screen.findByRole('article', { name: 'Матч суббота, 7 ноября' });
+  expect(within(card).getByRole('heading', { name: 'суббота, 7 ноября' })).toBeInTheDocument();
+  expect(within(card).getByText('Через 2 дня')).toBeInTheDocument();
+  expect(within(card).getByText('20:00–22:00 · Школа Аксай')).toBeInTheDocument();
+  expect(within(card).getByText('Ты в резерве · №1')).toBeInTheDocument();
+  expect(within(card).getByLabelText('Записано 9 из 10, в резерве 2')).toHaveTextContent('9 / 10 · резерв 2');
+  vi.useRealTimers();
+});
+
+test('Home shows unknown time and venue and offers no creation to players', async () => {
   renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
   expect(await screen.findByRole('heading', { name: 'суббота, 7 ноября' })).toBeInTheDocument();
-  expect(screen.getByText(/10 игроков/)).toHaveTextContent('9 / 10 игроков');
-  expect(screen.getByText('Резерв: 2')).toBeInTheDocument();
-  expect(screen.getByText('Ты в резерве')).toBeInTheDocument();
+  expect(screen.getByText('Время уточняется · Поле уточняется')).toBeInTheDocument();
   expect(screen.queryByRole('link', { name: 'Создать матч' })).toBeNull();
+});
+
+test.each([
+  [{ my: 'main' as const }, '2026-11-07', 'Сегодня', 'Ты в основе'],
+  [{ my: null }, '2026-11-06', 'Завтра', 'Запись открыта'],
+  [{ my: null, status: 'playing' as const }, '2026-11-07', 'Идёт игра', 'Запись закрыта'],
+])('upcoming card wording for %o on %s', async (patch, today, countdown, mine) => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date(`${today}T09:00:00Z`));
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [{ ...ev, ...patch, myReservePosition: null }], past: [] }));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  const card = await screen.findByRole('article');
+  expect(within(card).getByText(countdown)).toBeInTheDocument();
+  expect(within(card).getByText(mine)).toBeInTheDocument();
+  vi.useRealTimers();
 });
 
 test('organizers can create a match from the empty home state', async () => {
@@ -79,8 +107,12 @@ test('a match played yesterday leads Home with the player result, payment and su
     : { active: [finished], past: [] }));
   renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
   const card = await screen.findByRole('article', { name: 'Синие — первое место' });
-  expect(within(card).getByText('4')).toBeInTheDocument();
-  expect(within(card).getByText('твоих гола')).toBeInTheDocument();
+  expect(within(card).getByRole('heading', { name: '1 место' })).toBeInTheDocument();
+  expect(within(card).getByText('Синие')).toBeInTheDocument();
+  expect(within(card).getByText((_, el) => el?.tagName === 'P' && el.textContent === '4 победы · 1 ничья · 1 поражение')).toBeInTheDocument();
+  expect(within(card).getByText('2 твоих гола')).toBeInTheDocument();
+  expect(within(card).getByText('6 игр')).toBeInTheDocument();
+  expect(within(card).getByRole('link', { name: /Таблица и бомбардиры/ })).toHaveAttribute('href', '/event/9?tab=games');
   expect(await within(card).findByRole('link', { name: /Оплатить 2\s000/ })).toHaveAttribute('href', '/event/9?tab=bill');
   expect(within(card).getByRole('link', { name: /Оценить матч/ })).toHaveAttribute('href', '/event/9/review');
   expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Последний матч');

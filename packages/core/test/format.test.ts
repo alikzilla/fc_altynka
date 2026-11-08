@@ -1,5 +1,5 @@
 import {
-  defaultDisplayName, escapeHtml, formatDateRu, formatKzPhone, formatTenge, normalizeKzPhone, plural, todayAlmaty,
+  defaultDisplayName, escapeHtml, formatDateRu, matchCountdown, formatKzPhone, formatTenge, normalizeKzPhone, plural, todayAlmaty,
 } from '../src';
 
 test('plural', () => {
@@ -40,4 +40,14 @@ test('defaultDisplayName', () => {
 
 test('escapeHtml', () => {
   expect(escapeHtml('<b>A&B</b>')).toBe('&lt;b&gt;A&amp;B&lt;/b&gt;');
+});
+
+test('matchCountdown says how far away the match day is', () => {
+  expect(matchCountdown('2026-11-09', '2026-11-09')).toBe('Сегодня');
+  expect(matchCountdown('2026-11-10', '2026-11-09')).toBe('Завтра');
+  expect(matchCountdown('2026-11-11', '2026-11-09')).toBe('Через 2 дня');
+  expect(matchCountdown('2026-11-14', '2026-11-09')).toBe('Через 5 дней');
+  expect(matchCountdown('2026-12-01', '2026-11-30')).toBe('Завтра');
+  expect(matchCountdown('2027-01-01', '2026-12-11')).toBe('Через 21 день');
+  expect(matchCountdown('2026-11-08', '2026-11-09')).toBeNull();
 });

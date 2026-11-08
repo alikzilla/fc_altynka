@@ -38,7 +38,7 @@ Primary buttons use a pale pearly fill with dark text. Coral surfaces receive a 
 
 ## Typography and frame
 
-Apple system stack with bundled Onest Variable fallback, optical sizing enabled. Screen titles 28 px / 600, 27 px below 360 px; section headings 18 px / 550; body 16 px; metadata 12–14 px. Navigation labels are 12 px; 12 px is the text floor everywhere. The main calendar day is 62 px / 450, 57 px on narrow phones, accompanied by the month at 24/22 px. Dates, amounts and roster counts use tabular figures.
+Apple system stack with bundled Onest Variable fallback, optical sizing enabled. Screen titles 28 px / 600, 27 px below 360 px; section headings 18 px / 550; body 16 px; metadata 12–14 px. Navigation labels are 12 px; 12 px is the text floor everywhere. The home match cards lead with one 44 px / 550 answer (38 px on narrow phones) under a quiet 14 px date. Dates, amounts and roster counts use tabular figures.
 
 One centred column caps at 440 px, with 20 px gutters and 16 px below 360 px. Content groups use 20 px gaps. Cards use approximately 30 px corners; the featured match uses 37 px and 21 px padding. Device and Telegram safe areas are included. At least 148 px plus bottom inset is reserved for the fixed dock.
 
@@ -176,8 +176,15 @@ everywhere, states that the receiver will check it against the Kaspi transfer, b
 with «Повторить» instead of vanishing. ConfirmButton keeps its question until blur or Escape (no timer)
 and announces it assertively. The final rating step shows a recap before «Отправить оценки».
 
-A finished match from the last two days leads Home as a plum result card: team colour and place,
-wins/draws/losses, own goals, then «Оплатить», «Оценить матч» and «Таблица и бомбардиры». Its payment
+Both home match cards read in one order: a quiet date line, one big answer, one 16 px line and two pill
+tags, then actions. The upcoming card answers how soon («Сегодня», «Завтра», «Через 5 дней»; «Идёт игра»
+while playing; the status label once the day has passed), then «время · поле» («Время уточняется» /
+«Поле уточняется» when unknown); its tags are the personal one (mint «Ты в основе», warm «Ты в резерве · №n»,
+neutral «Запись открыта»/«Запись закрыта») and the roster «14 / 18 · резерв 2». It carries no group tag.
+A finished match from the last two days leads Home as a plum result card: date · team colour and name
+(plus the group tag with several groups), the place («2 место») as the big answer, the record
+«3 победы · 1 ничья · 2 поражения» (each part unbroken), tags for own goals («Без голов» at zero) and
+short games, then «Оплатить», «Оценить матч» and «Таблица и бомбардиры». Its payment
 and survey tasks are not repeated under «Нужно сделать». Every match row carries a personal chip
 (В основе, Резерв, n/limit, or the W–D–L of a finished match). Without an explicit tab the match page
 opens on «Игры» while playing and «Оплата» while billing; its back control returns to the list it was
