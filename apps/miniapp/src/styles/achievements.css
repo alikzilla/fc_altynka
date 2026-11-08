@@ -1,0 +1,75 @@
+/* Достижения: графитовая карточка с закреплённым, шторки списка и лестницы уровней. */
+.achievements-card { gap: 14px; }
+.achievements-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.achievements-heading h2 { font-size: 18px; font-weight: 550; letter-spacing: -.025em; }
+.achievements-all { display: inline-flex; align-items: center; gap: 2px; min-height: 44px; padding: 0 0 0 12px; border: 0; background: none; color: var(--accent-ink); font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; }
+.achievements-all svg { width: 18px; height: 18px; }
+
+.achievement-pinned { display: grid; grid-template-columns: 76px minmax(0, 1fr); align-items: center; gap: 16px; width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+button.achievement-pinned { cursor: pointer; border-radius: 18px; }
+.achievement-pinned-copy { display: flex; flex-direction: column; min-width: 0; }
+.achievement-pinned-copy small { color: var(--hint); font-size: 12px; margin-bottom: 4px; }
+.achievement-pinned-copy strong { font-size: 17px; font-weight: 550; letter-spacing: -.02em; }
+.achievement-empty-text { color: var(--hint); font-size: 14px; line-height: 1.45; }
+.achievement-tier-line { font-size: 13px; margin-top: 4px; color: var(--tier-ink, var(--hint)); }
+
+.achievement-progress { margin-top: 10px; }
+.achievement-progress progress { display: block; width: 100%; height: 4px; appearance: none; border: 0; border-radius: 4px; background: #ffffff14; }
+.achievement-progress progress::-webkit-progress-bar { background: #ffffff14; border-radius: 4px; }
+.achievement-progress progress::-webkit-progress-value { background: var(--tier-ink, var(--hint)); border-radius: 4px; }
+.achievement-progress progress::-moz-progress-bar { background: var(--tier-ink, var(--hint)); border-radius: 4px; }
+.achievement-progress p { display: flex; justify-content: space-between; gap: 8px; margin-top: 7px; color: var(--hint); font-size: 12px; font-variant-numeric: tabular-nums; }
+
+/* Медаль: непрозрачный шестиугольник, без свечения. */
+.achievement-medal { flex: none; display: grid; place-items: center; width: 76px; height: 76px; clip-path: polygon(50% 0, 93% 25%, 93% 75%, 50% 100%, 7% 75%, 7% 25%); color: #1d160a; }
+.achievement-medal[data-size=md] { width: 48px; height: 48px; }
+.achievement-medal[data-size=sm] { width: 28px; height: 28px; }
+.achievement-medal svg { width: 42%; height: 42%; stroke-width: 1.8; }
+.achievement-medal[data-tier=wood] { background: linear-gradient(160deg, #d9a676, #8a5a3b 60%, #5e3a22); }
+.achievement-medal[data-tier=bronze] { background: linear-gradient(160deg, #f2b27c, #a0633a 60%, #6d3f20); }
+.achievement-medal[data-tier=silver] { background: linear-gradient(160deg, #f4f7fa, #9aa3ad 60%, #6b7380); }
+.achievement-medal[data-tier=gold] { background: linear-gradient(160deg, #fff0a8, #d2a43a 55%, #8b6519); }
+.achievement-medal[data-tier=platinum] { background: linear-gradient(160deg, #dcfbf6, #5fb3b0 60%, #2f6f6d); }
+.achievement-medal[data-tier=diamond] { background: linear-gradient(160deg, #e4f3ff, #6c9cff 55%, #3150b8); }
+.achievement-medal[data-tier=legend] { background: linear-gradient(160deg, #ffd6fb, #b05ad6 55%, #5c2484); }
+.achievement-medal[data-tier=locked] { background: #2a2932; color: #a29dad; }
+.achievement-medal[data-empty] { clip-path: none; background: none; }
+.achievement-medal[data-empty] svg { width: 100%; height: 100%; fill: none; stroke: var(--line); stroke-width: 2.5; stroke-dasharray: 7 6; }
+
+/* Цвет текста уровня: AA на графите в обеих темах. */
+[data-tier=wood] { --tier-ink: #e2b98f; } [data-tier=bronze] { --tier-ink: #f0b68a; } [data-tier=silver] { --tier-ink: #dfe5ec; }
+[data-tier=gold] { --tier-ink: #f0dc98; } [data-tier=platinum] { --tier-ink: #a9e6df; } [data-tier=diamond] { --tier-ink: #bcd6ff; }
+[data-tier=legend] { --tier-ink: #e5b8f5; } [data-tier=locked] { --tier-ink: var(--hint); }
+
+/* Шторка со списком. */
+.achievement-list { list-style: none; margin: 4px 0 0; padding: 0; }
+.achievement-row { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; width: 100%; min-height: 72px; padding: 12px 0; border: 0; border-top: 1px solid var(--line); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.achievement-row-copy { display: flex; flex-direction: column; min-width: 0; }
+.achievement-row-copy strong { font-size: 15px; font-weight: 550; }
+.achievement-row-copy .achievement-tier-line { font-size: 12px; }
+.achievement-row-progress { color: var(--hint); font-size: 13px; font-variant-numeric: tabular-nums; }
+.achievement-pin-mark { margin-left: 8px; padding: 2px 7px; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-size: 12px; font-weight: 500; vertical-align: 1px; }
+
+/* Шторка одного достижения. */
+.achievement-detail-head { display: flex; flex-direction: column; align-items: center; gap: 10px; margin: 4px 0 12px; text-align: center; }
+.achievement-ladder { list-style: none; margin: 0; padding: 0; }
+.achievement-ladder li { display: grid; grid-template-columns: 28px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 46px; border-top: 1px solid var(--line); font-size: 14px; }
+.achievement-ladder em { color: var(--hint); font-style: normal; font-size: 12px; }
+.achievement-threshold { color: var(--hint); font-variant-numeric: tabular-nums; }
+.achievement-ladder li[data-state=future] { color: var(--hint); }
+.achievement-ladder li[data-state=future] .achievement-medal { opacity: .35; }
+.achievement-error { margin-top: 8px; text-align: center; }
+
+:root[data-theme=light] .achievement-progress progress,
+:root[data-theme=light] .achievement-progress progress::-webkit-progress-bar { background: #e3dde9; }
+:root[data-theme=light] .achievement-medal[data-tier=locked] { background: #e3dfe8; color: #6b6273; }
+:root[data-theme=light] [data-tier=wood] { --tier-ink: #7a4a26; } :root[data-theme=light] [data-tier=bronze] { --tier-ink: #8a4a1e; }
+:root[data-theme=light] [data-tier=silver] { --tier-ink: #4f5866; } :root[data-theme=light] [data-tier=gold] { --tier-ink: #735400; }
+:root[data-theme=light] [data-tier=platinum] { --tier-ink: #1f6a66; } :root[data-theme=light] [data-tier=diamond] { --tier-ink: #2a4fa8; }
+:root[data-theme=light] [data-tier=legend] { --tier-ink: #7a3399; }
+
+@media (max-width: 359px) {
+  .achievement-pinned { grid-template-columns: 60px minmax(0, 1fr); gap: 12px; }
+  .achievement-pinned > .achievement-medal, .achievement-detail-head > .achievement-medal { width: 60px; height: 60px; }
+}
+@media (prefers-contrast: more) { .achievement-medal[data-empty] svg { stroke: var(--hint); } }

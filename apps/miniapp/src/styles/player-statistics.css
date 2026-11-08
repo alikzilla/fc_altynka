@@ -48,37 +48,7 @@
 .rating-scale-note { color:var(--hint); font-size:12px; line-height:1.6; }
 :root[data-theme=light] .rating-legend .rank-core { fill:#19191f; fill-opacity:1; }
 :root[data-theme=light] .rating-legend .rank-track { stroke:#d9d2e1; }
-.achievements-section { display:flex; flex-direction:column; gap:16px; }
-.achievements-heading { display:flex; align-items:baseline; justify-content:space-between; gap:12px; }
-.achievements-heading h2,.player-meeting-history>h2 { font-size:18px; font-weight:550; letter-spacing:-.025em; }
-.achievements-heading>span { color:var(--hint); font-size:12px; font-variant-numeric:tabular-nums; }
-.achievements-grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-.achievement { display:flex; flex-direction:column; align-items:stretch; background:#15151b; border-radius:24px; padding:17px 15px 15px; min-width:0; }
-.achievement-symbol { display:flex; align-items:center; justify-content:space-between; color:#94909f; margin-bottom:16px; }
-.achievement-symbol>svg { width:24px; height:24px; stroke-width:1.5; }
-.achievement-symbol>svg+svg { width:14px; height:14px; color:#dfdff7; }
-.achievement h3 { color:#c5c0cf; font-size:14px; line-height:1.25; font-weight:550; letter-spacing:-.02em; }
-.achievement p { color:#a39cab; font-size:12px; line-height:1.5; margin-top:7px; }
-.achievement-progress { display:flex; flex-direction:column; gap:8px; margin-top:auto; padding-top:16px; }
-.achievement-progress>span { color:#b5afbe; font-size:12px; font-variant-numeric:tabular-nums; font-weight:500; }
-.achievement progress { display:block; width:100%; height:3px; appearance:none; border:0; border-radius:3px; background:#ffffff0c; }
-.achievement progress::-webkit-progress-bar { background:#ffffff0c; border-radius:3px; }
-.achievement progress::-webkit-progress-value { background:#aaa0ba; border-radius:3px; }
-.achievement progress::-moz-progress-bar { background:#aaa0ba; border-radius:3px; }
-.achievement.is-earned { background:radial-gradient(ellipse 120% 70% at 30% -30%,#7b79a140,transparent),#1d2034; }
-.achievement.is-earned :is(h3,.achievement-progress>span) { color:#eceafa; }
-.achievement.is-earned :is(.achievement-symbol,p) { color:#c3c2dd; }
-.achievement.is-earned progress::-webkit-progress-value { background:#c5c4e7; }
-.achievement.is-earned progress::-moz-progress-bar { background:#c5c4e7; }
-:root[data-theme=light] .achievement { background:#eae7ef; }
-:root[data-theme=light] .achievement h3 { color:#655d70; }
-:root[data-theme=light] .achievement :is(p,.achievement-progress>span) { color:#6b6273; }
-:root[data-theme=light] .achievement-symbol { color:#817888; }
-:root[data-theme=light] .achievement progress,:root[data-theme=light] .achievement progress::-webkit-progress-bar { background:#d9d3e0; }
-:root[data-theme=light] .achievement.is-earned { background:radial-gradient(ellipse 130% 90% at 30% -30%,#7d83cb70,transparent),#202944; }
-:root[data-theme=light] .achievement.is-earned :is(h3,.achievement-progress>span) { color:#f1eff9; }
-:root[data-theme=light] .achievement.is-earned :is(p,.achievement-symbol) { color:#cccce1; }
-:root[data-theme=light] .achievement.is-earned progress,:root[data-theme=light] .achievement.is-earned progress::-webkit-progress-bar { background:#ffffff20; }
+.player-meeting-history>h2 { font-size:18px; font-weight:550; letter-spacing:-.025em; }
 .player-meeting-history { display:flex; flex-direction:column; gap:16px; }
 .player-meeting { gap:16px; box-shadow:none; }
 .player-meeting-date h3 { font-size:17px; font-weight:550; letter-spacing:-.02em; }
@@ -116,9 +86,6 @@
   .rating-legend-item>.rating-emblem { width:48px; height:48px; }
   .rating-legend-item .rating-emblem>strong { font-size:24px; }
   .rating-legend-item>span:last-child { display:none; }
-  .achievement { padding:16px 13px 14px; border-radius:21px; }
-  .achievement h3 { font-size:13px; }
-  .achievement p { font-size:12px; }
 }
 @media(max-width:299px) {
   .player-statistics { gap:2px; }

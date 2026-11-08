@@ -30,7 +30,7 @@ test('rating details use FACEIT colours and continuous circles',async()=>{
 });
 
 test('old protocol meetings do not resurface as legacy rows outside the displayed game-history window',()=>{
-  const profile={userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,statistics:aggregatePlayerStatistics([]),gameHistory:[],
+  const profile={userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,statistics:aggregatePlayerStatistics([]),gameHistory:[],
     history:[{eventId:9,date:'2026-10-01',place:'Old protocol venue',community:{id:1,title:'FC Altynka'},score:7,protocolVersion:1 as const}]};
   renderWithApp(<PlayerGameHistory profile={profile}/>,{me:player});
   expect(screen.queryByText('Old protocol venue')).not.toBeInTheDocument();

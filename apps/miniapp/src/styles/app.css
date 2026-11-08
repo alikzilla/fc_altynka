@@ -1,6 +1,7 @@
 @import './games.css';
 @import './teams.css';
 @import './player-statistics.css';
+@import './achievements.css';
 
 :root {
   color-scheme: dark;

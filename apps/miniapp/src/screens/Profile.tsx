@@ -6,7 +6,8 @@ import { api, ApiError } from '../lib/api';
 import { creatableCommunities, useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { haptic } from '../lib/tg';
 import { ErrorNote, Screen, useToast } from '../components/ui';
-import { PlayerAchievements, PlayerSportsCard } from '../components/PlayerSports';
+import { PlayerSportsCard } from '../components/PlayerSports';
+import { PlayerAchievements } from '../components/PlayerAchievements';
 import { PlayerGameHistory } from '../components/PlayerGameHistory';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
@@ -66,7 +67,7 @@ export function Profile({ settings }: { settings?: string }) {
         role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} editPositionHref="/profile/settings/football"/>
       {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
       {sportingProfile.error && <ErrorNote text="Не получилось загрузить статистику" retry={sportingProfile.reload}/>}
-      {sportingProfile.data?.statistics && <PlayerAchievements statistics={sportingProfile.data.statistics}/>}
+      {sportingProfile.data?.statistics && <PlayerAchievements statistics={sportingProfile.data.statistics} pinned={sportingProfile.data.pinnedAchievement ?? null} onPin={async id => { await api.send('PATCH', '/api/me', { pinnedAchievement: id }); }}/>}
       {sportingProfile.data && <PlayerGameHistory profile={sportingProfile.data}/>}
       {!completed && <><h2 className="section">В команде</h2>
       <form className="card material-blue form profile-form" onSubmit={save} aria-busy={busy}>

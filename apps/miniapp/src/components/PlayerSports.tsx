@@ -1,4 +1,4 @@
-import { playerAchievements, playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
+import { playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
@@ -65,12 +65,3 @@ export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,do
   </section>;
 }
 
-export function PlayerAchievements({statistics}:{statistics:PlayerStatistics}) {
-  const rows=playerAchievements(statistics);
-  return <section className="achievements-section" aria-labelledby="achievements-title"><div className="achievements-heading"><h2 id="achievements-title">Достижения</h2><span>{rows.filter(row=>row.earned).length} из {rows.length}</span></div>
-    <div className="achievements-grid">{rows.map(row=><article className={`achievement${row.earned?' is-earned':''}`} key={row.id} aria-label={`${row.title}: ${row.earned?'получено':`${Math.min(row.current,row.target)} из ${row.target}`}`}>
-      <div className="achievement-symbol"><Icon name={row.symbol as 'ball'|'flame'|'trophy'|'target'|'shirt'|'shield'}/>{row.earned && <Icon name="check"/>}</div>
-      <h3>{row.title}</h3><p>{row.description}</p><div className="achievement-progress"><span>{row.earned?'Получено':`${Math.min(row.current,row.target)} / ${row.target}`}</span><progress max={row.target} value={Math.min(row.current,row.target)} aria-label={`Прогресс: ${row.title}`}/></div>
-    </article>)}</div>
-  </section>;
-}
