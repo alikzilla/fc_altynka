@@ -282,6 +282,9 @@ h2.match-day::first-letter { text-transform: uppercase; }
 .team-red .team-dot { background: #e48481; }
 .team-blue .team-dot { background: #88b9e5; }
 .team-yellow .team-dot { background: #dec768; }
+/* Kit colour as a variable for larger kit marks (discs, shirts, bars); dots keep their own rules. */
+.team-red { --kit: #e48481; } .team-blue { --kit: #88b9e5; } .team-yellow { --kit: #dec768; }
+.team-green { --kit: #86c8a2; } .team-white { --kit: #e8e8ee; } .team-black { --kit: #666771; }
 .team-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 button.team-heading { border: 0; background: none; padding: 0; min-height: 44px; text-align: left; }
 .list.bare { padding: 0; }

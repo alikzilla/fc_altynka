@@ -1,9 +1,9 @@
-.match-games { display: grid; gap: 24px; }
+.match-games { display: grid; gap: 16px; }
 .match-games h2 { margin: 0 0 14px; font-size: 18px; font-weight: 550; }
 .game-team-name { display: inline-flex; align-items: center; gap: 7px; min-width: 0; }
 .game-team-name .team-dot { width: 8px; height: 8px; flex: 0 0 8px; margin: 0; }
 .match-games .game-current { padding: 20px; gap: 0; }
-.game-current-meta, .game-rest { color: var(--hint); font-size: 13px; }
+.game-current-meta { color: var(--blue-ink); font-size: 13px; }
 .game-current .btn-text { color: var(--accent-ink); }
 .game-current .row { min-height: 32px; }
 .game-pair { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 12px; font-size: 21px; font-weight: 550; letter-spacing: -.025em; }
@@ -114,3 +114,34 @@
 .match-games .game-current .match-action { position: static; inset: auto; width: auto; padding: 0; margin-top: 18px; background: none; pointer-events: auto; }
 .match-screen:has(.game-current .match-action) { padding-bottom: calc(110px + var(--safe-bottom)); }
 .game-goal-repeat { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 8px 14px; border: 1px dashed var(--field-border); border-radius: 22px; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 500; }
+
+/* Current game: a fixture with kit discs, points so far and the resting / kickoff chip. */
+.game-versus { display: grid; grid-template-columns: minmax(0,1fr) auto minmax(0,1fr); align-items: center; gap: 8px; margin: 10px 0 14px; }
+.game-side { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; text-align: center; }
+.game-side b { font-size: 18px; font-weight: 550; overflow-wrap: anywhere; }
+.game-side small { margin-top: -4px; color: var(--blue-ink); font-size: 12px; }
+.game-kit { width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--kit, #888) 45%, #fff), var(--kit, #888) 55%, color-mix(in srgb, var(--kit, #888) 60%, #000)); box-shadow: inset 0 2px 3px #fff8, inset 0 -6px 12px #0005, 0 6px 16px #0006; }
+.game-vs { color: var(--blue-ink); font-size: 13px; font-weight: 600; letter-spacing: .08em; }
+.game-current .game-rest { display: flex; align-items: center; justify-self: center; align-self: center; gap: 0; margin: 0 auto 4px; padding: 8px 12px; border-radius: 14px; background: #060b2266; color: var(--blue-ink); font-size: 13px; }
+.game-current .match-action-pair { margin-top: 10px; }
+.match-games .game-current { display: flex; flex-direction: column; }
+/* Graphite sections. */
+.match-games .material-graphite { padding: 18px 16px; gap: 0; }
+.game-standings tbody tr + tr { border-top-color: #ffffff14; }
+.game-result-meta { display: flex; align-items: center; justify-content: space-between; min-height: 32px; color: var(--hint); font-size: 12px; }
+.game-result-meta .btn-text { font-size: 13px; min-height: 32px; padding-block: 4px; }
+.game-result { border-top-color: #ffffff14; }
+.game-score-pill { background: #ffffff10; border-radius: 12px; padding: 3px 10px; }
+.game-winner { font-weight: 600; }
+.game-loser { color: var(--hint); }
+.game-goal-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; line-height: 1.5; }
+.game-goal-columns ul { list-style: none; margin: 0; padding: 0; min-width: 0; overflow-wrap: anywhere; }
+.game-goal-columns ul:last-child { text-align: right; }
+.game-goal-columns small { color: var(--hint); font-size: 12px; }
+.game-goal-none { color: var(--hint); }
+.game-medal { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: #ffffff12; color: var(--hint); font-size: 12px; font-weight: 600; }
+.game-medal.gold { background: linear-gradient(160deg, #f6e7b0, #c9a54a); color: #2b2208; }
+.game-scorer-identity small { display: flex; align-items: center; }
+.game-scorer-identity small .team-dot { width: 7px; height: 7px; margin-right: 5px; }
+.game-scorers-list > li + li { border-top-color: #ffffff14; }
+@media (prefers-contrast: more) { .game-kit { box-shadow: none; border: 2px solid currentColor; } }

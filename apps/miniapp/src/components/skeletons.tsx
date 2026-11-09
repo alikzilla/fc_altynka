@@ -2,6 +2,7 @@
  * Скелеты повторяют загруженную разметку: те же классы карточек, отступы и высоты строк.
  * Постоянные подписи остаются текстом, данные заменяет <Sk />. Меняешь экран — поправь и его скелет.
  */
+import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
 import { Icon } from './Icon';
@@ -204,11 +205,12 @@ function BillSkeleton() {
 function GamesSkeleton() {
   return <div className="match-games">
     <section className="card material-blue game-current">
-      <div className="row between"><span className="game-current-meta"><Sk w="6em" /></span></div>
-      <p className="game-pair"><span><Sk w="5em" /></span><span><Sk w="5em" /></span></p>
+      <div className="row between"><span className="game-current-meta"><Sk w="4em" /></span></div>
+      <div className="game-versus">{times(2).map(side => <Fragment key={side}>{side === 1 && <span className="game-vs">VS</span>}<div className="game-side"><span className="game-kit sk-fill" /><b><Sk w="5em" /></b><small><Sk w="3.5em" /></small></div></Fragment>)}</div>
       <span className="btn primary wide sk-fill" />
     </section>
-    <section className="card game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
+    <section className="card material-graphite game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
+    <section className="card material-graphite game-history"><div className="game-history-heading"><h2>Последние игры</h2></div>{times(2).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
   </div>;
 }
 

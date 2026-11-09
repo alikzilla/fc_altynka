@@ -135,6 +135,9 @@
 :root[data-theme='light'] .team-red .team-dot { background: #b63e49; }
 :root[data-theme='light'] .team-blue .team-dot { background: #3f69ac; }
 :root[data-theme='light'] .team-yellow .team-dot { background: #9c7b10; }
+:root[data-theme='light'] .team-red { --kit: #b63e49; } :root[data-theme='light'] .team-blue { --kit: #3f69ac; } :root[data-theme='light'] .team-yellow { --kit: #9c7b10; }
+:root[data-theme='light'] .team-green { --kit: #34714e; } :root[data-theme='light'] .team-white { --kit: #ffffff; } :root[data-theme='light'] .team-black { --kit: #27262e; }
+:root[data-theme='light'] .game-score-pill { background: #0000000d; }
 
 @media (hover: hover) and (pointer: fine) {
   :root[data-theme='light'] .event-row:hover { background: #6a47850a; }
