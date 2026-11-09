@@ -21,3 +21,8 @@ test('optional card metadata preserves unknown positions but malformed metadata 
   const key=localStorage.key(0)!;localStorage.setItem(key,JSON.stringify({...draft,goalRuns:'broken'}));
   expect(readGameDraft(7,1)).toEqual(draft);
 });
+test('assist pairs travel with the retry payload; malformed pairs discard the draft',()=>{
+  const input={score:[1,0] as [number,number],scorers:[{signupId:1,goals:1}],assists:[{scorerSignupId:1,assistSignupId:4,goals:1}]};
+  writeGameDraft(7,1,{...draft,input});expect(readGameDraft(7,1)?.input.assists).toEqual(input.assists);
+  writeGameDraft(7,1,{...draft,input:{...input,assists:[{scorerSignupId:1,assistSignupId:-4,goals:1}]}});expect(readGameDraft(7,1)).toBeNull();
+});

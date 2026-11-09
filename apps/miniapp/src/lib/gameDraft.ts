@@ -18,6 +18,7 @@ export function readGameDraft(eventId: number, userId: number): GameResultDraft 
     const input = value.input;
     if (!input || !Array.isArray(input.score) || input.score.length !== 2 || !input.score.every(integer) || !Array.isArray(input.scorers) || input.scorers.length > 100) return null;
     if (!input.scorers.every((p: {signupId?:unknown;goals?:unknown}|null)=>p && integer(p.signupId) && p.signupId>0 && integer(p.goals) && p.goals>0)) return null;
+    if (input.assists !== undefined && (!Array.isArray(input.assists) || input.assists.length > 100 || !input.assists.every((a: {scorerSignupId?:unknown;assistSignupId?:unknown;goals?:unknown}|null)=>a && integer(a.scorerSignupId) && a.scorerSignupId>0 && integer(a.assistSignupId) && a.assistSignupId>0 && integer(a.goals) && a.goals>0))) return null;
     if (input.firstRestTeamIndex !== undefined && (!integer(input.firstRestTeamIndex) || input.firstRestTeamIndex>2)) return null;
     // Invalid optional presentation metadata must never discard or alter a retry command.
     if(value.goalRuns!==undefined && !validGoalRuns(value.goalRuns,input)) delete value.goalRuns;
