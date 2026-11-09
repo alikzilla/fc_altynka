@@ -24,6 +24,13 @@ async function touch(page: Page, type: string, x: number, y: number, selector = 
   }, { type, x, y, count });
 }
 
+// The route skeleton already draws the real heading, so a visible heading alone does not mean the screen
+// has mounted. A swipe that starts on the skeleton is lost when the loaded screen replaces it.
+async function ready(page: Page, heading: string) {
+  await expect(page.getByRole('heading', { name: heading, exact: true })).toBeVisible();
+  await expect(page.getByRole('status', { name: 'Загрузка…' })).toHaveCount(0);
+}
+
 async function swipe(page: Page, from: number, to: number, selector = 'main', y = 300) {
   await touch(page, 'touchstart', from, y, selector);
   await touch(page, 'touchmove', (from + to) / 2, y + 2, selector);
@@ -34,7 +41,7 @@ async function swipe(page: Page, from: number, to: number, selector = 'main', y 
 for (const [side, from, to] of [['left', 8, 150], ['right', 382, 240]] as const) {
   test(`${side} edge invokes the screen back destination`, async ({ page }) => {
     await page.goto('/players');
-    await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
+    await ready(page, 'Игроки');
     await touch(page, 'touchstart', from, 300);
     await touch(page, 'touchmove', to, 302);
     await expect(page.locator('.edge-back-cue[data-active]')).toBeVisible();
@@ -62,7 +69,7 @@ for (const [side, from, to] of [['left', 8, 150], ['right', 382, 240]] as const)
 
 test('short pulls, reversals, vertical movement, multitouch and cancelled gestures stay on the page', async ({ page }) => {
   await page.goto('/players');
-  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
+  await ready(page, 'Игроки');
   await swipe(page, 8, 27);
   await swipe(page, 180, 340);
   await touch(page, 'touchstart', 8, 300);
@@ -90,7 +97,7 @@ test('root tabs and gestures starting on inputs do not navigate', async ({ page 
   await swipe(page, 8, 150, 'input');
   await expect(page).toHaveURL('/players');
   await page.goto('/matches');
-  await expect(page.getByRole('heading', { name: 'Матчи', exact: true })).toBeVisible();
+  await ready(page, 'Матчи');
   await swipe(page, 8, 150);
   await swipe(page, 382, 240);
   await expect(page).toHaveURL('/matches');
@@ -114,7 +121,7 @@ test('trusted touchscreen gestures navigate from both edges and retain native ve
   const cdp = await page.context().newCDPSession(page);
   for (const [from, direction] of [[8, 1], [382, -1]]) {
     await page.goto('/players');
-    await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
+    await ready(page, 'Игроки');
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: from, y: 360 }] });
     for (const distance of [14, 40, 75, 120, 150]) {
       await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: from + distance * direction, y: 360 }] });
@@ -124,7 +131,7 @@ test('trusted touchscreen gestures navigate from both edges and retain native ve
     await expect(page).toHaveURL('/profile');
   }
   await page.goto('/players');
-  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
+  await ready(page, 'Игроки');
   await page.locator('main').evaluate(main => { main.style.minHeight = '1800px'; });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: 8, y: 650 }] });
   for (const y of [630, 580, 510, 420, 300]) {
@@ -159,7 +166,7 @@ test('saving locks the sheet against edge navigation', async ({ page }) => {
 test('reduced motion keeps back navigation available', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/players');
-  await expect(page.getByRole('heading', { name: 'Игроки', exact: true })).toBeVisible();
+  await ready(page, 'Игроки');
   await swipe(page, 8, 150);
   await expect(page).toHaveURL('/profile');
 });
