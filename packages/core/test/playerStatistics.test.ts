@@ -26,6 +26,18 @@ test('edited scores, goals and removed games replace previous statistics without
 test('aggregate counts meetings once and calculates all-time best meeting independently of displayed history',()=>{
   const a=core.summarizePlayerProtocol(protocol(),1);
   const b=core.summarizePlayerProtocol({...protocol(),games:[game('1',[0,1],[4,0],[{signupId:11,goals:4}])]},1);
-  expect(core.aggregatePlayerStatistics([a,b,core.summarizePlayerProtocol(protocol(),999)])).toEqual({meetings:2,games:3,goals:6,assists:0,wins:2,draws:1,losses:0,winPercentage:67,bestGoalsInMeeting:4,hatTricks:1});
+  expect(core.aggregatePlayerStatistics([a,b,core.summarizePlayerProtocol(protocol(),999)])).toEqual({meetings:2,games:3,goals:6,assists:0,assistsTracked:false,wins:2,draws:1,losses:0,winPercentage:67,bestGoalsInMeeting:4,hatTricks:1});
   expect(core.aggregatePlayerStatistics([])).toMatchObject({meetings:0,games:0,goals:0,assists:0,winPercentage:null});
+});
+
+test('assists count the frozen identity as passer and are tracked only once a game stores them',()=>{
+  const state=protocol();
+  expect(core.summarizePlayerProtocol(state,1)).toMatchObject({assists:0,assistsTracked:false});
+  state.games[0]={...state.games[0],assists:[{scorerSignupId:12,assistSignupId:11,goals:1}]};
+  state.games[2]={...state.games[2],assists:[]};
+  const own=core.summarizePlayerProtocol(state,1);
+  expect(own).toMatchObject({assists:1,assistsTracked:true});
+  expect(own.results.map(g=>g.assists)).toEqual([1,0]);
+  const total=core.aggregatePlayerStatistics([own,core.summarizePlayerProtocol(protocol(),1)]);
+  expect(total).toMatchObject({assists:1,assistsTracked:true});
 });

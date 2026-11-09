@@ -100,7 +100,7 @@ test('a match played yesterday leads Home with the player result, payment and su
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-08T09:00:00Z'));
   const finished: EventSummaryDto = { ...ev, id: 9, date: '2026-11-07', status: 'billing', place: 'Arena', my: 'main', protocolVersion: 1, startedAt: 1, completedAt: 2,
-    myResult: { teamIndex: 1, teamCount: 3, teamRank: 1, colors: ['red', 'blue', 'yellow'], games: 6, goals: 2, wins: 4, draws: 1, losses: 1 } };
+    myResult: { teamIndex: 1, teamCount: 3, teamRank: 1, colors: ['red', 'blue', 'yellow'], games: 6, goals: 2, assists: 0, assistsTracked: false, wins: 4, draws: 1, losses: 1 } };
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications'
     ? { tasks: [{ kind: 'payment', id: 'p9', eventId: 9, billId: 3, date: '2026-11-07', place: 'Arena', due: 2000, receiverName: 'Орг', receiverKaspiPhone: '+77071234567', community: ev.community },
         { kind: 'review', id: 'r9', eventId: 9, date: '2026-11-07', place: 'Arena', closesAt: 0, community: ev.community }] }

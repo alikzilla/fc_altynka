@@ -1,4 +1,4 @@
-import { calculateScorers, calculateStandings, chooseFirstPair, nextGamePair, resolveFirstRest, type GamePair, type GameResult } from '../src';
+import { calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, nextGamePair, resolveFirstRest, type GamePair, type GameResult } from '../src';
 
 const game = (pair: GamePair, score: readonly [number, number], firstRestTeamIndex: number | null = null): GameResult => ({
   id: 'game', sequence: 1, pair, score, scorers: [], firstRestTeamIndex,
@@ -59,4 +59,8 @@ test('scorers use signup identity, count multiple goals, keep guests distinct an
   expect(rows.map(r => [r.signupId, r.goals])).toEqual([[10, 2], [11, 1]]);
   expect(rows[0].userId).toBeNull();
   expect(calculateScorers([], [])).toEqual([]);
+});
+
+test('kickoff for two teams is a fair 0/1 draw',()=>{
+  expect([0,0.49,0.5,0.99].map(n=>chooseKickoff(()=>n))).toEqual([0,0,1,1]);
 });

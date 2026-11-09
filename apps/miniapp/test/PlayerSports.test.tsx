@@ -38,8 +38,8 @@ test('old protocol meetings do not resurface as legacy rows outside the displaye
 
 type Outcome = 'win'|'draw'|'loss';
 const meeting=(eventId:number,date:string,outcomes:Outcome[],goals:number[],communityId=1):PlayerMeetingStatistics=>({eventId,date,place:null,community:{id:communityId,title:communityId===1?'FC Altynka':'Среда'},colors:['red','blue','yellow'],score:null,
-  games:outcomes.length,goals:goals.reduce((a,b)=>a+b,0),wins:outcomes.filter(o=>o==='win').length,draws:outcomes.filter(o=>o==='draw').length,losses:outcomes.filter(o=>o==='loss').length,
-  results:outcomes.map((outcome,i)=>({id:`${eventId}-${i}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],goals:goals[i]??0,outcome}))});
+  games:outcomes.length,goals:goals.reduce((a,b)=>a+b,0),assists:0,assistsTracked:false,wins:outcomes.filter(o=>o==='win').length,draws:outcomes.filter(o=>o==='draw').length,losses:outcomes.filter(o=>o==='loss').length,
+  results:outcomes.map((outcome,i)=>({id:`${eventId}-${i}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],goals:goals[i]??0,assists:0,outcome}))});
 const m1=meeting(4,'2026-11-06',['win','win','draw'],[2,1,0]);
 const m2=meeting(3,'2026-10-30',['loss','win'],[0,0]);
 const m3=meeting(2,'2026-10-23',['draw'],[1]);

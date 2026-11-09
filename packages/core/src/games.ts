@@ -4,9 +4,11 @@ export type GamePair = readonly [number, number];
 export type GameScore = readonly [number, number];
 export interface GameRosterPlayer { signupId: number; userId: number | null; name: string; teamIndex: number }
 export interface GameGoals { signupId: number; goals: number }
+/** Goals by one scorer that one teammate assisted; pairs are unique per game. */
+export interface GameAssist { scorerSignupId: number; assistSignupId: number; goals: number }
 export interface GameResult {
   id: string; sequence: number; pair: GamePair; score: GameScore;
-  scorers: GameGoals[]; firstRestTeamIndex: number | null;
+  scorers: GameGoals[]; assists?: GameAssist[]; firstRestTeamIndex: number | null;
   recordedAt: number; recordedBy: number; updatedAt: number; updatedBy: number;
 }
 export interface GameCommandReceipt { requestId: string; fingerprint: string; revision: number }
@@ -14,9 +16,11 @@ export interface GameState {
   teamCount: TeamCount; roster: GameRosterPlayer[];
   initialPair: GamePair; currentPair: GamePair; games: GameResult[];
   receipts: GameCommandReceipt[]; finishParticipants: number[] | null; finishedBy?: number;
+  /** Two-team matches only: the team that kicks off game 1, drawn at start. */
+  kickoffTeamIndex?: number;
 }
 export interface GameMutationMeta { requestId: string; expectedRevision: number }
-export interface GameResultInput { score: GameScore; scorers: GameGoals[]; firstRestTeamIndex?: number }
+export interface GameResultInput { score: GameScore; scorers: GameGoals[]; assists?: GameAssist[]; firstRestTeamIndex?: number }
 export interface TeamStanding {
   teamIndex: number; rank: number; played: number; wins: number; draws: number; losses: number;
   goalsFor: number; goalsAgainst: number; goalDifference: number; points: number;
@@ -26,12 +30,17 @@ export interface GameProtocolDto {
   state: 'legacy' | 'not_started' | 'playing' | 'completed'; revision: number;
   startedAt: number | null; completedAt: number | null; teamCount: TeamCount | null;
   roster: GameRosterPlayer[]; currentPair: GamePair | null; restingTeamIndex: number | null;
+  kickoffTeamIndex: number | null;
   games: GameResult[]; standings: TeamStanding[]; scorers: ScorerTotal[];
   canStart: boolean; canRecord: boolean; canEdit: boolean; canUndo: boolean; canFinish: boolean;
 }
 
 export function chooseFirstPair(count: TeamCount, rng: () => number = Math.random): GamePair {
   return count === 2 ? [0, 1] : ([[0, 1], [0, 2], [1, 2]] as const)[Math.min(2, Math.floor(rng() * 3))];
+}
+
+export function chooseKickoff(rng: () => number = Math.random): 0 | 1 {
+  return rng() < 0.5 ? 0 : 1;
 }
 
 export function resolveFirstRest(pair: GamePair, score: GameScore, chosen?: number): number {
