@@ -96,3 +96,23 @@ test('the previous author is offered in one tap for the next goal',async()=>{
   await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[2,0],scorers:[{signupId:1,goals:2}]}));
 });
+
+test('after the scorer is chosen a pass can be picked from teammates and is saved as an assist',async()=>{
+  const protocol=makeProtocol({roster:[{signupId:1,userId:1,name:'Али',teamIndex:0},{signupId:4,userId:4,name:'Дамир',teamIndex:0},{signupId:2,userId:2,name:'Бека',teamIndex:1},{signupId:3,userId:null,name:'Ерпа',teamIndex:2}]});
+  open(protocol);
+  expect(screen.getByText('Голы и пасы')).toBeVisible();
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Красные'}));
+  expect(screen.queryByRole('button',{name:/Пас к голу 1/})).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Гол 1 команды Красные: выбрать автора'})); await userEvent.click(screen.getByRole('button',{name:'Али'}));
+  await userEvent.click(screen.getByRole('button',{name:'Пас к голу 1 команды Красные: выбрать'}));
+  const picker=screen.getByRole('group',{name:'Выбрать пас к голу 1 команды Красные'});
+  expect(within(picker).queryByRole('button',{name:'Али'})).toBeNull();
+  expect(within(picker).getByRole('button',{name:'Без паса'})).toBeVisible();
+  await userEvent.click(within(picker).getByRole('button',{name:'Дамир'}));
+  expect(screen.getByRole('button',{name:'Пас к голу 1 команды Красные: Дамир'})).toBeVisible();
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Синие'}));
+  await userEvent.click(screen.getByRole('radio',{name:'Синие'}));
+  await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
+  expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[1,1],scorers:[{signupId:1,goals:1}],assists:[{scorerSignupId:1,assistSignupId:4,goals:1}]}));
+  expect(screen.getByText('Автора и пас можно указать позже')).toBeVisible();
+});

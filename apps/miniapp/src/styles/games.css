@@ -68,6 +68,11 @@
 .game-empty-goals { padding: 28px 16px; text-align: center; background: var(--field-bg, var(--card)); border-radius: 16px; color: var(--hint); font-size: 14px; line-height: 1.6; margin: 0; }
 .game-goal-slot { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: transparent; color: var(--text); min-height: 60px; margin-top: 8px; }
 .game-goal-slot.active { border-color: var(--accent-ink); background: var(--accent-soft); }
+.game-goal-slot.has-pass { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.game-goal-pass { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; min-height: 46px; padding: 10px 12px; margin-top: -1px; border: 1px solid var(--line); border-top-style: dashed; border-radius: 0 0 12px 12px; background: transparent; color: var(--hint); font-size: 14px; }
+.game-goal-pass b { color: var(--text); font-weight: 500; }
+.game-goal-pass > :last-child { color: var(--accent-ink); font-size: 13px; }
+.game-goal-pass.active { background: var(--accent-soft); border-color: var(--accent-ink); }
 .game-goal-order { width: 24px; flex-shrink: 0; font-size: 12px; color: var(--hint); }
 .game-goal-identity { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: 15px; }
 .game-goal-identity small { display: block; margin-top: 3px; color: var(--hint); font-size: 12px; }

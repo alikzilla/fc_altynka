@@ -6,7 +6,7 @@ import { api, ApiError } from '../lib/api';
 import { clearGameDraft, readGameDraft, writeGameDraft, type GameResultDraft } from '../lib/gameDraft';
 import { useMe } from '../state/me';
 import { gamePlayerName } from '../lib/gamePlayerName';
-import { authorAt, changeGoalCount, goalRunsFromInput, inputFromGoalRuns, setGoalAuthor, type GoalRuns } from '../lib/gameGoalRuns';
+import { assistAt, authorAt, changeGoalCount, goalRunsFromInput, inputFromGoalRuns, setGoalAssist, setGoalAuthor, type GoalRuns } from '../lib/gameGoalRuns';
 
 type Props = { ev: EventDetailDto; protocol: GameProtocolDto; game: GameResult | null; onClose: () => void; onSaved: () => void; reload: () => void };
 
@@ -22,6 +22,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const [error,setError] = useState<string|null>(null);
   const [conflict,setConflict] = useState(false);
   const [activeGoal,setActiveGoal] = useState<{side:number;index:number}|null>(null);
+  const [activePass,setActivePass] = useState<{side:number;index:number}|null>(null);
   const [visibleGoals,setVisibleGoals] = useState([20,20]);
   const pickerId=useId();
   const picker=useRef<HTMLDivElement>(null);
@@ -29,7 +30,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const locked = useRef(false);
   const saved = useRef(false);
   useEffect(()=>{if(!saved.current) writeGameDraft(ev.id,me.userId,draft);},[ev.id,me.userId,draft]);
-  useEffect(()=>{if(activeGoal) picker.current?.querySelector<HTMLButtonElement>('button')?.focus();},[activeGoal]);
+  useEffect(()=>{if(activeGoal || activePass) picker.current?.querySelector<HTMLButtonElement>('button')?.focus();},[activeGoal,activePass]);
   const targetPair = game?.pair ?? protocol.currentPair;
   const stale = conflict || draft.gameId !== (game?.id ?? null) || draft.revision !== protocol.revision || !targetPair || draft.pair.some((n,i)=>n!==targetPair[i]);
   const editable = !busy && !stale && !draft.submitted;
@@ -52,12 +53,17 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
     });
   }
   function score(side:number,delta:1|-1) {
-    updateGoals(current=>changeGoalCount(current,side,delta));setActiveGoal(null);
+    updateGoals(current=>changeGoalCount(current,side,delta));setActiveGoal(null);setActivePass(null);
   }
   function chooseAuthor(side:number,index:number,signupId:number|null) {
     updateGoals(current=>setGoalAuthor(current,side,index,signupId));
     setActiveGoal(null);
     goalButtons.current.get(`${side}:${index}`)?.focus();
+  }
+  function choosePass(side:number,index:number,signupId:number|null) {
+    updateGoals(current=>setGoalAssist(current,side,index,signupId));
+    setActivePass(null);
+    goalButtons.current.get(`pass:${side}:${index}`)?.focus();
   }
   async function save() {
     if (locked.current || !draft.submitted && (stale || !valid)) return;
@@ -86,7 +92,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   }
   const totalGoals=draft.input.score[0]+draft.input.score[1];
   const assigned=totals[0]+totals[1];
-  const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора гола можно указать позже</p></>;
+  const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора и пас можно указать позже</p></>;
   return <ActionSheet title={game?`Результат игры ${game.sequence}`:'Результат игры'} onClose={onClose} busy={busy} footer={footer} className="game-result-sheet">
     {stale && <div className="game-draft-notice"><p>Данные матча изменились. Сохранён черновик другой игры: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
     <fieldset className="game-score-fields" aria-label="Счёт матча" disabled={!editable}>
@@ -95,8 +101,8 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
     {draft.input.score.some(n=>n>99) && <p className="game-score-full">Счёт: {draft.input.score.join(':')}</p>}
     {sulifa && <fieldset className="game-sulifa" disabled={!editable}><legend>Кто сел по сулифа?</legend><p className="muted">Ничья остаётся в таблице. Выбери отдыхающую команду.</p><div className="game-sulifa-options">{draft.pair.map(team=><label key={team}><input type="radio" name="sulifa" checked={draft.input.firstRestTeamIndex===team} onChange={()=>change({...draft.input,firstRestTeamIndex:team})}/><GameTeamName colors={ev.teams?.colors} index={team}/></label>)}</div></fieldset>}
     <fieldset className="game-scorer-fields" disabled={!editable}>
-      <legend><span>Кто забил</span>{totalGoals>0 && <span className="game-goals-total">{assigned} из {totalGoals} указано</span>}</legend>
-      <p className="game-goal-help">Добавь гол кнопкой «+», затем выбери автора.</p>
+      <legend><span>Голы и пасы</span>{totalGoals>0 && <span className="game-goals-total">{assigned} из {totalGoals} указано</span>}</legend>
+      <p className="game-goal-help">Добавь гол кнопкой «+», затем выбери автора. Пас необязателен — его можно указать позже.</p>
       {totals.some((n,side)=>n>draft.input.score[side]) && <div className="game-draft-notice"><p>В черновике указано больше авторских голов, чем в счёте. Проверь карточки и убери лишние голы.</p><button type="button" className="btn wide" disabled={!editable} onClick={()=>updateGoals(current=>current)}>Убрать лишние авторские голы</button></div>}
       {totalGoals===0 && <p className="game-empty-goals">Пока 0:0<br/>После первого гола здесь появится выбор игрока</p>}
       {draft.pair.map((team,side)=>draft.input.score[side]>0?<section key={team} aria-label={`Авторы голов: ${teamAppearance(team, ev.teams?.colors).name}`} className="game-scorer-team">
@@ -106,13 +112,25 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
           const person=protocol.roster.find(p=>p.signupId===signupId && p.teamIndex===team);
           const name=person?gamePlayerName(person,protocol.roster,ev.main):null;
           const expanded=activeGoal?.side===side && activeGoal.index===index;
+          const passOpen=activePass?.side===side && activePass.index===index;
+          const assistId=assistAt(runs[side],index);
+          const passer=assistId===null?undefined:protocol.roster.find(p=>p.signupId===assistId && p.teamIndex===team);
+          const passerName=passer?gamePlayerName(passer,protocol.roster,ev.main):null;
+          const teamName=teamAppearance(team, ev.teams?.colors).name;
           // A player who scores twice in a row is common: offer the previous author in one tap.
           const previousId=index>0?authorAt(runs[side],index-1):null;
           const previous=signupId===null && previousId!==null && previousId!==undefined ? protocol.roster.find(p=>p.signupId===previousId && p.teamIndex===team) : undefined;
           return <div key={index} className={previous && !expanded ? 'game-goal-row with-repeat' : 'game-goal-row'}>
-            <button type="button" className={`game-goal-slot ${name?'assigned':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${teamAppearance(team, ev.teams?.colors).name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>setActiveGoal(expanded?null:{side,index})}>
+            <button type="button" className={`game-goal-slot ${name?'assigned has-pass':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${teamAppearance(team, ev.teams?.colors).name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>{setActivePass(null);setActiveGoal(expanded?null:{side,index});}}>
               <span className="game-goal-order">{index+1}.</span><span className="game-goal-identity">{name ?? 'Кто забил?'}<small>{name?'Нажми, чтобы изменить':'Выбрать игрока'}</small></span><span aria-hidden="true">{name?'✓':'+'}</span>
             </button>
+            {name && <button type="button" className={`game-goal-pass ${passerName?'assigned':''} ${passOpen?'active':''}`} aria-label={`Пас к голу ${index+1} команды ${teamName}: ${passerName ?? 'выбрать'}`} aria-expanded={passOpen} aria-controls={passOpen?pickerId:undefined} disabled={!editable} ref={node=>{const key=`pass:${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>{setActiveGoal(null);setActivePass(passOpen?null:{side,index});}}>
+              <span className="game-goal-order" aria-hidden="true">↳</span><span className="game-goal-identity">Пас: {passerName ? <b>{passerName}</b> : 'выбрать'}</span><span aria-hidden="true">{passerName?'Изменить':'+'}</span>
+            </button>}
+            {passOpen && <div className="game-player-picker" id={pickerId} ref={picker} role="group" aria-label={`Выбрать пас к голу ${index+1} команды ${teamName}`} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setActivePass(null);goalButtons.current.get(`pass:${side}:${index}`)?.focus();}}}>
+              {protocol.roster.filter(p=>p.teamIndex===team && p.signupId!==signupId).map(player=>{const playerName=gamePlayerName(player,protocol.roster,ev.main);return <button type="button" className="game-player-option" key={player.signupId} aria-label={playerName} aria-pressed={assistId===player.signupId} disabled={!editable} onClick={()=>choosePass(side,index,player.signupId)}><span className="game-player-initial" aria-hidden="true">{player.name[0]}</span><span>{playerName}{player.userId===null && <small className="muted">Гость</small>}</span><span aria-hidden="true">{assistId===player.signupId?'✓':''}</span></button>;})}
+              <button type="button" className="game-player-option" aria-pressed={assistId===null} disabled={!editable} onClick={()=>choosePass(side,index,null)}>Без паса<span aria-hidden="true">{assistId===null?'✓':''}</span></button>
+            </div>}
             {previous && !expanded && <button type="button" className="game-goal-repeat" disabled={!editable} onClick={()=>chooseAuthor(side,index,previous.signupId)}>{gamePlayerName(previous,protocol.roster,ev.main)} ещё раз</button>}
             {expanded && <div className="game-player-picker" id={pickerId} ref={picker} role="group" aria-label={`Выбрать автора гола команды ${teamAppearance(team, ev.teams?.colors).name}`} onKeyDown={e=>{if(e.key==='Escape'){e.preventDefault();e.stopPropagation();setActiveGoal(null);goalButtons.current.get(`${side}:${index}`)?.focus();}}}>
               {protocol.roster.filter(p=>p.teamIndex===team).map(player=>{const playerName=gamePlayerName(player,protocol.roster,ev.main);return <button type="button" className="game-player-option" key={player.signupId} aria-label={playerName} aria-pressed={signupId===player.signupId} disabled={!editable} onClick={()=>chooseAuthor(side,index,player.signupId)}><span className="game-player-initial" aria-hidden="true">{player.name[0]}</span><span>{playerName}{player.userId===null && <small className="muted">Гость</small>}</span><span aria-hidden="true">{signupId===player.signupId?'✓':''}</span></button>;})}
