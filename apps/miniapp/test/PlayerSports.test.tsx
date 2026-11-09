@@ -79,3 +79,12 @@ test('with several groups the row name includes the group for screen readers', (
   renderWithApp(<PlayerGameHistory profile={profileWith([m1, meeting(9,'2026-10-29',['win'],[0],2)])}/>, { me: player });
   expect(screen.getAllByRole('button', { name: /гол/ })[1]).toHaveAccessibleName(/· Среда$/);
 });
+
+test('assists show the real count once any game recorded them, and a dash before that',()=>{
+  const base=props.statistics!;
+  const first=renderWithApp(<PlayerSportsCard {...props} statistics={{...base,assists:0,assistsTracked:false}}/>,{me:player});
+  expect(first.container.querySelector('.assists dd')).toHaveTextContent('—');
+  first.unmount();
+  const second=renderWithApp(<PlayerSportsCard {...props} statistics={{...base,assists:3,assistsTracked:true}}/>,{me:player});
+  expect(second.container.querySelector('.assists dd')).toHaveTextContent('3');
+});

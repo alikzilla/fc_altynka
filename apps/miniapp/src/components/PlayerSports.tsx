@@ -60,7 +60,7 @@ export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,do
         {editPositionHref && <Link className="player-position-edit" href={editPositionHref} aria-label="Изменить позицию и рабочую ногу">Изменить</Link>}</div>
       <dl className="player-statistics" aria-label="Статистика за всё время и рабочая нога">
         <div className="goals"><dt>Голы</dt><dd>{pending ?? statistics?.goals ?? '—'}</dd></div>
-        <div className="assists"><dt>Ассисты</dt><dd aria-label="Пока не считаются">—</dd></div>
+        <div className="assists"><dt>Ассисты</dt>{pending ? <dd>{pending}</dd> : statistics?.assistsTracked ? <dd>{statistics.assists}</dd> : <dd aria-label="Пока не считаются">—</dd>}</div>
         <div><dt>Игры</dt><dd>{pending ?? statistics?.games ?? '—'}</dd></div>
         <div className="wins-stat"><dt>Побед</dt><dd>{pending ?? (statistics?.winPercentage==null?'—':<>{statistics.winPercentage}<small>%</small></>)}</dd></div>
         <div className="foot-stat"><dt>Нога</dt><WorkingFoot foot={dominantFoot}/></div>
