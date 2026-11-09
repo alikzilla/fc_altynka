@@ -12,6 +12,7 @@ const safeInteger = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER);
 const resultBody = gameMetaBody.extend({
   score: z.tuple([safeInteger, safeInteger]),
   scorers: z.array(z.object({ signupId: safeInteger.positive(), goals: safeInteger.positive() }).strict()).max(100),
+  assists: z.array(z.object({ scorerSignupId: safeInteger.positive(), assistSignupId: safeInteger.positive(), goals: safeInteger.positive() }).strict()).max(100).optional(),
   firstRestTeamIndex: z.number().int().min(0).max(2).optional(),
 }).strict();
 

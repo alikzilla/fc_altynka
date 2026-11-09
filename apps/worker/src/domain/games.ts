@@ -1,12 +1,14 @@
-import { nextGamePair, resolveFirstRest, type GameMutationMeta, type GameResultInput, type GamePair, type GameState } from '@altynka/core';
+import { nextGamePair, resolveFirstRest, type GameAssist, type GameMutationMeta, type GameResultInput, type GamePair, type GameState } from '@altynka/core';
 import { getEvent, type Deps } from './events';
 import { commitGameCommand, parseGameState, previousGameCommand } from './gameStore';
 import { gameCommandResponse, type GameCommandResult } from './gameStart';
 import { getBillByEvent } from './bills';
 import { recoverGameReview } from './gameRecovery';
 
+const sortAssists = (assists: readonly GameAssist[] = []): GameAssist[] => [...assists].sort((a, b) => a.scorerSignupId - b.scorerSignupId || a.assistSignupId - b.assistSignupId);
+
 function resultFingerprint(action: string, input?: GameResultInput, gameId?: string): string {
-  return JSON.stringify({ action, gameId: gameId ?? null, ...(input ? { score: input.score, scorers: [...input.scorers].sort((a, b) => a.signupId - b.signupId), firstRestTeamIndex: input.firstRestTeamIndex ?? null } : {}) });
+  return JSON.stringify({ action, gameId: gameId ?? null, ...(input ? { score: input.score, scorers: [...input.scorers].sort((a, b) => a.signupId - b.signupId), assists: sortAssists(input.assists), firstRestTeamIndex: input.firstRestTeamIndex ?? null } : {}) });
 }
 
 function validResult(state: GameState, pair: GamePair, input: GameResultInput): boolean {
@@ -20,6 +22,26 @@ function validResult(state: GameState, pair: GamePair, input: GameResultInput): 
     if (side < 0) return false;
     totals[side] += goal.goals;
     if (!Number.isSafeInteger(totals[side]) || totals[side] > input.score[side]) return false;
+  }
+  return validAssists(state, input);
+}
+
+/** An assist belongs to an attributed goal: a different player of the scorer's team, never more than the scorer's goals. */
+function validAssists(state: GameState, input: GameResultInput): boolean {
+  const assisted = new Map<number, number>();
+  const pairs = new Set<string>();
+  for (const a of input.assists ?? []) {
+    if (!Number.isSafeInteger(a.goals) || a.goals <= 0 || a.scorerSignupId === a.assistSignupId) return false;
+    const key = `${a.scorerSignupId}:${a.assistSignupId}`;
+    if (pairs.has(key)) return false;
+    pairs.add(key);
+    const scored = input.scorers.find(s => s.signupId === a.scorerSignupId)?.goals ?? 0;
+    const scorer = state.roster.find(p => p.signupId === a.scorerSignupId);
+    const passer = state.roster.find(p => p.signupId === a.assistSignupId);
+    if (!scorer || !passer || scorer.teamIndex !== passer.teamIndex) return false;
+    const total = (assisted.get(a.scorerSignupId) ?? 0) + a.goals;
+    if (total > scored) return false;
+    assisted.set(a.scorerSignupId, total);
   }
   return true;
 }
@@ -63,7 +85,7 @@ async function mutateGames(d: Deps, eventId: number, actorId: number, meta: Game
     } else if (action.input.firstRestTeamIndex !== undefined) return { kind: 'invalid' };
     const record = {
       ...(action.kind === 'record' ? { id: crypto.randomUUID(), sequence: games.length + 1, recordedAt: d.now, recordedBy: actorId } : games[index]),
-      pair, score: action.input.score, scorers: [...action.input.scorers].sort((a, b) => a.signupId - b.signupId), firstRestTeamIndex,
+      pair, score: action.input.score, scorers: [...action.input.scorers].sort((a, b) => a.signupId - b.signupId), assists: sortAssists(action.input.assists), firstRestTeamIndex,
       updatedAt: d.now, updatedBy: actorId,
     };
     if (action.kind === 'record') games.push(record); else games[index] = record;

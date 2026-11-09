@@ -80,3 +80,18 @@ test('stale roster revision prevents a snapshot committing after guest removal; 
   await expect(w.d.db.batch([w.d.db.delete(teamAssignments).where(eq(teamAssignments.eventId,w.eventId)),w.d.db.delete(signups).where(eq(signups.id,w.ids[0]))])).rejects.toThrow();
   expect(await w.d.db.select().from(teamAssignments).where(eq(teamAssignments.eventId,w.eventId))).toHaveLength(5);
 });
+
+test('two-team start draws and keeps a kickoff team', async () => {
+  const two = await gameFixture(2);
+  const r = await startGameSession(two.d,two.eventId,two.actorId,{requestId:'start',expectedRevision:0});
+  expect(r.kind).toBe('ok'); if (r.kind !== 'ok') return;
+  expect([0,1]).toContain(r.protocol.kickoffTeamIndex);
+  const again = await startGameSession(two.d,two.eventId,two.actorId,{requestId:'start-again',expectedRevision:0});
+  expect(again).toMatchObject({kind:'ok',protocol:{kickoffTeamIndex:r.protocol.kickoffTeamIndex}});
+});
+
+test('three-team start has no kickoff team', async () => {
+  const three = await gameFixture(3);
+  const t = await startGameSession(three.d,three.eventId,three.actorId,{requestId:'start',expectedRevision:0});
+  expect(t).toMatchObject({kind:'ok',protocol:{kickoffTeamIndex:null}});
+});

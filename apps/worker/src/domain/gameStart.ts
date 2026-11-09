@@ -1,4 +1,4 @@
-import { calculateScorers, calculateStandings, chooseFirstPair, todayAlmaty, type GameMutationMeta, type GameProtocolDto, type GameState, type TeamsDto } from '@altynka/core';
+import { calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, todayAlmaty, type GameMutationMeta, type GameProtocolDto, type GameState, type TeamsDto } from '@altynka/core';
 import { inArray } from 'drizzle-orm';
 import { users, type EventRow } from '../db/schema';
 import { getEvent, loadQueue, type Deps } from './events';
@@ -38,6 +38,7 @@ export async function gameProtocolFromEvent(
     revision: ev.gameRevision, startedAt: ev.startedAt, completedAt: ev.completedAt,
     teamCount: state?.teamCount ?? null, roster: state?.roster ?? [], currentPair,
     restingTeamIndex: currentPair && state?.teamCount === 3 ? [0, 1, 2].find(t => !currentPair.includes(t)) ?? null : null,
+    kickoffTeamIndex: state?.teamCount === 2 ? state.kickoffTeamIndex ?? null : null,
     games: state?.games ?? [], standings: state ? calculateStandings(state.teamCount, state.games) : [],
     scorers: state ? calculateScorers(state.roster, state.games) : [],
     canStart: manage && canStart, canRecord: manage && active, canEdit: manage && editable,
@@ -76,7 +77,7 @@ export async function startGameSession(d: Deps, eventId: number, actorId: number
   const nameById = new Map(names.map(p => [p.id, p.name]));
   const roster = q.main.map(p => ({ signupId: p.id, userId: p.userId, name: p.userId === null ? p.guestName ?? 'Гость' : nameById.get(p.userId) ?? 'Игрок', teamIndex: teams.teams.findIndex(t => t.includes(p.id)) }));
   const pair = chooseFirstPair(teams.teamCount);
-  const state: GameState = { teamCount: teams.teamCount, roster, initialPair: pair, currentPair: pair, games: [], receipts: [], finishParticipants: null };
+  const state: GameState = { teamCount: teams.teamCount, roster, initialPair: pair, currentPair: pair, games: [], receipts: [], finishParticipants: null, ...(teams.teamCount === 2 ? { kickoffTeamIndex: chooseKickoff() } : {}) };
   const committed = await commitGameCommand(d, ev, meta, { fingerprint: 'start', state, startedAt: d.now, completedAt: null });
   if (committed.kind === 'conflict') {
     const latest = await getEvent(d.db, eventId);
