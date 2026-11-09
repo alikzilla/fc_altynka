@@ -81,11 +81,13 @@ test('equal long guest names stay distinguishable and keyboard goal selection fi
 test('prepare guest swap, manual start, first sulifa and subsequent rotation with guest goals',async({page})=>{
   await page.setViewportSize({width:390,height:844});const world=gameStatisticsWorld();await world.attach(page);
   await page.goto('/event/7?tab=teams');
-  await page.getByRole('button',{name:'Обменять: Али',exact:true}).click();await page.getByRole('button',{name:'Обменять с игроком Ерпа',exact:true}).click();
+  await page.getByRole('button',{name:'Али',exact:true}).click();await page.getByRole('button',{name:'Ерпа',exact:true}).click();
   await expect(page.getByRole('button',{name:'Начать матч',exact:true})).toHaveCount(0);
   await page.getByRole('button',{name:'Опубликовать составы',exact:true}).click();
   await page.getByRole('button',{name:'Начать матч',exact:true}).click();
-  await page.getByRole('dialog').getByRole('button',{name:'Начать матч',exact:true}).click();
+  const startSheet=page.getByRole('dialog',{name:'Начинаем матч'});await expect(startSheet.getByText('Кто отдыхает первым?')).toBeVisible();
+  await startSheet.getByRole('button',{name:'Подбросить монету',exact:true}).click();
+  await expect(startSheet.getByText(/^Отдыхают /)).toBeVisible();await startSheet.getByRole('button',{name:'К игре 1',exact:true}).click();
   await expect(page).toHaveURL('/event/7?tab=games');
   await expect(page.getByRole('region',{name:'Текущая игра'})).toContainText('Красные');
   await result(page,[0,0],'Красные');expect(world.pair).toEqual([1,2]);
@@ -160,7 +162,7 @@ for(const theme of ['dark','light'] as const)for(const width of [320,390])test(`
   await world.attach(page);const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto('/event/7?tab=games');await expect(page.getByRole('table',{name:'Таблица команд'})).toBeVisible();await noOverflow(page);
   const tabs=page.getByRole('tablist',{name:'Детали матча'});const boxes=await tabs.getByRole('tab').evaluateAll(nodes=>nodes.map(n=>n.getBoundingClientRect().top));expect(new Set(boxes).size).toBe(1);
-  const pairBox=await page.locator('.game-pair').boundingBox();const actionBox=await page.getByRole('button',{name:'Внести результат',exact:true}).boundingBox();
+  const pairBox=await page.locator('.game-versus').boundingBox();const actionBox=await page.getByRole('button',{name:'Внести результат',exact:true}).boundingBox();
   expect(pairBox!.y+pairBox!.height).toBeLessThan(actionBox!.y);
   const restBox=await page.locator('.game-rest').boundingBox();expect(restBox!.y+restBox!.height+8).toBeLessThan(actionBox!.y);
   await mkdir('artifacts/games',{recursive:true});await page.screenshot({path:`artifacts/games/protocol-${theme}-${width}.png`,fullPage:true});

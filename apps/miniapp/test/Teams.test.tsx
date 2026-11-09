@@ -34,6 +34,7 @@ test('manual start confirms the full-session lineup and moves to games', async (
   expect(within(dialog).getByText('Кто начинает с мячом?')).toBeVisible();
   await userEvent.click(within(dialog).getByRole('button',{name:'Подбросить монету'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/5/games/start',expect.objectContaining({expectedRevision:1,requestId:expect.any(String)}));
+  expect(within(dialog).queryByText('С мячом начинают Синие')).toBeNull();
   expect(await within(dialog).findByText('С мячом начинают Синие',{},{timeout:4000})).toBeVisible();
   await userEvent.click(within(dialog).getByRole('button',{name:'К игре 1'}));
   expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5?tab=games');

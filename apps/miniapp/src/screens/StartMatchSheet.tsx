@@ -26,6 +26,7 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
   const [protocol, setProtocol] = useState<GameProtocolDto | null>(null);
   const [flying, setFlying] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [revealed, setRevealed] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const request = useRef<{ requestId: string; expectedRevision: number } | null>(null);
   const three = snapshot.count === 3;
@@ -67,13 +68,14 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
     onClose(); reload(); navigate(`/event/${ev.id}?tab=games`);
   }
 
-  const landed = protocol !== null && answer !== null;
+  const decided = protocol !== null && answer !== null;
+  const landed = decided && revealed;
   return <>
-    <ActionSheet title="Начинаем матч" onClose={close} busy={flying} className="start-sheet">
+    <ActionSheet title="Начинаем матч" onClose={close} busy={flying || decided && !revealed} className="start-sheet">
       <section className="start-step">
         <span className="start-step-number" aria-hidden="true">1</span>
         <div><h3>Сверь цвета на поле</h3><p>Манишки должны совпадать с командами в приложении. Нажми на команду, чтобы поменять цвет.</p>
-          <div className="start-kits">{faces.map((face, index) => <button type="button" key={index} className={`start-kit team-${face.key}`} disabled={flying || landed} aria-label={`Изменить цвет: ${face.name}`} onClick={() => { setColorError(null); setColorTeam(index); }}>
+          <div className="start-kits">{faces.map((face, index) => <button type="button" key={index} className={`start-kit team-${face.key}`} disabled={flying || decided} aria-label={`Изменить цвет: ${face.name}`} onClick={() => { setColorError(null); setColorTeam(index); }}>
             <span className="team-dot" aria-hidden="true" />{face.name}<small>{snapshot.sizes[index] ?? 0}</small>
           </button>)}</div>
         </div>
@@ -83,7 +85,7 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
         <div><h3>{three ? 'Кто отдыхает первым?' : 'Кто начинает с мячом?'}</h3>
           <p>{three ? 'Монета выберет команду, которая пропускает первую игру.' : 'Монета выберет команду, которая первой разыгрывает мяч с центра.'} Подбрось монету — матч начнётся, составы зафиксируются.</p></div>
       </section>
-      <TossCoin faces={faces} result={landed ? answer : null} failed={failed} disabled={landed} onToss={start} />
+      <TossCoin faces={faces} result={decided ? answer : null} failed={failed} disabled={decided} onToss={start} onLanded={() => setRevealed(true)} />
       {error && <p className="field-error" role="alert">{error}</p>}
       {landed && <div className="start-answer" role="status">
         <p className={`start-answer-line team-${faces[answer]?.key}`}><span className="team-dot" aria-hidden="true" />{three ? `Отдыхают ${faces[answer]?.name}` : `С мячом начинают ${faces[answer]?.name}`}</p>

@@ -11,13 +11,15 @@ type Props = {
   failed?: boolean;
   disabled?: boolean;
   onToss: () => void;
+  /** Called once the coin rests on the server's answer. */
+  onLanded?: () => void;
 };
 
 const MIN_FLIGHT = 1100;
 const LANDING = 950;
 
 /** Club token styled after the bimetal 200 tenge coin: silver ring, gold centre, 16 edge notches. Never a copy of real money. */
-export function TossCoin({ faces, result, failed = false, disabled = false, onToss }: Props) {
+export function TossCoin({ faces, result, failed = false, disabled = false, onToss, onLanded }: Props) {
   const [face, setFace] = useState(0);
   const [phase, setPhase] = useState<'idle' | 'flying' | 'landed'>('idle');
   const wrap = useRef<HTMLSpanElement>(null);
@@ -26,8 +28,8 @@ export function TossCoin({ faces, result, failed = false, disabled = false, onTo
   const ring = useRef<SVGTextElement>(null);
   const ringPath = useRef<SVGPathElement>(null);
   const flight = useRef<{ start: number; power: number; halfTurns: number; frame: number; landing: { from: number; to: number; at: number; y: number } | null } | null>(null);
-  const latest = useRef({ result, failed });
-  latest.current = { result, failed };
+  const latest = useRef({ result, failed, onLanded });
+  latest.current = { result, failed, onLanded };
   const down = useRef<{ y: number; t: number } | null>(null);
   /** Guards a second toss before React re-renders the new phase. */
   const busy = useRef(false);
@@ -48,9 +50,9 @@ export function TossCoin({ faces, result, failed = false, disabled = false, onTo
   // Reduced motion: no flight, the answer appears in place.
   useEffect(() => {
     if (!reduced || phase !== 'flying') return;
-    if (result !== null) { setFace(result); setPhase('landed'); haptic('heavy'); }
+    if (result !== null) { setFace(result); setPhase('landed'); haptic('heavy'); onLanded?.(); }
     else if (failed) { setPhase('idle'); busy.current = false; }
-  }, [reduced, phase, result, failed]);
+  }, [reduced, phase, result, failed, onLanded]);
 
   function reset() {
     for (const el of [wrap.current, coin.current, shadow.current]) if (el) { el.style.transform = ''; el.style.filter = ''; el.style.opacity = ''; }
@@ -82,7 +84,7 @@ export function TossCoin({ faces, result, failed = false, disabled = false, onTo
       if (p >= 1) {
         flight.current = null; reset();
         if (latest.current.result !== null) {
-          setFace(latest.current.result); setPhase('landed'); haptic('heavy');
+          setFace(latest.current.result); setPhase('landed'); haptic('heavy'); latest.current.onLanded?.();
           wrap.current?.animate?.([{ transform: 'scale(1.08,.9)' }, { transform: 'scale(.97,1.03)' }, { transform: 'scale(1)' }], { duration: 380, easing: 'cubic-bezier(.23,1,.32,1)' });
         } else { setFace(0); setPhase('idle'); busy.current = false; }
         return;

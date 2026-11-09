@@ -70,7 +70,7 @@ Profile displays verified Telegram photo, full name and username. Missing or bro
 
 The approved sports profile uses a 72px avatar (60px below 360px), name, then one line: role emoji · Telegram handle. The line never wraps; a long handle ends with an ellipsis and keeps the full value in `title`. Player ⚽️, organizer 🧑‍✈️, administrator 🧑‍💻 use native Apple Color Emoji on Apple devices and native fallback elsewhere. The rating is a continuous ring without a visible caption: level 1 grey, 2–3 green, 4–7 yellow, 8–9 orange, 10 red, following inspected FACEIT assets. Fractional values remain precise; whole values omit the decimal zero. The ring opens a sheet with five continuous examples.
 
-An inset panel contains the position above five cells: goals, assists (shown as «—» until assists are recorded), short games, win percentage, working foot. The foot uses two mirrored insole silhouettes without toes; active opacity 1 and inactive .25. Achievements and played meetings follow the card as two graphite cards, then existing profile editing/system settings and player management. «Достижения» shows one pinned achievement: a 76 px opaque hexagon medal in its tier colour (60 px below 360 px; no glow), «Закреплено», the name, the tier line («Золото · 64 гола») and a thin bar to the next tier («До платины 64 / 100»; «Максимальный уровень» at the top). With nothing pinned the slot is an empty dashed hexagon: on one's own profile «Закрепи достижение, чтобы его видели другие» opens the list; on a peer profile «Ничего не закреплено» is inert. «Все 5 ›» opens the list in the shared ActionSheet («Уровней открыто: X из 35»); a row opens a nested sheet with the seven-tier ladder (Дерево, Бронза, Серебро, Золото, Платина, Алмаз, Легенда; future tiers dimmed but readable) and, on one's own profile only, «Закрепить в профиле» (disabled at level 0 or when already pinned). The tier is always written out; colour never carries it alone. «Сыгранные матчи» lists the three latest meetings as rows: date, one dot per short game (win green, draw grey, loss pink) and goals; the group tag appears only when the history spans several groups. «Все N ›» appears above three meetings and opens all rows in the shared ActionSheet. A row opens the short-game history, which also carries the meeting rating and place. Peer profiles use the same sports content and retain their own sheet, without personal settings. Statistics loading does not invent zeros; empty confirmed profiles show actual zero counts. Per-user totals come from saved protocol identities, never current display names or guessed guest links.
+An inset panel contains the position above five cells: goals, assists (a real count once any of the player's games recorded passes, «—» before that), short games, win percentage, working foot. The foot uses two mirrored insole silhouettes without toes; active opacity 1 and inactive .25. Achievements and played meetings follow the card as two graphite cards, then existing profile editing/system settings and player management. «Достижения» shows one pinned achievement: a 76 px opaque hexagon medal in its tier colour (60 px below 360 px; no glow), «Закреплено», the name, the tier line («Золото · 64 гола») and a thin bar to the next tier («До платины 64 / 100»; «Максимальный уровень» at the top). With nothing pinned the slot is an empty dashed hexagon: on one's own profile «Закрепи достижение, чтобы его видели другие» opens the list; on a peer profile «Ничего не закреплено» is inert. «Все 5 ›» opens the list in the shared ActionSheet («Уровней открыто: X из 35»); a row opens a nested sheet with the seven-tier ladder (Дерево, Бронза, Серебро, Золото, Платина, Алмаз, Легенда; future tiers dimmed but readable) and, on one's own profile only, «Закрепить в профиле» (disabled at level 0 or when already pinned). The tier is always written out; colour never carries it alone. «Сыгранные матчи» lists the three latest meetings as rows: date, one dot per short game (win green, draw grey, loss pink) and goals; the group tag appears only when the history spans several groups. «Все N ›» appears above three meetings and opens all rows in the shared ActionSheet. A row opens the short-game history, which also carries the meeting rating and place. Peer profiles use the same sports content and retain their own sheet, without personal settings. Statistics loading does not invent zeros; empty confirmed profiles show actual zero counts. Per-user totals come from saved protocol identities, never current display names or guessed guest links.
 
 Scheduling opens in the shared ActionSheet over the current match and retains its tab.
 The venue field is a button opening a second ActionSheet; it never opens a keyboard.
@@ -85,7 +85,7 @@ WebKit as well as Chromium. The match menu closes before opening scheduling.
 
 ## Accessibility and states
 
-The game tab keeps “Внести результат” inside the current-game card. Score entry uses compact 44px minus/plus buttons with a fixed numeric column, and a clear gap between the teams. Every goal has an author card; opening it lists only that team's players, including disambiguated guests. Unknown authors are allowed. Removing a goal removes its final card and attribution. Card order and unknown positions survive draft recovery without changing retry command identity. Legacy overassigned drafts offer an explicit repair action. Match-page figures and game/history sheets use tabular numerals. The page shows the latest three games newest first; “Все матчи” opens the full history in the shared ActionSheet, with organizer-only edits and focus restored to the originating row.
+The game tab is built from materials: the current game is a blue card «Игра N» (no duration hint) with two kit discs, team names, points so far and «VS», a chip «Отдыхают …» (three teams) or «С мячом начинают …» (first game of two teams), and “Внести результат” with «⋯». Таблица, Последние игры and Бомбардиры are graphite cards; table rows have no highlight. Each history row shows the score in a pill with the winner bold and the scorers in two columns under their own teams («—» when a team did not score), the assister in brackets: «Алихан (Дамир)». The top scorer has a gold medal. The result sheet calls the block «Голы и пасы»: once a goal has an author, a dashed second line «↳ Пас: выбрать» opens that team's players without the author plus «Без паса»; changing the author clears a pass that became invalid. Score entry uses compact 44px minus/plus buttons with a fixed numeric column, and a clear gap between the teams. Every goal has an author card; opening it lists only that team's players, including disambiguated guests. Unknown authors are allowed. Removing a goal removes its final card and attribution. Card order and unknown positions survive draft recovery without changing retry command identity. Legacy overassigned drafts offer an explicit repair action. Match-page figures and game/history sheets use tabular numerals. The page shows the latest three games newest first; “Все матчи” opens the full history in the shared ActionSheet, with organizer-only edits and focus restored to the originating row.
 
 Real links/buttons, one h1, named regions, visible focus, keyboard tabs, readable error/empty/loading states. All content can scroll clear of the dock. Reduced motion disables animation/travel. Increased contrast flattens materials and adds clear edges. Materials are already opaque, so reduced-transparency preferences do not depend on browser blur support.
 
@@ -141,23 +141,43 @@ edge gestures exclude interactive inputs. Slider focus rings leave room for endp
 
 ## Team composition and actual kit colors
 
-The team tab uses the approved mobile editor: two/three-team control, an explicit color action,
-counts and organizer-only average ratings, and a visible Обменять action on every player row.
-Its scheduled-match header is compact while preserving the shared participation status/action,
-so the first exchange action appears above the fixed footer on an ordinary phone viewport.
-Swapping opens the existing bottom ActionSheet with players from other teams, without a transfer
-mode. New distributions require confirmation and can be undone. The shared ToastProvider shows
+The organizer's team tab (2026-11-10) leads with one blue «Баланс команд» card: a full-width
+«2 команды / 3 команды» control, one bar per team (kit colour, average rating), «Разница средних — X»
+and a full-width «Перемешать» in the secondary-on-material style. Shuffling and changing the team count
+apply at once, without a confirmation sheet; undo lives in the toast and beside the main action. The
+shuffle glyph flips top-to-bottom (its arrows cross) instead of spinning, so it never snaps back.
+Graphite team cards follow: a shirt in the kit colour, name, «N игроков · среднее», a «Форма» chip,
+and players sorted by rating with the rating coloured like the rating ring. A guest's rating is a
+dashed button that opens a 1–10 level sheet. Swapping is two taps: the first player gets a soft
+accent fill (no outline) while their teammates dim and rows of other teams show a swap glyph; the
+fixed panel becomes one row «⇄ Обмен: Имя» + «Отмена» (long names truncate); tapping a player of
+another team swaps them, Escape or «Отмена» cancels. Rows in the editor do not open profiles. The fixed
+panel shows «Черновик — видишь только ты» / «Есть неопубликованные изменения» + «Опубликовать составы»,
+then «Опубликованы — видят все» + «Начать матч»; before match day it shows only the status and «Начать
+матч можно в день игры». Players see the same graphite cards without ratings or controls, their own
+team first and marked «Твоя команда». The shared ToastProvider shows
 change feedback with an optional Отменить action for eight seconds, pausing on hover/focus;
 ordinary notifications retain 2.5 seconds and errors 6 seconds. Both live regions stay mounted (polite `status` and assertive error region) so screen readers announce the text when it arrives. Toast edges align with content at narrow widths too.
 
-Форма и манишки is a shared bottom sheet with six labeled colors. Selecting an occupied color
-swaps the colors without moving players. New semantic dots: green #86c8a2, white #e8e8ee, black
+The kit sheet «Форма: <команда>» edits one team: six shirts with labels, «сейчас» on the current colour
+and «у Синих» on a colour another team wears. A choice applies at once and closes the sheet; an occupied
+colour swaps the two teams' colours without moving players. Before kickoff the card chip edits the draft
+(published with the lineups); inside the start sheet it saves immediately with the colour revision. New semantic dots: green #86c8a2, white #e8e8ee, black
 #666771 in dark theme; #34714e, #ffffff with #655c71 outline, and #27262e in light theme.
 These represent actual uniforms rather than additional brand accents. Selected swatches have
 the existing accent outline and aria-pressed; labels always accompany the color.
 
-Draft/publication state stays visible. Start requires published current lineups and confirms
-the colors against the kits on the field. After kickoff, only colors remain editable; all game
+Draft/publication state stays visible. «Начать матч» opens one sheet «Начинаем матч»: step 1 checks the
+kits (tappable team chips with player counts), step 2 is the toss. With three teams it asks «Кто отдыхает
+первым?», with two «Кто начинает с мячом?». The toss coin is a club token styled after the bimetal
+200 tenge coin: silver ring with «FC ALTYNKA • 2026 •» spread evenly round it, gold centre with horizontal
+engraving, an enamel dot in the team colour and the team name, 16 notches on the edge; no state emblem or
+«QAZAQSTAN» lettering. Tapping or flicking it sends the start request; the coin rises, cycles the team
+faces with light haptics, hangs until the server answers (at least ≈1.1 s) and lands on the server's
+answer with a heavy haptic. Only then does the answer appear («Отдыхают Жёлтые» / «С мячом начинают
+Синие»), above the blue «ИГРА 1» pair and «К игре 1». There is no re-toss; a failed start drops the coin
+back with the error and keeps the request identity. Reduced motion shows the answer without flight.
+The sheet is mounted above the editor, so the refetch after the start cannot close it. After kickoff, only colors remain editable; all game
 labels and the Telegram roster use those current colors while numeric team identities stay fixed.
 Color-only changes to saved teams do not rewrite the roster or rating snapshot. Sheets retain
 their opening revision; conflicting background updates cannot silently replace that choice.
@@ -193,7 +213,7 @@ opened from.
 Pitch conditions: form fields use `--field-bg`/`--field-border` (border at least 3:1 in both themes);
 on viewports 640 px tall or shorter the dock steps aside while a contextual match action is shown; the
 protocol keeps «⋯» (finish match, undo last result) beside «Внести результат»; a goal slot offers
-«{previous author} ещё раз». Profile links in the team editor have a 44 px hit area. `forced-colors`
+«{previous author} ещё раз». Profile links in published team cards have a 44 px hit area. `forced-colors`
 gives controls system borders; list and team names hyphenate by syllable, the profile card name breaks only at spaces. Players see four dock destinations; the
 central ＋ appears only for someone who can create a match. The skills prompt waits for the first
 signup (or a visit to Profile/Players). An unrated ring shows «?» with «Нет рейтинга».
