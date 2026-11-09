@@ -1,30 +1,32 @@
-import { TEAM_COLORS, teamAppearance, plural, type TeamColor } from '@altynka/core';
-import { useState } from 'react';
+import { TEAM_COLORS, teamAppearance, type TeamColor } from '@altynka/core';
 import { ActionSheet } from './ActionSheet';
+import { TeamShirt } from './TeamShirt';
 
-type Props = { colors: TeamColor[]; players: string[][]; busy?: boolean; error?: string | null; onApply: (colors: TeamColor[]) => void; onClose: () => void };
+const OWNER: Record<TeamColor, string> = { red: 'Красных', blue: 'Синих', yellow: 'Жёлтых', green: 'Зелёных', white: 'Белых', black: 'Чёрных' };
 
-export function TeamColorSheet({ colors, players, busy, error, onApply, onClose }: Props) {
-  const [draft, setDraft] = useState([...colors]);
-  const [note, setNote] = useState('Если выбрать занятый цвет, команды обменяются цветами. Игроки останутся вместе.');
-  function choose(index: number, key: TeamColor) {
-    if (busy || draft[index] === key) return;
-    const next = [...draft];
-    const other = next.indexOf(key);
-    if (other >= 0) {
-      [next[index], next[other]] = [next[other], next[index]];
-      setNote(`${teamAppearance(index, colors).name} и ${teamAppearance(other, colors).name} обменяются цветами. Составы останутся прежними.`);
-    } else { next[index] = key; setNote('Цвет изменится у всей команды. Игроки останутся вместе.'); }
-    setDraft(next);
-  }
-  return <ActionSheet title="Форма и манишки" onClose={onClose} busy={busy} className="team-color-sheet" footer={<button className="btn primary wide" disabled={busy} onClick={() => onApply(draft)}>{busy ? 'Сохраняем…' : 'Применить цвета'}</button>}>
-    <p className="muted">Выбери цвета, в которых команды действительно будут играть.</p>
-    {colors.map((_, index) => <section className="team-color-section" key={index}>
-      <h3>{teamAppearance(index, colors).name}{players[index]?.length ? ` · ${players[index].length} ${plural(players[index].length, 'игрок', 'игрока', 'игроков')}` : ''}</h3>
-      {!!players[index]?.length && <p className="muted">{players[index].slice(0, 2).join(', ')}{players[index].length > 2 ? ` и ещё ${players[index].length - 2}` : ''}</p>}
-      <div className="team-color-options">{TEAM_COLORS.map(color => <button key={color.key} type="button" className={`team-color-option team-${color.key}`} aria-label={`${color.label} цвет для команды ${index + 1}`} aria-pressed={draft[index] === color.key} disabled={busy} onClick={() => choose(index, color.key)}><span className="team-dot" aria-hidden="true" />{color.label}</button>)}</div>
-    </section>)}
-    <p className="team-color-note" role="status">{note}</p>
+type Props = { index: number; colors: TeamColor[]; busy?: boolean; error?: string | null; onPick: (colors: TeamColor[]) => void; onClose: () => void };
+
+/** Picks the kit of one team. An occupied colour swaps with the team wearing it; players never move. */
+export function nextColors(colors: readonly TeamColor[], index: number, key: TeamColor): TeamColor[] {
+  const next = [...colors];
+  const other = next.indexOf(key);
+  if (other >= 0) next[other] = next[index];
+  next[index] = key;
+  return next;
+}
+
+export function TeamColorSheet({ index, colors, busy, error, onPick, onClose }: Props) {
+  const current = teamAppearance(index, colors);
+  return <ActionSheet title={`Форма: ${current.name}`} onClose={onClose} busy={busy} className="team-color-sheet">
+    <p className="muted">Выбери цвет манишек или формы на поле. Если цвет уже занят, команды поменяются цветами — игроки останутся на местах.</p>
+    <div className="team-color-options">{TEAM_COLORS.map(color => {
+      const owner = colors.indexOf(color.key);
+      const note = owner === index ? 'сейчас' : owner >= 0 ? `у ${OWNER[color.key]}` : '';
+      return <button key={color.key} type="button" className={`team-color-option team-${color.key}`} aria-label={note ? `${color.label}, ${note}` : color.label} aria-pressed={owner === index} disabled={busy}
+        onClick={() => { if (owner === index) onClose(); else onPick(nextColors(colors, index, color.key)); }}>
+        <TeamShirt /><span>{color.label}</span><small>{note}</small>
+      </button>;
+    })}</div>
     {error && <p className="field-error" role="alert">{error}</p>}
   </ActionSheet>;
 }

@@ -1,0 +1,48 @@
+/* Toss coin: a club token styled after the bimetal 200 tenge coin (silver ring, gold centre, 16 edge notches). */
+.toss-zone { display: grid; justify-items: center; gap: 6px; }
+.toss-coin { position: relative; display: grid; place-items: end center; width: 100%; height: 300px; padding: 0 0 34px; border: 0; background: none; color: inherit; cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
+.toss-coin:disabled { cursor: default; }
+.toss-coin:focus-visible { outline: none; }
+.toss-coin:focus-visible .coin-face { outline: 3px solid var(--accent); outline-offset: 6px; }
+.toss-shadow { position: absolute; bottom: 30px; left: 50%; width: 140px; height: 20px; margin-left: -70px; border-radius: 50%; background: radial-gradient(ellipse, #000c 0%, transparent 70%); }
+.coin-wrap { position: relative; width: 160px; height: 160px; will-change: transform; }
+.toss-zone.idle .coin-wrap { animation: coin-idle 2.6s ease-in-out infinite; }
+.coin { position: absolute; inset: 0; border-radius: 50%; will-change: transform, filter; }
+.coin-edge { position: absolute; inset: 0; border-radius: 50%; background: repeating-conic-gradient(from 0deg, #8d929b 0 18.5deg, #5d626b 18.5deg 22.5deg); transform: translateY(7px); }
+.coin-face { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 50%; background: conic-gradient(from 210deg, #f5f6f8, #b4b8c0, #e9ebef, #9a9ea7, #f7f8fa, #aeb2ba, #f5f6f8); box-shadow: inset 0 2px 2px #fff, inset 0 -3px 6px #4d5159; }
+.coin-ring { position: absolute; inset: 0; width: 100%; height: 100%; }
+.coin-ring text { font-size: 11.5px; font-weight: 700; fill: #5d626b; }
+.coin-centre { position: relative; display: grid; place-items: center; align-content: center; gap: 6px; width: 70%; height: 70%; border-radius: 50%; background: repeating-linear-gradient(0deg, transparent 0 3px, #6b4c1426 3px 4px), radial-gradient(circle at 38% 28%, #fff2bf 0%, #e2bd62 42%, #b48a32 80%, #8a6620 100%); box-shadow: inset 0 3px 7px #4a330999, inset 0 -2px 3px #fff0b866, 0 0 0 1.5px #8a8e96; }
+.coin-centre b { max-width: 92%; overflow: hidden; color: #5a400e; font-size: 15px; font-weight: 800; letter-spacing: .03em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; text-shadow: 0 1px 0 #fff3c4, 0 -1px 0 #6e4f12; }
+.coin-enamel { width: 20px; height: 20px; border-radius: 50%; background: var(--kit, #888); box-shadow: inset 0 2px 3px #0007, 0 1px 0 #fff3c4, 0 0 0 2px #8a6620; }
+.toss-hint { display: flex; align-items: center; gap: 6px; min-height: 20px; color: var(--hint); font-size: 13px; }
+.toss-arrow { display: inline-block; animation: coin-nudge 1.4s cubic-bezier(.23, 1, .32, 1) infinite; }
+@keyframes coin-idle { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes coin-nudge { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+@media (prefers-reduced-motion: reduce) {
+  .toss-zone.idle .coin-wrap, .toss-arrow { animation: none; }
+}
+@media (max-width: 359px) {
+  .toss-coin { height: 250px; }
+  .coin-wrap { width: 136px; height: 136px; }
+  .coin-centre b { font-size: 13px; }
+}
+
+/* Start sheet: colour check, then the coin and its answer. */
+.start-sheet .sheet-content { display: grid; gap: 16px; }
+.start-step { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 12px; align-items: start; }
+.start-step-number { display: grid; place-items: center; width: 24px; height: 24px; margin-top: 1px; border-radius: 50%; background: var(--accent-soft); color: var(--accent-ink); font-size: 12px; font-weight: 600; }
+.start-step h3 { font-size: 15px; font-weight: 600; }
+.start-step p { margin-top: 3px; color: var(--hint); font-size: 13px; line-height: 1.45; }
+.start-kits { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.start-kit { display: inline-flex; align-items: center; min-height: 44px; padding: 8px 12px; border: 0; border-radius: 14px; background: #ffffff0d; color: var(--text); font-size: 14px; }
+.start-kit small { margin-left: 6px; color: var(--hint); font-size: 12px; }
+.start-answer { display: grid; gap: 10px; animation: start-reveal 260ms cubic-bezier(.23, 1, .32, 1) both; }
+.start-answer-line { display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 600; letter-spacing: -.01em; text-align: center; }
+.start-answer-line .team-dot { width: 12px; height: 12px; margin-right: 10px; }
+.start-pair { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 8px; padding: 14px 16px; border-radius: 22px; font-size: 16px; font-weight: 550; }
+.start-pair > :last-child { justify-self: end; }
+.start-pair small { color: var(--blue-ink); font-size: 12px; font-weight: 500; letter-spacing: .06em; }
+.start-saved { color: var(--hint); font-size: 12px; text-align: center; }
+@keyframes start-reveal { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .start-answer { animation: none; } }

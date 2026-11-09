@@ -185,10 +185,9 @@ function ParticipantsSkeleton() {
 
 function TeamsSkeleton() {
   return <div className="team-editor">
-    <div className="team-editor-title"><span className="muted"><Sk w="6em" /></span></div>
-    {times(2).map(team => <section className="card team team-editor-card" key={team}>
-      <header className="team-editor-heading"><div><h2><span className="team-dot" /><span><Sk w="6em" /></span></h2><p className="team-editor-meta"><Sk w="12em" /></p></div></header>
-      <div className="team-editor-players">{times(4).map(index => <div className="team-editor-player" key={index}><span className="team-player-identity"><Sk w={pick(['8em', '6em', '9em', '7em'], index + team)} /></span></div>)}</div>
+    {times(2).map(team => <section className="card material-graphite team-card" key={team}>
+      <header className="team-card-head"><span className="team-shirt sk-fill" style={{ borderRadius: 8 }} /><div className="team-card-title"><h2><Sk w="6em" /></h2><p className="team-card-meta"><Sk w="8em" /></p></div></header>
+      <ul className="team-card-players">{times(4).map(index => <li className="team-card-player" key={index}><div className="team-row-static"><Sk w={pick(['8em', '6em', '9em', '7em'], index + team)} /></div></li>)}</ul>
     </section>)}
   </div>;
 }

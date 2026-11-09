@@ -53,10 +53,10 @@ export function ready(): () => void {
   };
 }
 
-export function haptic(kind: 'light' | 'success' | 'error'): void {
+export function haptic(kind: 'light' | 'heavy' | 'success' | 'error'): void {
   const h = wa()?.HapticFeedback;
   if (!h) return;
-  if (kind === 'light') h.impactOccurred('light');
+  if (kind === 'light' || kind === 'heavy') h.impactOccurred(kind);
   else h.notificationOccurred(kind);
 }
 

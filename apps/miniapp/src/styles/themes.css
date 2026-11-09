@@ -148,3 +148,9 @@
 }
 :root[data-theme='light'] .row-chip.on { background: #e1f1e7; color: #2d6646; }
 :root[data-theme='light'] .row-chip.result { background: #f3e3f0; color: #6d2f63; }
+
+:root[data-theme='light'] .team-panel { background:#fffffff2; box-shadow:var(--rim), 0 -10px 30px #44324f26; }
+:root[data-theme='light'] .team-pick-row { background:#ece4f7f5; }
+:root[data-theme='light'] .team-card-player + .team-card-player::before { background:#0000001a; }
+:root[data-theme='light'] .team-kit-chip, :root[data-theme='light'] .team-color-option, :root[data-theme='light'] .team-level-option, :root[data-theme='light'] .start-kit { background:#0000000a; }
+:root[data-theme='light'] .tone-1 { color:#6b6873; } :root[data-theme='light'] .tone-2 { color:#2f7a48; } :root[data-theme='light'] .tone-4 { color:#86690c; } :root[data-theme='light'] .tone-8 { color:#a2581b; } :root[data-theme='light'] .tone-10 { color:#a83232; }

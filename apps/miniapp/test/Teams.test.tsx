@@ -20,7 +20,7 @@ const ev: EventDetailDto = {
   limit: 10, mainCount: 10, reserveCount: 0, my: 'main', main, reserve: [], teams: null, bill: null,
 };
 const team = (name: string) => screen.getByRole('group', { name });
-const namesIn = (name: string) => within(team(name)).getAllByRole('button', { name: /^Игрок\d+$/ }).map(b => b.textContent);
+const namesIn = (name: string) => within(team(name)).getAllByRole('button', { name: /^Игрок\d+$/ }).map(b => b.getAttribute('aria-label') ?? b.textContent);
 
 beforeEach(() => (api.send as Mock).mockReset().mockResolvedValue({ kind: 'ok' }));
 
@@ -28,11 +28,14 @@ test('manual start confirms the full-session lineup and moves to games', async (
   const reload=vi.fn();
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',startedAt:null,currentPair:null,canStart:true,canRecord:false}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   const {history}=renderWithApp(<Teams ev={manual} reload={reload}/>,{me:organizer});
+  (api.send as Mock).mockResolvedValueOnce({protocol:makeProtocol({teamCount:2,currentPair:[0,1],restingTeamIndex:null,kickoffTeamIndex:1})});
   await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
-  const dialog=screen.getByRole('dialog',{name:'Начать матч?'});
-  expect(within(dialog).getByText(/на весь матч/)).toBeVisible();
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
+  const dialog=screen.getByRole('dialog',{name:'Начинаем матч'});
+  expect(within(dialog).getByText('Кто начинает с мячом?')).toBeVisible();
+  await userEvent.click(within(dialog).getByRole('button',{name:'Подбросить монету'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/5/games/start',expect.objectContaining({expectedRevision:1,requestId:expect.any(String)}));
+  expect(await within(dialog).findByText('С мячом начинают Синие',{},{timeout:4000})).toBeVisible();
+  await userEvent.click(within(dialog).getByRole('button',{name:'К игре 1'}));
   expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5?tab=games');
 });
 
@@ -40,23 +43,24 @@ test('swapping a guest changes the draft and requires publishing before start', 
   const roster=main.map(p=>p.id===10?{...p,userId:null,name:'Гость'}:p);
   const manual={...ev,main:roster,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',canStart:true}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
-  await userEvent.click(within(team('Красные')).getByRole('button',{name:'Обменять: Игрок1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Обменять с игроком Гость'}));
+  await userEvent.click(within(team('Красные')).getByRole('button',{name:'Игрок1'}));
+  await userEvent.click(within(team('Синие')).getByRole('button',{name:'Гость'}));
   expect(screen.queryByRole('button',{name:'Начать матч'})).toBeNull();
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect((api.send as Mock).mock.calls[0][2].teams[0]).toContain(10);
   expect((api.send as Mock).mock.calls[0][2].teams[1]).toContain(1);
 });
 
-test('a failed start keeps one request identity for a safe retry', async () => {
+test('a failed start keeps one request identity for a safe retry', { timeout: 10000 }, async () => {
   (api.send as Mock).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce({});
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',canStart:true}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
-  const dialog=screen.getByRole('dialog',{name:'Начать матч?'});
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
-  expect(await screen.findByRole('alert')).toHaveTextContent('Попробуй ещё раз');
-  await userEvent.click(within(dialog).getByRole('button',{name:'Начать матч'}));
+  const dialog=screen.getByRole('dialog',{name:'Начинаем матч'});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Подбросить монету'}));
+  expect(await within(dialog).findByRole('alert',{},{timeout:4000})).toHaveTextContent('Попробуй ещё раз');
+  await act(async()=>{await new Promise(r=>setTimeout(r,2300));});
+  await userEvent.click(within(dialog).getByRole('button',{name:'Подбросить монету'}));
   expect((api.send as Mock).mock.calls[0][2]).toEqual((api.send as Mock).mock.calls[1][2]);
 });
 
@@ -74,7 +78,7 @@ test('organizer splits 10 players into 2 teams of 5 with visible averages', asyn
   expect(namesIn('Красные')).toHaveLength(5);
   expect(namesIn('Синие')).toHaveLength(5);
   expect(screen.queryByRole('group', { name: 'Жёлтые' })).toBeNull();
-  expect(within(team('Красные')).getByText(/средний рейтинг/)).toBeInTheDocument();
+  expect(within(team('Красные')).getByText(/5 игроков · \d,\d/)).toBeInTheDocument();
 });
 
 test('switching to 3 teams splits into three groups', async () => {
@@ -84,16 +88,15 @@ test('switching to 3 teams splits into three groups', async () => {
   expect(namesIn('Жёлтые').length).toBeGreaterThan(0);
 });
 
-test('explicit swap opens a bottom sheet and notification undo restores both players', async () => {
+test('two taps swap players across teams and notification undo restores both players', async () => {
   renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: organizer });
   await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
   const a = namesIn('Красные')[0]!;
   const b = namesIn('Синие')[0]!;
-  await userEvent.click(within(team('Красные')).getByRole('button', { name: `Обменять: ${a}` }));
-  const sheet = screen.getByRole('dialog', { name: 'Обменять игрока' });
-  expect(within(sheet).queryByRole('button', { name: `Обменять с игроком ${a}` })).toBeNull();
-  expect(within(sheet).queryByRole('button', { name: /Перевести/ })).toBeNull();
-  await userEvent.click(within(sheet).getByRole('button', { name: `Обменять с игроком ${b}` }));
+  await userEvent.click(within(team('Красные')).getByRole('button', { name: a }));
+  expect(within(team('Красные')).getByRole('button', { name: a })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByRole('region', { name: 'Обмен игроков' })).toHaveTextContent(`Обмен: ${a}`);
+  await userEvent.click(within(team('Синие')).getByRole('button', { name: b }));
   expect(namesIn('Красные')).toContain(b);
   expect(namesIn('Синие')).toContain(a);
   const notification = screen.getByRole('status');
@@ -122,13 +125,12 @@ test('manual edits preserve the reviewed snapshot until a new split is generated
   const ratingSnapshot = Object.fromEntries(main.map(m => [m.id, 5]));
   const saved = { ...ev, teams: { teamCount: 2 as const, teams: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], publishedAt: 1, stale: false, ratingSnapshot } };
   renderWithApp(<Teams ev={saved} reload={() => {}} />, { me: organizer });
-  expect(screen.getAllByText(/средний рейтинг 5,0/)).toHaveLength(2);
-  await userEvent.click(screen.getByRole('button',{name:'Обменять: Игрок1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Обменять с игроком Игрок6'}));
+  expect(screen.getAllByText(/5 игроков · 5/)).toHaveLength(2);
+  await userEvent.click(screen.getByRole('button',{name:'Игрок1'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок6'}));
   await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
   expect(api.send).toHaveBeenCalledWith('PUT', '/api/events/5/teams', expect.objectContaining({ refreshRatings: false, ratingSnapshot }));
-  await userEvent.click(screen.getByRole('button', { name: 'Другой вариант' }));
-  await userEvent.click(screen.getByRole('button', { name: 'Распределить заново' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Перемешать' }));
   await userEvent.click(screen.getByRole('button', { name: 'Опубликовать составы' }));
   expect(api.send).toHaveBeenCalledWith('PUT', '/api/events/5/teams', expect.objectContaining({ refreshRatings: true, ratingSnapshot: Object.fromEntries(main.map(m => [m.id, m.level])) }));
 });
@@ -136,11 +138,10 @@ test('manual edits preserve the reviewed snapshot until a new split is generated
 test('choosing an occupied uniform color swaps colors and publishes them without moving players', async () => {
   const saved = { ...ev, teams: { teamCount: 2 as const, teams: [[1,2,3,4,5], [6,7,8,9,10]], publishedAt: 1, stale: false, colors: ['red','blue'] as const, colorsRevision: 3 } };
   renderWithApp(<Teams ev={{...saved, teams:{...saved.teams, colors:[...saved.teams.colors]}}} reload={() => {}} />, { me: organizer });
-  await userEvent.click(screen.getByRole('button', { name: 'Цвета команд' }));
-  const sheet=screen.getByRole('dialog',{name:'Форма и манишки'});
-  await userEvent.click(within(sheet).getByRole('button',{name:'Синий цвет для команды 1'}));
-  expect(within(sheet).getByRole('button',{name:'Красный цвет для команды 2'})).toHaveAttribute('aria-pressed','true');
-  await userEvent.click(within(sheet).getByRole('button',{name:'Применить цвета'}));
+  await userEvent.click(screen.getByRole('button', { name: 'Изменить цвет: Красные' }));
+  const sheet=screen.getByRole('dialog',{name:'Форма: Красные'});
+  expect(within(sheet).getByRole('button',{name:'Красный, сейчас'})).toHaveAttribute('aria-pressed','true');
+  await userEvent.click(within(sheet).getByRole('button',{name:'Синий, у Синих'}));
   expect(namesIn('Синие')).toEqual(['Игрок1','Игрок2','Игрок3','Игрок4','Игрок5']);
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['blue','red'],expectedRevision:3});
@@ -152,16 +153,15 @@ test('a roster saved before a failed color request remains retryable without los
   (api.send as Mock).mockResolvedValueOnce({kind:'ok'}).mockRejectedValueOnce(new Error('offline'));
   function Harness(){const[detail,setDetail]=useState(saved);return <Teams ev={detail} reload={()=>setDetail({...saved,teams:{...saved.teams!,teams:[[2,3,4,5,6],[1,7,8,9,10]],publishedAt:null}})}/>;}
   renderWithApp(<Harness/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Обменять: Игрок1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Обменять с игроком Игрок6'}));
-  await userEvent.click(screen.getByRole('button',{name:'Цвета команд'}));
-  await userEvent.click(screen.getByRole('button',{name:'Зелёный цвет для команды 1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Применить цвета'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок1'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок6'}));
+  await userEvent.click(screen.getByRole('button',{name:'Изменить цвет: Красные'}));
+  await userEvent.click(screen.getByRole('button',{name:'Зелёный'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(screen.getByRole('button',{name:'Опубликовать составы'})).toBeEnabled();
   expect(namesIn('Зелёные')).toContain('Игрок6');
-  await userEvent.click(screen.getByRole('button',{name:'Отменить'}));
-  await userEvent.click(screen.getByRole('button',{name:'Отменить'}));
+  await userEvent.click(screen.getByRole('button',{name:'Отменить последнее изменение'}));
+  await userEvent.click(screen.getByRole('button',{name:'Отменить последнее изменение'}));
   expect(namesIn('Красные')).toContain('Игрок1');
   expect(namesIn('Красные')).not.toContain('Игрок6');
 });
@@ -171,10 +171,9 @@ test('an active color sheet submits its opening revision even after a background
   let refresh=()=>{};
   function Harness(){const[detail,setDetail]=useState(started);refresh=()=>setDetail({...started,teams:{...started.teams!,colors:['white','blue'],colorsRevision:3}});return <Teams ev={detail} reload={()=>{}}/>;}
   renderWithApp(<Harness/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Цвета команд'}));
-  await userEvent.click(screen.getByRole('button',{name:'Зелёный цвет для команды 1'}));
+  await userEvent.click(screen.getByRole('button',{name:'Изменить цвет: Красные'}));
   act(()=>refresh());
-  await userEvent.click(screen.getByRole('button',{name:'Применить цвета'}));
+  await userEvent.click(screen.getByRole('button',{name:'Зелёный'}));
   expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['green','blue'],expectedRevision:2});
 });
 
@@ -183,11 +182,10 @@ test.each([false,true])('a lost color response is recovered without resending an
   (api.send as Mock).mockRejectedValueOnce(new Error('response lost'));
   function Harness(){const[detail,setDetail]=useState(saved);return <Teams ev={detail} reload={()=>setDetail({...saved,teams:{...saved.teams!,colors:['green','blue'],colorsRevision:1}})}/>;}
   renderWithApp(<Harness/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Цвета команд'}));
-  await userEvent.click(screen.getByRole('button',{name:'Зелёный цвет для команды 1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Применить цвета'}));
+  await userEvent.click(screen.getByRole('button',{name:'Изменить цвет: Красные'}));
+  await userEvent.click(screen.getByRole('button',{name:'Зелёный'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
-  if(undoBeforeRetry)await userEvent.click(screen.getByRole('button',{name:'Отменить'}));
+  if(undoBeforeRetry)await userEvent.click(screen.getByRole('button',{name:'Отменить последнее изменение'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect((api.send as Mock).mock.calls.filter(([method])=>method==='PATCH')).toHaveLength(undoBeforeRetry?2:1);
   if(undoBeforeRetry)expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['red','blue'],expectedRevision:1});
@@ -199,13 +197,11 @@ test('changing team count persists reviewed colors in both directions',async()=>
   const saved:EventDetailDto={...ev,teams:{teamCount:3,teams:[[1,2,3,4],[5,6,7],[8,9,10]],colors:['red','blue','green'],colorsRevision:4,publishedAt:1,stale:false}};
   const first=renderWithApp(<Teams ev={saved} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(screen.getByRole('button',{name:'2 команды'}));
-  await userEvent.click(screen.getByRole('button',{name:'Распределить заново'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['red','blue'],expectedRevision:4});
   first.unmount();(api.send as Mock).mockClear();
   renderWithApp(<Teams ev={{...saved,teams:{...saved.teams!,teamCount:2,teams:[[1,2,3,4,5],[6,7,8,9,10]],colors:['red','blue'],colorsRevision:5}}} reload={()=>{}}/>,{me:organizer});
   await userEvent.click(screen.getByRole('button',{name:'3 команды'}));
-  await userEvent.click(screen.getByRole('button',{name:'Распределить заново'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['red','blue','yellow'],expectedRevision:5});
 });
@@ -228,8 +224,8 @@ test('a failed publish can be retried after the server returns the saved unpubli
     return <Teams ev={detail} reload={()=>setDetail({...saved,teams:{...saved.teams,teams:[[6,2,3,4,5],[1,7,8,9,10]],publishedAt:null}})}/>;
   }
   renderWithApp(<Harness/>,{me:organizer});
-  await userEvent.click(screen.getByRole('button',{name:'Обменять: Игрок1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Обменять с игроком Игрок6'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок1'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок6'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(screen.getByRole('button',{name:'Опубликовать составы'})).toBeEnabled();
   expect(namesIn('Красные')).toContain('Игрок6');
@@ -239,6 +235,9 @@ test('a failed republication never leaves the start action enabled', async () =>
   (api.send as Mock).mockRejectedValueOnce(new Error('offline'));
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',canStart:true}),teams:{teamCount:2 as const,teams:[[1,2,3,4,5],[6,7,8,9,10]],publishedAt:1,stale:false}};
   renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
+  expect(screen.getByRole('button',{name:'Начать матч'})).toBeVisible();
+  await userEvent.click(screen.getByRole('button',{name:'Игрок1'}));
+  await userEvent.click(screen.getByRole('button',{name:'Игрок6'}));
   await userEvent.click(screen.getByRole('button',{name:'Опубликовать составы'}));
   expect(screen.queryByRole('button',{name:'Начать матч'})).toBeNull();
 });
@@ -246,10 +245,9 @@ test('a failed republication never leaves the start action enabled', async () =>
 test('an organizer can change uniform colors after kickoff without editing the lineup', async () => {
   const started={...ev,status:'playing' as const,protocolVersion:1 as const,gameProtocol:makeProtocol(),teams:{teamCount:2 as const,teams:[[1,2,3,4,5],[6,7,8,9,10]],publishedAt:1,stale:false,colorsRevision:2}};
   renderWithApp(<Teams ev={started} reload={()=>{}}/>,{me:organizer});
-  expect(screen.queryByRole('button',{name:/Обменять:/})).toBeNull();
-  await userEvent.click(screen.getByRole('button',{name:'Цвета команд'}));
-  await userEvent.click(screen.getByRole('button',{name:'Зелёный цвет для команды 1'}));
-  await userEvent.click(screen.getByRole('button',{name:'Применить цвета'}));
+  expect(screen.queryByRole('region',{name:'Баланс команд'})).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Изменить цвет: Красные'}));
+  await userEvent.click(screen.getByRole('button',{name:'Зелёный'}));
   expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['green','blue'],expectedRevision:2});
   expect(api.send).toHaveBeenCalledTimes(1);
 });
@@ -270,4 +268,46 @@ test('player sees a placeholder before publication', () => {
 test('stale banner', () => {
   renderWithApp(<Teams ev={{ ...ev, teams: { teamCount: 2, teams: [[1, 2, 3, 4, 5], [6, 7, 8, 9]], publishedAt: 1, stale: true } }} reload={() => {}} />, { me: organizer });
   expect(screen.getByText(/Состав изменился/)).toBeInTheDocument();
+});
+
+test('shuffle replaces the split at once and offers undo in the notification', async () => {
+  renderWithApp(<Teams ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(screen.getByRole('button', { name: 'Разделить на команды' }));
+  const before = namesIn('Красные');
+  await userEvent.click(screen.getByRole('button', { name: 'Перемешать' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('status')).toHaveTextContent('Новый вариант готов');
+  await userEvent.click(within(screen.getByRole('status')).getByRole('button', { name: 'Отменить' }));
+  expect(namesIn('Красные')).toEqual(before);
+  expect(screen.getByText(/Разница средних —/)).toBeVisible();
+});
+
+test('published teams on an earlier day explain when the match can start', () => {
+  const tomorrow = { ...ev, date: '2999-01-01', protocolVersion: 1 as const, gameProtocol: makeProtocol({ state: 'not_started', canStart: false }), teams: { teamCount: 2 as const, teams: [[1,2,3,4,5],[6,7,8,9,10]], publishedAt: 1, stale: false } };
+  renderWithApp(<Teams ev={tomorrow} reload={() => {}} />, { me: organizer });
+  expect(screen.getByText('Опубликованы — видят все')).toBeVisible();
+  expect(screen.getByText('Начать матч можно в день игры')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Начать матч' })).toBeNull();
+});
+
+test('a player sees own team first, marked, without ratings', () => {
+  const pub = { ...ev, viewerRole: 'player' as const, main: main.map(({ level: _l, ...rest }) => rest), teams: { teamCount: 2 as const, teams: [[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]], publishedAt: 1, stale: false } };
+  renderWithApp(<Teams ev={pub} reload={() => {}} />, { me: { ...player, userId: 107 } });
+  const groups = screen.getAllByRole('group');
+  expect(groups[0]).toHaveAccessibleName('Синие');
+  expect(within(groups[0]).getByText('Твоя команда')).toBeVisible();
+  expect(screen.queryByText(/\d,\d/)).toBeNull();
+});
+
+test('a kit fixed from the start sheet saves at once and keeps the coin available', async () => {
+  const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',startedAt:null,currentPair:null,canStart:true,canRecord:false}),teams:{teamCount:3 as const,teams:[[1,2,3,4],[5,6,7],[8,9,10]],colors:['red','blue','yellow'] as ('red'|'blue'|'yellow')[],colorsRevision:2,publishedAt:1,stale:false}};
+  renderWithApp(<Teams ev={manual} reload={()=>{}}/>,{me:organizer});
+  await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
+  const dialog=screen.getByRole('dialog',{name:'Начинаем матч'});
+  expect(within(dialog).getByText('Кто отдыхает первым?')).toBeVisible();
+  await userEvent.click(within(dialog).getByRole('button',{name:'Изменить цвет: Жёлтые'}));
+  await userEvent.click(screen.getByRole('button',{name:'Зелёный'}));
+  expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/5/teams/colors',{colors:['red','blue','green'],expectedRevision:2});
+  expect(within(dialog).getByRole('button',{name:'Изменить цвет: Зелёные'})).toBeVisible();
+  expect(within(dialog).getByRole('button',{name:'Подбросить монету'})).toBeEnabled();
 });
