@@ -4,6 +4,7 @@ import { Link } from 'wouter';
 import { useResource } from '../hooks/useResource';
 import { api } from '../lib/api';
 import { GroupTag } from './GroupTag';
+import { PlayerProfileSheet } from '../screens/PlayerProfile';
 import { useMe } from '../state/me';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
@@ -26,9 +27,8 @@ const LABEL: Record<FeedKind, string> = {
   signup_open: 'Запись открыта', scheduled: 'Время и поле', squad_full: 'Состав собран', teams_ready: 'Составы',
 };
 
-/** A post about a player opens the player; teams open the teams tab; a finished match opens its games. */
+/** Team news opens the teams tab, a finished match its games. A post about a player opens that player's profile in place. */
 function target(post: FeedPostDto): string {
-  if (post.userId !== null) return `/players/${post.userId}`;
   if (post.kind === 'teams_ready') return `/event/${post.eventId}?tab=teams`;
   if (post.kind === 'signup_open' || post.kind === 'scheduled' || post.kind === 'squad_full' || post.kind === 'top_rated') return `/event/${post.eventId}`;
   return `/event/${post.eventId}?tab=games`;
@@ -71,6 +71,7 @@ export function NewsFeed() {
   const [unfolded, setUnfolded] = useState<ReadonlySet<number>>(new Set());
   const [menu, setMenu] = useState<FeedPostDto | null>(null);
   const [busy, setBusy] = useState(false);
+  const [profileId, setProfileId] = useState<number | null>(null);
   const toast = useToast();
   const reveal = useReveal(loading && !data);
   const posts = Array.isArray(data?.posts) ? data.posts : [];
@@ -100,18 +101,22 @@ export function NewsFeed() {
     <ul className="feed">
       {shown.map(post => {
         const day = dayLabel(post.createdAt, now), label = LABEL[post.kind] ?? 'Новость';
-        const admin = isAdmin(post);
-        const empty = FEED_REACTIONS.every(r => !(post.reactions?.[r] > 0)) && !post.myReaction;
-        const open = !empty || unfolded.has(post.id);
-        return <li key={post.id} className={`card material-graphite feed-post${admin ? ' has-menu' : ''}`}>
-          <Link className="feed-open" href={target(post)}>
+        const content = <>
             <span className="feed-head">
               {post.player ? <Avatar name={post.player.name} photoUrl={post.player.photoUrl} />
                 : <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>}
               <span className="feed-meta">{post.player ? <><b>{post.player.name}</b><small>{label} · {day}</small></> : <><b>{label}</b><small>{day}</small></>}</span>
             </span>
             <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
-          </Link>
+        </>;
+        const admin = isAdmin(post);
+        const empty = FEED_REACTIONS.every(r => !(post.reactions?.[r] > 0)) && !post.myReaction;
+        const open = !empty || unfolded.has(post.id);
+        return <li key={post.id} className={`card material-graphite feed-post${admin ? ' has-menu' : ''}`}>
+          {/* The profile opens as a sheet over Home: the player directory page is not everybody's to visit. */}
+          {post.userId !== null
+            ? <button type="button" className="feed-open" onClick={() => setProfileId(post.userId)}>{content}</button>
+            : <Link className="feed-open" href={target(post)}>{content}</Link>}
           {admin && <button type="button" className="player-menu-button feed-menu" aria-label="Действия с постом" onClick={() => setMenu(post)}><Icon name="more" /></button>}
           <div className={`feed-reactions${unfolded.has(post.id) ? ' unfolding' : ''}`} role="group" aria-label="Реакции">
             {open ? FEED_REACTIONS.map(reaction => {
@@ -132,6 +137,7 @@ export function NewsFeed() {
       })}
     </ul>
     {!all && posts.length > PREVIEW && <button type="button" className="btn-text feed-more" onClick={() => setAll(true)}>Показать ещё</button>}
+    {profileId !== null && <PlayerProfileSheet key={profileId} userId={profileId} onClose={() => setProfileId(null)} />}
     {menu && <ActionSheet title="Пост в ленте" description={menu.text} onClose={() => setMenu(null)} busy={busy}>
       <ConfirmButton className="sheet-action danger-text" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" disabled={busy} onConfirm={() => remove(menu)} />
     </ActionSheet>}
