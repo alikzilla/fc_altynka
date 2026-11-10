@@ -14,6 +14,14 @@ const ICON: Record<FeedKind, IconName> = {
   signup_open: 'calendar', scheduled: 'clock', squad_full: 'people', teams_ready: 'shirt',
 };
 
+/** The heading of a post, like the author line of a social post: what kind of news this is. */
+const LABEL: Record<FeedKind, string> = {
+  winner: 'Итог матча', hero: 'Герой матча', hat_trick: 'Хет-трик', scorer: 'Бомбардир', assistant: 'Ассистент', duo: 'Связка',
+  blowout: 'Крупный счёт', goal_fest: 'Голевая игра', streak: 'Серия побед', summary: 'Матч в цифрах', achievement: 'Достижение',
+  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков',
+  signup_open: 'Запись открыта', scheduled: 'Время и поле', squad_full: 'Состав собран', teams_ready: 'Составы',
+};
+
 /** A post about a player opens the player; teams open the teams tab; a finished match opens its games. */
 function target(post: FeedPostDto): string {
   if (post.userId !== null) return `/players/${post.userId}`;
@@ -49,15 +57,15 @@ export function NewsFeed() {
   const shown = all ? posts : posts.slice(0, PREVIEW);
   return <section className={`home-section ${reveal}`} aria-labelledby="home-feed">
     <div className="section-heading"><h2 id="home-feed">Лента</h2></div>
-    <ul className="card material-graphite feed">
+    <ul className="feed">
       {shown.map(post => <li key={post.id}>
-        <Link className="feed-post" href={target(post)}>
-          <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>
-          <span className="feed-copy">
+        <Link className="card material-graphite feed-post" href={target(post)}>
+          <span className="feed-head">
+            <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>
+            <span className="feed-meta"><b>{LABEL[post.kind] ?? 'Новость'}</b><small>{dayLabel(post.createdAt, now)}</small></span>
             <GroupTag community={post.community} />
-            <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
-            <small>{dayLabel(post.createdAt, now)}</small>
           </span>
+          <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
         </Link>
       </li>)}
     </ul>

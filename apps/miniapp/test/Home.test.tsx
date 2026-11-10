@@ -152,6 +152,8 @@ describe('лента', () => {
     expect(winner).toHaveAttribute('href', '/event/7?tab=games');
     expect(within(winner).getByText('Красные').tagName).toBe('B');
     expect(within(winner).getByText('Сегодня')).toBeInTheDocument();
+    expect(within(winner).getByText('Итог матча')).toBeInTheDocument();
+    expect(winner).toHaveClass('card');
     expect(winner.querySelector('.feed-icon')).toHaveClass('team-red');
     const hero = feed.getByRole('link', { name: /герой матча/ });
     expect(hero).toHaveAttribute('href', '/players/12');
