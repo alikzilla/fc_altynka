@@ -14,12 +14,21 @@ export const FEED_KINDS = [...FEED_MATCH_KINDS, 'top_rated', ...FEED_UPCOMING_KI
 export type FeedKind = typeof FEED_KINDS[number];
 export type FeedUpcomingKind = typeof FEED_UPCOMING_KINDS[number];
 
-export interface FeedPostDto {
+/** One reaction per person and post; choosing another replaces it, choosing the same again removes it. */
+export const FEED_REACTIONS = ['fire', 'good', 'bad'] as const;
+export type FeedReaction = typeof FEED_REACTIONS[number];
+export const FEED_REACTION_EMOJI: Record<FeedReaction, string> = { fire: '🔥', good: '👍', bad: '👎' };
+export const FEED_REACTION_LABEL: Record<FeedReaction, string> = { fire: 'Огонь', good: 'Нравится', bad: 'Не нравится' };
+export interface FeedReactionsDto { reactions: Record<FeedReaction, number>; myReaction: FeedReaction | null }
+
+export interface FeedPostDto extends FeedReactionsDto {
   id: number; kind: FeedKind; text: string;
   /** Names inside `text` that the interface emphasises. */
   highlights: string[];
   createdAt: number; eventId: number; eventDate: string; community: CommunityDto;
   userId: number | null; teamColor: TeamColor | null;
+  /** The player the post is about, shown as its author line; null for team and match news. */
+  player: { userId: number; name: string; photoUrl: string | null } | null;
 }
 export interface FeedDto { posts: FeedPostDto[] }
 

@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { feedPosts } from '../../src/db/schema';
+import { feedPosts, users } from '../../src/db/schema';
 import { cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, scheduleEvent } from '../../src/domain/events';
-import { listFeed } from '../../src/domain/feed';
+import { listFeed, setFeedReaction } from '../../src/domain/feed';
 import { startGameSession } from '../../src/domain/gameStart';
 import { editGameResult, finishGameSession, recordGameResult } from '../../src/domain/games';
 import { submitReview } from '../../src/domain/ratings';
@@ -9,7 +9,7 @@ import { seedUser } from '../helpers';
 import { gameFixture } from './gameFixture';
 
 type World = Awaited<ReturnType<typeof gameFixture>>;
-const feed = async (w: World) => (await listFeed(w.d, [w.community])).posts;
+const feed = async (w: World) => (await listFeed(w.d, [w.community], w.actorId)).posts;
 const kinds = async (w: World) => (await feed(w)).map(p => p.kind).sort();
 
 async function play(w: World) {
@@ -108,4 +108,25 @@ test('too few votes: nobody is announced', async () => {
   await submitReview(w.d, ev, w.people[1].id, { scores: [{ userId: w.people[0].id, score: 10 }], gameScore: 8, skipped: false });
   w.d.now += 73 * 3_600_000;
   expect(await kinds(w)).not.toContain('top_rated');
+});
+
+test('a player post carries the player with the Telegram photo; reactions survive a rewritten match', async () => {
+  const w = await gameFixture(2);
+  const gameId = await play(w);
+  await w.d.db.update(users).set({ photoUrl: 'https://t.me/i/userpic/320/a.jpg' }).where(eq(users.id, w.people[0].id));
+  const posts = await feed(w);
+  expect(posts.find(p => p.kind === 'hat_trick')!.player).toEqual({ userId: w.people[0].id, name: 'Игрок 0', photoUrl: 'https://t.me/i/userpic/320/a.jpg' });
+  expect(posts[0]).toMatchObject({ kind: 'winner', player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null });
+  const groups = [w.community.id];
+  expect(await setFeedReaction(w.d, posts[0].id, w.actorId, groups, 'fire')).toEqual({ reactions: { fire: 1, good: 0, bad: 0 }, myReaction: 'fire' });
+  expect(await setFeedReaction(w.d, posts[0].id, w.people[1].id, groups, 'fire')).toMatchObject({ reactions: { fire: 2 }, myReaction: 'fire' });
+  // One reaction per person: another choice replaces the first.
+  expect(await setFeedReaction(w.d, posts[0].id, w.actorId, groups, 'bad')).toEqual({ reactions: { fire: 1, good: 0, bad: 1 }, myReaction: 'bad' });
+  expect(await setFeedReaction(w.d, posts[0].id, w.actorId, [w.community.id + 1], 'good')).toBeNull();
+  const revision = (await getEvent(w.d.db, w.eventId))!.gameRevision;
+  await editGameResult(w.d, w.eventId, gameId, w.actorId, { requestId: 'fix', expectedRevision: revision }, { score: [3, 0], scorers: [{ signupId: w.ids[0], goals: 2 }] });
+  const rewritten = (await feed(w))[0];
+  expect(rewritten.id).not.toBe(posts[0].id);
+  expect(rewritten).toMatchObject({ kind: 'winner', reactions: { fire: 1, good: 0, bad: 1 }, myReaction: 'bad' });
+  expect(await setFeedReaction(w.d, rewritten.id, w.actorId, groups, null)).toEqual({ reactions: { fire: 1, good: 0, bad: 0 }, myReaction: null });
 });

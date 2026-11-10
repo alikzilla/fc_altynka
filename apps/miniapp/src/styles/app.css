@@ -268,8 +268,9 @@ h2.match-day::first-letter { text-transform: uppercase; }
 .task-preview > svg { width: 15px; height: 15px; }
 /* Лента: каждый пост — отдельная графитовая карточка, как запись в соцсети: шапка с типом новости и днём, ниже текст. */
 .feed { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
-.card.feed-post { padding: 16px 18px 18px; gap: 12px; border-radius: 25px; transition: transform 140ms var(--ease-out); }
-.feed-post:active { transform: scale(.98); }
+.card.feed-post { padding: 16px 18px 14px; gap: 12px; border-radius: 25px; }
+.feed-open { display: flex; flex-direction: column; gap: 12px; min-width: 0; transition: transform 140ms var(--ease-out); }
+.feed-open:active { transform: scale(.98); }
 .feed-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .feed-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff15; box-shadow: inset 0 1px 1px #ffffff1f; flex-shrink: 0; }
 .feed-icon[class*='team-'] { color: var(--kit); box-shadow: inset 0 0 0 1.5px var(--kit); }
@@ -280,6 +281,12 @@ h2.match-day::first-letter { text-transform: uppercase; }
 .feed-head .group-tag { align-self: center; flex-shrink: 1; min-width: 0; max-width: 45%; }
 .feed-text { font-size: 16px; line-height: 1.4; text-wrap: pretty; }
 .feed-text b { font-weight: 600; }
+/* Реакции: три системных эмодзи; своя отмечена обводкой и тоном акцента. */
+.feed-reactions { display: flex; gap: 8px; }
+.feed-reaction { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 52px; min-height: 44px; padding: 0 13px; border: 0; border-radius: 99px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--text); font-size: 14px; font-weight: 550; font-variant-numeric: tabular-nums; cursor: pointer; transition: transform 140ms var(--ease-out), background-color 140ms var(--ease-out); }
+.feed-reaction:active { transform: scale(.94); }
+.feed-reaction[aria-pressed='true'] { background: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 70%, transparent); }
+.feed-emoji { font-size: 19px; line-height: 1; font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; }
 .feed-more { display: block; margin: 6px auto 0; }
 .tasks-note { font-size: 12px; }
 .empty-state { display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 24px 0; border-top: 1px solid var(--line); gap: 8px; }

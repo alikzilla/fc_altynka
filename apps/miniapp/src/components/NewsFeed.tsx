@@ -1,10 +1,11 @@
-import { formatDayMonthRu, todayAlmaty, type FeedDto, type FeedKind, type FeedPostDto } from '@altynka/core';
+import { FEED_REACTIONS, FEED_REACTION_EMOJI, FEED_REACTION_LABEL, formatDayMonthRu, todayAlmaty, type FeedDto, type FeedKind, type FeedPostDto, type FeedReaction, type FeedReactionsDto } from '@altynka/core';
 import { Fragment, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { useResource } from '../hooks/useResource';
+import { api } from '../lib/api';
 import { GroupTag } from './GroupTag';
-import { Icon } from './Icon';
-import { useReveal } from './ui';
+import { Avatar, Icon } from './Icon';
+import { useReveal, useToast } from './ui';
 
 const PREVIEW = 5;
 type IconName = Parameters<typeof Icon>[0]['name'];
@@ -46,28 +47,63 @@ function emphasise(text: string, names: readonly string[]): ReactNode {
   return parts.map((part, i) => typeof part === 'string' ? <Fragment key={i}>{part}</Fragment> : <b key={i}>{part.name}</b>);
 }
 
+const NONE: Record<FeedReaction, number> = { fire: 0, good: 0, bad: 0 };
+
+/** The same reaction again takes it back; another one replaces it. Counts never go below zero. */
+function toggled(post: FeedReactionsDto, reaction: FeedReaction): FeedReactionsDto {
+  const reactions = { ...NONE, ...post.reactions };
+  const mine = post.myReaction ?? null;
+  if (mine) reactions[mine] = Math.max(0, reactions[mine] - 1);
+  if (mine === reaction) return { reactions, myReaction: null };
+  reactions[reaction]++;
+  return { reactions, myReaction: reaction };
+}
+
 /** Short stories about played and upcoming matches of the person's groups. Silent when there is nothing to tell. */
 export function NewsFeed() {
-  const { data, loading } = useResource<FeedDto>('/api/feed');
+  const { data, loading, replace, reload } = useResource<FeedDto>('/api/feed');
   const [all, setAll] = useState(false);
+  const toast = useToast();
   const reveal = useReveal(loading && !data);
   const posts = Array.isArray(data?.posts) ? data.posts : [];
   if (!posts.length) return null;
   const now = Date.now();
   const shown = all ? posts : posts.slice(0, PREVIEW);
+  const patch = (id: number, next: FeedReactionsDto) => replace(feed => ({ ...feed, posts: feed.posts.map(p => p.id === id ? { ...p, ...next } : p) }));
+  // The tap shows at once; the server's counts settle it, and a failure puts the true state back.
+  function react(post: FeedPostDto, reaction: FeedReaction) {
+    const next = toggled(post, reaction);
+    patch(post.id, next);
+    api.send<FeedReactionsDto>('PUT', `/api/feed/${post.id}/reaction`, { reaction: next.myReaction })
+      .then(saved => patch(post.id, saved))
+      .catch(() => { reload(); toast('Не получилось сохранить реакцию'); });
+  }
   return <section className={`home-section ${reveal}`} aria-labelledby="home-feed">
     <div className="section-heading"><h2 id="home-feed">Лента</h2></div>
     <ul className="feed">
-      {shown.map(post => <li key={post.id}>
-        <Link className="card material-graphite feed-post" href={target(post)}>
-          <span className="feed-head">
-            <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>
-            <span className="feed-meta"><b>{LABEL[post.kind] ?? 'Новость'}</b><small>{dayLabel(post.createdAt, now)}</small></span>
-            <GroupTag community={post.community} />
-          </span>
-          <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
-        </Link>
-      </li>)}
+      {shown.map(post => {
+        const day = dayLabel(post.createdAt, now), label = LABEL[post.kind] ?? 'Новость';
+        return <li key={post.id} className="card material-graphite feed-post">
+          <Link className="feed-open" href={target(post)}>
+            <span className="feed-head">
+              {post.player ? <Avatar name={post.player.name} photoUrl={post.player.photoUrl} />
+                : <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>}
+              <span className="feed-meta">{post.player ? <><b>{post.player.name}</b><small>{label} · {day}</small></> : <><b>{label}</b><small>{day}</small></>}</span>
+              <GroupTag community={post.community} />
+            </span>
+            <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
+          </Link>
+          <div className="feed-reactions" role="group" aria-label="Реакции">
+            {FEED_REACTIONS.map(reaction => {
+              const count = post.reactions?.[reaction] ?? 0;
+              return <button key={reaction} type="button" className="feed-reaction" aria-pressed={post.myReaction === reaction}
+                aria-label={`${FEED_REACTION_LABEL[reaction]}${count ? `, ${count}` : ''}`} onClick={() => react(post, reaction)}>
+                <span className="feed-emoji" aria-hidden="true">{FEED_REACTION_EMOJI[reaction]}</span>{count > 0 && <span aria-hidden="true">{count}</span>}
+              </button>;
+            })}
+          </div>
+        </li>;
+      })}
     </ul>
     {!all && posts.length > PREVIEW && <button type="button" className="btn-text feed-more" onClick={() => setAll(true)}>Показать ещё</button>}
   </section>;

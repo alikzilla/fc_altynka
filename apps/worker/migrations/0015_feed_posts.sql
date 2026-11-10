@@ -17,3 +17,16 @@ CREATE TABLE `feed_posts` (
 CREATE UNIQUE INDEX `feed_posts_event_slot` ON `feed_posts` (`event_id`,`slot`);
 --> statement-breakpoint
 CREATE INDEX `feed_posts_community_time` ON `feed_posts` (`community_id`,`created_at`);
+--> statement-breakpoint
+-- Реакция на пост: одна на человека. Ключ — матч и слот поста, поэтому реакции переживают переписывание поста.
+CREATE TABLE `feed_reactions` (
+	`event_id` integer NOT NULL REFERENCES `events`(`id`),
+	`slot` text NOT NULL,
+	`user_id` integer NOT NULL REFERENCES `users`(`id`),
+	`reaction` text NOT NULL CHECK (`reaction` IN ('fire', 'good', 'bad')),
+	`created_at` integer NOT NULL,
+	PRIMARY KEY (`event_id`, `slot`, `user_id`)
+);
+--> statement-breakpoint
+-- Фото из Telegram: приходит в initData при входе, показывается в ленте участникам группы.
+ALTER TABLE `users` ADD `photo_url` text;
