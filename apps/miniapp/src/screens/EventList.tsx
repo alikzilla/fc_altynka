@@ -27,7 +27,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
     finally { locked.current = false; setBusy(false); reload(); }
   }
   const row = (s: SignupDto, i: number) => <li key={s.id} className={`person ${s.userId === me.userId ? 'me' : ''}`}>
-    <span className="num">{i + 1}</span><Avatar name={s.name} />
+    <span className="num">{i + 1}</span><Avatar name={s.name} injured={s.injured} />
     <span className="name">{s.userId !== null ? <button className="btn-plain player-profile-link" onClick={() => setProfileId(s.userId)}>{s.name}</button> : s.name}{s.userId === me.userId && <span className="you">ты</span>}{s.guestOfName && <small className="match-guest muted">(друг: {s.guestOfName})</small>}</span>
     {canRemove(s) && <button className="player-menu-button" aria-label={`Действия: ${s.name}`} onClick={() => setSelected(s)} disabled={busy}><Icon name="more" /></button>}
   </li>;

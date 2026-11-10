@@ -99,6 +99,13 @@
       "when": 1794150000000,
       "tag": "0013_pinned_achievement",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1794240000000,
+      "tag": "0014_injury_status",
+      "breakpoints": true
     }
   ]
 }

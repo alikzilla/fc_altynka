@@ -34,8 +34,11 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" {...props}>{paths[name]}</svg>;
 }
 
-export function Avatar({ name, large = false, photoUrl }: { name: string; large?: boolean; photoUrl?: string | null }) {
+/** `injured` adds the red cross on white in the top-left corner; screen readers hear «травма». */
+export function Avatar({ name, large = false, photoUrl, injured = false }: { name: string; large?: boolean; photoUrl?: string | null; injured?: boolean }) {
   const [failed, setFailed] = useState<string | null>(null);
   const source = photoUrl?.startsWith('https://') && photoUrl !== failed ? photoUrl : null;
-  return <span className={`avatar${large ? ' avatar-large' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}</span>;
+  const avatar = <span className={`avatar${large ? ' avatar-large' : ''}${injured ? ' avatar-injured' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}
+    {injured && <span className="avatar-injury" data-testid="injury-badge"><svg viewBox="0 0 12 12"><path d="M4.5 1.5h3v3h3v3h-3v3h-3v-3h-3v-3h3z" /></svg></span>}</span>;
+  return injured ? <>{avatar}<span className="sr-only">Травма</span></> : avatar;
 }

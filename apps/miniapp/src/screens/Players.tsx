@@ -14,7 +14,7 @@ function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; com
   const [name, setName] = useState(member.displayName);
   const [busy, setBusy] = useState(false);
   const toast = useToast();
-  async function patch(body: { displayName?: string; role?: 'organizer' | 'player' }) {
+  async function patch(body: { displayName?: string; role?: 'organizer' | 'player'; injured?: boolean }) {
     if (busy) return;
     setBusy(true);
     try { await api.send('PATCH', `/api/members/${member.userId}?communityId=${communityId}`, body); onSaved(); }
@@ -23,6 +23,7 @@ function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; com
   }
   return <div className="editor form">
     {member.role !== 'admin' && <button className="btn wide" disabled={busy} onClick={() => patch({ role: member.role === 'organizer' ? 'player' : 'organizer' })}>{member.role === 'organizer' ? 'Сделать игроком' : 'Сделать организатором'}</button>}
+    <button className="btn wide" disabled={busy} aria-pressed={member.injured} onClick={() => patch({ injured: !member.injured })}>{member.injured ? 'Снять травму' : 'Отметить травму'}</button>
     <label>Имя в списках<input maxLength={24} value={name} disabled={busy} onChange={e => setName(e.target.value)} /></label>
     <button className="btn wide" disabled={busy || !name.trim() || name.trim() === member.displayName} onClick={() => patch({ displayName: name.trim() })}>Имя</button>
   </div>;
@@ -32,7 +33,7 @@ function PlayerRow({ person, member, communityId, managing, toggle, onSaved }: {
   const [, navigate] = useLocation();
   return <li>
     <button type="button" className="btn-plain player-directory-row" onClick={() => navigate(`/players/${person.userId}`)}>
-      <Avatar name={person.displayName} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
+      <Avatar name={person.displayName} injured={person.injured} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
       <span className="rating-small">{formatRating(person.rating.value)}</span><Icon name="back" className="chevron-right" />
     </button>
     {member && <><button className="btn-text player-management-toggle" aria-expanded={managing} aria-label={`Управление: ${person.displayName}`} onClick={toggle}>Управление</button>

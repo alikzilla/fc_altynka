@@ -45,6 +45,8 @@ export interface SignupDto {
   level?: number;
   /** Только для организатора и админа, только у игроков: сохранённый номер Kaspi (получатель счёта). */
   kaspiPhone?: string | null;
+  /** Игрок отмечен травмированным в группе этого матча. */
+  injured?: boolean;
 }
 
 export interface EventSummaryDto {
@@ -121,6 +123,8 @@ export interface MemberDto {
   displayName: string;
   role: Role;
   level: number;
+  /** Травма в этой группе; меняет только администратор группы. */
+  injured: boolean;
 }
 
 export interface EventsListDto {

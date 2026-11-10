@@ -118,6 +118,8 @@
 :root[data-theme='light'] .system-switch-control::after { background: #fff; }
 
 :root[data-theme='light'] .avatar:not(.avatar-large) { background: #e7deef; color: #57406a; }
+/* На белой карточке белый значок травмы отделяет тонкая лиловая обводка. */
+:root[data-theme='light'] .avatar:not(.avatar-large) .avatar-injury { box-shadow: 0 0 0 1.5px #fff, 0 0 0 2.5px #cdbfda; }
 :root[data-theme='light'] .profile-settings-row small { color: var(--hint); }
 :root[data-theme='light'] .profile-settings-row + .profile-settings-row { border-color: #d9d2e1; }
 :root[data-theme='light'] .event-row { border-color: #d9d2e1; }

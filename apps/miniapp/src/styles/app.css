@@ -116,6 +116,12 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .you { font-size: 12px; color: var(--accent-ink); background: var(--accent-soft); padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: #393443; color: #ede5f7; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 550; flex-shrink: 0; overflow: hidden; box-shadow: var(--rim); }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
+.avatar-injured { position: relative; overflow: visible; }
+.avatar-injured img { border-radius: 50%; }
+/* Травма: белый круг с красным крестом в левом верхнем углу; кольцо цвета фона отделяет его от аватара. */
+.avatar-injury { position: absolute; top: -3px; left: -3px; width: 48%; aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--bg); display: flex; align-items: center; justify-content: center; }
+.avatar-injury svg { width: 66%; height: 66%; fill: #e5322d; }
+.avatar-large .avatar-injury { top: -5px; left: -5px; width: 40%; box-shadow: 0 0 0 3px var(--bg); }
 .avatar-large { width: 84px; height: 84px; font-size: 25px; background: radial-gradient(ellipse at 25% 0%, #777096, transparent 80%), #272135; } /* taste-skill-ignore */
 .profile-card { gap: 18px; }
 .profile-card-top { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: start; gap: 18px; }

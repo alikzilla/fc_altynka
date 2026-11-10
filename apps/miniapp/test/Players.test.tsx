@@ -8,7 +8,7 @@ import { admin, organizer, player, renderWithApp } from './render';
 
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/lib/tg');
-const members: MemberDto[] = [{ userId: 12, displayName: 'Арман', role: 'player', level: 5 }, { userId: 1, displayName: 'Орг', role: 'organizer', level: 7 }];
+const members: MemberDto[] = [{ userId: 12, displayName: 'Арман', role: 'player', level: 5, injured: false }, { userId: 1, displayName: 'Орг', role: 'organizer', level: 7, injured: false }];
 const players: PlayerSummaryDto[] = members.map(m => ({ userId: m.userId, displayName: m.displayName, playingPosition: null, dominantFoot: null, rating: { value: m.level, initial: m.level, selfAssessment: null, matchesCount: 0 } }));
 let role: 'admin' | 'organizer' | 'player';
 beforeEach(() => {
@@ -37,6 +37,32 @@ test.each([organizer, player])('all members see decimal ratings and can search p
   expect(screen.getByText('Орг')).toBeInTheDocument();
 });
 
+test('admin marks and clears an injury from the management panel', async () => {
+  renderWithApp(<Players />, { me: admin });
+  await userEvent.click(await screen.findByRole('button', { name: 'Управление: Арман' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Отметить травму' }));
+  expect(api.send).toHaveBeenCalledWith('PATCH', '/api/members/12?communityId=1', { injured: true });
+});
+
+test('an injured player shows the red cross on the avatar; others do not', async () => {
+  role = 'player';
+  (api.get as Mock).mockResolvedValue({ groups: [{ community: { id: 1, title: 'FC Altynka' }, role: 'player', players: [{ ...players[0], injured: true }, players[1]] }] });
+  renderWithApp(<Players />, { me: player });
+  const injured = (await screen.findByText('Арман')).closest('li')!;
+  expect(injured.querySelector('[data-testid="injury-badge"]')).not.toBeNull();
+  expect(injured).toHaveTextContent('Травма');
+  expect(screen.getByText('Орг').closest('li')!.querySelector('[data-testid="injury-badge"]')).toBeNull();
+  expect(screen.queryByRole('button', { name: /Отметить травму/ })).toBeNull();
+});
+
+test('admin sees «Снять травму» for an injured member', async () => {
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members?communityId=1' ? [{ ...members[0], injured: true }, members[1]] : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role, players }] }));
+  renderWithApp(<Players />, { me: admin });
+  await userEvent.click(await screen.findByRole('button', { name: 'Управление: Арман' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Снять травму' }));
+  expect(api.send).toHaveBeenCalledWith('PATCH', '/api/members/12?communityId=1', { injured: false });
+});
+
 test('admin renaming to a taken name sees why it failed', async () => {
   (api.send as Mock).mockRejectedValue(new ApiError(409, 'name_taken'));
   renderWithApp(<Players />, { me: admin });
@@ -49,7 +75,7 @@ test('admin renaming to a taken name sees why it failed', async () => {
 
 test('two groups render a titled section each; role management only in the admin section', async () => {
   const other = [{ ...players[0], userId: 30, displayName: 'Тимур' }];
-  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members?communityId=2' ? [{ userId: 30, displayName: 'Тимур', role: 'player', level: 5 }] : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role: 'player', players }, { community: { id: 2, title: 'Футбол по средам' }, role: 'admin', players: other }] }));
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members?communityId=2' ? [{ userId: 30, displayName: 'Тимур', role: 'player', level: 5, injured: false }] : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role: 'player', players }, { community: { id: 2, title: 'Футбол по средам' }, role: 'admin', players: other }] }));
   renderWithApp(<Players />, { me: { ...player, communities: [{ id: 1, title: 'FC Altynka', role: 'player' }, { id: 2, title: 'Футбол по средам', role: 'admin' }] } });
   expect(await screen.findByRole('heading', { name: /FC Altynka/ })).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Футбол по средам/ })).toBeInTheDocument();

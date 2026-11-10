@@ -44,6 +44,8 @@ export interface PlayerSummaryDto {
   playingPosition: PlayingPosition | null;
   dominantFoot: DominantFoot | null;
   rating: PlayerRatingDto;
+  /** Травма: в списке игроков — в этой группе, в профиле — хотя бы в одной общей с вами группе. */
+  injured?: boolean;
 }
 export interface PlayerProfileDto extends PlayerSummaryDto {
   telegramUsername: string | null;
