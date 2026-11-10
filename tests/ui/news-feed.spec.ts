@@ -5,6 +5,9 @@ import AxeBuilder from '@axe-core/playwright';
 // Synthetic data: tests never connect to the bot, D1, or a real group.
 const community = { id: 1, title: 'Футбол по субботам' };
 const event = { community, viewerRole: 'player', id: 1, date: '2026-11-14', status: 'scheduled', startTime: '21:00', durationHours: 1, place: 'Школа Аксай', limit: 10, mainCount: 8, reserveCount: 0, my: 'main', comment: null, main: [], reserve: [], teams: null, bill: null };
+const profile = { userId: 12, displayName: 'Айкын', playingPosition: 'forward', dominantFoot: 'right', role: 'player', telegramUsername: 'aikyn', pinnedAchievement: null,
+  rating: { value: 6.8, initial: 6, selfAssessment: null, matchesCount: 4 },
+  statistics: { meetings: 12, games: 48, goals: 50, assists: 11, assistsTracked: true, wins: 24, draws: 9, losses: 15, winPercentage: 50, bestGoalsInMeeting: 6, hatTricks: 5 }, history: [], gameHistory: [] };
 const at = (iso: string) => Date.parse(iso);
 const post = (id: number, kind: string, text: string, patch: object = {}) => ({ id, kind, text, highlights: [], createdAt: at('2026-11-07T17:00:00Z'), eventId: 2, eventDate: '2026-11-07', community, userId: null, teamColor: null, player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null, ...patch });
 const posts = [
@@ -28,14 +31,21 @@ for (const theme of ['dark', 'light'] as const) {
       if (route.request().method() === 'DELETE') return route.fulfill({ json: { ok: true } });
       if (route.request().method() === 'PUT') return route.fulfill({ json: { reactions: { fire: 6, good: 3, bad: 0 }, myReaction: 'good' } });
       await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'admin' }, ...(theme === 'dark' ? [{ id: 2, title: 'Вторая группа', role: 'player' }] : [])] }
-        : path === '/api/events' ? { active: [event], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : event });
+        : path === '/api/events' ? { active: [event], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : /^\/api\/players\/\d+$/.test(path) ? profile : event });
     });
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto('/');
     const feed = page.locator('section', { has: page.getByRole('heading', { name: 'Лента' }) });
-    await expect(feed.getByRole('link')).toHaveCount(5);
+    await expect(feed.locator('li')).toHaveCount(5);
     await expect(feed.getByRole('link', { name: /Красные не оставили шансов/ })).toHaveAttribute('href', '/event/2?tab=games');
-    await expect(feed.getByRole('link', { name: /герой матча/ })).toHaveAttribute('href', '/players/12');
+    // A player post opens the profile as a sheet over Home; the address stays on Home.
+    await feed.getByRole('button', { name: /герой матча/ }).click();
+    await expect(page.getByRole('dialog', { name: 'Профиль игрока' })).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.getByRole('dialog').getByText('@aikyn')).toBeVisible();
+    if (theme === 'dark') await page.screenshot({ path: 'artifacts/ui/feed-profile.png' });
+    await page.getByRole('dialog').getByRole('button', { name: 'Закрыть' }).click();
+    await expect(page.getByRole('dialog')).toBeHidden();
     await expect(feed.getByText('Сегодня')).toBeVisible();
     // With several groups the group is a quiet caption in the bottom row, away from the head and the ⋯ menu.
     await expect(feed.locator('li').first().locator('.feed-reactions .group-tag')).toHaveCount(theme === 'dark' ? 1 : 0);
@@ -49,7 +59,7 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(feed.locator('li', { hasText: 'оформляет хет-трик' }).locator('.avatar img')).toBeVisible();
     // No reactions yet: one quiet button that unfolds into the three.
     const hero = feed.locator('li', { hasText: 'герой матча' });
-    await expect(hero.getByRole('button')).toHaveCount(4);
+    await expect(hero.getByRole('group', { name: 'Реакции' }).getByRole('button')).toHaveCount(3);
     const hatTrick = feed.locator('li', { hasText: 'оформляет хет-трик' });
     await expect(hatTrick.getByRole('group', { name: 'Реакции' }).getByRole('button')).toHaveCount(1);
     await hatTrick.getByRole('button', { name: 'Реакция' }).click();
@@ -57,18 +67,18 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(hatTrick.getByRole('button', { name: 'Огонь' })).toBeFocused();
     // The admin's ⋯ menu removes a post after a second, explicit tap.
     await feed.getByRole('button', { name: 'Показать ещё' }).click();
-    await expect(feed.getByRole('link')).toHaveCount(7);
+    await expect(feed.locator('li')).toHaveCount(7);
     await feed.locator('li', { hasText: 'Матч в цифрах' }).getByRole('button', { name: 'Действия с постом' }).click();
     const sheet = page.getByRole('dialog');
     await sheet.getByRole('button', { name: 'Удалить пост' }).click();
     if (theme === 'dark') await page.screenshot({ path: 'artifacts/ui/feed-menu.png' });
     await sheet.getByRole('button', { name: /Точно удалить/ }).click();
-    await expect(feed.getByRole('link')).toHaveCount(6);
+    await expect(feed.locator('li')).toHaveCount(6);
     await expect(page.getByText('Пост удалён')).toBeVisible();
     await expect(sheet).toBeHidden();
     await expect(page.getByText('Пост удалён')).toBeHidden({ timeout: 10_000 });
     // The last post scrolls clear of the dock.
-    await feed.getByRole('link').last().scrollIntoViewIfNeeded();
+    await feed.locator('li').last().scrollIntoViewIfNeeded();
     const last = await feed.locator('li').last().boundingBox();
     const dock = await page.locator('.nav').boundingBox();
     expect(last!.y + last!.height).toBeLessThanOrEqual(dock!.y);

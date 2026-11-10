@@ -271,6 +271,7 @@ h2.match-day::first-letter { text-transform: uppercase; }
 .card.feed-post { padding: 16px 18px 14px; gap: 12px; border-radius: 25px; }
 .feed-open { display: flex; flex-direction: column; gap: 12px; min-width: 0; transition: transform 140ms var(--ease-out); }
 .feed-open:active { transform: scale(.98); }
+button.feed-open { width: 100%; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .feed-head { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .feed-icon { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; background: #ffffff15; box-shadow: inset 0 1px 1px #ffffff1f; flex-shrink: 0; }
 .feed-icon[class*='team-'] { color: var(--kit); box-shadow: inset 0 0 0 1.5px var(--kit); }

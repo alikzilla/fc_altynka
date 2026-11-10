@@ -136,7 +136,8 @@ describe('лента', () => {
     community: { id: 1, title: 'FC Altynka' }, userId: null, teamColor: null, player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null, ...patch,
   });
   const withFeed = (posts: unknown) => (api.get as Mock).mockImplementation((path: string) => Promise.resolve(
-    path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : { active: [ev], past: [] }));
+    // The profile sheet stays on its skeleton: these tests are about the feed.
+    path.startsWith('/api/players/') ? new Promise(() => {}) : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : { active: [ev], past: [] }));
 
   test('posts emphasise names, say when they happened and lead to the player or the match', async () => {
     vi.useFakeTimers({ toFake: ['Date'] });
@@ -156,8 +157,9 @@ describe('лента', () => {
     expect(within(winner).getByText('Итог матча')).toBeInTheDocument();
     expect(winner.closest('li')).toHaveClass('card');
     expect(winner.querySelector('.feed-icon')).toHaveClass('team-red');
-    const hero = feed.getByRole('link', { name: /герой матча/ });
-    expect(hero).toHaveAttribute('href', '/players/12');
+    // A player post is a button: the profile opens here, never the players page.
+    const hero = feed.getByRole('button', { name: /герой матча/ });
+    expect(feed.queryByRole('link', { name: /герой матча/ })).toBeNull();
     // A player post is signed by the player: photo, name, then the kind of news and the day.
     expect(within(hero).getByText('Герой матча · Вчера')).toBeInTheDocument();
     expect(hero.querySelector('.avatar img')).toHaveAttribute('src', 'https://t.me/i/userpic/320/a.jpg');
@@ -166,6 +168,9 @@ describe('лента', () => {
     const teams = feed.getByRole('link', { name: /Составы/ });
     expect(teams).toHaveAttribute('href', '/event/7?tab=teams');
     expect(within(teams).getByText('1 ноября')).toBeInTheDocument();
+    await userEvent.click(hero);
+    expect(await screen.findByRole('dialog', { name: 'Профиль игрока' })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/api/players/12', expect.anything());
     // One group: no group tag on posts.
     expect(feed.queryByText('FC Altynka')).toBeNull();
     vi.useRealTimers();

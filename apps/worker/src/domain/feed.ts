@@ -127,6 +127,24 @@ export async function publishClosedVotes(d: Deps, communityIds: number[]): Promi
   }
 }
 
+/**
+ * Matches finished before the feed existed, or whose stories failed to save at the final whistle, get
+ * them on the next read: oldest first, so milestones and phrasing follow the real order of the matches.
+ */
+export async function backfillMatchFeed(d: Deps, communityIds: number[]): Promise<number> {
+  if (!communityIds.length) return 0;
+  const missing = await d.db.all<{ id: number }>(sql`
+    SELECT e.id AS id FROM events e
+    WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)})
+      AND e.protocol_version = 1 AND e.completed_at IS NOT NULL AND e.status <> 'cancelled'
+      AND e.game_state_json IS NOT NULL AND json_array_length(e.game_state_json, '$.games') > 0
+      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id
+        AND f.kind IN (${sql.join(FEED_MATCH_KINDS.map(kind => sql`${kind}`), sql`, `)}))
+    ORDER BY e.date, e.id LIMIT 20`);
+  for (const row of missing) await publishMatchFeed(d, row.id);
+  return missing.length;
+}
+
 const noReactions = (): FeedReactionsDto => ({ reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null });
 
 /** Counts per post and the viewer's own choice; keyed by match and slot like the reactions themselves. */
@@ -178,6 +196,7 @@ export async function hideFeedPost(d: Deps, postId: number, userId: number, memb
 export async function listFeed(d: Deps, communities: readonly CommunityDto[], viewerId: number): Promise<FeedDto> {
   if (!communities.length) return { posts: [] };
   const ids = communities.map(c => c.id);
+  await feedSafely(() => backfillMatchFeed(d, ids));
   await feedSafely(() => publishClosedVotes(d, ids));
   const titles = new Map(communities.map(c => [c.id, c.title]));
   const rows = await d.db.select({ post: feedPosts, date: events.date }).from(feedPosts)

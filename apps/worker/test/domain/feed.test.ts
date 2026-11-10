@@ -143,3 +143,17 @@ test('a removed post stays removed when the match is rewritten', async () => {
   expect(after).not.toContain('winner');
   expect(after.length).toBeGreaterThan(0);
 });
+
+test('a match finished before the feed existed gets its stories on the next read, dated by the match', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const original = await feed(w);
+  await w.d.db.delete(feedPosts).where(eq(feedPosts.eventId, w.eventId));
+  w.d.now += 5 * 86_400_000;
+  const restored = await feed(w);
+  expect(restored.map(p => `${p.kind}:${p.text}`)).toEqual(original.map(p => `${p.kind}:${p.text}`));
+  expect(restored.every(p => p.createdAt === original[0].createdAt)).toBe(true);
+  // Nothing is written twice.
+  const ids = restored.map(p => p.id);
+  expect((await feed(w)).map(p => p.id)).toEqual(ids);
+});
