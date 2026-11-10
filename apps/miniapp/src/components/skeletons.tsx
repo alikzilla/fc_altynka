@@ -50,6 +50,26 @@ export function HomeTasksSkeleton({ groups }: { groups: boolean }) {
   return <Skeleton><div className="task-list compact-tasks">{times(2).map(index => <TaskPreviewSkeleton key={index} groups={groups} index={index} />)}</div></Skeleton>;
 }
 
+/** Карточка поста ленты: шапка с кругом и двумя строками, две строки текста, кнопка реакции. */
+function FeedPostSkeleton({ index }: { index: number }) {
+  return <li className="card material-graphite feed-post">
+    <span className="feed-open">
+      <span className="feed-head">
+        <span className="feed-icon sk-fill" />
+        <span className="feed-meta"><b><Sk w={pick(['34%', '46%', '28%'], index)} /></b><small><Sk w={pick(['42%', '30%', '38%'], index)} /></small></span>
+      </span>
+      <span className="feed-text"><Sk w="94%" /> <Sk w={pick(['52%', '70%', '38%'], index)} /></span>
+    </span>
+    <div className="feed-reactions"><span className="feed-reaction feed-react-add sk-fill"><Icon name="smile" />Реакция</span></div>
+  </li>;
+}
+
+export function HomeFeedSkeleton() {
+  return <section className="home-section"><div className="section-heading"><h2>Лента</h2></div>
+    <Skeleton><ul className="feed">{times(3).map(index => <FeedPostSkeleton key={index} index={index} />)}</ul></Skeleton>
+  </section>;
+}
+
 /* ——— Матчи ——— */
 
 function EventRowSkeleton({ groups, index }: { groups: boolean; index: number }) {
@@ -287,5 +307,6 @@ export function RouteSkeleton({ path, search = '' }: { path: string; search?: st
   return <SkFrame title="Ближайший матч">
     <HomeMatchSkeleton />
     <section className="home-section"><div className="section-heading"><h2>Нужно сделать</h2><Link href="/notifications">Все задачи<Icon name="arrow" /></Link></div><HomeTasksSkeleton groups={false} /></section>
+    <HomeFeedSkeleton />
   </SkFrame>;
 }

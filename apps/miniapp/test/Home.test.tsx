@@ -147,7 +147,8 @@ describe('лента', () => {
       post(3, { kind: 'teams_ready', text: 'Составы на матч 1 ноября опубликованы.' }),
     ]);
     renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
-    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    // The heading is there while the skeleton holds the place, so wait for the posts themselves.
+    const feed = within((await screen.findAllByRole('link', { name: /Пост|Красные выиграли/ }))[0].closest('section')!);
     const winner = feed.getByRole('link', { name: /Красные выиграли матч/ });
     expect(winner).toHaveAttribute('href', '/event/7?tab=games');
     expect(within(winner).getByText('Красные').tagName).toBe('B');
@@ -173,7 +174,8 @@ describe('лента', () => {
   test('five posts first, the rest on request; group tags for a person with several groups', async () => {
     withFeed(Array.from({ length: 8 }, (_, i) => post(i + 1)));
     renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });
-    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    // The heading is there while the skeleton holds the place, so wait for the posts themselves.
+    const feed = within((await screen.findAllByRole('link', { name: /Пост|Красные выиграли/ }))[0].closest('section')!);
     expect(feed.getAllByRole('link')).toHaveLength(5);
     expect(feed.getAllByText('FC Altynka')).toHaveLength(5);
     await userEvent.click(feed.getByRole('button', { name: 'Показать ещё' }));
@@ -240,6 +242,6 @@ describe('лента', () => {
     withFeed(posts);
     renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
     await screen.findByRole('heading', { name: 'суббота, 7 ноября' });
-    expect(screen.queryByRole('heading', { name: 'Лента' })).toBeNull();
+    await waitFor(() => expect(screen.queryByRole('heading', { name: 'Лента' })).toBeNull());
   });
 });

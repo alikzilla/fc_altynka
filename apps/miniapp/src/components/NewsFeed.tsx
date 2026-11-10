@@ -7,6 +7,7 @@ import { GroupTag } from './GroupTag';
 import { useMe } from '../state/me';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
+import { HomeFeedSkeleton } from './skeletons';
 import { ConfirmButton, useReveal, useToast } from './ui';
 
 const PREVIEW = 5;
@@ -73,7 +74,8 @@ export function NewsFeed() {
   const toast = useToast();
   const reveal = useReveal(loading && !data);
   const posts = Array.isArray(data?.posts) ? data.posts : [];
-  if (!posts.length) return null;
+  // The first load holds the place of the cards; a group with nothing to tell shows no section at all.
+  if (!posts.length) return loading && !data ? <HomeFeedSkeleton /> : null;
   const now = Date.now();
   const shown = all ? posts : posts.slice(0, PREVIEW);
   const patch = (id: number, next: FeedReactionsDto) => replace(feed => ({ ...feed, posts: feed.posts.map(p => p.id === id ? { ...p, ...next } : p) }));
@@ -107,7 +109,6 @@ export function NewsFeed() {
               {post.player ? <Avatar name={post.player.name} photoUrl={post.player.photoUrl} />
                 : <span className={`feed-icon${post.teamColor ? ` team-${post.teamColor}` : ''}`}><Icon name={ICON[post.kind] ?? 'ball'} /></span>}
               <span className="feed-meta">{post.player ? <><b>{post.player.name}</b><small>{label} · {day}</small></> : <><b>{label}</b><small>{day}</small></>}</span>
-              <GroupTag community={post.community} />
             </span>
             <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
           </Link>
@@ -125,6 +126,7 @@ export function NewsFeed() {
               // The three choices take the place of this button, so the keyboard moves onto the first of them.
               requestAnimationFrame(() => row?.querySelector<HTMLButtonElement>('.feed-reaction')?.focus({ preventScroll: true }));
             }}><Icon name="smile" />Реакция</button>}
+            <GroupTag community={post.community} />
           </div>
         </li>;
       })}
