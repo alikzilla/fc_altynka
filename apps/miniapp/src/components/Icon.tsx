@@ -1,6 +1,7 @@
 import { useState, type ReactNode, type SVGProps } from 'react';
 
 const paths = {
+  smile: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14.2a4 4 0 0 0 7 0M9 9.6h.01M15 9.6h.01" /></>,
   flame: <path d="M13 3c1 5-4 5-2 9-2-1-3-3-3-5-3 3-5 7-3 11a8 8 0 0 0 14-1c2-5-2-10-6-14Z" />,
   trophy: <path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4" />,
   target: <><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="m12 12 8-8m-3 0h3v3"/></>,

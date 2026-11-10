@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { feedPosts, users } from '../../src/db/schema';
 import { cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, scheduleEvent } from '../../src/domain/events';
-import { listFeed, setFeedReaction } from '../../src/domain/feed';
+import { hideFeedPost, listFeed, setFeedReaction } from '../../src/domain/feed';
 import { startGameSession } from '../../src/domain/gameStart';
 import { editGameResult, finishGameSession, recordGameResult } from '../../src/domain/games';
 import { submitReview } from '../../src/domain/ratings';
@@ -129,4 +129,17 @@ test('a player post carries the player with the Telegram photo; reactions surviv
   expect(rewritten.id).not.toBe(posts[0].id);
   expect(rewritten).toMatchObject({ kind: 'winner', reactions: { fire: 1, good: 0, bad: 1 }, myReaction: 'bad' });
   expect(await setFeedReaction(w.d, rewritten.id, w.actorId, groups, null)).toEqual({ reactions: { fire: 1, good: 0, bad: 0 }, myReaction: null });
+});
+
+test('a removed post stays removed when the match is rewritten', async () => {
+  const w = await gameFixture(2);
+  const gameId = await play(w);
+  const winner = (await feed(w))[0];
+  expect(await hideFeedPost(w.d, winner.id, w.actorId, [w.community.id], [w.community.id])).toBe('ok');
+  expect(await kinds(w)).not.toContain('winner');
+  const revision = (await getEvent(w.d.db, w.eventId))!.gameRevision;
+  await editGameResult(w.d, w.eventId, gameId, w.actorId, { requestId: 'fix', expectedRevision: revision }, { score: [3, 0], scorers: [] });
+  const after = await kinds(w);
+  expect(after).not.toContain('winner');
+  expect(after.length).toBeGreaterThan(0);
 });

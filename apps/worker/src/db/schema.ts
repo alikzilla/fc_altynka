@@ -216,3 +216,11 @@ export const feedReactions = sqliteTable('feed_reactions', {
   reaction: text('reaction').$type<import('@altynka/core').FeedReaction>().notNull(),
   createdAt: integer('created_at').notNull(),
 }, t => [primaryKey({ columns: [t.eventId, t.slot, t.userId] })]);
+
+/** Посты, убранные администратором; ключ «матч + слот» переживает переписывание поста. */
+export const feedHidden = sqliteTable('feed_hidden', {
+  eventId: integer('event_id').notNull().references(() => events.id),
+  slot: text('slot').notNull(),
+  hiddenBy: integer('hidden_by').notNull().references(() => users.id),
+  createdAt: integer('created_at').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.slot] })]);

@@ -4,8 +4,10 @@ import { Link } from 'wouter';
 import { useResource } from '../hooks/useResource';
 import { api } from '../lib/api';
 import { GroupTag } from './GroupTag';
+import { useMe } from '../state/me';
+import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
-import { useReveal, useToast } from './ui';
+import { ConfirmButton, useReveal, useToast } from './ui';
 
 const PREVIEW = 5;
 type IconName = Parameters<typeof Icon>[0]['name'];
@@ -62,7 +64,12 @@ function toggled(post: FeedReactionsDto, reaction: FeedReaction): FeedReactionsD
 /** Short stories about played and upcoming matches of the person's groups. Silent when there is nothing to tell. */
 export function NewsFeed() {
   const { data, loading, replace, reload } = useResource<FeedDto>('/api/feed');
+  const me = useMe();
   const [all, setAll] = useState(false);
+  // Posts whose reaction row the person unfolded themselves; those animate, loaded rows do not.
+  const [unfolded, setUnfolded] = useState<ReadonlySet<number>>(new Set());
+  const [menu, setMenu] = useState<FeedPostDto | null>(null);
+  const [busy, setBusy] = useState(false);
   const toast = useToast();
   const reveal = useReveal(loading && !data);
   const posts = Array.isArray(data?.posts) ? data.posts : [];
@@ -78,12 +85,23 @@ export function NewsFeed() {
       .then(saved => patch(post.id, saved))
       .catch(() => { reload(); toast('Не получилось сохранить реакцию'); });
   }
+  const isAdmin = (post: FeedPostDto) => me.communities.some(c => c.id === post.community.id && c.role === 'admin');
+  function remove(post: FeedPostDto) {
+    setBusy(true);
+    api.send('DELETE', `/api/feed/${post.id}`)
+      .then(() => { replace(feed => ({ ...feed, posts: feed.posts.filter(p => p.id !== post.id) })); toast('Пост удалён'); })
+      .catch(() => toast('Не получилось удалить пост'))
+      .finally(() => { setBusy(false); setMenu(null); });
+  }
   return <section className={`home-section ${reveal}`} aria-labelledby="home-feed">
     <div className="section-heading"><h2 id="home-feed">Лента</h2></div>
     <ul className="feed">
       {shown.map(post => {
         const day = dayLabel(post.createdAt, now), label = LABEL[post.kind] ?? 'Новость';
-        return <li key={post.id} className="card material-graphite feed-post">
+        const admin = isAdmin(post);
+        const empty = FEED_REACTIONS.every(r => !(post.reactions?.[r] > 0)) && !post.myReaction;
+        const open = !empty || unfolded.has(post.id);
+        return <li key={post.id} className={`card material-graphite feed-post${admin ? ' has-menu' : ''}`}>
           <Link className="feed-open" href={target(post)}>
             <span className="feed-head">
               {post.player ? <Avatar name={post.player.name} photoUrl={post.player.photoUrl} />
@@ -93,18 +111,27 @@ export function NewsFeed() {
             </span>
             <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
           </Link>
-          <div className="feed-reactions" role="group" aria-label="Реакции">
-            {FEED_REACTIONS.map(reaction => {
+          {admin && <button type="button" className="player-menu-button feed-menu" aria-label="Действия с постом" onClick={() => setMenu(post)}><Icon name="more" /></button>}
+          <div className={`feed-reactions${unfolded.has(post.id) ? ' unfolding' : ''}`} role="group" aria-label="Реакции">
+            {open ? FEED_REACTIONS.map(reaction => {
               const count = post.reactions?.[reaction] ?? 0;
               return <button key={reaction} type="button" className="feed-reaction" aria-pressed={post.myReaction === reaction}
                 aria-label={`${FEED_REACTION_LABEL[reaction]}${count ? `, ${count}` : ''}`} onClick={() => react(post, reaction)}>
                 <span className="feed-emoji" aria-hidden="true">{FEED_REACTION_EMOJI[reaction]}</span>{count > 0 && <span aria-hidden="true">{count}</span>}
               </button>;
-            })}
+            }) : <button type="button" className="feed-reaction feed-react-add" aria-expanded="false" onClick={event => {
+              const row = event.currentTarget.parentElement;
+              setUnfolded(ids => new Set(ids).add(post.id));
+              // The three choices take the place of this button, so the keyboard moves onto the first of them.
+              requestAnimationFrame(() => row?.querySelector<HTMLButtonElement>('.feed-reaction')?.focus({ preventScroll: true }));
+            }}><Icon name="smile" />Реакция</button>}
           </div>
         </li>;
       })}
     </ul>
     {!all && posts.length > PREVIEW && <button type="button" className="btn-text feed-more" onClick={() => setAll(true)}>Показать ещё</button>}
+    {menu && <ActionSheet title="Пост в ленте" description={menu.text} onClose={() => setMenu(null)} busy={busy}>
+      <ConfirmButton className="sheet-action danger-text" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" disabled={busy} onConfirm={() => remove(menu)} />
+    </ActionSheet>}
   </section>;
 }

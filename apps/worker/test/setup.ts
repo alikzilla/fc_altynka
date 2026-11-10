@@ -3,7 +3,7 @@ import { beforeEach } from 'vitest';
 
 await applyD1Migrations(env.DB, env.TEST_MIGRATIONS);
 
-const TABLES = ['feed_reactions', 'feed_posts', 'player_votes', 'review_submissions', 'match_participants', 'match_reviews', 'skill_assessments', 'bill_lines', 'bills', 'team_assignments', 'signups', 'events', 'memberships', 'users', 'communities'];
+const TABLES = ['feed_hidden', 'feed_reactions', 'feed_posts', 'player_votes', 'review_submissions', 'match_participants', 'match_reviews', 'skill_assessments', 'bill_lines', 'bills', 'team_assignments', 'signups', 'events', 'memberships', 'users', 'communities'];
 
 beforeEach(async () => {
   // Remove the parent first: started-session guards deliberately prevent deleting its roster.

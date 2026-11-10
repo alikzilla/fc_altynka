@@ -41,3 +41,16 @@ test('the Telegram photo from signed initData is remembered for the feed', async
   await apiRequest('/api/feed', { as: { ...w.player, photo_url: 'http://insecure.example/p.jpg' } });
   expect((await localUser(w.playerUserId)).photoUrl).toBeNull();
 });
+
+test('a group admin removes a post for everybody; organizers and players cannot', async () => {
+  await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } });
+  const [post] = (await (await apiRequest('/api/feed', { as: w.player })).json() as FeedDto).posts;
+  expect((await apiRequest(`/api/feed/${post.id}`, { method: 'DELETE', as: w.player })).status).toBe(403);
+  expect((await apiRequest(`/api/feed/${post.id}`, { method: 'DELETE', as: w.org })).status).toBe(403);
+  await seedUser('Чужой', { tgId: 3003 });
+  expect((await apiRequest(`/api/feed/${post.id}`, { method: 'DELETE', as: { id: 3003, first_name: 'Чужой' } })).status).toBe(404);
+  expect((await (await apiRequest('/api/feed', { as: w.player })).json() as FeedDto).posts).toHaveLength(1);
+  expect((await apiRequest(`/api/feed/${post.id}`, { method: 'DELETE', as: w.admin })).status).toBe(200);
+  expect((await apiRequest(`/api/feed/${post.id}`, { method: 'DELETE', as: w.admin })).status).toBe(200);
+  expect((await (await apiRequest('/api/feed', { as: w.player })).json() as FeedDto).posts).toEqual([]);
+});

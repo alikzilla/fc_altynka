@@ -4,7 +4,7 @@ import {
 } from '@altynka/core';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, feedPosts, feedReactions, signups, users, type EventRow } from '../db/schema';
+import { events, feedHidden, feedPosts, feedReactions, signups, users, type EventRow } from '../db/schema';
 import type { Deps } from './events';
 
 const FEED_PAGE = 30;
@@ -93,6 +93,7 @@ export async function clearEventFeed(d: Deps, eventId: number): Promise<void> {
   await d.db.batch([
     d.db.delete(feedPosts).where(eq(feedPosts.eventId, eventId)),
     d.db.delete(feedReactions).where(eq(feedReactions.eventId, eventId)),
+    d.db.delete(feedHidden).where(eq(feedHidden.eventId, eventId)),
   ]);
 }
 
@@ -159,6 +160,20 @@ export async function setFeedReaction(d: Deps, postId: number, userId: number, c
   return (await reactionsOf(d.db, [post.eventId], userId)).get(`${post.eventId}:${post.slot}`) ?? noReactions();
 }
 
+/**
+ * A group admin takes a post out of the feed for everybody. The mark is kept by match and slot, so the post
+ * stays gone when the match is rewritten after a corrected result.
+ */
+export async function hideFeedPost(d: Deps, postId: number, userId: number, memberOf: number[], adminOf: number[]): Promise<'ok' | 'not_found' | 'forbidden'> {
+  if (!memberOf.length) return 'not_found';
+  const [post] = await d.db.select({ eventId: feedPosts.eventId, slot: feedPosts.slot, communityId: feedPosts.communityId }).from(feedPosts)
+    .where(and(eq(feedPosts.id, postId), inArray(feedPosts.communityId, memberOf)));
+  if (!post) return 'not_found';
+  if (!adminOf.includes(post.communityId)) return 'forbidden';
+  await d.db.insert(feedHidden).values({ eventId: post.eventId, slot: post.slot, hiddenBy: userId, createdAt: d.now }).onConflictDoNothing();
+  return 'ok';
+}
+
 /** Latest posts of all the person's groups, newest first; inside one match the winner leads. */
 export async function listFeed(d: Deps, communities: readonly CommunityDto[], viewerId: number): Promise<FeedDto> {
   if (!communities.length) return { posts: [] };
@@ -167,7 +182,8 @@ export async function listFeed(d: Deps, communities: readonly CommunityDto[], vi
   const titles = new Map(communities.map(c => [c.id, c.title]));
   const rows = await d.db.select({ post: feedPosts, date: events.date }).from(feedPosts)
     .innerJoin(events, eq(events.id, feedPosts.eventId))
-    .where(and(inArray(feedPosts.communityId, ids), ne(events.status, 'cancelled')))
+    .where(and(inArray(feedPosts.communityId, ids), ne(events.status, 'cancelled'),
+      sql`NOT EXISTS (SELECT 1 FROM feed_hidden h WHERE h.event_id = ${feedPosts.eventId} AND h.slot = ${feedPosts.slot})`))
     .orderBy(sql`${feedPosts.createdAt} DESC, ${feedPosts.eventId} DESC, ${feedPosts.position}, ${feedPosts.id}`).limit(FEED_PAGE);
   const playerIds = [...new Set(rows.flatMap(r => r.post.userId === null ? [] : [r.post.userId]))];
   const [reactions, people] = await Promise.all([

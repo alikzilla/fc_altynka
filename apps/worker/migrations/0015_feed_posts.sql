@@ -28,5 +28,14 @@ CREATE TABLE `feed_reactions` (
 	PRIMARY KEY (`event_id`, `slot`, `user_id`)
 );
 --> statement-breakpoint
+-- Пост, убранный администратором группы. Ключ тот же, что у реакций: пост не вернётся после переписывания.
+CREATE TABLE `feed_hidden` (
+	`event_id` integer NOT NULL REFERENCES `events`(`id`),
+	`slot` text NOT NULL,
+	`hidden_by` integer NOT NULL REFERENCES `users`(`id`),
+	`created_at` integer NOT NULL,
+	PRIMARY KEY (`event_id`, `slot`)
+);
+--> statement-breakpoint
 -- Фото из Telegram: приходит в initData при входе, показывается в ленте участникам группы.
 ALTER TABLE `users` ADD `photo_url` text;

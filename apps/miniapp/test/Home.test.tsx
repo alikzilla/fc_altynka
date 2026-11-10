@@ -1,5 +1,5 @@
 import type { EventsListDto, EventSummaryDto } from '@altynka/core';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
 import { Home } from '../src/screens/Home';
@@ -201,6 +201,39 @@ describe('лента', () => {
     expect(await reactions.findByRole('button', { name: 'Нравится' })).toHaveAttribute('aria-pressed', 'false');
     // Reacting never follows the post's link.
     expect(reactions.getByRole('button', { name: 'Не нравится' }).closest('a')).toBeNull();
+  });
+
+  test('a post without reactions offers one button that unfolds into the three', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.' })]);
+    (api.send as Mock).mockResolvedValue({ reactions: { fire: 0, good: 1, bad: 0 }, myReaction: 'good' });
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const row = await screen.findByRole('group', { name: 'Реакции' });
+    expect(within(row).getAllByRole('button')).toHaveLength(1);
+    await userEvent.click(within(row).getByRole('button', { name: 'Реакция' }));
+    expect(within(row).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Огонь', 'Нравится', 'Не нравится']);
+    expect(row).toHaveClass('unfolding');
+    await userEvent.click(within(row).getByRole('button', { name: 'Нравится' }));
+    expect(await within(row).findByRole('button', { name: 'Нравится, 1' })).toHaveAttribute('aria-pressed', 'true');
+    // Players have no post menu.
+    expect(screen.queryByRole('button', { name: 'Действия с постом' })).toBeNull();
+  });
+
+  test('a group admin removes a post from the ⋯ menu after confirming', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.' }), post(2, { text: 'Матч в цифрах: 2 игры.' })]);
+    (api.send as Mock).mockResolvedValue({ ok: true });
+    const admin = { ...player, communities: player.communities.map(c => ({ ...c, role: 'admin' as const })) };
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: admin });
+    const menus = await screen.findAllByRole('button', { name: 'Действия с постом' });
+    expect(menus).toHaveLength(2);
+    expect(menus[0].closest('a')).toBeNull();
+    await userEvent.click(menus[0]);
+    const sheet = within(await screen.findByRole('dialog'));
+    await userEvent.click(sheet.getByRole('button', { name: 'Удалить пост' }));
+    expect(api.send).not.toHaveBeenCalled();
+    await userEvent.click(sheet.getByRole('button', { name: /Точно удалить/ }));
+    expect(api.send).toHaveBeenCalledWith('DELETE', '/api/feed/1');
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Красные выиграли матч/ })).toBeNull());
+    expect(screen.getByRole('link', { name: /Матч в цифрах/ })).toBeInTheDocument();
   });
 
   test.each([[[]], [undefined]])('no section without posts (%o)', async posts => {

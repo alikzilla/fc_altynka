@@ -25,8 +25,9 @@ for (const theme of ['dark', 'light'] as const) {
     await page.route('https://t.me/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#6d8fb5"/><circle cx="40" cy="30" r="15" fill="#f1d3b8"/><path d="M10 80c0-20 13-30 30-30s30 10 30 30z" fill="#2b3a55"/></svg>' }));
     await teamApiRoute(page, async route => {
       const path = new URL(route.request().url()).pathname;
+      if (route.request().method() === 'DELETE') return route.fulfill({ json: { ok: true } });
       if (route.request().method() === 'PUT') return route.fulfill({ json: { reactions: { fire: 6, good: 3, bad: 0 }, myReaction: 'good' } });
-      await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'player' }] }
+      await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'admin' }] }
         : path === '/api/events' ? { active: [event], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : event });
     });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -43,8 +44,26 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(winner.getByRole('button', { name: 'Огонь, 6' })).toHaveAttribute('aria-pressed', 'false');
     await expect(page).toHaveURL(/\/$/);
     await expect(feed.locator('li', { hasText: 'оформляет хет-трик' }).locator('.avatar img')).toBeVisible();
+    // No reactions yet: one quiet button that unfolds into the three.
+    const hero = feed.locator('li', { hasText: 'герой матча' });
+    await expect(hero.getByRole('button')).toHaveCount(4);
+    const hatTrick = feed.locator('li', { hasText: 'оформляет хет-трик' });
+    await expect(hatTrick.getByRole('group', { name: 'Реакции' }).getByRole('button')).toHaveCount(1);
+    await hatTrick.getByRole('button', { name: 'Реакция' }).click();
+    await expect(hatTrick.getByRole('group', { name: 'Реакции' }).getByRole('button')).toHaveCount(3);
+    await expect(hatTrick.getByRole('button', { name: 'Огонь' })).toBeFocused();
+    // The admin's ⋯ menu removes a post after a second, explicit tap.
     await feed.getByRole('button', { name: 'Показать ещё' }).click();
     await expect(feed.getByRole('link')).toHaveCount(7);
+    await feed.locator('li', { hasText: 'Матч в цифрах' }).getByRole('button', { name: 'Действия с постом' }).click();
+    const sheet = page.getByRole('dialog');
+    await sheet.getByRole('button', { name: 'Удалить пост' }).click();
+    if (theme === 'dark') await page.screenshot({ path: 'artifacts/ui/feed-menu.png' });
+    await sheet.getByRole('button', { name: /Точно удалить/ }).click();
+    await expect(feed.getByRole('link')).toHaveCount(6);
+    await expect(page.getByText('Пост удалён')).toBeVisible();
+    await expect(sheet).toBeHidden();
+    await expect(page.getByText('Пост удалён')).toBeHidden({ timeout: 10_000 });
     // The last post scrolls clear of the dock.
     await feed.getByRole('link').last().scrollIntoViewIfNeeded();
     const last = await feed.locator('li').last().boundingBox();
