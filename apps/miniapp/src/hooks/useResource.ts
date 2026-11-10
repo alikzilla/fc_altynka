@@ -3,12 +3,14 @@ import { useCallback } from "react";
 import { api, ApiError } from "../lib/api";
 import { queryClient, resourceKey } from "../lib/queryClient";
 
-export function useResource<T>(path: string | null) {
+/** `alwaysRefresh`: refetch on every open, showing the cached copy meanwhile (data others may have just changed). */
+export function useResource<T>(path: string | null, { alwaysRefresh = false }: { alwaysRefresh?: boolean } = {}) {
   const key = resourceKey(path);
   const query = useQuery<T, ApiError>(
     {
       queryKey: key,
       enabled: !!path,
+      ...(alwaysRefresh ? { refetchOnMount: 'always' as const } : {}),
       queryFn: async ({ signal }) => {
         try {
           return await api.get<T>(path!, { signal });

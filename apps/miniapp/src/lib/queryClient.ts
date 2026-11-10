@@ -32,9 +32,10 @@ export const resourceKey = (path: string | null) => ['api', path] as const;
 /**
  * Match, bill and game writes change lists, tasks and match details, but not the person or the player
  * directory: those refresh only after writes to the account, groups or skills. A goal recorded on the
- * pitch therefore refetches the match and tasks, not /api/me and every profile.
+ * pitch therefore refetches the match and tasks, not /api/me and every profile. An admin's change in
+ * «Управление» (role, name, injury) is a person write: every profile and list showing that player refreshes.
  */
-const PERSON_WRITE = /^\/api\/(me|communities|players|profile|skills)(\/|$)/;
+const PERSON_WRITE = /^\/api\/(me|communities|members|players|profile|skills)(\/|$)/;
 const PERSON_READ = /^\/api\/(me|players)(\/|$)/;
 export function shouldRefresh(writePath: string | undefined, readPath: unknown): boolean {
   if (typeof readPath !== 'string' || writePath === undefined || PERSON_WRITE.test(writePath)) return true;
