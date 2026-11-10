@@ -39,12 +39,18 @@ export function identityMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHand
       await deps.db.update(users).set({ pmAvailable: true }).where(eq(users.id, user.id));
       user.pmAvailable = true;
     }
+    // Groupmates see this photo in the feed, so keep the latest one Telegram signed for this person.
+    const photoUrl = httpsPhoto(tgUser.photo_url);
+    if (photoUrl !== user.photoUrl) {
+      await deps.db.update(users).set({ photoUrl }).where(eq(users.id, user.id));
+      user.photoUrl = photoUrl;
+    }
     c.set('user', user);
     c.set('telegram', {
       firstName: tgUser.first_name,
       lastName: tgUser.last_name ?? null,
       username: tgUser.username ?? null,
-      photoUrl: httpsPhoto(tgUser.photo_url),
+      photoUrl,
     });
     c.set('deps', deps);
     await next();

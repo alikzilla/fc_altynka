@@ -8,6 +8,7 @@ import { useNotifications } from '../state/notifications';
 import { ConnectGroupButton, CONNECT_BOT_TEXT } from '../components/ConnectGroup';
 import { TaskCard } from '../components/TaskCard';
 import { ResultCard } from '../components/ResultCard';
+import { NewsFeed } from '../components/NewsFeed';
 import { todayAlmaty } from '@altynka/core';
 import { Screen, EmptyState, ErrorNote, useReveal } from '../components/ui';
 import { HomeMatchSkeleton, HomeTasksSkeleton } from '../components/skeletons';
@@ -53,6 +54,7 @@ export function Home() {
       {otherTasks.length > 0 && <div className={`task-list compact-tasks ${revealTasks}`}>{otherTasks.slice(0, 2).map(task => <TaskCard key={task.id} task={task} compact />)}</div>}
     </section>}
     {data && (upcoming.length > 1 || latest.length > 0 && !recent) && <section className={`home-section ${reveal}`} aria-labelledby="home-next"><div className="section-heading"><h2 id="home-next">{upcoming.length > 1 ? 'Дальше играем' : 'Последний матч'}</h2><Link href="/matches">Все матчи<Icon name="arrow" /></Link></div>{(upcoming.length > 1 ? upcoming.slice(1, 4) : latest).map(event => <MatchRow key={event.id} event={event} />)}</section>}
+    <NewsFeed />
   </Screen>;
 }
 

@@ -4,6 +4,7 @@ import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { communities, events, memberships, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
 import type { Notice, SyncPort } from '../sync/port';
+import { clearEventFeed, feedSafely, publishUpcomingPost, refreshSquadPost } from './feed';
 
 export interface Deps {
   db: Db;
@@ -50,6 +51,7 @@ function movesNotices(before: QueueSplit<SignupRow>, after: QueueSplit<SignupRow
 
 async function syncEvent(d: Deps, eventId: number, notices: Notice[]): Promise<void> {
   await d.sync.request(eventId, notices.length ? { parts: ['event'], notices } : { parts: ['event'] });
+  await feedSafely(() => refreshSquadPost(d, eventId));
 }
 
 /** Одна атомарная вставка: следующий номер очереди считается внутри того же запроса. */
@@ -100,6 +102,7 @@ export async function createEvent(
     .values({ communityId: v.communityId, protocolVersion: 1, ratingEnabled: true, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
     .returning({ id: events.id });
   await syncEvent(d, row.id, []);
+  await feedSafely(() => publishUpcomingPost(d, row.id, 'signup_open'));
   return row.id;
 }
 
@@ -237,6 +240,7 @@ async function scheduleEventUnsafe(
     .where(eq(events.id, eventId));
   const after = await loadQueue(d.db, eventId);
   await syncEvent(d, eventId, [{ kind: 'scheduled', ...(ev.status === 'scheduled' ? { previous: { startTime: ev.startTime, durationHours: ev.durationHours, place: ev.place } } : {}) }, ...movesNotices(before, after)]);
+  await feedSafely(() => publishUpcomingPost(d, eventId, 'scheduled'));
   return 'ok';
 }
 
@@ -247,6 +251,7 @@ async function cancelEventUnsafe(d: Deps, eventId: number): Promise<'ok' | 'not_
   const changed = await d.db.update(events).set({ status: 'cancelled' }).where(and(eq(events.id, eventId), or(eq(events.protocolVersion,0),isNull(events.startedAt)), sql`not exists (select 1 from match_reviews where event_id = ${eventId})`)).returning({ id: events.id });
   if (!changed.length) return 'closed';
   await syncEvent(d, eventId, [{ kind: 'cancelled' }]);
+  await feedSafely(() => clearEventFeed(d, eventId));
   return 'ok';
 }
 

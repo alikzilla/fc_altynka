@@ -23,6 +23,8 @@ export const users = sqliteTable('users', {
   pinnedAchievement: text('pinned_achievement', { enum: ['scorer', 'winner', 'rhythm', 'veteran', 'hat-trick'] }),
   notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
   pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
+  /** Последнее фото из Telegram initData; обновляется при входе в мини-апп. */
+  photoUrl: text('photo_url'),
   createdAt: integer('created_at').notNull(),
 });
 
@@ -190,3 +192,35 @@ export const playerVotes = sqliteTable('player_votes', {
   foreignKey({ columns: [t.eventId, t.recipientId], foreignColumns: [matchParticipants.eventId, matchParticipants.userId] }),
   check('player_vote_score', sql`typeof(${t.score}) = 'integer' and ${t.score} between 1 and 10`),
   check('player_vote_other', sql`${t.authorId} <> ${t.recipientId}`), index('player_votes_recipient').on(t.recipientId, t.eventId)]);
+
+/** Лента группы: текст готов при записи, `variant` помнит использованную формулировку. */
+export const feedPosts = sqliteTable('feed_posts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  communityId: integer('community_id').notNull().references(() => communities.id),
+  eventId: integer('event_id').notNull().references(() => events.id),
+  kind: text('kind').$type<import('@altynka/core').FeedKind>().notNull(),
+  slot: text('slot').notNull(),
+  variant: integer('variant').notNull(),
+  position: integer('position').notNull().default(0),
+  text: text('text').notNull(),
+  highlightsJson: text('highlights_json').notNull().default('[]'),
+  userId: integer('user_id').references(() => users.id),
+  teamColor: text('team_color').$type<import('@altynka/core').TeamColor>(),
+  createdAt: integer('created_at').notNull(),
+}, t => [uniqueIndex('feed_posts_event_slot').on(t.eventId, t.slot), index('feed_posts_community_time').on(t.communityId, t.createdAt)]);
+
+export const feedReactions = sqliteTable('feed_reactions', {
+  eventId: integer('event_id').notNull().references(() => events.id),
+  slot: text('slot').notNull(),
+  userId: integer('user_id').notNull().references(() => users.id),
+  reaction: text('reaction').$type<import('@altynka/core').FeedReaction>().notNull(),
+  createdAt: integer('created_at').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.slot, t.userId] })]);
+
+/** Посты, убранные администратором; ключ «матч + слот» переживает переписывание поста. */
+export const feedHidden = sqliteTable('feed_hidden', {
+  eventId: integer('event_id').notNull().references(() => events.id),
+  slot: text('slot').notNull(),
+  hiddenBy: integer('hidden_by').notNull().references(() => users.id),
+  createdAt: integer('created_at').notNull(),
+}, t => [primaryKey({ columns: [t.eventId, t.slot] })]);

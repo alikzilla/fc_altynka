@@ -5,6 +5,7 @@ import type { Db } from '../db/client';
 import { events, signups, teamAssignments, type EventRow } from '../db/schema';
 import { playerRatings } from './ratings';
 import { getEvent, isClosed, loadQueue, type Deps } from './events';
+import { feedSafely, publishUpcomingPost } from './feed';
 
 const rosterKey = (ids: number[]) => [...ids].sort((a, b) => a - b).join(',');
 
@@ -60,6 +61,7 @@ async function publishTeamsUnsafe(d: Deps, eventId: number): Promise<'ok' | 'no_
   const published = await d.db.update(events).set({ teamsPublishedAt: d.now }).where(and(eq(events.id, eventId), eq(events.rosterRevision, ev.rosterRevision))).returning({ id: events.id });
   if (!published.length) return 'stale';
   await d.sync.request(eventId, { parts: ['teams'] });
+  await feedSafely(() => publishUpcomingPost(d, eventId, 'teams_ready'));
   return 'ok';
 }
 

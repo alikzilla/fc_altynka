@@ -1,5 +1,5 @@
 import type { EventsListDto, EventSummaryDto } from '@altynka/core';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
 import { Home } from '../src/screens/Home';
@@ -128,4 +128,118 @@ test('list rows show the personal signup status', async () => {
   const section = await screen.findByRole('region', { name: 'Дальше играем' });
   expect(within(section).getByText('В основе')).toBeInTheDocument();
   expect(within(section).getByLabelText('Записано 4 из 10')).toHaveTextContent('4/10');
+});
+
+describe('лента', () => {
+  const post = (id: number, patch: Partial<import('@altynka/core').FeedPostDto> = {}): import('@altynka/core').FeedPostDto => ({
+    id, kind: 'summary', text: `Пост ${id}`, highlights: [], createdAt: Date.parse('2026-11-01T10:00:00Z'), eventId: 7, eventDate: '2026-11-01',
+    community: { id: 1, title: 'FC Altynka' }, userId: null, teamColor: null, player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null, ...patch,
+  });
+  const withFeed = (posts: unknown) => (api.get as Mock).mockImplementation((path: string) => Promise.resolve(
+    path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : { active: [ev], past: [] }));
+
+  test('posts emphasise names, say when they happened and lead to the player or the match', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-08T09:00:00Z'));
+    withFeed([
+      post(1, { kind: 'winner', text: 'Красные выиграли матч: 3 победы.', highlights: ['Красные'], teamColor: 'red', createdAt: Date.parse('2026-11-08T05:00:00Z') }),
+      post(2, { kind: 'hero', text: 'Айкын — герой матча: 2 гола и 2 передачи.', highlights: ['Айкын'], userId: 12, player: { userId: 12, name: 'Айкын', photoUrl: 'https://t.me/i/userpic/320/a.jpg' }, createdAt: Date.parse('2026-11-07T15:00:00Z') }),
+      post(3, { kind: 'teams_ready', text: 'Составы на матч 1 ноября опубликованы.' }),
+    ]);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    const winner = feed.getByRole('link', { name: /Красные выиграли матч/ });
+    expect(winner).toHaveAttribute('href', '/event/7?tab=games');
+    expect(within(winner).getByText('Красные').tagName).toBe('B');
+    expect(within(winner).getByText('Сегодня')).toBeInTheDocument();
+    expect(within(winner).getByText('Итог матча')).toBeInTheDocument();
+    expect(winner.closest('li')).toHaveClass('card');
+    expect(winner.querySelector('.feed-icon')).toHaveClass('team-red');
+    const hero = feed.getByRole('link', { name: /герой матча/ });
+    expect(hero).toHaveAttribute('href', '/players/12');
+    // A player post is signed by the player: photo, name, then the kind of news and the day.
+    expect(within(hero).getByText('Герой матча · Вчера')).toBeInTheDocument();
+    expect(hero.querySelector('.avatar img')).toHaveAttribute('src', 'https://t.me/i/userpic/320/a.jpg');
+    expect(hero.querySelector('.feed-meta b')).toHaveTextContent('Айкын');
+    expect(winner.querySelector('.avatar')).toBeNull();
+    const teams = feed.getByRole('link', { name: /Составы/ });
+    expect(teams).toHaveAttribute('href', '/event/7?tab=teams');
+    expect(within(teams).getByText('1 ноября')).toBeInTheDocument();
+    // One group: no group tag on posts.
+    expect(feed.queryByText('FC Altynka')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  test('five posts first, the rest on request; group tags for a person with several groups', async () => {
+    withFeed(Array.from({ length: 8 }, (_, i) => post(i + 1)));
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });
+    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    expect(feed.getAllByRole('link')).toHaveLength(5);
+    expect(feed.getAllByText('FC Altynka')).toHaveLength(5);
+    await userEvent.click(feed.getByRole('button', { name: 'Показать ещё' }));
+    expect(feed.getAllByRole('link')).toHaveLength(8);
+    expect(feed.queryByRole('button', { name: 'Показать ещё' })).toBeNull();
+  });
+
+  test('a reaction shows at once, is saved, can be changed and taken back', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.', reactions: { fire: 2, good: 0, bad: 0 } })]);
+    (api.send as Mock).mockImplementation((_m: string, _p: string, body: { reaction: string | null }) => Promise.resolve(
+      { reactions: { fire: body.reaction === 'fire' ? 3 : 2, good: body.reaction === 'good' ? 1 : 0, bad: 0 }, myReaction: body.reaction }));
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const reactions = within(await screen.findByRole('group', { name: 'Реакции' }));
+    expect(reactions.getAllByRole('button')).toHaveLength(3);
+    const fire = reactions.getByRole('button', { name: 'Огонь, 2' });
+    expect(fire).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(fire);
+    expect(await reactions.findByRole('button', { name: 'Огонь, 3' })).toHaveAttribute('aria-pressed', 'true');
+    expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/feed/1/reaction', { reaction: 'fire' });
+    await userEvent.click(reactions.getByRole('button', { name: 'Нравится' }));
+    expect(await reactions.findByRole('button', { name: 'Нравится, 1' })).toHaveAttribute('aria-pressed', 'true');
+    expect(reactions.getByRole('button', { name: 'Огонь, 2' })).toHaveAttribute('aria-pressed', 'false');
+    await userEvent.click(reactions.getByRole('button', { name: 'Нравится, 1' }));
+    expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/feed/1/reaction', { reaction: null });
+    expect(await reactions.findByRole('button', { name: 'Нравится' })).toHaveAttribute('aria-pressed', 'false');
+    // Reacting never follows the post's link.
+    expect(reactions.getByRole('button', { name: 'Не нравится' }).closest('a')).toBeNull();
+  });
+
+  test('a post without reactions offers one button that unfolds into the three', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.' })]);
+    (api.send as Mock).mockResolvedValue({ reactions: { fire: 0, good: 1, bad: 0 }, myReaction: 'good' });
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const row = await screen.findByRole('group', { name: 'Реакции' });
+    expect(within(row).getAllByRole('button')).toHaveLength(1);
+    await userEvent.click(within(row).getByRole('button', { name: 'Реакция' }));
+    expect(within(row).getAllByRole('button').map(b => b.getAttribute('aria-label'))).toEqual(['Огонь', 'Нравится', 'Не нравится']);
+    expect(row).toHaveClass('unfolding');
+    await userEvent.click(within(row).getByRole('button', { name: 'Нравится' }));
+    expect(await within(row).findByRole('button', { name: 'Нравится, 1' })).toHaveAttribute('aria-pressed', 'true');
+    // Players have no post menu.
+    expect(screen.queryByRole('button', { name: 'Действия с постом' })).toBeNull();
+  });
+
+  test('a group admin removes a post from the ⋯ menu after confirming', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.' }), post(2, { text: 'Матч в цифрах: 2 игры.' })]);
+    (api.send as Mock).mockResolvedValue({ ok: true });
+    const admin = { ...player, communities: player.communities.map(c => ({ ...c, role: 'admin' as const })) };
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: admin });
+    const menus = await screen.findAllByRole('button', { name: 'Действия с постом' });
+    expect(menus).toHaveLength(2);
+    expect(menus[0].closest('a')).toBeNull();
+    await userEvent.click(menus[0]);
+    const sheet = within(await screen.findByRole('dialog'));
+    await userEvent.click(sheet.getByRole('button', { name: 'Удалить пост' }));
+    expect(api.send).not.toHaveBeenCalled();
+    await userEvent.click(sheet.getByRole('button', { name: /Точно удалить/ }));
+    expect(api.send).toHaveBeenCalledWith('DELETE', '/api/feed/1');
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Красные выиграли матч/ })).toBeNull());
+    expect(screen.getByRole('link', { name: /Матч в цифрах/ })).toBeInTheDocument();
+  });
+
+  test.each([[[]], [undefined]])('no section without posts (%o)', async posts => {
+    withFeed(posts);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    await screen.findByRole('heading', { name: 'суббота, 7 ноября' });
+    expect(screen.queryByRole('heading', { name: 'Лента' })).toBeNull();
+  });
 });

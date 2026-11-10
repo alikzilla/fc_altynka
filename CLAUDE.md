@@ -66,5 +66,5 @@ Three workspace packages:
 
 - `DESIGN.md`: authoritative visual and interaction rules for the mini app (Airofit materials, solid background, dock, bottom sheets, edge-back gesture, reduced motion). Read it before UI work. Styles live in `apps/miniapp/src/styles/` (`app.css` plus feature CSS, with theme overrides in `themes.css`).
 - `PRODUCT.md`: users, purpose and product principles.
-- `README.md`: the game-statistics rules (manual «Начать встречу», 3-team rotation, 3/1/0 standings), rating rules (8-skill questionnaire weighted as 3 matches, last 10 matches, min 3 votes, 72 h window) and multi-group behaviour.
+- `README.md`: the game-statistics rules (manual «Начать встречу», 3-team rotation, 3/1/0 standings), rating rules (8-skill questionnaire weighted as 3 matches, last 10 matches, min 3 votes, 72 h window), the news feed (story kinds and the wording rules for its Russian templates in `packages/core/src/feed.ts`) and multi-group behaviour.
 - `docs/superpowers/specs/` and `docs/superpowers/plans/`: dated design specs and implementation plans for each feature. They record decisions at that date and may reference outdated paths; README/DESIGN.md describe the current state.
