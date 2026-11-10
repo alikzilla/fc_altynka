@@ -1,4 +1,4 @@
-import type { MemberDto } from '@altynka/core';
+import type { EventDetailDto, MemberDto, PlayerProfileDto, PlayersDto } from '@altynka/core';
 import { apiRequest } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
@@ -32,6 +32,36 @@ test('only admin edits roles and calculated levels cannot be overridden', async 
   const r = await patch(w.admin, { role: 'organizer' });
   expect(r.status).toBe(200);
   expect(await r.json()).toMatchObject({ level: 5, role: 'organizer' });
+});
+
+test('only the admin marks an injury; it shows in members, players, the profile and match signups', async () => {
+  const patch = (as: typeof w.org, body: unknown) =>
+    apiRequest(`/api/members/${w.playerUserId}?communityId=${w.communityId}`, { method: 'PATCH', as, body });
+  expect((await patch(w.org, { injured: true })).status).toBe(403);
+  expect((await patch(w.player, { injured: true })).status).toBe(403);
+  expect((await patch(w.admin, { injured: 'yes' })).status).toBe(400);
+  const r = await patch(w.admin, { injured: true });
+  expect(r.status).toBe(200);
+  expect(await r.json()).toMatchObject({ userId: w.playerUserId, injured: true, role: 'player' });
+
+  const players = (await (await apiRequest('/api/players', { as: w.org })).json()) as PlayersDto;
+  const listed = players.groups[0].players;
+  expect(listed.find(p => p.userId === w.playerUserId)?.injured).toBe(true);
+  expect(listed.filter(p => p.userId !== w.playerUserId).every(p => p.injured === false)).toBe(true);
+  const profile = (await (await apiRequest(`/api/players/${w.playerUserId}`, { as: w.org })).json()) as PlayerProfileDto;
+  expect(profile.injured).toBe(true);
+
+  const created = await apiRequest('/api/events', { method: 'POST', as: w.org, body: { date: '2026-11-07', communityId: w.communityId } });
+  const id = ((await created.json()) as { id: number }).id;
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.player });
+  await apiRequest(`/api/events/${id}/join`, { method: 'POST', as: w.org });
+  const detail = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  expect(detail.main.map(s => s.injured ?? false)).toEqual([true, false]);
+
+  const cleared = await patch(w.admin, { injured: false });
+  expect(await cleared.json()).toMatchObject({ injured: false, role: 'player' });
+  const after = (await (await apiRequest(`/api/events/${id}`, { as: w.player })).json()) as EventDetailDto;
+  expect(after.main.some(s => s.injured)).toBe(false);
 });
 
 test('a display name taken by someone else is refused', async () => {

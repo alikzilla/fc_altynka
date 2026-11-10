@@ -1,7 +1,7 @@
 import { matchPhase, myMatchResult, splitQueue, teamColorsFor, type GameState, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, signups, type EventRow, type SignupRow } from '../db/schema';
+import { events, memberships, signups, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDtoFromEvent } from './teams';
@@ -129,6 +129,9 @@ export async function eventDetail(
   const all = [...q.main, ...q.reserve];
   const byId = await usersById(db, all.flatMap(s => [s.userId, s.invitedBy]).filter((x): x is number => x !== null));
   const showLevels = viewer.role !== 'player';
+  const playerIds = all.flatMap(s => s.userId === null ? [] : [s.userId]);
+  const injured = new Set(playerIds.length ? (await db.select({ userId: memberships.userId }).from(memberships).where(and(
+    eq(memberships.communityId, ev.communityId), eq(memberships.injured, true), inArray(memberships.userId, playerIds)))).map(r => r.userId) : []);
   const levels = new Map<number, number>();
   if (showLevels) {
     const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now, byId);
@@ -145,6 +148,7 @@ export async function eventDetail(
     };
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
     if (showLevels && s.userId !== null) base.kaspiPhone = byId.get(s.userId)?.kaspiPhone ?? null;
+    if (s.userId !== null && injured.has(s.userId)) base.injured = true;
     return base;
   };
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);

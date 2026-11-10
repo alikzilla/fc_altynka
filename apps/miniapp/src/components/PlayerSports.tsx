@@ -46,13 +46,15 @@ interface Props {
   statisticsPending?: boolean;
   /** Own profile only: where the position and foot sheet opens. */
   editPositionHref?: string;
+  /** The red cross on the avatar: an admin marked the player injured. */
+  injured?: boolean;
 }
 const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
-export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref}:Props) {
+export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref,injured}:Props) {
   const personRole=roles[role];
   const pending=statisticsPending && !statistics ? <Sk w="1.1em"/> : null;
   return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
-    <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large/>
+    <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large injured={injured}/>
       <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div></div>
       <RatingBadge rating={rating}/>
     </div>

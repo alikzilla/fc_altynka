@@ -38,6 +38,8 @@ export const memberships = sqliteTable(
     active: integer('active', { mode: 'boolean' }).notNull().default(true),
     telegramAdmin: integer('telegram_admin', { mode: 'boolean' }).notNull().default(false),
     legacy: integer('legacy', { mode: 'boolean' }).notNull().default(false),
+    /** Травму отмечает администратор группы; видна только в этой группе. */
+    injured: integer('injured', { mode: 'boolean' }).notNull().default(false),
   },
   t => [primaryKey({ columns: [t.communityId, t.userId] }), index('memberships_user').on(t.userId, t.communityId)],
 );

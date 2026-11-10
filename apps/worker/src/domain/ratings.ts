@@ -83,13 +83,13 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   const [games, details, roles] = await Promise.all([
     playerGameStatistics(db, userId, viewerId, now),
     db.select({ username: users.username, pinnedAchievement: users.pinnedAchievement }).from(users).where(eq(users.id,userId)),
-    db.all<{role:'organizer'|'player';telegramAdmin:number}>(sql`
-      SELECT m.role,m.telegram_admin AS telegramAdmin FROM memberships m JOIN communities c ON c.id=m.community_id
+    db.all<{role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
+      SELECT m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
       WHERE m.user_id=${userId} AND m.active=1 AND c.active=1 ${userId===viewerId?sql``:sql`AND EXISTS (
         SELECT 1 FROM memberships mine WHERE mine.community_id=m.community_id AND mine.user_id=${viewerId} AND mine.active=1)`}`),
   ]);
   const role = roles.some(r=>r.telegramAdmin) ? 'admin' : roles.some(r=>r.role==='organizer') ? 'organizer' : 'player';
-  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role };
+  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured) };
 }
 
 export function canFinishMatch(ev: EventRow, now: number): boolean {

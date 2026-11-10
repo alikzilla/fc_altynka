@@ -85,7 +85,7 @@ async function membersOf(db: Db, env: Env, communityId: number, userId?: number)
     .innerJoin(users, eq(users.id, memberships.userId))
     .where(and(eq(memberships.active, true), eq(memberships.communityId, communityId), userId === undefined ? undefined : eq(memberships.userId, userId)));
   return rows
-    .map(({ m, u }) => ({ userId: u.id, displayName: u.displayName, role: effectiveRole(env, u, m), level: m.level }))
+    .map(({ m, u }) => ({ userId: u.id, displayName: u.displayName, role: effectiveRole(env, u, m), level: m.level, injured: m.injured }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru'));
 }
 
@@ -97,7 +97,7 @@ membersApi.get('/members', requireRole('organizer'), async c =>
 membersApi.patch(
   '/members/:userId',
   requireRole('admin'),
-  body(z.object({ role: z.enum(['organizer', 'player']).optional(), displayName: name.optional() }).strict()),
+  body(z.object({ role: z.enum(['organizer', 'player']).optional(), displayName: name.optional(), injured: z.boolean().optional() }).strict()),
   async c => {
     const userId = idParam(c.req.param('userId'));
     const communityId = c.get('community').id;
@@ -107,8 +107,8 @@ membersApi.patch(
     if (!target.length) return c.json({ error: 'not_found' }, 404);
     // The name is shared by all groups: it is checked against everyone who shares a group with the target.
     if (v.displayName !== undefined && (await nameTaken(db, v.displayName, userId!))) return c.json({ error: 'name_taken' }, 409);
-    if (v.role !== undefined)
-      await db.update(memberships).set({ role: v.role }).where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId!)));
+    if (v.role !== undefined || v.injured !== undefined)
+      await db.update(memberships).set({ role: v.role, injured: v.injured }).where(and(eq(memberships.communityId, communityId), eq(memberships.userId, userId!)));
     if (v.displayName !== undefined) await db.update(users).set({ displayName: v.displayName }).where(eq(users.id, userId!));
     return c.json((await membersOf(db, c.env, communityId, userId!))[0]);
   },

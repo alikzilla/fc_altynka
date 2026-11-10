@@ -32,13 +32,13 @@ ratingsApi.put('/me/skills', body(skillsBody), async c => {
 ratingsApi.get('/players', async c => {
   const { db, now } = c.get('deps');
   const groups = await activeMemberships(db, c.env, c.get('user'));
-  const rows = groups.length ? await db.select({ communityId: memberships.communityId, userId: memberships.userId }).from(memberships)
+  const rows = groups.length ? await db.select({ communityId: memberships.communityId, userId: memberships.userId, injured: memberships.injured }).from(memberships)
     .where(and(inArray(memberships.communityId, groups.map(g => g.community.id)), eq(memberships.active, true))) : [];
   const ratings = await playerRatings(db, rows.map(r => r.userId), now);
   return c.json<PlayersDto>({ groups: groups.map(g => ({
     community: { id: g.community.id, title: g.community.title },
     role: g.role,
-    players: rows.filter(r => r.communityId === g.community.id).flatMap(r => ratings.get(r.userId) ?? [])
+    players: rows.filter(r => r.communityId === g.community.id).flatMap(r => { const p = ratings.get(r.userId); return p ? [{ ...p, injured: r.injured }] : []; })
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru')),
   })) });
 });
