@@ -129,3 +129,56 @@ test('list rows show the personal signup status', async () => {
   expect(within(section).getByText('В основе')).toBeInTheDocument();
   expect(within(section).getByLabelText('Записано 4 из 10')).toHaveTextContent('4/10');
 });
+
+describe('лента', () => {
+  const post = (id: number, patch: Partial<import('@altynka/core').FeedPostDto> = {}): import('@altynka/core').FeedPostDto => ({
+    id, kind: 'summary', text: `Пост ${id}`, highlights: [], createdAt: Date.parse('2026-11-01T10:00:00Z'), eventId: 7, eventDate: '2026-11-01',
+    community: { id: 1, title: 'FC Altynka' }, userId: null, teamColor: null, ...patch,
+  });
+  const withFeed = (posts: unknown) => (api.get as Mock).mockImplementation((path: string) => Promise.resolve(
+    path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : { active: [ev], past: [] }));
+
+  test('posts emphasise names, say when they happened and lead to the player or the match', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-11-08T09:00:00Z'));
+    withFeed([
+      post(1, { kind: 'winner', text: 'Красные выиграли матч: 3 победы.', highlights: ['Красные'], teamColor: 'red', createdAt: Date.parse('2026-11-08T05:00:00Z') }),
+      post(2, { kind: 'hero', text: 'Айкын — герой матча: 2 гола и 2 передачи.', highlights: ['Айкын'], userId: 12, createdAt: Date.parse('2026-11-07T15:00:00Z') }),
+      post(3, { kind: 'teams_ready', text: 'Составы на матч 1 ноября опубликованы.' }),
+    ]);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    const winner = feed.getByRole('link', { name: /Красные выиграли матч/ });
+    expect(winner).toHaveAttribute('href', '/event/7?tab=games');
+    expect(within(winner).getByText('Красные').tagName).toBe('B');
+    expect(within(winner).getByText('Сегодня')).toBeInTheDocument();
+    expect(winner.querySelector('.feed-icon')).toHaveClass('team-red');
+    const hero = feed.getByRole('link', { name: /герой матча/ });
+    expect(hero).toHaveAttribute('href', '/players/12');
+    expect(within(hero).getByText('Вчера')).toBeInTheDocument();
+    const teams = feed.getByRole('link', { name: /Составы/ });
+    expect(teams).toHaveAttribute('href', '/event/7?tab=teams');
+    expect(within(teams).getByText('1 ноября')).toBeInTheDocument();
+    // One group: no group tag on posts.
+    expect(feed.queryByText('FC Altynka')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  test('five posts first, the rest on request; group tags for a person with several groups', async () => {
+    withFeed(Array.from({ length: 8 }, (_, i) => post(i + 1)));
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });
+    const feed = within((await screen.findByRole('heading', { name: 'Лента' })).closest('section')!);
+    expect(feed.getAllByRole('link')).toHaveLength(5);
+    expect(feed.getAllByText('FC Altynka')).toHaveLength(5);
+    await userEvent.click(feed.getByRole('button', { name: 'Показать ещё' }));
+    expect(feed.getAllByRole('link')).toHaveLength(8);
+    expect(feed.queryByRole('button', { name: 'Показать ещё' })).toBeNull();
+  });
+
+  test.each([[[]], [undefined]])('no section without posts (%o)', async posts => {
+    withFeed(posts);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    await screen.findByRole('heading', { name: 'суббота, 7 ноября' });
+    expect(screen.queryByRole('heading', { name: 'Лента' })).toBeNull();
+  });
+});

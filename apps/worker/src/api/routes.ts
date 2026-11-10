@@ -14,6 +14,7 @@ import { billsApi } from './bills';
 import { notificationsApi } from './notifications';
 import { ratingsApi } from './ratings';
 import { gamesApi } from './games';
+import { feedApi } from './feed';
 import { idParam } from './validate';
 
 const defaultDeps = (env: Env): Deps => ({ db: getDb(env.DB), now: Date.now(), sync: doSyncPort(env) });
@@ -67,7 +68,7 @@ const ownBillPayment = async (c: C) => {
 
 export const api = new Hono<AppEnv>();
 api.use('*', identityMiddleware(env => depsFactory(env)));
-// Person-scoped routes (/me, /events list, /matches, /notifications, /players) need no group.
+// Person-scoped routes (/me, /events list, /matches, /feed, /notifications, /players) need no group.
 // Object-scoped routes resolve the group from the object; a foreign object looks like a missing one.
 // Hono's `/events/:id/*` also matches `/events/:id`, but not `/events` (list and create).
 api.use('/events/:id/*', scopeCommunity(groupOf.event));
@@ -84,3 +85,4 @@ api.route('/', billsApi);
 api.route('/', notificationsApi);
 api.route('/', ratingsApi);
 api.route('/', gamesApi);
+api.route('/', feedApi);

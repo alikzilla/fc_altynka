@@ -131,6 +131,8 @@
 :root[data-theme='light'] :is(.material-plum, .material-blue, .material-coral) .event-date-tile small,
 :root[data-theme='light'] :is(.material-plum, .material-blue, .material-coral) .event-row-copy .muted { color: #d2cbe0; }
 :root[data-theme='light'] .task-icon { background: #e8dfef; box-shadow: none; }
+:root[data-theme='light'] .feed-icon { background: #e8dfef; box-shadow: none; }
+:root[data-theme='light'] .feed-icon[class*='team-'] { box-shadow: inset 0 0 0 1.5px var(--kit); }
 :root[data-theme='light'] :is(.material-plum, .material-blue, .material-coral) .task-icon { background: #ffffff15; box-shadow: inset 0 1px 1px #ffffff1f; }
 :root[data-theme='light'] .match-progress li > span { background: #e4ddec; }
 :root[data-theme='light'] .match-progress .done > span { background: #ded0ec; color: #573579; }

@@ -4,6 +4,7 @@ import { commitGameCommand, parseGameState, previousGameCommand } from './gameSt
 import { gameCommandResponse, type GameCommandResult } from './gameStart';
 import { getBillByEvent } from './bills';
 import { recoverGameReview } from './gameRecovery';
+import { feedSafely, publishMatchFeed } from './feed';
 
 const sortAssists = (assists: readonly GameAssist[] = []): GameAssist[] => [...assists].sort((a, b) => a.scorerSignupId - b.scorerSignupId || a.assistSignupId - b.assistSignupId);
 
@@ -93,6 +94,8 @@ async function mutateGames(d: Deps, eventId: number, actorId: number, meta: Game
   }
   const result = await commitGameCommand(d, ev, meta, { fingerprint, state: { ...state, games, currentPair }, startedAt: ev.startedAt, completedAt: ev.completedAt });
   if (result.kind === 'ok') await d.sync.request(eventId, { parts: ['event'] });
+  // A result corrected after the final whistle rewrites the stories told about that match.
+  if (result.kind === 'ok' && ev.completedAt !== null) await feedSafely(() => publishMatchFeed(d, eventId));
   return gameCommandResponse(d, eventId, result);
 }
 
@@ -107,7 +110,7 @@ export async function finishGameSession(d: Deps, eventId: number, actorId: numbe
   const fingerprint = JSON.stringify({ action: 'finish', participantSignupIds: ids });
   const previous = previousGameCommand(ev, meta, fingerprint);
   if (previous) {
-    if (previous.kind === 'ok') await recoverGameReview(d,eventId);
+    if (previous.kind === 'ok') { await recoverGameReview(d,eventId); await feedSafely(() => publishMatchFeed(d, eventId)); }
     return gameCommandResponse(d, eventId, previous);
   }
   if (ev.protocolVersion !== 1 || ev.status === 'cancelled') return { kind: 'closed' };
@@ -122,6 +125,7 @@ export async function finishGameSession(d: Deps, eventId: number, actorId: numbe
   });
   if (result.kind === 'ok') {
     await recoverGameReview(d,eventId);
+    await feedSafely(() => publishMatchFeed(d, eventId));
   }
   return gameCommandResponse(d, eventId, result);
 }

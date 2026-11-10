@@ -9,3 +9,4 @@ export * from './lifecycle';
 export * from './games';
 export * from './playerStatistics';
 export * from './achievements';
+export * from './feed';
