@@ -21,13 +21,14 @@ function body(path: string, theme: string) {
   if (path === '/api/matches') return { events: [31, 24].map(day => ({ ...event, id: day, status: 'closed', date: `2026-10-${day}` })), nextCursor: null };
   if (path === '/api/notifications') return { tasks: [task, { ...task, id: 's8', eventId: 8 }] };
   if (path === '/api/players') return { groups: [{ community, role: 'admin', players: names.map((displayName, i) => ({ userId: i + 1, displayName, playingPosition: 'defender', rating: { value: 5 } })) }] };
+  if (path === '/api/feed') return { posts: [1, 2, 3].map(id => ({ id, kind: 'winner', text: 'Красные выиграли матч: 3 победы, 1 ничья.', highlights: ['Красные'], createdAt: Date.parse('2026-11-06T15:00:00Z'), eventId: 7, eventDate: '2026-11-06', community, userId: null, teamColor: 'red', player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null })) };
   if (path === '/api/members') return [];
   if (/^\/api\/players\/\d+$/.test(path)) return profile;
   return event;
 }
 
 const cases: [string, 'main' | 'dialog', string[]][] = [
-  ['/', 'main', ['.match-card', '.task-preview']],
+  ['/', 'main', ['.match-card', '.task-preview', '.feed-post']],
   ['/matches?view=past', 'main', ['.archive-month > h2', '.event-row']],
   ['/notifications', 'main', ['.task-card']],
   ['/players', 'main', ['.player-directory-row']],

@@ -224,8 +224,8 @@ test('initial authentication skeleton fills width and viewport', async ({ page }
   const pending = new Promise<void>(resolve => { release = resolve; });
   await page.route('**/api/me', async route => { await pending; await route.fulfill({ json: { userId: 1, displayName: 'Организатор', kaspiPhone: '+77071234567', communities: [{ id: 4, title: 'Футбол по субботам', role: 'organizer' }] } }); });
   await page.goto('/');
-  // One status per loading resource: the match card and the tasks.
-  await expect(page.getByRole('status', { name: 'Загрузка…' })).toHaveCount(2);
+  // One status per loading resource: the match card, the tasks and the feed.
+  await expect(page.getByRole('status', { name: 'Загрузка…' })).toHaveCount(3);
   await expect(page.getByRole('status', { name: 'Загрузка…' }).first()).toBeVisible();
   expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().height)).toBeGreaterThanOrEqual(844);
   await page.screenshot({ path: 'artifacts/ui/ux-auth-loading-390.png', fullPage: true });

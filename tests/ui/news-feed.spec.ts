@@ -27,7 +27,7 @@ for (const theme of ['dark', 'light'] as const) {
       const path = new URL(route.request().url()).pathname;
       if (route.request().method() === 'DELETE') return route.fulfill({ json: { ok: true } });
       if (route.request().method() === 'PUT') return route.fulfill({ json: { reactions: { fire: 6, good: 3, bad: 0 }, myReaction: 'good' } });
-      await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'admin' }] }
+      await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'admin' }, ...(theme === 'dark' ? [{ id: 2, title: 'Вторая группа', role: 'player' }] : [])] }
         : path === '/api/events' ? { active: [event], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts } : event });
     });
     await page.setViewportSize({ width: 390, height: 844 });
@@ -37,6 +37,9 @@ for (const theme of ['dark', 'light'] as const) {
     await expect(feed.getByRole('link', { name: /Красные не оставили шансов/ })).toHaveAttribute('href', '/event/2?tab=games');
     await expect(feed.getByRole('link', { name: /герой матча/ })).toHaveAttribute('href', '/players/12');
     await expect(feed.getByText('Сегодня')).toBeVisible();
+    // With several groups the group is a quiet caption in the bottom row, away from the head and the ⋯ menu.
+    await expect(feed.locator('li').first().locator('.feed-reactions .group-tag')).toHaveCount(theme === 'dark' ? 1 : 0);
+    await expect(feed.locator('.feed-head .group-tag')).toHaveCount(0);
     const winner = feed.locator('li', { hasText: 'Красные не оставили шансов' });
     await expect(winner.getByRole('button', { name: 'Огонь, 6' })).toHaveAttribute('aria-pressed', 'true');
     await winner.getByRole('button', { name: 'Нравится, 2' }).click();
