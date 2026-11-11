@@ -1,9 +1,9 @@
 import type { CommunityDto } from './api';
 
-/** Часть дня, когда человек может играть; пустой список у «могу» значит «в любое время». */
-export const DAY_PARTS = ['morning', 'day', 'evening'] as const;
+/** Окно времени, когда человек может играть; пустой список у «могу» значит «в любое время». */
+export const DAY_PARTS = ['morning', 'noon', 'afternoon', 'evening', 'night', 'late'] as const;
 export type DayPart = (typeof DAY_PARTS)[number];
-export const DAY_PART_LABEL: Record<DayPart, string> = { morning: 'Утро', day: 'День', evening: 'Вечер' };
+export const DAY_PART_LABEL: Record<DayPart, string> = { morning: 'До 12:00', noon: '12–15', afternoon: '15–18', evening: '18–20', night: '20–22', late: 'После 22:00' };
 
 export type AvailabilityStatus = 'yes' | 'no';
 /** Отметка на день; её отсутствие (null) значит «не указано». */
@@ -13,10 +13,6 @@ export interface AvailabilityMark { status: AvailabilityStatus; parts: DayPart[]
 export const AVAILABILITY_DAYS = 7;
 /** Понедельник первый, как в календаре. */
 export const WEEKDAY_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
-export const WEEKDAY_LONG = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] as const;
-
-export type WeeklyAvailability = (AvailabilityMark | null)[];
-export const emptyWeekly = (): WeeklyAvailability => Array.from({ length: 7 }, () => null);
 
 /** '2026-11-11' → 2 (среда); понедельник — 0. */
 export function weekdayOf(date: string): number {
@@ -37,17 +33,12 @@ export function availabilityDates(today: string, count = AVAILABILITY_DAYS): str
   return Array.from({ length: count }, (_, i) => addDays(today, i));
 }
 
-/** Части дня без повторов и в порядке утро → вечер; у «не могу» частей нет. */
+/** Окна времени без повторов и по порядку; у «не могу» частей нет. */
 export function normalizeMark(mark: { status: AvailabilityStatus; parts?: readonly DayPart[] }): AvailabilityMark {
   return { status: mark.status, parts: mark.status === 'yes' ? DAY_PARTS.filter(p => mark.parts?.includes(p)) : [] };
 }
 
-/** Отметка на дату важнее обычного графика; без обеих — «не указано». */
-export function resolveAvailability(weekly: WeeklyAvailability, overrides: Record<string, AvailabilityMark | undefined>, date: string): AvailabilityMark | null {
-  return overrides[date] ?? weekly[weekdayOf(date)] ?? null;
-}
-
-/** «Могу · вечер», «Могу», «Не могу», «Не указано». */
+/** «Могу · 18–20, 20–22», «Могу», «Не могу», «Не указано». */
 export function availabilityLabel(mark: AvailabilityMark | null): string {
   if (!mark) return 'Не указано';
   if (mark.status === 'no') return 'Не могу';
@@ -56,15 +47,10 @@ export function availabilityLabel(mark: AvailabilityMark | null): string {
 
 export interface AvailabilityDayDto {
   date: string;
-  /** Итог для этой даты: отметка на дату или обычный график. */
   mark: AvailabilityMark | null;
-  /** true — на дату стоит своя отметка, а не обычный график. */
-  override: boolean;
 }
 
 export interface AvailabilityDto {
-  /** Обычный график по дням недели, понедельник первый. */
-  weekly: WeeklyAvailability;
   days: AvailabilityDayDto[];
 }
 

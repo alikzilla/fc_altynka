@@ -1,4 +1,4 @@
-import { availabilityDates, emptyWeekly, formatDateRu, todayAlmaty, weekdayOf, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
+import { availabilityDates, formatDateRu, todayAlmaty, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
@@ -12,44 +12,34 @@ vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/
 vi.mock('../src/lib/tg');
 
 const dates = availabilityDates('2026-11-11');
-const empty = (): AvailabilityDto => ({ weekly: emptyWeekly(), days: dates.map(date => ({ date, mark: null, override: false })) });
+const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: null })) });
 
 beforeEach(() => { queryClient.clear(); });
 
-test('a day is marked «не могу» at once and saved; «могу» offers parts of the day', async () => {
+test('a day is marked «не могу» at once and saved; «могу» offers six time windows', async () => {
   (api.get as Mock).mockResolvedValue(empty());
-  (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ ...empty(), days: empty().days.map((d, i) => i === 1 ? { ...d, mark: body.mark, override: true } : d) }));
+  (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ days: empty().days.map((d, i) => i === 1 ? { ...d, mark: body.mark } : d) }));
   renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
   const grid = await screen.findByRole('group', { name: 'Ближайшие 7 дней' });
   expect(within(grid).getAllByRole('button')).toHaveLength(7);
   await userEvent.click(within(grid).getByRole('button', { name: 'четверг, 12 ноября — не указано' }));
   const editor = screen.getByRole('region', { name: 'Четверг, 12 ноября' });
-  expect(within(editor).getByRole('button', { name: 'Как обычно' })).toHaveAttribute('aria-pressed', 'true');
+  expect(within(editor).getByRole('button', { name: 'Не указано' })).toHaveAttribute('aria-pressed', 'true');
   await userEvent.click(within(editor).getByRole('button', { name: 'Не могу' }));
   expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'no', parts: [] } });
   expect(await within(grid).findByRole('button', { name: 'четверг, 12 ноября — не могу' })).toBeInTheDocument();
   expect(within(editor).queryByRole('group', { name: 'Удобное время' })).toBeNull();
 
   await userEvent.click(within(editor).getByRole('button', { name: 'Могу' }));
-  await userEvent.click(within(within(editor).getByRole('group', { name: 'Удобное время' })).getByRole('button', { name: 'Вечер' }));
-  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['evening'] } });
-  await userEvent.click(within(editor).getByRole('button', { name: 'Как обычно' }));
+  const times = within(editor).getByRole('group', { name: 'Удобное время' });
+  expect(within(times).getAllByRole('button').map(b => b.textContent)).toEqual(['До 12:00', '12–15', '15–18', '18–20', '20–22', 'После 22:00']);
+  await userEvent.click(within(times).getByRole('button', { name: '20–22' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['night'] } });
+  await userEvent.click(within(times).getByRole('button', { name: '18–20' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['evening', 'night'] } });
+  expect(screen.queryByRole('group', { name: 'Обычный график' })).toBeNull();
+  await userEvent.click(within(editor).getByRole('button', { name: 'Не указано' }));
   expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: null });
-});
-
-test('the weekly pattern is saved whole and fills days without their own mark', async () => {
-  (api.get as Mock).mockResolvedValue(empty());
-  (api.send as Mock).mockImplementation(async () => new Promise(() => {}));
-  renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
-  const week = await screen.findByRole('group', { name: 'Обычный график' });
-  await userEvent.click(within(week).getByRole('button', { name: 'Суббота — не указано' }));
-  await userEvent.click(within(screen.getByRole('region', { name: 'Суббота' })).getByRole('button', { name: 'Могу' }));
-  const weekly = emptyWeekly();
-  weekly[5] = { status: 'yes', parts: [] };
-  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/weekly', { weekly });
-  const saturdays = dates.filter(d => weekdayOf(d) === 5);
-  expect(saturdays).toHaveLength(1);
-  expect(await screen.findAllByRole('button', { name: /^суббота, \d+ ноября — могу$/ })).toHaveLength(1);
 });
 
 test('a failed save says so and reloads the calendar', async () => {
@@ -77,7 +67,7 @@ test('the organizer picks the match date from who can play', async () => {
   expect(api.get).toHaveBeenCalledWith('/api/availability/summary?communityId=1', expect.anything());
   const region = await screen.findByRole('region', { name: 'Кто может играть' });
   await userEvent.click(within(region).getByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` }));
-  expect(within(region).getByText(/Тимур \(вечер\), Ерлан/)).toBeInTheDocument();
+  expect(within(region).getByText(/Тимур \(18–20\), Ерлан/)).toBeInTheDocument();
   expect(within(region).getByText(/Данияр/)).toBeInTheDocument();
   expect(screen.getByLabelText('Дата')).toHaveValue(upcoming[3]);
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
@@ -93,7 +83,7 @@ test('an unused calendar leaves a single hint in the new match sheet', async () 
 
 test('a calendar write refreshes only calendar reads', () => {
   expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/availability')).toBe(true);
-  expect(shouldRefresh('/api/availability/weekly', '/api/availability/summary?communityId=1')).toBe(true);
-  expect(shouldRefresh('/api/availability/weekly', '/api/events')).toBe(false);
-  expect(shouldRefresh('/api/availability/weekly', '/api/me')).toBe(false);
+  expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/availability/summary?communityId=1')).toBe(true);
+  expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/events')).toBe(false);
+  expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/me')).toBe(false);
 });

@@ -2,7 +2,7 @@ import { AVAILABILITY_DAYS, DAY_PARTS, addDays, normalizeMark, todayAlmaty, type
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
-import { availabilitySummary, getAvailability, saveDay, saveWeekly } from '../domain/availability';
+import { availabilitySummary, getAvailability, saveDay } from '../domain/availability';
 import { body } from './validate';
 
 const mark = z.object({ status: z.enum(['yes', 'no']), parts: z.array(z.enum(DAY_PARTS)).max(DAY_PARTS.length).default([]) }).nullable();
@@ -12,12 +12,6 @@ export const availabilityApi = new Hono<AppEnv>();
 
 availabilityApi.get('/availability', async c => {
   const { db, now } = c.get('deps');
-  return c.json<AvailabilityDto>(await getAvailability(db, c.get('user').id, now));
-});
-
-availabilityApi.put('/availability/weekly', body(z.object({ weekly: z.array(mark).length(7) })), async c => {
-  const { db, now } = c.get('deps');
-  await saveWeekly(db, c.get('user').id, c.req.valid('json').weekly.map(m => m && normalizeMark(m)));
   return c.json<AvailabilityDto>(await getAvailability(db, c.get('user').id, now));
 });
 

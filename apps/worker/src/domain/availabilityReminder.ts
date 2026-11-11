@@ -1,7 +1,7 @@
-import { TIME_ZONE, availabilityDates, emptyWeekly, resolveAvailability, todayAlmaty, weekdayOf, type AvailabilityMark, type WeeklyAvailability } from '@altynka/core';
+import { TIME_ZONE, availabilityDates, todayAlmaty, weekdayOf } from '@altynka/core';
 import { and, asc, eq, exists, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { availabilityDays, availabilityWeekly, communities, memberships, users } from '../db/schema';
+import { availabilityDays, communities, memberships, users } from '../db/schema';
 import { availabilityReminder } from '../render/personal';
 import { TgForbidden, TgRejected, type TgClient } from '../telegram/client';
 import type { LinkEnv } from '../telegram/links';
@@ -37,19 +37,15 @@ export async function sendAvailabilityReminders(d: { db: Db; now: number; tg: Tg
   if (!people.length) return result;
   const ids = people.map(p => p.id);
   const dates = availabilityDates(today);
-  const weekly = new Map<number, WeeklyAvailability>();
-  for (const row of await d.db.select().from(availabilityWeekly).where(inArray(availabilityWeekly.userId, ids))) {
-    if (!weekly.has(row.userId)) weekly.set(row.userId, emptyWeekly());
-    weekly.get(row.userId)![row.weekday] = { status: row.status, parts: [] };
-  }
-  const marked = new Map<number, Record<string, AvailabilityMark>>();
-  for (const row of await d.db.select().from(availabilityDays).where(and(inArray(availabilityDays.userId, ids), gte(availabilityDays.date, today)))) {
-    if (!marked.has(row.userId)) marked.set(row.userId, {});
-    marked.get(row.userId)![row.date] = { status: row.status, parts: [] };
+  const marked = new Map<number, Set<string>>();
+  for (const row of await d.db.select({ userId: availabilityDays.userId, date: availabilityDays.date }).from(availabilityDays)
+    .where(and(inArray(availabilityDays.userId, ids), gte(availabilityDays.date, today)))) {
+    if (!marked.has(row.userId)) marked.set(row.userId, new Set());
+    marked.get(row.userId)!.add(row.date);
   }
   const done = (id: number, set: { pmAvailable?: boolean } = {}) => d.db.update(users).set({ availabilityAskedOn: today, ...set }).where(eq(users.id, id));
   for (const person of people) {
-    const full = dates.every(date => resolveAvailability(weekly.get(person.id) ?? emptyWeekly(), marked.get(person.id) ?? {}, date));
+    const full = dates.every(date => marked.get(person.id)?.has(date));
     if (full) { await done(person.id); result.skipped++; continue; }
     try {
       const message = availabilityReminder(d.env);

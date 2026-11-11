@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm';
 import { users } from '../../src/db/schema';
-import { saveDay, saveWeekly } from '../../src/domain/availability';
+import { saveDay } from '../../src/domain/availability';
 import { REMINDER_BATCH, sendAvailabilityReminders } from '../../src/domain/availabilityReminder';
 import { TgForbidden, TgRateLimited } from '../../src/telegram/client';
 import { FakeTg } from '../fakes/fakeTg';
@@ -51,12 +51,10 @@ test.each([
 
 test('a fully marked week needs no reminder; a partly marked one does', async () => {
   const full = await subscriber('Всё отметил', 501);
-  const pattern = await subscriber('График', 502);
   const partly = await subscriber('Один день', 503);
   for (let i = 0; i < 7; i++) await saveDay(db(), full.id, `2026-11-${String(9 + i).padStart(2, '0')}`, { status: i % 2 ? 'yes' : 'no', parts: [] }, 0);
-  await saveWeekly(db(), pattern.id, Array.from({ length: 7 }, () => ({ status: 'yes' as const, parts: [] })));
   await saveDay(db(), partly.id, '2026-11-10', { status: 'no', parts: [] }, 0);
-  expect(await run()).toEqual({ sent: 1, skipped: 2, failed: 0 });
+  expect(await run()).toEqual({ sent: 1, skipped: 1, failed: 0 });
   expect(tg.sent.map(m => m.chatId)).toEqual([503]);
   expect(await asked(full.id)).toBe('2026-11-09');
 });

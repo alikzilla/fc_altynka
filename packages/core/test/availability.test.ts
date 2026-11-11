@@ -1,4 +1,4 @@
-import { weekStart, addDays, availabilityDates, availabilityLabel, emptyWeekly, normalizeMark, resolveAvailability, weekdayOf } from '../src/availability';
+import { weekStart, addDays, availabilityDates, availabilityLabel, normalizeMark, weekdayOf } from '../src/availability';
 
 test('weekday starts on Monday', () => {
   expect(weekdayOf('2026-11-09')).toBe(0);
@@ -18,22 +18,14 @@ test('calendar dates cross month and year borders', () => {
   expect(availabilityDates('2026-11-28').at(-1)).toBe('2026-12-04');
 });
 
-test('a mark on the date beats the weekly pattern; nothing set stays unknown', () => {
-  const weekly = emptyWeekly();
-  weekly[2] = { status: 'yes', parts: ['evening'] };
-  expect(resolveAvailability(weekly, {}, '2026-11-11')).toEqual({ status: 'yes', parts: ['evening'] });
-  expect(resolveAvailability(weekly, { '2026-11-11': { status: 'no', parts: [] } }, '2026-11-11')).toEqual({ status: 'no', parts: [] });
-  expect(resolveAvailability(weekly, {}, '2026-11-12')).toBeNull();
-});
-
 test('parts are ordered, deduplicated and dropped for «не могу»', () => {
-  expect(normalizeMark({ status: 'yes', parts: ['evening', 'morning', 'evening'] })).toEqual({ status: 'yes', parts: ['morning', 'evening'] });
-  expect(normalizeMark({ status: 'no', parts: ['day'] })).toEqual({ status: 'no', parts: [] });
+  expect(normalizeMark({ status: 'yes', parts: ['late', 'morning', 'late'] })).toEqual({ status: 'yes', parts: ['morning', 'late'] });
+  expect(normalizeMark({ status: 'no', parts: ['noon'] })).toEqual({ status: 'no', parts: [] });
 });
 
 test('labels', () => {
   expect(availabilityLabel(null)).toBe('Не указано');
   expect(availabilityLabel({ status: 'no', parts: [] })).toBe('Не могу');
   expect(availabilityLabel({ status: 'yes', parts: [] })).toBe('Могу');
-  expect(availabilityLabel({ status: 'yes', parts: ['day', 'evening'] })).toBe('Могу · день, вечер');
+  expect(availabilityLabel({ status: 'yes', parts: ['evening', 'night'] })).toBe('Могу · 18–20, 20–22');
 });

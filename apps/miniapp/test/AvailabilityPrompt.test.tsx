@@ -1,4 +1,4 @@
-import { availabilityDates, emptyWeekly, todayAlmaty, weekStart, type AvailabilityDto } from '@altynka/core';
+import { availabilityDates, todayAlmaty, weekStart, type AvailabilityDto } from '@altynka/core';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
@@ -11,7 +11,7 @@ vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/
 vi.mock('../src/lib/tg');
 
 const today = todayAlmaty(new Date());
-const calendar = (marked: number): AvailabilityDto => ({ weekly: emptyWeekly(), days: availabilityDates(today).map((date, i) => ({ date, mark: i < marked ? { status: 'yes', parts: [] } : null, override: i < marked })) });
+const calendar = (marked: number): AvailabilityDto => ({ days: availabilityDates(today).map((date, i) => ({ date, mark: i < marked ? { status: 'yes', parts: [] } : null })) });
 const key = `altynka:availability-prompt:${player.userId}`;
 const dialog = () => screen.queryByRole('dialog', { name: 'Когда сможешь играть?' });
 

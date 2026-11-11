@@ -227,20 +227,15 @@ export const feedHidden = sqliteTable('feed_hidden', {
   createdAt: integer('created_at').notNull(),
 }, t => [primaryKey({ columns: [t.eventId, t.slot] })]);
 
-/** Обычный график доступности по дням недели (0 — понедельник); общий для всех групп человека. */
-export const availabilityWeekly = sqliteTable('availability_weekly', {
-  userId: integer('user_id').notNull().references(() => users.id),
-  weekday: integer('weekday').notNull(),
-  status: text('status', { enum: ['yes', 'no'] }).notNull(),
-  /** Части дня через запятую; пусто — любое время. */
-  parts: text('parts').notNull().default(''),
-}, t => [primaryKey({ columns: [t.userId, t.weekday] }), check('availability_weekday', sql`${t.weekday} between 0 and 6`)]);
-
-/** Отметка на конкретную дату; важнее обычного графика. */
+/**
+ * Отметка доступности на конкретную дату; общая для всех групп человека. Нет строки — «не указано».
+ * Таблица `availability_weekly` из миграции 0016 осталась в базе, но больше не используется: обычный график убран.
+ */
 export const availabilityDays = sqliteTable('availability_days', {
   userId: integer('user_id').notNull().references(() => users.id),
   date: text('date').notNull(),
   status: text('status', { enum: ['yes', 'no'] }).notNull(),
+  /** Окна времени через запятую; пусто — любое время. */
   parts: text('parts').notNull().default(''),
   updatedAt: integer('updated_at').notNull(),
 }, t => [primaryKey({ columns: [t.userId, t.date] })]);
