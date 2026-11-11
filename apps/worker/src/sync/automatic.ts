@@ -1,13 +1,15 @@
-import { matchStartsAt } from '@altynka/core';
-import { and, eq, isNull } from 'drizzle-orm';
+import { aggregatePlayerStatistics, matchStartsAt, playerAchievements, summarizePlayerProtocol } from '@altynka/core';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { matchParticipants, matchReviews, reviewSubmissions, users } from '../db/schema';
 import { billDto, getBillByEvent } from '../domain/bills';
 import { getEvent } from '../domain/events';
+import { parseGameState } from '../domain/gameStore';
+import { playerGameStatistics } from '../domain/playerStatistics';
 import { getCommunity } from '../domain/members';
 import type { Env } from '../env';
 import type { Rendered } from '../render/eventMessage';
-import { personalMatchReminder, personalPayment, personalReviewInvitation } from '../render/personal';
+import { personalMatchReminder, personalPayment, personalResult, personalReviewInvitation } from '../render/personal';
 import { TgRateLimited, type TgClient } from '../telegram/client';
 import { nextDeliveryTime } from './automaticTime';
 import { loadEventView } from './parts';
@@ -15,12 +17,16 @@ import { PersonalDelivery, REMINDER_GAP_MS } from './personal';
 
 const MATCH_LEAD_MS = 2 * 3600_000;
 const MAX_PAYMENT_REMINDERS = 3;
+/** Личные итоги уходят сразу после завершения встречи; позже они уже не новость. */
+const RESULT_WINDOW_MS = 12 * 3600_000;
 interface AutomaticState { count: number; done: boolean; nextAt: number; }
 interface Task { key: string; tgId: number; at: number; rendered: Rendered; payment: boolean; }
 const stateKey = (key: string) => `auto:state:${key}`;
 
 /** Schedules are durable; candidates and message contents always come from current D1 data. */
 export class AutomaticNotifications {
+  /** Итоги считаются по всей истории игрока; один раз на прогон alarm. */
+  private results = new Map<number, Rendered>();
   constructor(private db: Db, private env: Env, private tg: TgClient, private storage: DurableObjectStorage, private chatId: number) {}
 
   private async tasks(eventId: number): Promise<Task[]> {
@@ -71,6 +77,26 @@ export class AutomaticNotifications {
           at: Math.max(armedAt!, rawBill.createdAt) + REMINDER_GAP_MS,
           rendered: personalPayment(this.env, view, bill, line, receiver.tgId, true), payment: true,
         });
+      }
+    }
+
+    const state = event.protocolVersion === 1 && event.completedAt !== null && now < event.completedAt + RESULT_WINDOW_MS ? parseGameState(event) : null;
+    if (state?.games.length && await this.storage.get<boolean>('auto:reviewArmed')) {
+      const played = state.roster.flatMap(p => p.userId !== null && summarizePlayerProtocol(state, p.userId).games ? [p.userId] : []);
+      const players = played.length ? await this.db.select({ id: users.id, tgId: users.tgId }).from(users).where(inArray(users.id, played)) : [];
+      for (const player of players) {
+        const key = `result:${event.completedAt}:${player.tgId}`;
+        if ((await this.storage.get<AutomaticState>(stateKey(key)))?.done) continue;
+        let rendered = this.results.get(player.tgId);
+        if (!rendered) {
+          // Достижения считаются по всем группам игрока, как в профиле: уровень «до» — без этой встречи.
+          const { gameHistory } = await playerGameStatistics(this.db, player.id, player.id, now);
+          const before = playerAchievements(aggregatePlayerStatistics(gameHistory.filter(row => row.eventId !== eventId)));
+          const raised = playerAchievements(aggregatePlayerStatistics(gameHistory)).filter((a, i) => a.level > before[i].level);
+          rendered = personalResult(this.env, view, summarizePlayerProtocol(state, player.id), raised);
+          this.results.set(player.tgId, rendered);
+        }
+        await append({ key, tgId: player.tgId, at: now, rendered, payment: false });
       }
     }
 

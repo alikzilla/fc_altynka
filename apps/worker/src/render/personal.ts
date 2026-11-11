@@ -1,4 +1,4 @@
-import { escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type BillDto, type BillLineDto } from '@altynka/core';
+import { ACHIEVEMENT_TIER_LABEL, escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type BillDto, type BillLineDto, type PlayerAchievement, type PlayerProtocolSummary } from '@altynka/core';
 import { miniAppLink, type LinkEnv } from '../telegram/links';
 import { timeRange, type EventView, type PersonView, type Rendered } from './eventMessage';
 import { teamBlocks } from './teamsMessage';
@@ -126,6 +126,24 @@ export function personalTeams(env: LinkEnv, view: EventView, teams: { emoji: str
     html: [[...teamTitle(view), `<b>Составы готовы · ${formatDateRu(view.date)}</b>`, ...(details ? [details] : []), '', ...mine].join('\n'),
       ...teamBlocks(teams.map(t => ({ emoji: t.emoji, name: t.name, players: t.players.map(p => escapeHtml(p.name)) })))].join('\n\n'),
     keyboard: { inline_keyboard: [[{ text: 'Открыть составы', url: miniAppLink(env, `t${view.id}`) }]] },
+  };
+}
+
+/** Итог встречи для одного игрока: его голы, передачи, короткие игры и открытые этой встречей уровни достижений. */
+export function personalResult(env: LinkEnv, view: EventView, summary: Omit<PlayerProtocolSummary, 'results'>, raised: PlayerAchievement[]): Rendered {
+  const g = summary.goals;
+  const goals = `${g} ${plural(g, 'гол', 'гола', 'голов')}`;
+  const headline = g >= 5 ? `Вот это игра: ты забил ${goals}!` : g >= 3 ? `Хет-трик! Ты забил ${goals}.` : g > 0 ? `Ты забил ${goals}.` : 'Сегодня без голов.';
+  const record = [`${summary.wins} ${plural(summary.wins, 'победа', 'победы', 'побед')}`,
+    ...(summary.draws ? [`${summary.draws} ${plural(summary.draws, 'ничья', 'ничьи', 'ничьих')}`] : []),
+    ...(summary.losses ? [`${summary.losses} ${plural(summary.losses, 'поражение', 'поражения', 'поражений')}`] : [])].join(', ');
+  return {
+    html: [...teamTitle(view), `<b>Итоги матча · ${formatDateRu(view.date)}</b>`, headline,
+      ...(summary.assists ? [`Голевые передачи: ${summary.assists}.`] : []),
+      `Короткие игры: ${summary.games} — ${record}.`,
+      ...(raised.length ? ['', ...raised.map(a => `<b>${a.level === 1 ? 'Новое достижение' : 'Новый уровень'}: «${a.title}», ${ACHIEVEMENT_TIER_LABEL[a.tier!].toLowerCase()}.</b> На счету ${a.current} ${plural(a.current, ...a.unit)}.`)] : []),
+    ].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Итоги матча', url: miniAppLink(env, `e${view.id}`) }, { text: 'Мои достижения', url: miniAppLink(env, 'settings') }]] },
   };
 }
 
