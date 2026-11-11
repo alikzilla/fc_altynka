@@ -6,33 +6,33 @@ import { creatableCommunities, useMe } from '../state/me';
 import { ConnectGroupButton, CONNECT_BOT_TEXT } from '../components/ConnectGroup';
 import { useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { TemporalInput } from '../components/TemporalInput';
 import { ActionSheet } from '../components/ActionSheet';
 import { AvailabilityGrid } from '../components/AvailabilityGrid';
 import { useResource } from '../hooks/useResource';
 
 const names = (people: AvailabilityPersonDto[]) => people.map(p => p.name).join(', ');
 
-/** Сколько дней показывает лента выбора даты: две недели, хотя игроки отмечают только первую. */
+/** Матч создаётся не дальше двух недель: лента — единственный выбор даты. Игроки отмечают только первую неделю. */
 const PICKER_DAYS = 14;
+const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
 /**
- * Выбор даты по отметкам игроков: лента на две недели с числом тех, кто может, под ней — строка
- * с итогом по выбранному дню; полная статистика раскрывается по нажатию.
+ * Дата матча: лента на две недели. Когда группа известна, под каждым днём — сколько человек может,
+ * под лентой — строка с итогом по выбранному дню; полная статистика раскрывается по нажатию.
+ * Без сводки (она не загрузилась или группа не выбрана) лента просто выбирает дату.
  */
-function AvailabilitySummary({ communityId, date, onPick }: { communityId: number; date: string; onPick: (date: string) => void }) {
-  const { data } = useResource<AvailabilitySummaryDto>(`/api/availability/summary?communityId=${communityId}`);
-  // Сводка — подсказка: без неё матч создаётся как раньше.
-  if (!data?.days?.length) return null;
-  const marked = new Map(data.days.map(d => [d.date, d]));
+function MatchDatePicker({ communityId, date, onPick }: { communityId: number | null; date: string; onPick: (date: string) => void }) {
+  const { data } = useResource<AvailabilitySummaryDto>(communityId === null ? null : `/api/availability/summary?communityId=${communityId}`);
+  const marked = new Map((data?.days ?? []).map(d => [d.date, d]));
   const day = marked.get(date);
   const total = day ? day.yes.length + day.no.length + day.unknown : 0;
-  return <section className="availability-summary" aria-label="Кто может играть">
-    <AvailabilityGrid slider label="Сколько человек может по дням" selected={date} onSelect={onPick} cells={availabilityDates(data.days[0].date, PICKER_DAYS).map(d => {
+  return <section className="availability-summary" aria-label="Дата матча">
+    <p className="availability-date-heading"><span>Дата</span><b>{capital(formatDateRu(date))}</b></p>
+    <AvailabilityGrid slider label="Дата" selected={date} onSelect={onPick} cells={availabilityDates(todayAlmaty(new Date()), PICKER_DAYS).map(d => {
       const known = marked.get(d);
       return {
         key: d, top: WEEKDAY_SHORT[weekdayOf(d)], main: String(Number(d.slice(8))), tone: null, count: known?.yes.length ?? 0,
-        label: `${formatDateRu(d)} — ${!known ? 'отметок пока нет' : known.yes.length ? `${plural(known.yes.length, 'может', 'могут', 'могут')} ${known.yes.length}` : 'никто не отметил, что может'}`,
+        label: `${formatDateRu(d)}${!data?.days ? '' : !known ? ' — отметок пока нет' : known.yes.length ? ` — ${plural(known.yes.length, 'может', 'могут', 'могут')} ${known.yes.length}` : ' — никто не отметил, что может'}`,
       };
     })} />
     {day ? <details className="availability-details">
@@ -47,7 +47,7 @@ function AvailabilitySummary({ communityId, date, onPick }: { communityId: numbe
         <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
         <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
       </div>
-    </details> : <p className="muted">На этот день отметок ещё нет: игроки отмечают неделю вперёд.</p>}
+    </details> : data?.days ? <p className="muted">На этот день отметок ещё нет: игроки отмечают неделю вперёд.</p> : null}
   </section>;
 }
 
@@ -85,12 +85,10 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
       setBusy(false);
     }
   }
-  return <ActionSheet title="Новый матч" description="Дата и группа для сбора" closeLabel="Закрыть создание матча" onClose={onClose} busy={busy}>
+  return <ActionSheet title="Новый матч" description="День и группа для сбора" closeLabel="Закрыть создание матча" onClose={onClose} busy={busy}>
     {groups.length ? (
     <form className="form new-event-form" onSubmit={submit} aria-busy={busy}>
       <fieldset disabled={busy} className="form-fields">
-        <label>Дата<TemporalInput type="date" required min={todayAlmaty(new Date())} value={date} onChange={e => setDate(e.target.value)} /></label>
-        {communityId !== null && <AvailabilitySummary communityId={communityId} date={date} onPick={setDate} />}
         {groups.length > 1 && <label>Группа
           <select required aria-describedby="group-hint" value={picked ?? ''} onChange={e => setPicked(e.target.value ? Number(e.target.value) : null)}>
             <option value="" disabled>Выбери группу</option>
@@ -98,6 +96,7 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
           </select>
         </label>}
         {groups.length > 1 && <p id="group-hint" className="muted">Сообщение о сборе появится в выбранной группе.</p>}
+        <MatchDatePicker communityId={communityId} date={date} onPick={setDate} />
         <label>Комментарий · необязательно<textarea maxLength={200} rows={3} placeholder="Например, берём светлые и тёмные футболки" value={comment} onChange={e => setComment(e.target.value)} /></label>
       </fieldset>
       <p className="muted">Игроки могут записываться сразу. Назначь время и длительность матча. Счёт станет доступен после его начала.</p>

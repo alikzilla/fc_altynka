@@ -73,8 +73,9 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   await page.setViewportSize({ width, height: 844 });
   await mock(page, 'organizer');
   await page.goto('/new');
-  const summary = page.getByRole('region', { name: 'Кто может играть' });
-  const strip = summary.getByRole('group', { name: 'Сколько человек может по дням' });
+  const summary = page.getByRole('region', { name: 'Дата матча' });
+  const strip = summary.getByRole('group', { name: 'Дата' });
+  await expect(page.locator('input[type=date]')).toHaveCount(0);
   await expect(strip.getByRole('button')).toHaveCount(14);
   // Видна неделя и край восьмого дня; вторая неделя листается.
   const box = (await strip.boundingBox())!;
@@ -82,7 +83,7 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   expect(eighth.x).toBeLessThan(box.x + box.width);
   expect(eighth.x + eighth.width).toBeGreaterThan(box.x + box.width);
   await strip.getByRole('button', { name: /— могут 9$/ }).click();
-  await expect(page.getByLabel('Дата')).toHaveValue(dates[3]);
+  await expect(strip.getByRole('button', { name: /— могут 9$/ })).toHaveAttribute('aria-pressed', 'true');
   await expect(summary.getByText('Могут играть · 9 из 16')).toBeVisible();
   const windows = summary.getByRole('list', { name: 'Кто может по времени' }).getByRole('listitem');
   await expect(windows.first()).toBeHidden();

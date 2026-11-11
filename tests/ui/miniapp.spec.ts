@@ -108,7 +108,7 @@ test('network error can be retried and empty state offers the next step', async 
   await page.getByRole('button', { name: 'Попробовать ещё раз' }).click();
   await expect(page.getByRole('heading', { name: 'Нет ближайших матчей' })).toBeVisible();
   await page.getByRole('link', { name: 'Создать матч' }).first().click();
-  await expect(page.getByLabel('Дата', { exact: true })).toBeVisible();
+  await expect(page.getByRole('group', { name: 'Дата' })).toBeVisible();
 });
 
 test('dark theme, safe areas and payment are accessible on a narrow phone', async ({ page }) => {

@@ -40,7 +40,7 @@ function open(path = '/') {
 }
 
 test('creation opens over the current screen; failure preserves fields; success closes and shows active matches', async () => {
-  // The test types 2026-11-08 as a future match date; keep «today» before it.
+  // The default match date is tomorrow, 2026-11-08.
   vi.useFakeTimers({ toFake: ['Date'] });
   vi.setSystemTime(new Date('2026-11-07T05:00:00Z'));
   const { loc } = open('/profile');
@@ -49,8 +49,8 @@ test('creation opens over the current screen; failure preserves fields; success 
   const dialog = await screen.findByRole('dialog', { name: 'Новый матч' });
   expect(screen.getByRole('heading', { name: 'Профиль' })).toBeInTheDocument();
   expect(within(dialog).queryByRole('radiogroup')).toBeNull();
-  await userEvent.clear(within(dialog).getByLabelText('Дата'));
-  await userEvent.type(within(dialog).getByLabelText('Дата'), '2026-11-08');
+  // Дата по умолчанию — завтра, на ленте.
+  expect(within(within(dialog).getByRole('group', { name: 'Дата' })).getByRole('button', { pressed: true })).toHaveAccessibleName(/8 ноября/);
   await userEvent.type(within(dialog).getByLabelText(/Комментарий/), 'Берём мяч');
   createFails = true;
   await userEvent.click(within(dialog).getByRole('button', { name: 'Создать матч' }));

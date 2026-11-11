@@ -66,6 +66,7 @@ test('a failed save says so and reloads the calendar', async () => {
 
 // Лист создания сверяет дату с настоящим «сегодня», поэтому сводка считается от него.
 const upcoming = availabilityDates(todayAlmaty(new Date()));
+const upcoming2 = availabilityDates(todayAlmaty(new Date()), 14);
 const summary = (): AvailabilitySummaryDto => ({ community: { id: 1, title: 'FC Altynka' }, days: upcoming.map((date, i) => ({
   date, unknown: 4,
   yes: i === 3 ? [{ userId: 5, name: 'Тимур', parts: ['evening', 'night'] }, { userId: 6, name: 'Ерлан', parts: ['night'] }] : [],
@@ -77,11 +78,13 @@ test('the organizer picks the match date on a two-week strip; the breakdown open
   (api.send as Mock).mockResolvedValue({ id: 5 });
   renderWithApp(<NewEvent onClose={() => {}} />, { me: organizer });
   expect(api.get).toHaveBeenCalledWith('/api/availability/summary?communityId=1', expect.anything());
-  const region = await screen.findByRole('region', { name: 'Кто может играть' });
-  const strip = within(region).getByRole('group', { name: 'Сколько человек может по дням' });
+  const region = screen.getByRole('region', { name: 'Дата матча' });
+  const strip = within(region).getByRole('group', { name: 'Дата' });
   expect(within(strip).getAllByRole('button')).toHaveLength(14);
-  await userEvent.click(within(strip).getByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` }));
-  expect(screen.getByLabelText('Дата')).toHaveValue(upcoming[3]);
+  expect(screen.queryByRole('textbox', { name: 'Дата' })).toBeNull();
+  const day = await within(strip).findByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` });
+  await userEvent.click(day);
+  expect(day).toHaveAttribute('aria-pressed', 'true');
   const details = region.querySelector('details')!;
   expect(details.open).toBe(false);
   expect(within(details).getByText(/Могут играть ·/).textContent).toBe('Могут играть · 2 из 7');
@@ -94,7 +97,6 @@ test('the organizer picks the match date on a two-week strip; the breakdown open
   // Вторая неделя: игроки её ещё не отмечают, дату выбрать можно.
   const later = availabilityDates(upcoming[0], 14)[10];
   await userEvent.click(within(strip).getByRole('button', { name: `${formatDateRu(later)} — отметок пока нет` }));
-  expect(screen.getByLabelText('Дата')).toHaveValue(later);
   expect(region.querySelector('details')).toBeNull();
   expect(within(region).getByText(/На этот день отметок ещё нет/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
@@ -104,9 +106,10 @@ test('the organizer picks the match date on a two-week strip; the breakdown open
 test('with an unused calendar the strip still picks the date and counts stay empty', async () => {
   (api.get as Mock).mockResolvedValue({ ...summary(), days: summary().days.map(d => ({ ...d, yes: [], no: [] })) });
   renderWithApp(<NewEvent onClose={() => {}} />, { me: organizer });
-  const region = await screen.findByRole('region', { name: 'Кто может играть' });
+  const region = screen.getByRole('region', { name: 'Дата матча' });
   expect(within(region).getAllByRole('button')).toHaveLength(14);
-  expect(within(region).getByText(/Могут играть ·/).textContent).toBe('Могут играть · 0 из 4');
+  await userEvent.click(within(region).getAllByRole('button')[0]);
+  expect((await within(region).findByText(/Могут играть ·/)).textContent).toBe('Могут играть · 0 из 4');
 });
 
 test('a calendar write refreshes only calendar reads', () => {
@@ -114,4 +117,16 @@ test('a calendar write refreshes only calendar reads', () => {
   expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/availability/summary?communityId=1')).toBe(true);
   expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/events')).toBe(false);
   expect(shouldRefresh('/api/availability/days/2026-11-12', '/api/me')).toBe(false);
+});
+
+test('without the summary the strip still picks the date and the match is created', async () => {
+  (api.get as Mock).mockRejectedValue(new Error('offline'));
+  (api.send as Mock).mockResolvedValue({ id: 5 });
+  renderWithApp(<NewEvent onClose={() => {}} />, { me: organizer });
+  const strip = screen.getByRole('group', { name: 'Дата' });
+  // По умолчанию выбрано завтра.
+  expect(within(strip).getByRole('button', { pressed: true })).toHaveAccessibleName(formatDateRu(upcoming[1]));
+  await userEvent.click(within(strip).getByRole('button', { name: formatDateRu(upcoming2[13]) }));
+  await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ date: upcoming2[13] }));
 });

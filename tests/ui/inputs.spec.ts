@@ -23,7 +23,7 @@ for (const width of [280, 320, 390, 430]) {
       await expect(scope).toBeVisible();
       await expect(page.locator('.loading')).toHaveCount(0);
       if (path === '/new') {
-        await page.getByLabel('Дата', { exact: true }).fill('2026-12-31');
+        await page.getByRole('group', { name: 'Дата' }).getByRole('button').nth(13).click();
         await page.getByLabel(/Комментарий/).fill('Длинный комментарий '.repeat(8));
       }
       if (path.endsWith('/schedule')) {
@@ -73,7 +73,8 @@ for (const width of [280, 320, 390, 430]) {
 
 test('native temporal controls have no horizontal padding to trigger the iOS width bug', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 568 });
-  for (const [path, type] of [['/new', 'date'], ['/event/1/schedule', 'time']]) {
+  // The new match sheet picks its date on a strip of days; the only native temporal control left is the start time.
+  for (const [path, type] of [['/event/1/schedule', 'time']]) {
     await page.goto(path);
     const field = page.locator(`input[type="${type}"]`);
     await expect(field).toBeVisible();

@@ -63,7 +63,6 @@ test('creation retains input after error, prevents duplicate submits, and opens 
   await page.goto('/');
   await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByLabel('Дата', { exact: true }).fill('2026-11-08');
   await dialog.getByLabel(/Комментарий/).fill('Берём светлые футболки');
   await dialog.getByRole('button', { name: 'Создать матч' }).click();
   await expect(dialog.getByRole('alert')).toContainText('Не получилось создать матч');
@@ -124,7 +123,6 @@ test('a late create response cannot pull a person away after browser Back', asyn
   });
   await page.goto('/profile');
   await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
-  await page.getByRole('dialog').getByLabel('Дата', { exact: true }).fill('2026-11-08');
   await page.getByRole('dialog').getByRole('button', { name: 'Создать матч' }).click();
   await expect(page.getByRole('button', { name: 'Создаём матч…' })).toBeDisabled();
   await page.goBack();

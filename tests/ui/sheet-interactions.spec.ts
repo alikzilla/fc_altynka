@@ -133,7 +133,6 @@ test('pending submission ignores swipe dismiss and reduced-motion still supports
   });
   const sheet = await openSheet(page);
   const box = (await page.locator('.sheet-drag-area').boundingBox())!;
-  await sheet.getByLabel('Дата', { exact: true }).fill('2026-11-08');
   await sheet.getByRole('button', { name: 'Создать матч' }).click();
   await expect(sheet.getByRole('button', { name: 'Создаём матч…' })).toBeDisabled();
   const cdp = await page.context().newCDPSession(page);

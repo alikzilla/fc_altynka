@@ -31,6 +31,8 @@
 
 /* Сводка для организатора в листе нового матча. */
 .availability-summary { display: flex; flex-direction: column; gap: 10px; }
+.availability-date-heading { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.availability-date-heading span { font-size: 14px; font-weight: 500; }
 .availability-summary h3 { margin: 0; font-size: 14px; font-weight: 550; }
 .availability-summary p { margin: 0; font-size: 14px; }
 .availability-summary p b { font-weight: 550; }
