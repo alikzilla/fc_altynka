@@ -60,7 +60,7 @@ async function publishTeamsUnsafe(d: Deps, eventId: number): Promise<'ok' | 'no_
   if (!ev.teamCount || !rows.length) return 'no_teams';
   const published = await d.db.update(events).set({ teamsPublishedAt: d.now }).where(and(eq(events.id, eventId), eq(events.rosterRevision, ev.rosterRevision))).returning({ id: events.id });
   if (!published.length) return 'stale';
-  await d.sync.request(eventId, { parts: ['teams'] });
+  await d.sync.request(eventId, { parts: ['teams'], notices: [{ kind: 'teams' }] });
   await feedSafely(() => publishUpcomingPost(d, eventId, 'teams_ready'));
   return 'ok';
 }

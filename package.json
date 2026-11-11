@@ -4,10 +4,11 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "test:ui": "pnpm build && playwright test",
-    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs",
+    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs scripts/channel-post.test.mjs",
     "test:migrations": "node --test scripts/multiple-groups-migration.test.mjs scripts/game-statistics-migration.test.mjs",
     "test:migrations:games": "node --test scripts/game-statistics-migration.test.mjs",
     "bot:profile": "node scripts/bot-profile.mjs",
+    "channel:post": "node scripts/channel-post.mjs",
     "mcp:telegram": "node scripts/mcp/telegram.mjs",
     "check:telegram": "node scripts/mcp/check-telegram.mjs",
     "test": "pnpm -r test",

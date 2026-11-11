@@ -14,7 +14,7 @@ async function newEvent(): Promise<number> {
 
 test('organizer creates event and it requests a sync', async () => {
   const id = await newEvent();
-  expect(w.sync.calls.at(-1)).toEqual({ eventId: id, req: { parts: ['event'] } });
+  expect(w.sync.calls.at(-1)).toEqual({ eventId: id, req: { parts: ['event'], notices: [{ kind: 'announced' }] } });
   const list = (await (await apiRequest('/api/events', { as: w.player })).json()) as EventsListDto;
   expect(list.active.map(e => e.id)).toEqual([id]);
   expect(list.active[0]).toMatchObject({ date: '2026-11-07', status: 'collecting', limit: 10, mainCount: 0, my: null });

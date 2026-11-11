@@ -7,6 +7,8 @@ export const BURST_MS = 300;
 export type MergedNotice =
   | { kind: 'moves'; promoted: number[]; demoted: number[]; scheduled: boolean; previous?: ScheduleSnapshot }
   | { kind: 'cancelled' }
+  | { kind: 'announced' }
+  | { kind: 'teams' }
   | { kind: 'reminder'; billId: number };
 
 export function nextAlarmAt(now: number, lastSentAt: number | null): number {
@@ -21,6 +23,7 @@ export function mergeNotices(pending: Notice[], mainIds: Set<number>): MergedNot
   let scheduled = false;
   let previous: ScheduleSnapshot | undefined;
   const reminders: number[] = [];
+  const personalOnly = (['announced', 'teams'] as const).filter(kind => pending.some(n => n.kind === kind));
   for (const n of pending) {
     if (n.kind === 'promoted') n.signupIds.forEach(id => promoted.add(id));
     else if (n.kind === 'demoted') n.signupIds.forEach(id => demoted.add(id));
@@ -31,6 +34,7 @@ export function mergeNotices(pending: Notice[], mainIds: Set<number>): MergedNot
   const down = [...demoted].filter(id => !mainIds.has(id) && !promoted.has(id));
   const out: MergedNotice[] = [];
   if (scheduled || up.length || down.length) out.push({ kind: 'moves', promoted: up, demoted: down, scheduled, ...(previous ? { previous } : {}) });
+  for (const kind of personalOnly) out.push({ kind });
   for (const billId of reminders) out.push({ kind: 'reminder', billId });
   return out;
 }

@@ -51,11 +51,11 @@ test('teams become stale when someone leaves', async () => {
   expect((await teamsDto(d.db, ev, main))!.stale).toBe(true);
 });
 
-test('publish requests teams part sync', async () => {
+test('publish requests teams part sync and personal team messages', async () => {
   expect(await publishTeams(d, ev)).toBe('no_teams');
   await saveTeams(d, ev, { teamCount: 2, teams: split(ids), guestLevels: {} });
   expect(await publishTeams(d, ev)).toBe('ok');
-  expect(d.sync.calls.at(-1)).toEqual({ eventId: ev, req: { parts: ['teams'] } });
+  expect(d.sync.calls.at(-1)).toEqual({ eventId: ev, req: { parts: ['teams'], notices: [{ kind: 'teams' }] } });
   expect((await teamsDto(d.db, ev, ids))!.publishedAt).toBe(5_000);
 });
 

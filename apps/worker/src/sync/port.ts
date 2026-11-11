@@ -6,6 +6,9 @@ export type Notice =
   | { kind: 'demoted'; signupIds: number[] }
   | { kind: 'scheduled'; previous?: ScheduleSnapshot }
   | { kind: 'cancelled' }
+  /** Личные сообщения без дубля в группе: открыта запись, опубликованы составы. */
+  | { kind: 'announced' }
+  | { kind: 'teams' }
   | { kind: 'reminder'; billId: number };
 
 export interface SyncRequest {

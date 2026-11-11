@@ -204,7 +204,8 @@ export class EventSync extends DurableObject<Env> {
           }
         }
         if (personal.error !== null) throw personal.error;
-        await personal.completeNotice(notice);
+        if (personal.more) run.notices.push(...unmerge(m));
+        else await personal.completeNotice(notice);
       } catch (e) {
         if (m.kind === 'reminder') {
           const report = await this.ctx.storage.get<DeliveryReport>('deliveryReport');
