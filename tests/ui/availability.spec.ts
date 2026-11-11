@@ -74,10 +74,20 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   await mock(page, 'organizer');
   await page.goto('/new');
   const summary = page.getByRole('region', { name: 'Кто может играть' });
-  await expect(summary.getByRole('button')).toHaveCount(7);
-  await summary.getByRole('button', { name: /— могут 9$/ }).click();
+  const strip = summary.getByRole('group', { name: 'Сколько человек может по дням' });
+  await expect(strip.getByRole('button')).toHaveCount(14);
+  // Видна неделя и край восьмого дня; вторая неделя листается.
+  const box = (await strip.boundingBox())!;
+  const eighth = (await strip.getByRole('button').nth(7).boundingBox())!;
+  expect(eighth.x).toBeLessThan(box.x + box.width);
+  expect(eighth.x + eighth.width).toBeGreaterThan(box.x + box.width);
+  await strip.getByRole('button', { name: /— могут 9$/ }).click();
   await expect(page.getByLabel('Дата')).toHaveValue(dates[3]);
+  await expect(summary.getByText('Могут играть · 9 из 16')).toBeVisible();
   const windows = summary.getByRole('list', { name: 'Кто может по времени' }).getByRole('listitem');
+  await expect(windows.first()).toBeHidden();
+  await page.screenshot({ path: `artifacts/ui/availability-new-match-${width}.png` });
+  await summary.getByText('Кто может', { exact: true }).click();
   await expect(windows).toHaveCount(6);
   await expect(windows.nth(3)).toContainText('18:00–20:00');
   await expect(windows.nth(3)).toContainText('7');
@@ -87,7 +97,11 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   await expect(summary.getByText(/Руслан/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
-  await page.screenshot({ path: `artifacts/ui/availability-new-match-${width}.png` });
+  await page.screenshot({ path: `artifacts/ui/availability-new-match-open-${width}.png` });
+  const last = strip.getByRole('button').nth(13);
+  await last.click();
+  await expect(last).toBeInViewport({ ratio: 1 });
+  await expect(summary.getByText(/На этот день отметок ещё нет/)).toBeVisible();
 });
 
 test('Home reminds to mark the week once and opens the calendar sheet over the profile', async ({ page }) => {

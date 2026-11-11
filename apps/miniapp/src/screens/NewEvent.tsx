@@ -1,4 +1,4 @@
-import { DAY_PARTS, DAY_PART_LABEL, WEEKDAY_SHORT, formatDateRu, plural, todayAlmaty, weekdayOf, type AvailabilityPersonDto, type AvailabilitySummaryDto } from '@altynka/core';
+import { DAY_PARTS, DAY_PART_LABEL, WEEKDAY_SHORT, availabilityDates, formatDateRu, plural, todayAlmaty, weekdayOf, type AvailabilityPersonDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
@@ -13,30 +13,41 @@ import { useResource } from '../hooks/useResource';
 
 const names = (people: AvailabilityPersonDto[]) => people.map(p => p.name).join(', ');
 
-/** Кто может играть в ближайшие дни: организатор выбирает дату по отметкам игроков. */
+/** Сколько дней показывает лента выбора даты: две недели, хотя игроки отмечают только первую. */
+const PICKER_DAYS = 14;
+
+/**
+ * Выбор даты по отметкам игроков: лента на две недели с числом тех, кто может, под ней — строка
+ * с итогом по выбранному дню; полная статистика раскрывается по нажатию.
+ */
 function AvailabilitySummary({ communityId, date, onPick }: { communityId: number; date: string; onPick: (date: string) => void }) {
   const { data } = useResource<AvailabilitySummaryDto>(`/api/availability/summary?communityId=${communityId}`);
   // Сводка — подсказка: без неё матч создаётся как раньше.
-  if (!data?.days) return null;
-  if (!data.days.some(d => d.yes.length || d.no.length)) return <p className="muted">Игроки пока не отметили, когда могут играть. Календарь — в профиле, «Когда могу играть».</p>;
-  const day = data.days.find(d => d.date === date);
+  if (!data?.days?.length) return null;
+  const marked = new Map(data.days.map(d => [d.date, d]));
+  const day = marked.get(date);
+  const total = day ? day.yes.length + day.no.length + day.unknown : 0;
   return <section className="availability-summary" aria-label="Кто может играть">
-    <h3>Кто может играть</h3>
-    <AvailabilityGrid label="Сколько человек может по дням" selected={day?.date ?? null} onSelect={onPick} cells={data.days.map(d => ({
-      key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: null, count: d.yes.length,
-      label: `${formatDateRu(d.date)} — ${d.yes.length ? `${plural(d.yes.length, 'может', 'могут', 'могут')} ${d.yes.length}` : 'никто не отметил, что может'}`,
-    }))} />
-    {day ? <div className="availability-day" aria-live="polite">
-      <p><b>Могут · {day.yes.length}</b>{day.yes.length ? ' — по времени:' : ''}</p>
-      {day.yes.length > 0 && <ul className="availability-windows" aria-label="Кто может по времени">
-        {DAY_PARTS.map(part => {
-          const people = day.yes.filter(p => p.parts.includes(part));
-          return <li key={part} className={people.length ? '' : 'none'}><span className="availability-window-time">{DAY_PART_LABEL[part]}</span><b>{people.length}</b><span className="availability-window-names">{people.length ? names(people) : 'никто'}</span></li>;
-        })}
-      </ul>}
-      <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
-      <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
-    </div> : <p className="muted">Отметки игроков видны на ближайшие 7 дней.</p>}
+    <AvailabilityGrid slider label="Сколько человек может по дням" selected={date} onSelect={onPick} cells={availabilityDates(data.days[0].date, PICKER_DAYS).map(d => {
+      const known = marked.get(d);
+      return {
+        key: d, top: WEEKDAY_SHORT[weekdayOf(d)], main: String(Number(d.slice(8))), tone: null, count: known?.yes.length ?? 0,
+        label: `${formatDateRu(d)} — ${!known ? 'отметок пока нет' : known.yes.length ? `${plural(known.yes.length, 'может', 'могут', 'могут')} ${known.yes.length}` : 'никто не отметил, что может'}`,
+      };
+    })} />
+    {day ? <details className="availability-details">
+      <summary><span className="availability-details-title">Могут играть · <b>{day.yes.length}</b> из {total}</span><span className="availability-details-toggle">Кто может<Icon name="back" /></span></summary>
+      <div className="availability-day">
+        {day.yes.length > 0 && <ul className="availability-windows" aria-label="Кто может по времени">
+          {DAY_PARTS.map(part => {
+            const people = day.yes.filter(p => p.parts.includes(part));
+            return <li key={part} className={people.length ? '' : 'none'}><span className="availability-window-time">{DAY_PART_LABEL[part]}</span><b>{people.length}</b><span className="availability-window-names">{people.length ? names(people) : 'никто'}</span></li>;
+          })}
+        </ul>}
+        <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
+        <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
+      </div>
+    </details> : <p className="muted">На этот день отметок ещё нет: игроки отмечают неделю вперёд.</p>}
   </section>;
 }
 

@@ -72,26 +72,41 @@ const summary = (): AvailabilitySummaryDto => ({ community: { id: 1, title: 'FC 
   no: i === 3 ? [{ userId: 7, name: 'Данияр', parts: [] }] : [],
 })) });
 
-test('the organizer picks the match date from who can play', async () => {
+test('the organizer picks the match date on a two-week strip; the breakdown opens on demand', async () => {
   (api.get as Mock).mockResolvedValue(summary());
   (api.send as Mock).mockResolvedValue({ id: 5 });
   renderWithApp(<NewEvent onClose={() => {}} />, { me: organizer });
   expect(api.get).toHaveBeenCalledWith('/api/availability/summary?communityId=1', expect.anything());
   const region = await screen.findByRole('region', { name: 'Кто может играть' });
-  await userEvent.click(within(region).getByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` }));
-  const rows = within(within(region).getByRole('list', { name: 'Кто может по времени' })).getAllByRole('listitem').map(li => li.textContent);
-  expect(rows).toEqual(['До 12:000никто', '12:00–15:000никто', '15:00–18:000никто', '18:00–20:001Тимур', '20:00–22:002Тимур, Ерлан', 'После 22:000никто']);
-  expect(within(region).getByText(/Данияр/)).toBeInTheDocument();
+  const strip = within(region).getByRole('group', { name: 'Сколько человек может по дням' });
+  expect(within(strip).getAllByRole('button')).toHaveLength(14);
+  await userEvent.click(within(strip).getByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` }));
   expect(screen.getByLabelText('Дата')).toHaveValue(upcoming[3]);
+  const details = region.querySelector('details')!;
+  expect(details.open).toBe(false);
+  expect(within(details).getByText(/Могут играть ·/).textContent).toBe('Могут играть · 2 из 7');
+  await userEvent.click(within(details).getByText('Кто может'));
+  expect(details.open).toBe(true);
+  const rows = within(within(details).getByRole('list', { name: 'Кто может по времени' })).getAllByRole('listitem').map(li => li.textContent);
+  expect(rows).toEqual(['До 12:000никто', '12:00–15:000никто', '15:00–18:000никто', '18:00–20:001Тимур', '20:00–22:002Тимур, Ерлан', 'После 22:000никто']);
+  expect(within(details).getByText(/Данияр/)).toBeInTheDocument();
+
+  // Вторая неделя: игроки её ещё не отмечают, дату выбрать можно.
+  const later = availabilityDates(upcoming[0], 14)[10];
+  await userEvent.click(within(strip).getByRole('button', { name: `${formatDateRu(later)} — отметок пока нет` }));
+  expect(screen.getByLabelText('Дата')).toHaveValue(later);
+  expect(region.querySelector('details')).toBeNull();
+  expect(within(region).getByText(/На этот день отметок ещё нет/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
-  expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ date: upcoming[3] }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ date: later }));
 });
 
-test('an unused calendar leaves a single hint in the new match sheet', async () => {
+test('with an unused calendar the strip still picks the date and counts stay empty', async () => {
   (api.get as Mock).mockResolvedValue({ ...summary(), days: summary().days.map(d => ({ ...d, yes: [], no: [] })) });
   renderWithApp(<NewEvent onClose={() => {}} />, { me: organizer });
-  expect(await screen.findByText(/Игроки пока не отметили/)).toBeInTheDocument();
-  expect(screen.queryByRole('region', { name: 'Кто может играть' })).toBeNull();
+  const region = await screen.findByRole('region', { name: 'Кто может играть' });
+  expect(within(region).getAllByRole('button')).toHaveLength(14);
+  expect(within(region).getByText(/Могут играть ·/).textContent).toBe('Могут играть · 0 из 4');
 });
 
 test('a calendar write refreshes only calendar reads', () => {
