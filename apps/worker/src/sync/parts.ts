@@ -104,7 +104,7 @@ export function registerReminderResolver(r: ReminderResolver): void {
 }
 
 export async function resolveNotice(db: Db, view: EventView, n: MergedNotice): Promise<OutNotice> {
-  if (n.kind === 'cancelled') return n;
+  if (n.kind === 'cancelled' || n.kind === 'announced' || n.kind === 'teams') return n;
   if (n.kind === 'reminder') return reminderResolver(db, n.billId);
   const all = [...view.main, ...view.reserve];
   const pick = (ids: number[]) => ids.map(id => all.find(p => p.signupId === id)).filter((p): p is PersonView => !!p);

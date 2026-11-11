@@ -101,7 +101,7 @@ export async function createEvent(
     .insert(events)
     .values({ communityId: v.communityId, protocolVersion: 1, ratingEnabled: true, telegramChatId: community?.tgChatId, date: v.date, comment: v.comment, createdBy: v.createdBy, createdAt: d.now })
     .returning({ id: events.id });
-  await syncEvent(d, row.id, []);
+  await syncEvent(d, row.id, [{ kind: 'announced' }]);
   await feedSafely(() => publishUpcomingPost(d, row.id, 'signup_open'));
   return row.id;
 }

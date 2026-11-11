@@ -21,9 +21,9 @@ const seedEvent = () => createEvent(d, { communityId, date: '2026-11-07', commen
 const seedUsers = (n: number) => Promise.all(Array.from({ length: n }, (_, i) => seedUser(`Игрок${i + 1}`, { communityId })));
 const lastReq = () => d.sync.calls.at(-1)!.req;
 
-test('createEvent requests the event message', async () => {
+test('createEvent requests the event message and a personal announcement', async () => {
   const ev = await seedEvent();
-  expect(d.sync.calls).toEqual([{ eventId: ev, req: { parts: ['event'] } }]);
+  expect(d.sync.calls).toEqual([{ eventId: ev, req: { parts: ['event'], notices: [{ kind: 'announced' }] } }]);
 });
 
 test('11th joiner lands in reserve, positions are 1-based', async () => {

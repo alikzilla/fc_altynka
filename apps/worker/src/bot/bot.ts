@@ -10,6 +10,7 @@ import type { Env } from '../env';
 import type { SyncPort } from '../sync/port';
 import { makeTgClient } from '../telegram/client';
 import { registerPrivateCommands } from './private';
+import { joinAnswer, leaveAnswer } from './presentation';
 import { miniAppLink } from '../telegram/links';
 import { restoreCommunitySync } from '../domain/reactivate';
 
@@ -35,35 +36,9 @@ export function registerCallback(prefix: string, handler: CallbackHandler): void
   callbacks.set(prefix, handler);
 }
 
-registerCallback('j', async ({ deps, user, arg }) => {
-  const r = await joinEvent(deps, Number(arg), user.id);
-  switch (r.kind) {
-    case 'main':
-      return `${r.restored ? 'Ты снова в основе' : 'Ты в основе'} · место ${r.position}`;
-    case 'reserve':
-      return `${r.restored ? 'Ты снова в резерве' : 'Ты в резерве'} · место ${r.position}`;
-    case 'already':
-      return `Ты уже ${r.inMain ? 'в основе' : 'в резерве'} · место ${r.position}`;
-    case 'closed':
-      return 'Запись на этот матч закрыта';
-    case 'not_found':
-      return 'Матч не найден';
-  }
-});
+registerCallback('j', async ({ deps, user, arg }) => joinAnswer(await joinEvent(deps, Number(arg), user.id)));
 
-registerCallback('l', async ({ deps, user, arg }) => {
-  const r = await leaveEvent(deps, Number(arg), user.id);
-  switch (r.kind) {
-    case 'left':
-      return 'Запись отменена. В течение 2 минут можно вернуть прежнее место.';
-    case 'not_in':
-      return 'Тебя нет в списке';
-    case 'closed':
-      return 'Запись закрыта';
-    case 'not_found':
-      return 'Сбор не найден';
-  }
-});
+registerCallback('l', async ({ deps, user, arg }) => leaveAnswer((await leaveEvent(deps, Number(arg), user.id)).kind));
 
 registerCallback('p', async ({ deps, user, arg }) => {
   const r = await markPaid(deps, Number(arg), user.id, user.id);

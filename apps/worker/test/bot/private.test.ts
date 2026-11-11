@@ -4,6 +4,7 @@ import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeTg } from '../fakes/fakeTg';
 import { db, seedCommunity, seedUser, localUser } from '../helpers';
 import { groupCommand, makeTestBot, privateCommand, tap } from './helpers';
+import { loadQueue } from '../../src/domain/events';
 
 let tg: FakeTg;
 beforeEach(() => { tg = new FakeTg(); __setTgClientForTests(tg); });
@@ -24,7 +25,8 @@ test('/start proves private availability but notifications require an explicit t
   let [user] = await db().select().from(users).where(eq(users.tgId, 501));
   expect(user.pmAvailable).toBe(true);
   expect((await localUser(user.id)).notificationsEnabled).toBe(false);
-  expect(texts(t)).toContain('Личные уведомления можно настроить отдельно');
+  expect(texts(t)).toContain('Уведомления выключены');
+  expect(JSON.stringify(t.calls.find(c => c.method === 'sendMessage')!.payload.reply_markup)).toContain('notify:1');
   await t.bot.handleUpdate(privateTap(501, 'notify:1'));
   [user] = await db().select().from(users).where(eq(users.tgId, 501));
   expect((await localUser(user.id)).notificationsEnabled).toBe(true);
@@ -118,8 +120,10 @@ test('/matches returns at most eight active matches in date order and escapes us
   expect(texts(t)).toContain('&lt;поле&gt;');
   expect(texts(t)).not.toContain('1 ноября');
   expect(texts(t).indexOf('2 ноября')).toBeLessThan(texts(t).indexOf('9 ноября'));
-  const markup = msg.payload.reply_markup as { inline_keyboard: { text: string; url: string }[][] };
-  expect(markup.inline_keyboard.filter(row => row[0].url.includes('startapp=e'))).toHaveLength(8);
+  const markup = msg.payload.reply_markup as { inline_keyboard: { text: string; url?: string; callback_data?: string }[][] };
+  const matchRows = markup.inline_keyboard.filter(row => row.some(b => b.url?.includes('startapp=e')));
+  expect(matchRows).toHaveLength(8);
+  expect(matchRows.every(row => /^mj:\d+:m$/.test(row[0].callback_data ?? ''))).toBe(true);
   expect(markup.inline_keyboard.at(-1)?.[0].url).toContain('startapp=matches');
 });
 
@@ -155,7 +159,7 @@ test('a command menu update failure still allows welcome without leaking the tra
       return prev(method, payload, signal);
     });
     await t.bot.handleUpdate(privateCommand(501, '/start'));
-    expect(texts(t)).toContain('Матчи, составы');
+    expect(texts(t)).toContain('ФК Алтынка');
     expect(JSON.stringify(warning.mock.calls)).not.toContain('secret-token');
   } finally { warning.mockRestore(); }
 });
@@ -189,4 +193,63 @@ test('/matches excludes billed matches from the upcoming list', async () => {
   await t.bot.handleUpdate(privateCommand(501, '/matches'));
   expect(texts(t)).toContain('Следующее поле');
   expect(texts(t)).not.toContain('Архивное поле');
+});
+
+const edits = (t: ReturnType<typeof makeTestBot>) => t.calls.filter(c => c.method === 'editMessageText');
+
+test('home shows the nearest match and signs up or cancels with one tap in the private chat', async () => {
+  const c = await seedCommunity();
+  const org = await seedUser('Орг', { tgId: 101, communityId: c.id, role: 'organizer' });
+  const player = await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  const [event] = await db().insert(events).values({ communityId: c.id, protocolVersion: 1, date: '2099-11-07', startTime: '21:00', durationHours: 1, place: 'Шанырак', status: 'scheduled', createdBy: org.id, createdAt: 0 }).returning();
+  tg.members.add(501);
+  const t = makeTestBot();
+  await t.bot.handleUpdate(privateCommand(501, '/start'));
+  const home = t.calls.find(c => c.method === 'sendMessage')!;
+  expect(home.payload.text).toContain('Ближайший матч');
+  expect(home.payload.text).toContain('21:00–22:00 · Шанырак');
+  expect(home.payload.text).toContain('Ты ещё не записан');
+  expect(JSON.stringify(home.payload.reply_markup)).toContain(`mj:${event.id}:h`);
+  expect(JSON.stringify(home.payload.reply_markup)).toContain('https://t.me/fc_altynka_news');
+
+  await t.bot.handleUpdate(privateTap(501, `mj:${event.id}:h`));
+  expect(t.answers().at(-1)).toBe('Ты в основе · место 1');
+  expect((await loadQueue(db(), event.id)).main.map(s => s.userId)).toEqual([player.id]);
+  expect(t.sync.calls.at(-1)).toMatchObject({ eventId: event.id, req: { parts: ['event'] } });
+  expect(edits(t).at(-1)!.payload.text).toContain('Ты в основе');
+  expect(edits(t).at(-1)!.payload.text).not.toContain('место 1');
+  expect(JSON.stringify(edits(t).at(-1)!.payload.reply_markup)).toContain(`ml:${event.id}:h`);
+
+  await t.bot.handleUpdate(privateTap(501, `ml:${event.id}:c`));
+  expect((await loadQueue(db(), event.id)).main).toHaveLength(0);
+  expect(edits(t).at(-1)!.payload.text).toContain('Ты ещё не записан');
+  expect(JSON.stringify(edits(t).at(-1)!.payload.reply_markup)).toContain(`mj:${event.id}:c`);
+});
+
+test('a private signup button does not work for someone outside the match group', async () => {
+  const c = await seedCommunity();
+  const org = await seedUser('Орг', { tgId: 101, communityId: c.id, role: 'organizer' });
+  await seedUser('Чужой', { tgId: 777 });
+  const [event] = await db().insert(events).values({ communityId: c.id, protocolVersion: 1, date: '2099-11-07', createdBy: org.id, createdAt: 0 }).returning();
+  const t = makeTestBot();
+  await t.bot.handleUpdate(privateTap(777, `mj:${event.id}:c`));
+  expect(t.answers().at(-1)).toBe('Этот матч тебе недоступен');
+  expect((await loadQueue(db(), event.id)).main).toHaveLength(0);
+  expect(edits(t)).toHaveLength(0);
+});
+
+test('menu buttons redraw the same message and plain text opens the menu instead of silence', async () => {
+  const c = await seedCommunity();
+  await seedUser('Игрок', { tgId: 501, communityId: c.id });
+  tg.members.add(501);
+  const t = makeTestBot();
+  await t.bot.handleUpdate(privateTap(501, 'm:help'));
+  expect(edits(t).at(-1)!.payload.text).toContain('Как пользоваться');
+  expect(JSON.stringify(edits(t).at(-1)!.payload.reply_markup)).toContain('m:home');
+  await t.bot.handleUpdate(privateTap(501, 'm:settings'));
+  expect(edits(t).at(-1)!.payload.text).toContain('открыта запись на новый матч');
+  const update = privateCommand(501, 'привет');
+  if (update.message) update.message.entities = [];
+  await t.bot.handleUpdate(update);
+  expect(texts(t)).toContain('Активных матчей пока нет');
 });

@@ -1,6 +1,7 @@
-import { escapeHtml, formatDateRu, formatKzPhone, formatTenge, type BillDto, type BillLineDto } from '@altynka/core';
+import { ACHIEVEMENT_TIER_LABEL, escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type BillDto, type BillLineDto, type PlayerAchievement, type PlayerProtocolSummary } from '@altynka/core';
 import { miniAppLink, type LinkEnv } from '../telegram/links';
 import { timeRange, type EventView, type PersonView, type Rendered } from './eventMessage';
+import { teamBlocks } from './teamsMessage';
 
 export function personalPayment(env: LinkEnv, view: EventView, bill: BillDto, line: BillLineDto, receiverTgId: number, reminder = false): Rendered {
   const date = formatDateRu(view.date);
@@ -55,6 +56,94 @@ export function personalReviewInvitation(env: LinkEnv, view: EventView, closesAt
     html: [...teamTitle(view), `<b>Оцени игру · ${formatDateRu(view.date)}</b>`,
       'Анонимно оцени участников и сам матч.', `Ответить можно до ${deadline} по времени Алматы.`].join('\n'),
     keyboard: { inline_keyboard: [[{ text: 'Оценить игру', url: miniAppLink(env, `r${view.id}`) }]] },
+  };
+}
+
+export interface MyPlace { inMain: boolean; position: number }
+
+/** Место самого человека в очереди; гости не считаются. */
+export function placeIn(view: EventView, tgId: number): MyPlace | null {
+  const main = view.main.findIndex(p => p.tgId === tgId);
+  if (main >= 0) return { inMain: true, position: main + 1 };
+  const reserve = view.reserve.findIndex(p => p.tgId === tgId);
+  return reserve >= 0 ? { inMain: false, position: reserve + 1 } : null;
+}
+
+export const signupOpen = (view: EventView) => view.status === 'collecting' || view.status === 'scheduled';
+
+const placeLine = (place: MyPlace | null) => place ? `Ты ${place.inMain ? 'в основе' : 'в резерве'}` : 'Ты ещё не записан';
+
+/** Когда, где и сколько мест — те же строки в карточке матча и в главном меню. */
+export function matchSummary(view: EventView, place: MyPlace | null): string[] {
+  const when = view.status === 'collecting' ? 'Время и поле пока не назначены'
+    : `${view.startTime && view.durationHours ? timeRange(view.startTime, view.durationHours) : 'Время пока не назначено'}${view.place ? ` · ${escapeHtml(view.place)}` : ''}`;
+  const free = view.limit - view.main.length;
+  const seats = !view.main.length ? `Свободно ${view.limit} ${plural(view.limit, 'место', 'места', 'мест')}`
+    : `Записались ${view.main.length} из ${view.limit}${view.reserve.length ? ` · резерв ${view.reserve.length}` : free > 0 ? ` · свободно ${free}` : ''}`;
+  if (!signupOpen(view)) return [when, view.status === 'playing' ? 'Игра идёт · запись закрыта' : 'Запись закрыта', ...(place?.inMain ? ['Ты в основе'] : [])];
+  return [when, seats, placeLine(place)];
+}
+
+/** Одна кнопка записи: «Иду» или «Не иду» по текущему состоянию. `origin` — какой экран перерисовать после нажатия. */
+export function signupButton(view: EventView, place: MyPlace | null, origin: 'h' | 'm' | 'c', label = '') {
+  return { text: `${place ? 'Не иду' : 'Иду'}${label}`, callback_data: `m${place ? 'l' : 'j'}:${view.id}:${origin}` };
+}
+
+/** Карточка матча в личном чате: записаться можно прямо из сообщения. */
+export function matchCard(env: LinkEnv, view: EventView, place: MyPlace | null, title = 'Футбол'): Rendered {
+  const open = { text: 'Открыть матч', url: miniAppLink(env, `e${view.id}`) };
+  return {
+    html: [...teamTitle(view), `<b>${title} · ${formatDateRu(view.date)}</b>`, ...matchSummary(view, place)].join('\n'),
+    keyboard: { inline_keyboard: signupOpen(view) ? [[signupButton(view, place, 'c'), open]] : [[open]] },
+  };
+}
+
+/** `change` — готовый текст из scheduleChange: назначена игра или что изменилось. */
+export function personalSchedule(env: LinkEnv, view: EventView, change: string, place: MyPlace | null): Rendered {
+  return {
+    html: [...teamTitle(view), change, '', place ? `${placeLine(place)}. Если планы изменились, отмени запись в матче.` : 'В записи твой гость.'].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Открыть матч', url: miniAppLink(env, `e${view.id}`) }]] },
+  };
+}
+
+export function personalCancelled(env: LinkEnv, view: EventView): Rendered {
+  const when = view.startTime && view.durationHours ? `${timeRange(view.startTime, view.durationHours)}${view.place ? ` · ${escapeHtml(view.place)}` : ''}` : '';
+  return {
+    html: [...teamTitle(view), `<b>Матч отменён · ${formatDateRu(view.date)}</b>`, ...(when ? [when] : []), 'Запись закрыта, приходить не нужно.'].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Другие матчи', url: miniAppLink(env, 'matches') }]] },
+  };
+}
+
+/** Составы для одного получателя: сначала его команда и команды его гостей, ниже все составы. */
+export function personalTeams(env: LinkEnv, view: EventView, teams: { emoji: string; name: string; players: PersonView[] }[], tgId: number): Rendered {
+  const mine = teams.flatMap(t => t.players.flatMap(p => {
+    const team = `${escapeHtml(t.emoji)} ${escapeHtml(t.name)}`;
+    if (p.tgId === tgId) return [`Ты играешь за ${team}.`];
+    return p.guestOf?.tgId === tgId ? [`${escapeHtml(p.name)} играет за ${team}.`] : [];
+  }));
+  const details = [view.startTime && view.durationHours ? timeRange(view.startTime, view.durationHours) : '', view.place ? escapeHtml(view.place) : ''].filter(Boolean).join(' · ');
+  return {
+    html: [[...teamTitle(view), `<b>Составы готовы · ${formatDateRu(view.date)}</b>`, ...(details ? [details] : []), '', ...mine].join('\n'),
+      ...teamBlocks(teams.map(t => ({ emoji: t.emoji, name: t.name, players: t.players.map(p => escapeHtml(p.name)) })))].join('\n\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Открыть составы', url: miniAppLink(env, `t${view.id}`) }]] },
+  };
+}
+
+/** Итог встречи для одного игрока: его голы, передачи, короткие игры и открытые этой встречей уровни достижений. */
+export function personalResult(env: LinkEnv, view: EventView, summary: Omit<PlayerProtocolSummary, 'results'>, raised: PlayerAchievement[]): Rendered {
+  const g = summary.goals;
+  const goals = `${g} ${plural(g, 'гол', 'гола', 'голов')}`;
+  const headline = g >= 5 ? `Вот это игра: ты забил ${goals}!` : g >= 3 ? `Хет-трик! Ты забил ${goals}.` : g > 0 ? `Ты забил ${goals}.` : 'Сегодня без голов.';
+  const record = [`${summary.wins} ${plural(summary.wins, 'победа', 'победы', 'побед')}`,
+    ...(summary.draws ? [`${summary.draws} ${plural(summary.draws, 'ничья', 'ничьи', 'ничьих')}`] : []),
+    ...(summary.losses ? [`${summary.losses} ${plural(summary.losses, 'поражение', 'поражения', 'поражений')}`] : [])].join(', ');
+  return {
+    html: [...teamTitle(view), `<b>Итоги матча · ${formatDateRu(view.date)}</b>`, headline,
+      ...(summary.assists ? [`Голевые передачи: ${summary.assists}.`] : []),
+      `Короткие игры: ${summary.games} — ${record}.`,
+      ...(raised.length ? ['', ...raised.map(a => `<b>${a.level === 1 ? 'Новое достижение' : 'Новый уровень'}: «${a.title}», ${ACHIEVEMENT_TIER_LABEL[a.tier!].toLowerCase()}.</b> На счету ${a.current} ${plural(a.current, ...a.unit)}.`)] : []),
+    ].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Итоги матча', url: miniAppLink(env, `e${view.id}`) }, { text: 'Мои достижения', url: miniAppLink(env, 'settings') }]] },
   };
 }
 

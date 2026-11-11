@@ -1,22 +1,30 @@
-import { and, eq } from 'drizzle-orm';
+import { and, asc, eq } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { memberships, users, type UserRow } from '../db/schema';
 import { billDto, getBillByEvent } from '../domain/bills';
 import { communityByChat } from '../domain/members';
 import type { Env } from '../env';
 import type { EventView, PersonView, Rendered } from '../render/eventMessage';
-import type { OutNotice } from '../render/notices';
-import { personalMovement, personalPayment } from '../render/personal';
+import { scheduleChange, type OutNotice } from '../render/notices';
+import { matchCard, personalCancelled, personalMovement, personalPayment, personalSchedule, personalTeams, placeIn, signupOpen } from '../render/personal';
+import { getEvent } from '../domain/events';
+import { loadPublishedTeams } from './teamsPart';
 import { TgForbidden, TgMessageGone, TgRateLimited, TgRejected, type TgClient } from '../telegram/client';
 import { loadEventView } from './parts';
 
 export const REMINDER_GAP_MS = 24 * 3600_000;
+/** Столько получателей объявления обходит один прогон alarm; остальные — в следующем, со своим лимитом подзапросов. */
+export const ANNOUNCE_BATCH = 12;
+/** Кому писать о записи: сам человек или тот, кто пригласил гостя; без повторов. */
+const recipientIds = (people: PersonView[]) => [...new Set(people.map(p => p.tgId ?? p.guestOf?.tgId).filter((id): id is number => typeof id === 'number'))];
 interface DeliveryState { messageId: number; fingerprint: string; sentAt: number; }
 export interface DeliveryReport { at: number; sent: number; unavailable: number; skipped: number; failed: number; status: 'queued' | 'complete' | 'retrying'; }
 
 /** Per-event recipient state lives alongside the durable alarm queue, never in process memory. */
 export class PersonalDelivery {
   error: unknown = null;
+  /** Объявление разослано не всем: уведомление нужно вернуть в очередь без ошибки. */
+  more = false;
   private report: DeliveryReport = { at: Date.now(), sent: 0, unavailable: 0, skipped: 0, failed: 0, status: 'complete' };
   constructor(private db: Db, private env: Env, private tg: TgClient, private storage: DurableObjectStorage, private chatId: number) {}
 
@@ -96,8 +104,46 @@ export class PersonalDelivery {
     if (this.error !== null) throw this.error;
   }
 
+  /** Открыта запись: всем подписанным участникам группы, кроме создателя матча; порциями. */
+  private async announce(view: EventView): Promise<void> {
+    if (!signupOpen(view)) return;
+    const community = await communityByChat(this.db, this.chatId);
+    const event = await getEvent(this.db, view.id);
+    if (!community || !event) return;
+    const rows = await this.db.select({ tgId: users.tgId, userId: users.id }).from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(and(eq(memberships.communityId, community.id), eq(memberships.active, true), eq(users.notificationsEnabled, true), eq(users.pmAvailable, true)))
+      .orderBy(asc(users.id));
+    const done = new Set((await this.storage.get<number[]>('announce:done')) ?? []);
+    let budget = ANNOUNCE_BATCH;
+    for (const row of rows) {
+      if (row.userId === event.createdBy || done.has(row.tgId)) continue;
+      if (budget-- === 0) { this.more = true; break; }
+      const result = await this.deliver(row.tgId, `pm:announce:${row.tgId}`, matchCard(this.env, view, placeIn(view, row.tgId), 'Открыта запись'));
+      if (this.error instanceof TgRateLimited) break;
+      if (result === null) continue;
+      done.add(row.tgId);
+      await this.storage.put('announce:done', [...done]);
+    }
+  }
+
+  private async teams(eventId: number): Promise<void> {
+    const published = await loadPublishedTeams(this.db, eventId);
+    if (!published) return;
+    for (const tgId of recipientIds(published.teams.flatMap(t => t.players))) {
+      await this.deliver(tgId, `pm:teams:${tgId}`, personalTeams(this.env, published.view, published.teams, tgId));
+    }
+  }
+
   async notice(n: OutNotice, view: EventView): Promise<OutNotice> {
-    if (n.kind === 'cancelled') return n;
+    if (n.kind === 'cancelled') {
+      if (view.status === 'cancelled') for (const tgId of recipientIds([...view.main, ...view.reserve])) {
+        await this.deliver(tgId, `pm:cancelled:${tgId}`, personalCancelled(this.env, view));
+      }
+      return n;
+    }
+    if (n.kind === 'announced') { await this.announce(view); return n; }
+    if (n.kind === 'teams') { await this.teams(view.id); return n; }
     if (n.kind === 'moves') {
       if (view.status !== 'collecting' && view.status !== 'scheduled') return { ...n, promoted: [], demoted: [] };
       const route = async (people: PersonView[], promoted: boolean) => {
@@ -113,7 +159,16 @@ export class PersonalDelivery {
         }
         return fallback;
       };
-      return { ...n, promoted: await route(n.promoted, true), demoted: await route(n.demoted, false) };
+      const out = { ...n, promoted: await route(n.promoted, true), demoted: await route(n.demoted, false) };
+      const change = n.scheduled ? scheduleChange(view, n.previous) : null;
+      if (change) {
+        // Переход между основой и резервом уже рассказал о времени и поле.
+        const moved = new Set(recipientIds([...n.promoted, ...n.demoted]));
+        for (const tgId of recipientIds([...view.main, ...view.reserve])) {
+          if (!moved.has(tgId)) await this.deliver(tgId, `pm:schedule:${tgId}`, personalSchedule(this.env, view, change, placeIn(view, tgId)));
+        }
+      }
+      return out;
     }
     const progress = (await this.storage.get<Record<string, 'sent' | 'unavailable' | 'skipped' | 'failed'>>('reminderProgress')) ?? {};
     const oldReport = await this.storage.get<DeliveryReport>('deliveryReport');
