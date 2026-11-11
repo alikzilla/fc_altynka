@@ -8,10 +8,10 @@ const TEXT_LIMIT = 4096;
 const CAPTION_LIMIT = 1024;
 /** Telegram HTML: everything else must be escaped as &lt; &gt; &amp;. */
 const TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del', 'a', 'code', 'pre', 'blockquote', 'tg-spoiler']);
-const USAGE = 'Usage: node scripts/channel-post.mjs <file|-> [--apply] [--channel @name] [--photo <file|https url>] [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--edit <message_id> [--caption]]';
+const USAGE = 'Usage: node scripts/channel-post.mjs <file|-> [--apply] [--channel @name] [--photo <file|https url>] [--document <file>] [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--edit <message_id> [--caption]]';
 
 export function parseArgs(argv) {
-  const o = { source: null, apply: false, channel: null, photo: null, buttons: [], silent: false, preview: true, pin: false, edit: null, caption: false };
+  const o = { source: null, apply: false, channel: null, photo: null, document: null, buttons: [], silent: false, preview: true, pin: false, edit: null, caption: false };
   const flags = { '--apply': 'apply', '--silent': 'silent', '--pin': 'pin', '--caption': 'caption' };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -20,6 +20,7 @@ export function parseArgs(argv) {
     else if (arg === '--no-preview') o.preview = false;
     else if (arg === '--channel') o.channel = value();
     else if (arg === '--photo') o.photo = value();
+    else if (arg === '--document') o.document = value();
     else if (arg === '--edit') o.edit = value();
     else if (arg === '--button') {
       const raw = value();
@@ -33,7 +34,9 @@ export function parseArgs(argv) {
   if (o.source === null) throw new Error(USAGE);
   if (o.channel !== null && !/^(@[A-Za-z][A-Za-z0-9_]{3,31}|-100\d+)$/.test(o.channel)) throw new Error('--channel expects @username or a -100… chat id.');
   if (o.edit !== null && !/^[1-9]\d*$/.test(o.edit)) throw new Error('--edit expects a message id.');
-  if (o.edit !== null && (o.photo || o.pin || o.silent)) throw new Error('--edit changes text (or, with --caption, a photo caption) and buttons only.');
+  if (o.photo && o.document) throw new Error('Use either --photo or --document.');
+  if (o.document && /^https?:\/\//.test(o.document)) throw new Error('--document expects a local file.');
+  if (o.edit !== null && (o.photo || o.document || o.pin || o.silent)) throw new Error('--edit changes text (or, with --caption, a photo or file caption) and buttons only.');
   if (o.caption && o.edit === null) throw new Error('--caption is only used with --edit.');
   return o;
 }
@@ -79,13 +82,15 @@ async function stdinText() {
 /** Dry run needs no credentials and sends nothing. --apply publishes exactly what the dry run showed. */
 export async function runChannelPost({ argv = [], loadEnv = loadTelegramEnv, fetcher = fetch, log = console.log, readStdin = stdinText, readPhoto = readFile } = {}) {
   const o = parseArgs(argv);
-  const asCaption = o.edit !== null ? o.caption : !!o.photo;
+  const asCaption = o.edit !== null ? o.caption : !!(o.photo || o.document);
   const { text, length, limit } = validatePost(await readSource(o.source, readStdin), { caption: asCaption });
-  const localPhoto = o.photo && !/^https:\/\//.test(o.photo);
-  const photoBytes = localPhoto ? await Promise.resolve(readPhoto(o.photo)).catch(() => { throw new Error(`Cannot read ${o.photo}.`); }) : null;
-  const method = o.edit !== null ? (o.caption ? 'editMessageCaption' : 'editMessageText') : o.photo ? 'sendPhoto' : 'sendMessage';
+  // A document (a PDF, for example) is always a local file and goes out the same way as a local photo.
+  const attachment = o.document ?? o.photo;
+  const localPhoto = !!o.document || (o.photo && !/^https:\/\//.test(o.photo));
+  const photoBytes = localPhoto ? await Promise.resolve(readPhoto(attachment)).catch(() => { throw new Error(`Cannot read ${attachment}.`); }) : null;
+  const method = o.edit !== null ? (o.caption ? 'editMessageCaption' : 'editMessageText') : o.document ? 'sendDocument' : o.photo ? 'sendPhoto' : 'sendMessage';
   const markup = o.buttons.length ? { inline_keyboard: o.buttons.map(b => [b]) } : undefined;
-  const plan = { channel: o.channel ?? NEWS_CHANNEL, method, length, limit, ...(o.photo ? { photo: o.photo } : {}), ...(o.edit ? { message_id: Number(o.edit) } : {}), buttons: o.buttons, silent: o.silent, pin: o.pin, text };
+  const plan = { channel: o.channel ?? NEWS_CHANNEL, method, length, limit, ...(o.photo ? { photo: o.photo } : {}), ...(o.document ? { document: o.document, bytes: photoBytes.length } : {}), ...(o.edit ? { message_id: Number(o.edit) } : {}), buttons: o.buttons, silent: o.silent, pin: o.pin, text };
   if (!o.apply) {
     log(JSON.stringify({ mode: 'dry-run', ...plan }, null, 2));
     return { mode: 'dry-run', ...plan };
@@ -127,7 +132,7 @@ export async function runChannelPost({ argv = [], loadEnv = loadTelegramEnv, fet
     form.set('chat_id', chat); form.set('parse_mode', 'HTML'); form.set('caption', text);
     if (o.silent) form.set('disable_notification', 'true');
     if (markup) form.set('reply_markup', JSON.stringify(markup));
-    form.set('photo', new Blob([photoBytes]), basename(o.photo));
+    form.set(o.document ? 'document' : 'photo', new Blob([photoBytes], o.document?.toLowerCase().endsWith('.pdf') ? { type: 'application/pdf' } : {}), basename(attachment));
     message = await call(method, null, form);
   }
   const messageId = message?.message_id ?? Number(o.edit);

@@ -43,6 +43,21 @@ test('a local photo is uploaded as multipart with the post as its caption; --edi
   assert.equal(edited.link, 'https://t.me/fc_altynka_news/7');
 });
 
+test('a document goes out as sendDocument with the post as its caption', async () => {
+  const calls = [];
+  const fetcher = async (url, options) => { calls.push({ method: url.split('/').at(-1), body: options.body }); return Response.json({ ok: true, result: { message_id: 8 } }); };
+  const argv = ['-', '--document', 'docs/news.pdf', '--button', 'Открыть|https://t.me/fc_altynka_bot'];
+  const plan = await runChannelPost({ argv, log: () => {}, ...stdin(post), readPhoto: async () => Buffer.from('%PDF') });
+  assert.equal(plan.method, 'sendDocument');
+  assert.equal(plan.limit, 1024);
+  await runChannelPost({ argv: [...argv, '--apply'], log: () => {}, ...stdin(post), loadEnv: async () => ({ BOT_TOKEN: 'test-secret' }), fetcher, readPhoto: async () => Buffer.from('%PDF') });
+  assert.equal(calls[0].method, 'sendDocument');
+  assert.equal(calls[0].body.get('document').name, 'news.pdf');
+  assert.equal(calls[0].body.get('document').type, 'application/pdf');
+  assert.equal(calls[0].body.get('caption'), post);
+  assert.throws(() => parseArgs(['p.html', '--photo', 'a.png', '--document', 'b.pdf']), /either --photo or --document/);
+});
+
 test('broken drafts fail before anything is sent', async () => {
   assert.throws(() => validatePost('  '), /empty/);
   assert.throws(() => validatePost('<h1>Заголовок</h1>'), /does not support <h1>/);
