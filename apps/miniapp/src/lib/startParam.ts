@@ -10,6 +10,7 @@ export function routeForStartParam(p: string | undefined): string {
     case 'payments': return '/notifications';
     case 'settings': return '/profile';
     case 'newmatch': return '/new';
+    case 'availability': return '/profile/availability';
   }
   const m = p?.match(/^([egbtr])(\d+)$/);
   if (!m) return '/';

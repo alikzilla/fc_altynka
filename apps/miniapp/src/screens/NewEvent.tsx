@@ -30,7 +30,7 @@ function AvailabilitySummary({ communityId, date, onPick }: { communityId: numbe
       <p><b>Могут · {day.yes.length}</b>{day.yes.length ? `: ${names(day.yes)}` : ''}</p>
       <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
       <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
-    </div> : <p className="muted">Отметки игроков видны на ближайшие две недели.</p>}
+    </div> : <p className="muted">Отметки игроков видны на ближайшие 7 дней.</p>}
   </section>;
 }
 

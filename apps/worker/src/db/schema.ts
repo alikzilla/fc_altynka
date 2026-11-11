@@ -25,6 +25,8 @@ export const users = sqliteTable('users', {
   pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
   /** Последнее фото из Telegram initData; обновляется при входе в мини-апп. */
   photoUrl: text('photo_url'),
+  /** Понедельник, когда бот последний раз просил отметить дни на неделю. */
+  availabilityAskedOn: text('availability_asked_on'),
   createdAt: integer('created_at').notNull(),
 });
 

@@ -16,3 +16,6 @@ CREATE TABLE `availability_days` (
 	`updated_at` integer NOT NULL,
 	PRIMARY KEY (`user_id`, `date`)
 );
+--> statement-breakpoint
+-- Понедельник (дата по Алматы), когда бот последний раз просил отметить дни на неделю: одно напоминание в неделю.
+ALTER TABLE `users` ADD `availability_asked_on` text;

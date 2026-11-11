@@ -11,10 +11,10 @@ afterEach(teardownApiWorld);
 const put = (path: string, body: unknown, as = w.player) => apiRequest(path, { as, method: 'PUT', body });
 const weeklyWith = (weekday: number, mark: unknown) => Array.from({ length: 7 }, (_, i) => i === weekday ? mark : null);
 
-test('an empty calendar is 14 unknown days starting today', async () => {
+test('an empty calendar is 7 unknown days starting today', async () => {
   const dto = await (await apiRequest('/api/availability', { as: w.player })).json<AvailabilityDto>();
   expect(dto.weekly).toEqual([null, null, null, null, null, null, null]);
-  expect(dto.days).toHaveLength(14);
+  expect(dto.days).toHaveLength(7);
   expect(dto.days[0]).toEqual({ date: today, mark: null, override: false });
 });
 
@@ -23,12 +23,11 @@ test('the weekly pattern fills matching days; a date mark overrides it and can b
   const weekly = weeklyWith(weekdayOf(tomorrow), { status: 'yes', parts: ['evening', 'morning'] });
   let dto = await (await put('/api/availability/weekly', { weekly })).json<AvailabilityDto>();
   expect(dto.days[1]).toEqual({ date: tomorrow, mark: { status: 'yes', parts: ['morning', 'evening'] }, override: false });
-  expect(dto.days[8].mark?.status).toBe('yes');
   expect(dto.days[2].mark).toBeNull();
 
   dto = await (await put(`/api/availability/days/${tomorrow}`, { mark: { status: 'no', parts: ['day'] } })).json<AvailabilityDto>();
   expect(dto.days[1]).toEqual({ date: tomorrow, mark: { status: 'no', parts: [] }, override: true });
-  expect(dto.days[8].override).toBe(false);
+  expect(dto.days[2].override).toBe(false);
 
   dto = await (await put(`/api/availability/days/${tomorrow}`, { mark: null })).json<AvailabilityDto>();
   expect(dto.days[1]).toMatchObject({ mark: { status: 'yes' }, override: false });
@@ -39,7 +38,7 @@ test('the weekly pattern fills matching days; a date mark overrides it and can b
 
 test('invalid input is rejected', async () => {
   expect((await put(`/api/availability/days/${addDays(today, -1)}`, { mark: { status: 'yes' } })).status).toBe(400);
-  expect((await put(`/api/availability/days/${addDays(today, 14)}`, { mark: { status: 'yes' } })).status).toBe(400);
+  expect((await put(`/api/availability/days/${addDays(today, 7)}`, { mark: { status: 'yes' } })).status).toBe(400);
   expect((await put('/api/availability/days/soon', { mark: { status: 'yes' } })).status).toBe(400);
   expect((await put(`/api/availability/days/${today}`, { mark: { status: 'maybe' } })).status).toBe(400);
   expect((await put('/api/availability/weekly', { weekly: [null] })).status).toBe(400);
@@ -52,7 +51,7 @@ test('the organizer sees names per day; a player and an outsider do not', async 
   await put(`/api/availability/days/${tomorrow}`, { mark: { status: 'no' } }, w.org);
   const path = `/api/availability/summary?communityId=${w.communityId}`;
   const dto = await (await apiRequest(path, { as: w.org })).json<AvailabilitySummaryDto>();
-  expect(dto.days).toHaveLength(14);
+  expect(dto.days).toHaveLength(7);
   expect(dto.days[1]).toEqual({
     date: tomorrow,
     yes: [{ userId: w.playerUserId, name: 'Игрок', parts: ['evening'] }],

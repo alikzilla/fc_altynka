@@ -74,8 +74,8 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
     {error && !data && <ErrorNote text="Не получилось загрузить календарь" retry={reload} />}
     {!data && !error && <Skeleton><div className="availability-editor"><p><Sk w="100%" /> <Sk w="100%" /> <Sk w="60%" /></p></div></Skeleton>}
     {data && selectedDay && <>
-      <h3 className="section">Ближайшие две недели</h3>
-      <AvailabilityGrid label="Ближайшие две недели" selected={selectedDay.date} onSelect={setDate} cells={data.days.map(d => ({
+      <h3 className="section">Ближайшие 7 дней</h3>
+      <AvailabilityGrid label="Ближайшие 7 дней" selected={selectedDay.date} onSelect={setDate} cells={data.days.map(d => ({
         key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: d.mark?.status ?? null,
         label: `${formatDateRu(d.date)} — ${availabilityLabel(d.mark).toLowerCase()}`,
       }))} />

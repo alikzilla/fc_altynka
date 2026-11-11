@@ -20,8 +20,8 @@ test('a day is marked «не могу» at once and saved; «могу» offers p
   (api.get as Mock).mockResolvedValue(empty());
   (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ ...empty(), days: empty().days.map((d, i) => i === 1 ? { ...d, mark: body.mark, override: true } : d) }));
   renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
-  const grid = await screen.findByRole('group', { name: 'Ближайшие две недели' });
-  expect(within(grid).getAllByRole('button')).toHaveLength(14);
+  const grid = await screen.findByRole('group', { name: 'Ближайшие 7 дней' });
+  expect(within(grid).getAllByRole('button')).toHaveLength(7);
   await userEvent.click(within(grid).getByRole('button', { name: 'четверг, 12 ноября — не указано' }));
   const editor = screen.getByRole('region', { name: 'Четверг, 12 ноября' });
   expect(within(editor).getByRole('button', { name: 'Как обычно' })).toHaveAttribute('aria-pressed', 'true');
@@ -48,8 +48,8 @@ test('the weekly pattern is saved whole and fills days without their own mark', 
   weekly[5] = { status: 'yes', parts: [] };
   expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/weekly', { weekly });
   const saturdays = dates.filter(d => weekdayOf(d) === 5);
-  expect(saturdays).toHaveLength(2);
-  expect(await screen.findAllByRole('button', { name: /^суббота, \d+ ноября — могу$/ })).toHaveLength(2);
+  expect(saturdays).toHaveLength(1);
+  expect(await screen.findAllByRole('button', { name: /^суббота, \d+ ноября — могу$/ })).toHaveLength(1);
 });
 
 test('a failed save says so and reloads the calendar', async () => {

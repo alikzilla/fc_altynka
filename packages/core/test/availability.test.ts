@@ -8,8 +8,8 @@ test('weekday starts on Monday', () => {
 
 test('calendar dates cross month and year borders', () => {
   expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
-  expect(availabilityDates('2026-11-25')).toHaveLength(14);
-  expect(availabilityDates('2026-11-25').at(-1)).toBe('2026-12-08');
+  expect(availabilityDates('2026-11-28')).toHaveLength(7);
+  expect(availabilityDates('2026-11-28').at(-1)).toBe('2026-12-04');
 });
 
 test('a mark on the date beats the weekly pattern; nothing set stays unknown', () => {

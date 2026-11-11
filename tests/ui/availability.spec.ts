@@ -2,7 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
-const dates = Array.from({ length: 14 }, (_, i) => day(i));
+const dates = Array.from({ length: 7 }, (_, i) => day(i));
 const me = (role: 'player' | 'organizer') => ({ userId: 2, displayName: 'Тимур', kaspiPhone: null, profileCompleted: true, theme: 'dark', communities: [{ id: 1, title: 'FC Altynka', role }] });
 
 async function mock(page: Page, role: 'player' | 'organizer') {
@@ -39,8 +39,8 @@ for (const width of [280, 390]) test(`availability sheet over the profile: mark 
   await page.goto('/profile/availability');
   const sheet = page.getByRole('dialog', { name: 'Когда могу играть' });
   await expect(sheet).toBeVisible();
-  const grid = sheet.getByRole('group', { name: 'Ближайшие две недели' });
-  await expect(grid.getByRole('button')).toHaveCount(14);
+  const grid = sheet.getByRole('group', { name: 'Ближайшие 7 дней' });
+  await expect(grid.getByRole('button')).toHaveCount(7);
   await expect(grid.getByRole('button', { name: /— не могу$/ })).toHaveCount(1);
   for (const cell of await grid.getByRole('button').all()) expect((await cell.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await grid.getByRole('button').nth(1).click();
@@ -70,7 +70,7 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   await mock(page, 'organizer');
   await page.goto('/new');
   const summary = page.getByRole('region', { name: 'Кто может играть' });
-  await expect(summary.getByRole('button')).toHaveCount(14);
+  await expect(summary.getByRole('button')).toHaveCount(7);
   await summary.getByRole('button', { name: /— могут 9$/ }).click();
   await expect(page.getByLabel('Дата')).toHaveValue(dates[3]);
   await expect(summary.getByText(/Тимур \(вечер\), Ерлан/)).toBeVisible();

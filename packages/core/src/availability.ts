@@ -9,8 +9,8 @@ export type AvailabilityStatus = 'yes' | 'no';
 /** Отметка на день; её отсутствие (null) значит «не указано». */
 export interface AvailabilityMark { status: AvailabilityStatus; parts: DayPart[] }
 
-/** На сколько дней вперёд, считая сегодня, показывается календарь. */
-export const AVAILABILITY_DAYS = 14;
+/** На сколько дней вперёд, считая сегодня, показывается календарь: дальше недели планы мало кто знает. */
+export const AVAILABILITY_DAYS = 7;
 /** Понедельник первый, как в календаре. */
 export const WEEKDAY_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
 export const WEEKDAY_LONG = ['Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота', 'Воскресенье'] as const;
