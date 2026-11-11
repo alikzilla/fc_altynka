@@ -1,5 +1,5 @@
 import { formatKzPhone, normalizeKzPhone, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Icon } from '../components/Icon';
 import { api, ApiError } from '../lib/api';
@@ -14,6 +14,8 @@ import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
 import { isSettingsSection, ProfileSettingsSheet } from './ProfileSettings';
 
+const AvailabilitySheet = lazy(() => import('./Availability').then(m => ({ default: m.AvailabilitySheet })));
+
 /** Only the role: group names can be long. With several groups, the highest role. */
 function roleLine(me: MeDto) {
   if (!me.communities.length) return 'player';
@@ -21,7 +23,7 @@ function roleLine(me: MeDto) {
   return me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role);
 }
 
-export function Profile({ settings }: { settings?: string }) {
+export function Profile({ settings, availability }: { settings?: string; availability?: boolean }) {
   const me = useMe();
   const [, navigate] = useLocation();
   const sportingProfile = useResource<PlayerProfileDto>(`/api/players/${me.userId}`);
@@ -96,9 +98,11 @@ export function Profile({ settings }: { settings?: string }) {
       <nav className="profile-management" aria-labelledby="profile-editing">
         <Link className="card task-preview material-graphite" href="/profile/settings/name"><span className="task-icon"><Icon name="user" /></span><span className="task-copy"><b>Изменить имя</b><small>{me.displayName}</small></span><Icon name="back" className="chevron-right" /></Link>
         <Link className="card task-preview material-graphite" href="/profile/settings/payment"><span className="task-icon"><Icon name="receipt" /></span><span className="task-copy"><b>Изменить оплату</b><small>Номер Kaspi для переводов</small></span><Icon name="back" className="chevron-right" /></Link>
+        <Link className="card task-preview material-graphite" href="/profile/availability"><span className="task-icon"><Icon name="calendar" /></span><span className="task-copy"><b>Когда могу играть</b><small>Дни для сбора на матч и уведомлений</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <SystemSettings />
       {isSettingsSection(settings) && <ProfileSettingsSheet section={settings} onClose={() => navigate('/profile', { replace: true })} />}
+      {availability && <Suspense fallback={null}><AvailabilitySheet onClose={() => navigate('/profile', { replace: true })} /></Suspense>}
       <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Игроки'}</h2>
       <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
     </Screen>

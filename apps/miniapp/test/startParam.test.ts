@@ -19,7 +19,7 @@ test('team section links preserve explicit team context', () => {
 });
 
 test.each([
-  ['matches', '/matches'], ['payments', '/notifications'], ['settings', '/profile'], ['newmatch', '/new'],
+  ['matches', '/matches'], ['payments', '/notifications'], ['settings', '/profile'], ['newmatch', '/new'], ['availability', '/profile/availability'],
   ['t12', '/event/12?tab=teams'],
   ['r12', '/event/12/review'],
 ])('bot link %s opens %s', (param, route) => {

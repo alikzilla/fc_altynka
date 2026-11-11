@@ -4,6 +4,7 @@
 @import './player-statistics.css';
 @import './achievements.css';
 @import './skeletons.css';
+@import './availability.css';
 
 :root {
   color-scheme: dark;

@@ -6,8 +6,9 @@ import { communityByChat } from '../domain/members';
 import type { Env } from '../env';
 import type { EventView, PersonView, Rendered } from '../render/eventMessage';
 import { scheduleChange, type OutNotice } from '../render/notices';
-import { matchCard, personalCancelled, personalMovement, personalPayment, personalSchedule, personalTeams, placeIn, signupOpen } from '../render/personal';
+import { AVAILABLE_NOTE, matchCard, personalCancelled, personalMovement, personalPayment, personalSchedule, personalTeams, placeIn, signupOpen } from '../render/personal';
 import { getEvent } from '../domain/events';
+import { availabilityOn } from '../domain/availability';
 import { loadPublishedTeams } from './teamsPart';
 import { TgForbidden, TgMessageGone, TgRateLimited, TgRejected, type TgClient } from '../telegram/client';
 import { loadEventView } from './parts';
@@ -104,7 +105,10 @@ export class PersonalDelivery {
     if (this.error !== null) throw this.error;
   }
 
-  /** Открыта запись: всем подписанным участникам группы, кроме создателя матча; порциями. */
+  /**
+   * Открыта запись: всем подписанным участникам группы, кроме создателя матча; порциями.
+   * Кто отметил в календаре «не могу» на этот день, сообщения не получает; пустой календарь ничего не меняет.
+   */
   private async announce(view: EventView): Promise<void> {
     if (!signupOpen(view)) return;
     const community = await communityByChat(this.db, this.chatId);
@@ -114,12 +118,13 @@ export class PersonalDelivery {
       .innerJoin(users, eq(users.id, memberships.userId))
       .where(and(eq(memberships.communityId, community.id), eq(memberships.active, true), eq(users.notificationsEnabled, true), eq(users.pmAvailable, true)))
       .orderBy(asc(users.id));
+    const { away, free } = await availabilityOn(this.db, community.id, view.date);
     const done = new Set((await this.storage.get<number[]>('announce:done')) ?? []);
     let budget = ANNOUNCE_BATCH;
     for (const row of rows) {
-      if (row.userId === event.createdBy || done.has(row.tgId)) continue;
+      if (row.userId === event.createdBy || done.has(row.tgId) || away.has(row.userId)) continue;
       if (budget-- === 0) { this.more = true; break; }
-      const result = await this.deliver(row.tgId, `pm:announce:${row.tgId}`, matchCard(this.env, view, placeIn(view, row.tgId), 'Открыта запись'));
+      const result = await this.deliver(row.tgId, `pm:announce:${row.tgId}`, matchCard(this.env, view, placeIn(view, row.tgId), 'Открыта запись', free.has(row.userId) ? AVAILABLE_NOTE : undefined));
       if (this.error instanceof TgRateLimited) break;
       if (result === null) continue;
       done.add(row.tgId);

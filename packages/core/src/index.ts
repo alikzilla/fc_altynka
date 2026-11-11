@@ -10,3 +10,4 @@ export * from './games';
 export * from './playerStatistics';
 export * from './achievements';
 export * from './feed';
+export * from './availability';

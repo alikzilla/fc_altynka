@@ -89,11 +89,23 @@ export function signupButton(view: EventView, place: MyPlace | null, origin: 'h'
   return { text: `${place ? 'Не иду' : 'Иду'}${label}`, callback_data: `m${place ? 'l' : 'j'}:${view.id}:${origin}` };
 }
 
+/** Строка в объявлении о матче для того, кто отметил этот день в календаре доступности. */
+export const AVAILABLE_NOTE = 'В твоём календаре этот день отмечен свободным.';
+
+/** Понедельничное напоминание: отметить дни на неделю. Не привязано к матчу и группе. */
+export function availabilityReminder(env: LinkEnv): Rendered {
+  return {
+    html: ['<b>Когда сможешь играть на этой неделе?</b>',
+      'Отметь дни в календаре. Организатор увидит, кто может, и выберет день для игры, а в занятые дни бот не напишет о новом матче.'].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Отметить дни', url: miniAppLink(env, 'availability') }]] },
+  };
+}
+
 /** Карточка матча в личном чате: записаться можно прямо из сообщения. */
-export function matchCard(env: LinkEnv, view: EventView, place: MyPlace | null, title = 'Футбол'): Rendered {
+export function matchCard(env: LinkEnv, view: EventView, place: MyPlace | null, title = 'Футбол', note?: string): Rendered {
   const open = { text: 'Открыть матч', url: miniAppLink(env, `e${view.id}`) };
   return {
-    html: [...teamTitle(view), `<b>${title} · ${formatDateRu(view.date)}</b>`, ...matchSummary(view, place)].join('\n'),
+    html: [...teamTitle(view), `<b>${title} · ${formatDateRu(view.date)}</b>`, ...matchSummary(view, place), ...(note ? ['', note] : [])].join('\n'),
     keyboard: { inline_keyboard: signupOpen(view) ? [[signupButton(view, place, 'c'), open]] : [[open]] },
   };
 }

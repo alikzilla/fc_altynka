@@ -7,6 +7,8 @@ import { getDb } from './db/client';
 import type { Env } from './env';
 import { doSyncPort } from './sync/port';
 import { recoverPendingGameReviews } from './domain/gameRecovery';
+import { sendAvailabilityReminders } from './domain/availabilityReminder';
+import { makeTgClient } from './telegram/client';
 
 export { EventSync } from './sync/EventSync';
 
@@ -32,5 +34,8 @@ export default {
   async scheduled(_controller,env) {
     const result=await recoverPendingGameReviews({db:getDb(env.DB),now:Date.now(),sync:doSyncPort(env)});
     if(result.failed)console.error(JSON.stringify({event:'game_review_recovery',...result}));
+    // Отдельно от восстановления оценок: сбой одного не останавливает другое.
+    try { await sendAvailabilityReminders({ db: getDb(env.DB), now: Date.now(), tg: makeTgClient(env), env }); }
+    catch (e) { console.error(JSON.stringify({ event: 'availability_reminder', error: String(e) })); }
   },
 } satisfies ExportedHandler<Env>;
