@@ -51,13 +51,14 @@ Example:
 ## Command reference
 
 ```bash
-pnpm channel:post <file|-> [--apply] [--photo <file|https url>] [--document <file>] [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--channel @name]
+pnpm channel:post <file|-> [--apply] [--photo <file|https url>] [--document <file>] [--album <image>]… [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--channel @name]
 pnpm channel:post <file> --edit <message_id> [--caption] [--apply]
 ```
 
 - Without `--apply` the command only validates and prints the plan.
 - `--photo` turns the text into a photo caption, limited to 1024 characters instead of 4096.
 - `--document` attaches a local file, for example a PDF with screens of the changes; the text becomes its caption with the same 1024-character limit. It cannot be combined with `--photo`.
+- `--album` (repeat it for 2 to 10 local images) publishes the pictures as one album with the text as the caption of the first one, limited to 1024 characters. Telegram allows no buttons under an album, so put the link into the text as `<a href>`.
 - `--button` may be repeated; each button takes its own row. Useful targets: the mini app `https://t.me/fc_altynka_bot/fc_altynka_app`, the bot `https://t.me/fc_altynka_bot`.
 - `--silent` publishes without a notification sound; use it for minor notes and late hours (Almaty time).
 - `--edit <message_id>` rewrites a published post (`--caption` if it is a photo post). The id is the last number in the post link. Use it to fix typos instead of posting again.

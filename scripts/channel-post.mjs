@@ -8,10 +8,10 @@ const TEXT_LIMIT = 4096;
 const CAPTION_LIMIT = 1024;
 /** Telegram HTML: everything else must be escaped as &lt; &gt; &amp;. */
 const TAGS = new Set(['b', 'strong', 'i', 'em', 'u', 'ins', 's', 'strike', 'del', 'a', 'code', 'pre', 'blockquote', 'tg-spoiler']);
-const USAGE = 'Usage: node scripts/channel-post.mjs <file|-> [--apply] [--channel @name] [--photo <file|https url>] [--document <file>] [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--edit <message_id> [--caption]]';
+const USAGE = 'Usage: node scripts/channel-post.mjs <file|-> [--apply] [--channel @name] [--photo <file|https url>] [--document <file>] [--album <image>]… [--button "Текст|https://…"]… [--silent] [--no-preview] [--pin] [--edit <message_id> [--caption]]';
 
 export function parseArgs(argv) {
-  const o = { source: null, apply: false, channel: null, photo: null, document: null, buttons: [], silent: false, preview: true, pin: false, edit: null, caption: false };
+  const o = { source: null, apply: false, channel: null, photo: null, document: null, album: [], buttons: [], silent: false, preview: true, pin: false, edit: null, caption: false };
   const flags = { '--apply': 'apply', '--silent': 'silent', '--pin': 'pin', '--caption': 'caption' };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
@@ -21,6 +21,7 @@ export function parseArgs(argv) {
     else if (arg === '--channel') o.channel = value();
     else if (arg === '--photo') o.photo = value();
     else if (arg === '--document') o.document = value();
+    else if (arg === '--album') o.album.push(value());
     else if (arg === '--edit') o.edit = value();
     else if (arg === '--button') {
       const raw = value();
@@ -35,8 +36,12 @@ export function parseArgs(argv) {
   if (o.channel !== null && !/^(@[A-Za-z][A-Za-z0-9_]{3,31}|-100\d+)$/.test(o.channel)) throw new Error('--channel expects @username or a -100… chat id.');
   if (o.edit !== null && !/^[1-9]\d*$/.test(o.edit)) throw new Error('--edit expects a message id.');
   if (o.photo && o.document) throw new Error('Use either --photo or --document.');
+  if (o.album.length && (o.photo || o.document)) throw new Error('--album cannot be combined with --photo or --document.');
+  if (o.album.length === 1 || o.album.length > 10) throw new Error('--album needs 2 to 10 images; use --photo for one.');
+  if (o.album.some(f => /^https?:\/\//.test(f))) throw new Error('--album expects local files.');
+  if (o.album.length && o.buttons.length) throw new Error('Telegram does not allow buttons under an album; put the link into the text.');
   if (o.document && /^https?:\/\//.test(o.document)) throw new Error('--document expects a local file.');
-  if (o.edit !== null && (o.photo || o.document || o.pin || o.silent)) throw new Error('--edit changes text (or, with --caption, a photo or file caption) and buttons only.');
+  if (o.edit !== null && (o.photo || o.document || o.album.length || o.pin || o.silent)) throw new Error('--edit changes text (or, with --caption, a photo or file caption) and buttons only.');
   if (o.caption && o.edit === null) throw new Error('--caption is only used with --edit.');
   return o;
 }
@@ -82,15 +87,17 @@ async function stdinText() {
 /** Dry run needs no credentials and sends nothing. --apply publishes exactly what the dry run showed. */
 export async function runChannelPost({ argv = [], loadEnv = loadTelegramEnv, fetcher = fetch, log = console.log, readStdin = stdinText, readPhoto = readFile } = {}) {
   const o = parseArgs(argv);
-  const asCaption = o.edit !== null ? o.caption : !!(o.photo || o.document);
+  const asCaption = o.edit !== null ? o.caption : !!(o.photo || o.document || o.album.length);
   const { text, length, limit } = validatePost(await readSource(o.source, readStdin), { caption: asCaption });
   // A document (a PDF, for example) is always a local file and goes out the same way as a local photo.
   const attachment = o.document ?? o.photo;
   const localPhoto = !!o.document || (o.photo && !/^https:\/\//.test(o.photo));
   const photoBytes = localPhoto ? await Promise.resolve(readPhoto(attachment)).catch(() => { throw new Error(`Cannot read ${attachment}.`); }) : null;
-  const method = o.edit !== null ? (o.caption ? 'editMessageCaption' : 'editMessageText') : o.document ? 'sendDocument' : o.photo ? 'sendPhoto' : 'sendMessage';
+  const albumBytes = [];
+  for (const file of o.album) albumBytes.push(await Promise.resolve(readPhoto(file)).catch(() => { throw new Error(`Cannot read ${file}.`); }));
+  const method = o.edit !== null ? (o.caption ? 'editMessageCaption' : 'editMessageText') : o.album.length ? 'sendMediaGroup' : o.document ? 'sendDocument' : o.photo ? 'sendPhoto' : 'sendMessage';
   const markup = o.buttons.length ? { inline_keyboard: o.buttons.map(b => [b]) } : undefined;
-  const plan = { channel: o.channel ?? NEWS_CHANNEL, method, length, limit, ...(o.photo ? { photo: o.photo } : {}), ...(o.document ? { document: o.document, bytes: photoBytes.length } : {}), ...(o.edit ? { message_id: Number(o.edit) } : {}), buttons: o.buttons, silent: o.silent, pin: o.pin, text };
+  const plan = { channel: o.channel ?? NEWS_CHANNEL, method, length, limit, ...(o.photo ? { photo: o.photo } : {}), ...(o.document ? { document: o.document, bytes: photoBytes.length } : {}), ...(o.album.length ? { album: o.album } : {}), ...(o.edit ? { message_id: Number(o.edit) } : {}), buttons: o.buttons, silent: o.silent, pin: o.pin, text };
   if (!o.apply) {
     log(JSON.stringify({ mode: 'dry-run', ...plan }, null, 2));
     return { mode: 'dry-run', ...plan };
@@ -126,6 +133,15 @@ export async function runChannelPost({ argv = [], loadEnv = loadTelegramEnv, fet
   if (method === 'editMessageText') message = await call(method, { ...common, message_id: Number(o.edit), text, link_preview_options: { is_disabled: !o.preview } });
   else if (method === 'editMessageCaption') message = await call(method, { ...common, message_id: Number(o.edit), caption: text });
   else if (method === 'sendMessage') message = await call(method, { ...common, text, link_preview_options: { is_disabled: !o.preview }, disable_notification: o.silent });
+  else if (method === 'sendMediaGroup') {
+    // The caption sits on the first image, so the album reads as one post.
+    const form = new FormData();
+    form.set('chat_id', chat);
+    if (o.silent) form.set('disable_notification', 'true');
+    form.set('media', JSON.stringify(o.album.map((_file, i) => ({ type: 'photo', media: `attach://p${i}`, ...(i === 0 ? { caption: text, parse_mode: 'HTML' } : {}) }))));
+    o.album.forEach((file, i) => form.set(`p${i}`, new Blob([albumBytes[i]]), basename(file)));
+    [message] = await call(method, null, form);
+  }
   else if (!localPhoto) message = await call(method, { ...common, photo: o.photo, caption: text, disable_notification: o.silent });
   else {
     const form = new FormData();

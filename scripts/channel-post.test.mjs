@@ -58,6 +58,21 @@ test('a document goes out as sendDocument with the post as its caption', async (
   assert.throws(() => parseArgs(['p.html', '--photo', 'a.png', '--document', 'b.pdf']), /either --photo or --document/);
 });
 
+test('an album goes out as one media group with the caption on the first image', async () => {
+  const calls = [];
+  const fetcher = async (url, options) => { calls.push({ method: url.split('/').at(-1), body: options.body }); return Response.json({ ok: true, result: [{ message_id: 9 }, { message_id: 10 }] }); };
+  const argv = ['-', '--album', 'a/1.jpg', '--album', 'a/2.jpg', '--pin', '--apply'];
+  const result = await runChannelPost({ argv, log: () => {}, ...stdin(post), loadEnv: async () => ({ BOT_TOKEN: 'test-secret' }), fetcher, readPhoto: async () => Buffer.from('jpg') });
+  assert.equal(calls[0].method, 'sendMediaGroup');
+  const media = JSON.parse(calls[0].body.get('media'));
+  assert.deepEqual(media, [{ type: 'photo', media: 'attach://p0', caption: post, parse_mode: 'HTML' }, { type: 'photo', media: 'attach://p1' }]);
+  assert.equal(calls[0].body.get('p1').name, '2.jpg');
+  assert.equal(JSON.parse(calls[1].body).message_id, 9);
+  assert.equal(result.link, 'https://t.me/fc_altynka_news/9');
+  assert.throws(() => parseArgs(['p.html', '--album', 'a.jpg']), /2 to 10 images/);
+  assert.throws(() => parseArgs(['p.html', '--album', 'a.jpg', '--album', 'b.jpg', '--button', 'x|https://t.me/x']), /buttons under an album/);
+});
+
 test('broken drafts fail before anything is sent', async () => {
   assert.throws(() => validatePost('  '), /empty/);
   assert.throws(() => validatePost('<h1>Заголовок</h1>'), /does not support <h1>/);
