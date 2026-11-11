@@ -16,3 +16,10 @@ test('account writes and finished matches refresh everything', () => {
   }
   expect(shouldRefresh(undefined, '/api/me')).toBe(true);
 });
+
+test('an admin marking an injury refreshes cached player profiles and lists', () => {
+  const write = '/api/members/12?communityId=1';
+  expect(shouldRefresh(write, '/api/players/12')).toBe(true);
+  expect(shouldRefresh(write, '/api/players')).toBe(true);
+  expect(shouldRefresh(write, '/api/events/7')).toBe(true);
+});

@@ -8,7 +8,7 @@ import { PlayerProfileSkeleton } from '../components/skeletons';
 import { useResource } from '../hooks/useResource';
 
 export function PlayerProfileSheet({ userId, onClose }: { userId: number; onClose: () => void }) {
-  const { data, error, loading, reload } = useResource<PlayerProfileDto>(`/api/players/${userId}`);
+  const { data, error, loading, reload } = useResource<PlayerProfileDto>(`/api/players/${userId}`, { alwaysRefresh: true });
   const reveal = useReveal(loading && !data);
   return <ActionSheet title="Профиль игрока" onClose={onClose}>
     {loading && !data && <PlayerProfileSkeleton />}

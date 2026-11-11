@@ -53,3 +53,22 @@ for (const theme of ['dark', 'light']) test(`injured player carries the red cros
   await expect(card.getByTestId('injury-badge')).toBeVisible();
   await page.screenshot({ path: `artifacts/ui/injury-profile-${theme}.png` });
 });
+
+for (const photo of [false, true]) test(`own profile shows the red cross when the admin marked me injured (${photo ? 'photo' : 'initials'})`, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
+  await page.route('https://t.me/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10" fill="#6a8"/></svg>' }));
+  await page.route('**/api/**', route => {
+    const path = new URL(route.request().url()).pathname;
+    const me = { userId: 2, displayName: 'Арман Пак', kaspiPhone: null, profileCompleted: true, theme: 'dark', rating: { ...rating, selfAssessment: { teamwork: 5, dribbling: 5, technique: 5, shooting: 5, stamina: 5, physical: 5, passing: 5, defending: 5 } }, communities: [{ ...community, role: 'player' }], telegram: { firstName: 'Арман', lastName: 'Пак', username: null, photoUrl: photo ? 'https://t.me/i/userpic/arman.svg' : null } };
+    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/players/2' ? profile(2) : {} });
+  });
+  await page.goto('/profile');
+  const card = page.getByRole('region', { name: 'Профиль игрока' });
+  await expect(card.getByTestId('injury-badge')).toBeVisible();
+  if (photo) await expect(card.locator('.avatar img')).toBeVisible();
+  const [avatar, cross] = await Promise.all([card.locator('.avatar').boundingBox(), card.getByTestId('injury-badge').boundingBox()]);
+  expect(cross!.x).toBeLessThan(avatar!.x);
+  expect(cross!.y).toBeLessThan(avatar!.y);
+  await page.screenshot({ path: `artifacts/ui/injury-own-profile-${photo ? 'photo' : 'initials'}.png` });
+});

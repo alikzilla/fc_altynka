@@ -64,6 +64,18 @@ test('only the admin marks an injury; it shows in members, players, the profile 
   expect(after.main.some(s => s.injured)).toBe(false);
 });
 
+test('a regular player sees the injury the admin set when opening that player\'s profile', async () => {
+  const mark = await apiRequest(`/api/members/${w.orgUserId}?communityId=${w.communityId}`, { method: 'PATCH', as: w.admin, body: { injured: true } });
+  expect(mark.status).toBe(200);
+  // Another ordinary member of the group, not the admin and not the injured player.
+  const viewer = (await (await apiRequest(`/api/players/${w.orgUserId}`, { as: w.player })).json()) as PlayerProfileDto;
+  expect(viewer).toMatchObject({ userId: w.orgUserId, injured: true });
+  const own = (await (await apiRequest(`/api/players/${w.orgUserId}`, { as: w.org })).json()) as PlayerProfileDto;
+  expect(own.injured).toBe(true);
+  const healthy = (await (await apiRequest(`/api/players/${w.playerUserId}`, { as: w.org })).json()) as PlayerProfileDto;
+  expect(healthy.injured).toBe(false);
+});
+
 test('a display name taken by someone else is refused', async () => {
   const mine = await apiRequest('/api/me', { method: 'PATCH', as: w.player, body: { displayName: ' орг ' } });
   expect(mine.status).toBe(409);
