@@ -10,6 +10,7 @@ import { Profile } from './screens/Profile';
 import { Matches } from './screens/Matches';
 import { Notifications } from './screens/Notifications';
 import { SkillsPrompt } from './components/SkillsPrompt';
+import { AvailabilityPrompt } from './components/AvailabilityPrompt';
 
 // Rarely visited screens load on demand; the first paint carries Home, Matches, the match page and Profile.
 const NewEvent = lazy(() => import('./screens/NewEvent').then(m => ({ default: m.NewEvent })));
@@ -101,6 +102,7 @@ function TeamApp() {
               </ScreenSearchContext.Provider>
               <Nav />
               <SkillsPrompt />
+              <AvailabilityPrompt />
               <Suspense fallback={null}>
                 {path === '/new' && (
                   <NewEvent onClose={() => navigate(background.current, { replace: true })} />

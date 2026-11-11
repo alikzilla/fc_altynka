@@ -1,9 +1,15 @@
-import { addDays, availabilityDates, availabilityLabel, emptyWeekly, normalizeMark, resolveAvailability, weekdayOf } from '../src/availability';
+import { weekStart, addDays, availabilityDates, availabilityLabel, emptyWeekly, normalizeMark, resolveAvailability, weekdayOf } from '../src/availability';
 
 test('weekday starts on Monday', () => {
   expect(weekdayOf('2026-11-09')).toBe(0);
   expect(weekdayOf('2026-11-11')).toBe(2);
   expect(weekdayOf('2026-11-15')).toBe(6);
+});
+
+test('the week starts on its Monday', () => {
+  expect(weekStart('2026-11-09')).toBe('2026-11-09');
+  expect(weekStart('2026-11-15')).toBe('2026-11-09');
+  expect(weekStart('2026-12-02')).toBe('2026-11-30');
 });
 
 test('calendar dates cross month and year borders', () => {

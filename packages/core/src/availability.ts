@@ -27,6 +27,11 @@ export function addDays(date: string, days: number): string {
   return new Date(Date.parse(`${date}T12:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 }
 
+/** Понедельник недели, в которую попадает дата. */
+export function weekStart(date: string): string {
+  return addDays(date, -weekdayOf(date));
+}
+
 /** Даты календаря: сегодня и следующие дни. */
 export function availabilityDates(today: string, count = AVAILABILITY_DAYS): string[] {
   return Array.from({ length: count }, (_, i) => addDays(today, i));

@@ -79,3 +79,19 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.screenshot({ path: `artifacts/ui/availability-new-match-${width}.png` });
 });
+
+test('Home reminds to mark the week once and opens the calendar sheet over the profile', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mock(page, 'player');
+  await page.goto('/');
+  const prompt = page.getByRole('dialog', { name: 'Когда сможешь играть?' });
+  await expect(prompt).toBeVisible();
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  await page.screenshot({ path: 'artifacts/ui/availability-prompt-390.png' });
+  await prompt.getByRole('button', { name: 'Отметить дни' }).click();
+  await expect(page).toHaveURL('/profile/availability');
+  await expect(page.getByRole('dialog', { name: 'Когда могу играть' })).toBeVisible();
+  await page.goto('/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+  await expect(prompt).toHaveCount(0);
+});
