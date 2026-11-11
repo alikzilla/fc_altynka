@@ -12,11 +12,20 @@ import { haptic } from '../lib/tg';
 
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Три состояния дня и, для «могу», окна времени. */
-function MarkEditor({ title, mark, onChange }: { title: string; mark: AvailabilityMark | null; onChange: (mark: AvailabilityMark | null) => void }) {
-  const status = mark?.status ?? null;
-  const pick = (next: AvailabilityStatus | null) => { if (next !== status) onChange(next && { status: next, parts: [] }); };
-  const toggle = (part: DayPart) => onChange(normalizeMark({ status: 'yes', parts: mark!.parts.includes(part) ? mark!.parts.filter(p => p !== part) : [...mark!.parts, part] }));
+/**
+ * Три состояния дня. «Могу» сохраняется только вместе со временем: `choosing` — «Могу» нажато,
+ * но окно ещё не выбрано, и на сервере день остаётся неотмеченным.
+ */
+function MarkEditor({ title, mark, choosing, onChange, onChoose }: { title: string; mark: AvailabilityMark | null; choosing: boolean; onChange: (mark: AvailabilityMark | null) => void; onChoose: () => void }) {
+  const status: AvailabilityStatus | null = choosing ? 'yes' : mark?.status ?? null;
+  const parts = !choosing && mark?.status === 'yes' ? mark.parts : [];
+  const whole = parts.length === DAY_PARTS.length;
+  const setParts = (next: DayPart[]) => next.length ? onChange(normalizeMark({ status: 'yes', parts: next })) : onChoose();
+  const pick = (next: AvailabilityStatus | null) => {
+    if (next === status) return;
+    if (next === 'yes') onChoose();
+    else onChange(next && { status: next, parts: [] });
+  };
   return <section className="availability-editor" aria-label={title}>
     <h4>{title}</h4>
     <div className="chips" role="group" aria-label="Смогу ли играть">
@@ -25,10 +34,12 @@ function MarkEditor({ title, mark, onChange }: { title: string; mark: Availabili
       <button type="button" className={`chip-btn${status === 'no' ? ' on' : ''}`} aria-pressed={status === 'no'} onClick={() => pick('no')}>Не могу</button>
     </div>
     {status === 'yes' && <>
-      <p className="muted">Во сколько удобно · необязательно</p>
-      <div className="chips availability-times" role="group" aria-label="Удобное время">
-        {DAY_PARTS.map(part => <button type="button" key={part} className={`chip-btn${mark!.parts.includes(part) ? ' on' : ''}`} aria-pressed={mark!.parts.includes(part)} onClick={() => toggle(part)}>{DAY_PART_LABEL[part]}</button>)}
+      <p className="muted">Во сколько можешь</p>
+      <div className="chips availability-times" role="group" aria-label="Время">
+        {DAY_PARTS.map(part => <button type="button" key={part} className={`chip-btn${parts.includes(part) ? ' on' : ''}`} aria-pressed={parts.includes(part)} onClick={() => setParts(parts.includes(part) ? parts.filter(p => p !== part) : [...parts, part])}>{DAY_PART_LABEL[part]}</button>)}
+        <button type="button" className={`chip-btn availability-whole${whole ? ' on' : ''}`} aria-pressed={whole} onClick={() => setParts(whole ? [] : [...DAY_PARTS])}>Весь день</button>
       </div>
+      <p className="muted" role="status">{choosing ? 'Выбери время, и отметка сохранится.' : ''}</p>
     </>}
   </section>;
 }
@@ -38,6 +49,8 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
   const { data, error, reload, replace } = useResource<AvailabilityDto>('/api/availability');
   const toast = useToast();
   const [date, setDate] = useState<string | null>(null);
+  /** День, где нажато «Могу», а время ещё не выбрано. */
+  const [choosing, setChoosing] = useState<string | null>(null);
   const latest = useRef(0);
 
   /** Показываем выбор сразу; ответ сервера принимаем только от последнего сохранения. */
@@ -65,7 +78,17 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
         key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: d.mark?.status ?? null,
         label: `${formatDateRu(d.date)} — ${availabilityLabel(d.mark).toLowerCase()}`,
       }))} />
-      <MarkEditor title={capital(formatDateRu(selectedDay.date))} mark={selectedDay.mark} onChange={mark => void saveDay(data, selectedDay.date, mark)} />
+      <MarkEditor title={capital(formatDateRu(selectedDay.date))} mark={selectedDay.mark} choosing={choosing === selectedDay.date && selectedDay.mark?.status !== 'yes'}
+        onChange={mark => {
+          // Выбранное время само снимает ожидание; кнопки времени при этом остаются на месте.
+          if (mark?.status !== 'yes') setChoosing(null);
+          void saveDay(data, selectedDay.date, mark);
+        }}
+        onChoose={() => {
+          // Прежняя отметка снимается сразу: пока время не выбрано, день не отмечен.
+          if (selectedDay.mark) void saveDay(data, selectedDay.date, null);
+          setChoosing(selectedDay.date);
+        }} />
     </>}
   </ActionSheet>;
 }

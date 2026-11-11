@@ -6,8 +6,11 @@ import { and, eq, gte, lte } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { availabilityDays, memberships, users, type CommunityRow } from '../db/schema';
 
-export const toMark = (row: { status: 'yes' | 'no'; parts: string }): AvailabilityMark =>
-  normalizeMark({ status: row.status, parts: row.parts.split(',').filter((p): p is DayPart => (DAY_PARTS as readonly string[]).includes(p)) });
+/** «Могу» без окон осталось от первых отметок, когда время было необязательным: читается как весь день. */
+export function toMark(row: { status: 'yes' | 'no'; parts: string }): AvailabilityMark {
+  const parts = row.parts.split(',').filter((p): p is DayPart => (DAY_PARTS as readonly string[]).includes(p));
+  return normalizeMark({ status: row.status, parts: row.status === 'yes' && !parts.length ? DAY_PARTS : parts });
+}
 
 export async function getAvailability(db: Db, userId: number, now: number): Promise<AvailabilityDto> {
   const today = todayAlmaty(new Date(now));

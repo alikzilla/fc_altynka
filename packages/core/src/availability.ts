@@ -1,9 +1,9 @@
 import type { CommunityDto } from './api';
 
-/** Окно времени, когда человек может играть; пустой список у «могу» значит «в любое время». */
+/** Окно времени, когда человек может играть. У «могу» выбрано хотя бы одно окно. */
 export const DAY_PARTS = ['morning', 'noon', 'afternoon', 'evening', 'night', 'late'] as const;
 export type DayPart = (typeof DAY_PARTS)[number];
-export const DAY_PART_LABEL: Record<DayPart, string> = { morning: 'До 12:00', noon: '12–15', afternoon: '15–18', evening: '18–20', night: '20–22', late: 'После 22:00' };
+export const DAY_PART_LABEL: Record<DayPart, string> = { morning: 'До 12:00', noon: '12:00–15:00', afternoon: '15:00–18:00', evening: '18:00–20:00', night: '20:00–22:00', late: 'После 22:00' };
 
 export type AvailabilityStatus = 'yes' | 'no';
 /** Отметка на день; её отсутствие (null) значит «не указано». */
@@ -38,11 +38,12 @@ export function normalizeMark(mark: { status: AvailabilityStatus; parts?: readon
   return { status: mark.status, parts: mark.status === 'yes' ? DAY_PARTS.filter(p => mark.parts?.includes(p)) : [] };
 }
 
-/** «Могу · 18–20, 20–22», «Могу», «Не могу», «Не указано». */
+/** «Могу · 18:00–20:00, 20:00–22:00», «Могу · весь день», «Не могу», «Не указано». */
 export function availabilityLabel(mark: AvailabilityMark | null): string {
   if (!mark) return 'Не указано';
   if (mark.status === 'no') return 'Не могу';
-  return mark.parts.length ? `Могу · ${mark.parts.map(p => DAY_PART_LABEL[p].toLowerCase()).join(', ')}` : 'Могу';
+  if (!mark.parts.length || mark.parts.length === DAY_PARTS.length) return 'Могу · весь день';
+  return `Могу · ${mark.parts.map(p => DAY_PART_LABEL[p].toLowerCase()).join(', ')}`;
 }
 
 export interface AvailabilityDayDto {

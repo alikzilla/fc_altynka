@@ -5,7 +5,9 @@ import { requireRole, type AppEnv } from '../auth/middleware';
 import { availabilitySummary, getAvailability, saveDay } from '../domain/availability';
 import { body } from './validate';
 
-const mark = z.object({ status: z.enum(['yes', 'no']), parts: z.array(z.enum(DAY_PARTS)).max(DAY_PARTS.length).default([]) }).nullable();
+// «Могу» всегда с временем: хотя бы одно окно.
+const mark = z.object({ status: z.enum(['yes', 'no']), parts: z.array(z.enum(DAY_PARTS)).max(DAY_PARTS.length).default([]) })
+  .refine(m => m.status === 'no' || m.parts.length > 0).nullable();
 
 /** Календарь доступности: личный (общий для всех групп) и сводка по группе для организатора. */
 export const availabilityApi = new Hono<AppEnv>();

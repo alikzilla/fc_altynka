@@ -26,6 +26,7 @@ test('parts are ordered, deduplicated and dropped for «не могу»', () => 
 test('labels', () => {
   expect(availabilityLabel(null)).toBe('Не указано');
   expect(availabilityLabel({ status: 'no', parts: [] })).toBe('Не могу');
-  expect(availabilityLabel({ status: 'yes', parts: [] })).toBe('Могу');
-  expect(availabilityLabel({ status: 'yes', parts: ['evening', 'night'] })).toBe('Могу · 18–20, 20–22');
+  expect(availabilityLabel({ status: 'yes', parts: [] })).toBe('Могу · весь день');
+  expect(availabilityLabel({ status: 'yes', parts: ['morning', 'noon', 'afternoon', 'evening', 'night', 'late'] })).toBe('Могу · весь день');
+  expect(availabilityLabel({ status: 'yes', parts: ['evening', 'night'] })).toBe('Могу · 18:00–20:00, 20:00–22:00');
 });

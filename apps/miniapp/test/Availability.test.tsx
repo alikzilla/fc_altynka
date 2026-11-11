@@ -16,7 +16,7 @@ const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: n
 
 beforeEach(() => { queryClient.clear(); });
 
-test('a day is marked «не могу» at once and saved; «могу» offers six time windows', async () => {
+test('«не могу» saves at once; «могу» is saved only together with a time window', async () => {
   (api.get as Mock).mockResolvedValue(empty());
   (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ days: empty().days.map((d, i) => i === 1 ? { ...d, mark: body.mark } : d) }));
   renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
@@ -28,18 +28,30 @@ test('a day is marked «не могу» at once and saved; «могу» offers s
   await userEvent.click(within(editor).getByRole('button', { name: 'Не могу' }));
   expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'no', parts: [] } });
   expect(await within(grid).findByRole('button', { name: 'четверг, 12 ноября — не могу' })).toBeInTheDocument();
-  expect(within(editor).queryByRole('group', { name: 'Удобное время' })).toBeNull();
+  expect(within(editor).queryByRole('group', { name: 'Время' })).toBeNull();
 
+  // «Могу» снимает прежнюю отметку и ждёт времени: без окна день остаётся неотмеченным.
   await userEvent.click(within(editor).getByRole('button', { name: 'Могу' }));
-  const times = within(editor).getByRole('group', { name: 'Удобное время' });
-  expect(within(times).getAllByRole('button').map(b => b.textContent)).toEqual(['До 12:00', '12–15', '15–18', '18–20', '20–22', 'После 22:00']);
-  await userEvent.click(within(times).getByRole('button', { name: '20–22' }));
-  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['night'] } });
-  await userEvent.click(within(times).getByRole('button', { name: '18–20' }));
-  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['evening', 'night'] } });
-  expect(screen.queryByRole('group', { name: 'Обычный график' })).toBeNull();
-  await userEvent.click(within(editor).getByRole('button', { name: 'Не указано' }));
   expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: null });
+  expect(within(editor).getByText('Выбери время, и отметка сохранится.')).toBeInTheDocument();
+  expect(within(editor).getByRole('button', { name: 'Могу' })).toHaveAttribute('aria-pressed', 'true');
+  expect(await within(grid).findByRole('button', { name: 'четверг, 12 ноября — не указано' })).toBeInTheDocument();
+  const times = within(editor).getByRole('group', { name: 'Время' });
+  expect(within(times).getAllByRole('button').map(b => b.textContent)).toEqual(['До 12:00', '12:00–15:00', '15:00–18:00', '18:00–20:00', '20:00–22:00', 'После 22:00', 'Весь день']);
+  await userEvent.click(within(times).getByRole('button', { name: '20:00–22:00' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['night'] } });
+  expect(within(editor).queryByText('Выбери время, и отметка сохранится.')).toBeNull();
+  await userEvent.click(within(times).getByRole('button', { name: '18:00–20:00' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['evening', 'night'] } });
+  expect(await within(grid).findByRole('button', { name: 'четверг, 12 ноября — могу · 18:00–20:00, 20:00–22:00' })).toBeInTheDocument();
+
+  await userEvent.click(within(times).getByRole('button', { name: 'Весь день' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: { status: 'yes', parts: ['morning', 'noon', 'afternoon', 'evening', 'night', 'late'] } });
+  // Снято последнее окно: отметка убирается, «Могу» снова ждёт времени.
+  await userEvent.click(within(times).getByRole('button', { name: 'Весь день' }));
+  expect(api.send).toHaveBeenLastCalledWith('PUT', '/api/availability/days/2026-11-12', { mark: null });
+  expect(within(editor).getByText('Выбери время, и отметка сохранится.')).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Обычный график' })).toBeNull();
 });
 
 test('a failed save says so and reloads the calendar', async () => {
@@ -56,7 +68,7 @@ test('a failed save says so and reloads the calendar', async () => {
 const upcoming = availabilityDates(todayAlmaty(new Date()));
 const summary = (): AvailabilitySummaryDto => ({ community: { id: 1, title: 'FC Altynka' }, days: upcoming.map((date, i) => ({
   date, unknown: 4,
-  yes: i === 3 ? [{ userId: 5, name: 'Тимур', parts: ['evening'] }, { userId: 6, name: 'Ерлан', parts: [] }] : [],
+  yes: i === 3 ? [{ userId: 5, name: 'Тимур', parts: ['evening', 'night'] }, { userId: 6, name: 'Ерлан', parts: ['night'] }] : [],
   no: i === 3 ? [{ userId: 7, name: 'Данияр', parts: [] }] : [],
 })) });
 
@@ -67,7 +79,8 @@ test('the organizer picks the match date from who can play', async () => {
   expect(api.get).toHaveBeenCalledWith('/api/availability/summary?communityId=1', expect.anything());
   const region = await screen.findByRole('region', { name: 'Кто может играть' });
   await userEvent.click(within(region).getByRole('button', { name: `${formatDateRu(upcoming[3])} — могут 2` }));
-  expect(within(region).getByText(/Тимур \(18–20\), Ерлан/)).toBeInTheDocument();
+  const rows = within(within(region).getByRole('list', { name: 'Кто может по времени' })).getAllByRole('listitem').map(li => li.textContent);
+  expect(rows).toEqual(['До 12:000никто', '12:00–15:000никто', '15:00–18:000никто', '18:00–20:001Тимур', '20:00–22:002Тимур, Ерлан', 'После 22:000никто']);
   expect(within(region).getByText(/Данияр/)).toBeInTheDocument();
   expect(screen.getByLabelText('Дата')).toHaveValue(upcoming[3]);
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));

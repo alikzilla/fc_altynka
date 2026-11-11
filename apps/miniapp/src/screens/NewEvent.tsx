@@ -1,4 +1,4 @@
-import { DAY_PART_LABEL, WEEKDAY_SHORT, formatDateRu, plural, todayAlmaty, weekdayOf, type AvailabilityPersonDto, type AvailabilitySummaryDto } from '@altynka/core';
+import { DAY_PARTS, DAY_PART_LABEL, WEEKDAY_SHORT, formatDateRu, plural, todayAlmaty, weekdayOf, type AvailabilityPersonDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
@@ -11,7 +11,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { AvailabilityGrid } from '../components/AvailabilityGrid';
 import { useResource } from '../hooks/useResource';
 
-const names = (people: AvailabilityPersonDto[]) => people.map(p => p.parts.length ? `${p.name} (${p.parts.map(part => DAY_PART_LABEL[part].toLowerCase()).join(', ')})` : p.name).join(', ');
+const names = (people: AvailabilityPersonDto[]) => people.map(p => p.name).join(', ');
 
 /** Кто может играть в ближайшие дни: организатор выбирает дату по отметкам игроков. */
 function AvailabilitySummary({ communityId, date, onPick }: { communityId: number; date: string; onPick: (date: string) => void }) {
@@ -26,8 +26,14 @@ function AvailabilitySummary({ communityId, date, onPick }: { communityId: numbe
       key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: null, count: d.yes.length,
       label: `${formatDateRu(d.date)} — ${d.yes.length ? `${plural(d.yes.length, 'может', 'могут', 'могут')} ${d.yes.length}` : 'никто не отметил, что может'}`,
     }))} />
-    {day ? <div aria-live="polite">
-      <p><b>Могут · {day.yes.length}</b>{day.yes.length ? `: ${names(day.yes)}` : ''}</p>
+    {day ? <div className="availability-day" aria-live="polite">
+      <p><b>Могут · {day.yes.length}</b>{day.yes.length ? ' — по времени:' : ''}</p>
+      {day.yes.length > 0 && <ul className="availability-windows" aria-label="Кто может по времени">
+        {DAY_PARTS.map(part => {
+          const people = day.yes.filter(p => p.parts.includes(part));
+          return <li key={part} className={people.length ? '' : 'none'}><span className="availability-window-time">{DAY_PART_LABEL[part]}</span><b>{people.length}</b><span className="availability-window-names">{people.length ? names(people) : 'никто'}</span></li>;
+        })}
+      </ul>}
       <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
       <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
     </div> : <p className="muted">Отметки игроков видны на ближайшие 7 дней.</p>}

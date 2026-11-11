@@ -28,10 +28,13 @@ test('a day is marked with time windows, changed and cleared', async () => {
 });
 
 test('invalid input is rejected', async () => {
-  expect((await put(`/api/availability/days/${addDays(today, -1)}`, { mark: { status: 'yes' } })).status).toBe(400);
-  expect((await put(`/api/availability/days/${addDays(today, 7)}`, { mark: { status: 'yes' } })).status).toBe(400);
-  expect((await put('/api/availability/days/soon', { mark: { status: 'yes' } })).status).toBe(400);
+  expect((await put(`/api/availability/days/${addDays(today, -1)}`, { mark: { status: 'yes', parts: ['evening'] } })).status).toBe(400);
+  expect((await put(`/api/availability/days/${addDays(today, 7)}`, { mark: { status: 'yes', parts: ['evening'] } })).status).toBe(400);
+  expect((await put('/api/availability/days/soon', { mark: { status: 'yes', parts: ['evening'] } })).status).toBe(400);
   expect((await put(`/api/availability/days/${today}`, { mark: { status: 'maybe' } })).status).toBe(400);
+  // «Могу» без времени не принимается.
+  expect((await put(`/api/availability/days/${today}`, { mark: { status: 'yes' } })).status).toBe(400);
+  expect((await put(`/api/availability/days/${today}`, { mark: { status: 'yes', parts: [] } })).status).toBe(400);
   expect((await put(`/api/availability/days/${today}`, { mark: { status: 'yes', parts: ['day'] } })).status).toBe(400);
   expect((await put('/api/availability/weekly', { weekly: [] })).status).toBe(404);
   expect((await apiRequest('/api/availability', { as: null })).status).toBe(401);

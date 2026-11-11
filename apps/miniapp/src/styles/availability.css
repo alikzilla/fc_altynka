@@ -20,6 +20,7 @@
 .availability-editor h4 { margin: 0; font-size: 16px; font-weight: 550; }
 .availability-editor p { margin: 0; }
 .chips.availability-times { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.availability-whole { grid-column: 1 / -1; }
 .availability-times .chip-btn { padding-inline: 4px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 :root { --yes: #bfe6cf; --yes-soft: #2b3b33; }
 :root[data-theme='light'] { --yes: #1f6a43; --yes-soft: #dff2e6; }
@@ -29,6 +30,14 @@
 .availability-summary h3 { margin: 0; font-size: 14px; font-weight: 550; }
 .availability-summary p { margin: 0; font-size: 14px; }
 .availability-summary p b { font-weight: 550; }
+.availability-day { display: flex; flex-direction: column; gap: 8px; }
+.availability-windows { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.availability-windows li { display: grid; grid-template-columns: 104px 22px minmax(0, 1fr); align-items: baseline; gap: 8px; padding: 8px 12px; font-size: 14px; }
+.availability-windows li + li { border-top: 1px solid var(--line); }
+.availability-windows li b { font-weight: 550; font-variant-numeric: tabular-nums; text-align: right; }
+.availability-window-time { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.availability-windows li.none { color: var(--hint); }
+@media (max-width: 339px) { .availability-windows li { grid-template-columns: minmax(0, 1fr) 22px; } .availability-window-names { grid-column: 1 / -1; } }
 
 @media (prefers-reduced-motion: reduce) { .availability-cell { transition: none; } .availability-cell:active { transform: none; } }
 @media (prefers-contrast: more) { .availability-cell { border-color: ButtonText; } .availability-cell.selected { outline: 2px solid Highlight; } }

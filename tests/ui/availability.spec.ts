@@ -22,7 +22,7 @@ async function mock(page: Page, role: 'player' | 'organizer') {
     if (url.pathname === '/api/availability') return route.fulfill({ json: calendar });
     if (url.pathname === '/api/availability/summary') return route.fulfill({ json: { community: { id: 1, title: 'FC Altynka' }, days: dates.map((date, i) => ({
       date, unknown: 6,
-      yes: i === 3 ? ['Тимур', 'Ерлан', 'Данияр', 'Азамат', 'Нурлан', 'Санжар', 'Алихан', 'Бауыржан', 'Константин'].map((name, n) => ({ userId: 10 + n, name, parts: n === 0 ? ['evening'] : [] })) : i === 1 ? [{ userId: 10, name: 'Тимур', parts: [] }] : [],
+      yes: i === 3 ? ['Тимур', 'Ерлан', 'Данияр', 'Азамат', 'Нурлан', 'Санжар', 'Алихан', 'Бауыржан', 'Константин'].map((name, n) => ({ userId: 10 + n, name, parts: n < 2 ? ['evening'] : n < 7 ? ['evening', 'night'] : ['night', 'late'] })) : i === 1 ? [{ userId: 10, name: 'Тимур', parts: ['noon'] }] : [],
       no: i === 3 ? [{ userId: 30, name: 'Руслан', parts: [] }] : [],
     })) } });
     if (url.pathname === '/api/events') return route.fulfill({ json: { active: [], past: [] } });
@@ -50,9 +50,10 @@ for (const width of [280, 390]) test(`availability sheet over the profile: mark 
 
   await grid.getByRole('button').nth(5).click();
   await editor.getByRole('button', { name: 'Могу', exact: true }).click();
-  const times = editor.getByRole('group', { name: 'Удобное время' });
-  await expect(times.getByRole('button')).toHaveCount(6);
-  await times.getByRole('button', { name: '18–20' }).click();
+  await expect(editor.getByText('Выбери время, и отметка сохранится.')).toBeVisible();
+  const times = editor.getByRole('group', { name: 'Время' });
+  await expect(times.getByRole('button')).toHaveCount(7);
+  await times.getByRole('button', { name: '18:00–20:00' }).click();
   await times.getByRole('button', { name: 'После 22:00' }).click();
   await expect.poll(() => writes.at(-1)).toEqual({ path: `/api/availability/days/${dates[5]}`, body: { mark: { status: 'yes', parts: ['evening', 'late'] } } });
   await expect(sheet.getByRole('group', { name: 'Обычный график' })).toHaveCount(0);
@@ -76,7 +77,13 @@ for (const width of [280, 390]) test(`new match sheet shows who can play and pic
   await expect(summary.getByRole('button')).toHaveCount(7);
   await summary.getByRole('button', { name: /— могут 9$/ }).click();
   await expect(page.getByLabel('Дата')).toHaveValue(dates[3]);
-  await expect(summary.getByText(/Тимур \(18–20\), Ерлан/)).toBeVisible();
+  const windows = summary.getByRole('list', { name: 'Кто может по времени' }).getByRole('listitem');
+  await expect(windows).toHaveCount(6);
+  await expect(windows.nth(3)).toContainText('18:00–20:00');
+  await expect(windows.nth(3)).toContainText('7');
+  await expect(windows.nth(3)).toContainText('Тимур, Ерлан, Данияр');
+  await expect(windows.nth(4)).toContainText('Данияр, Азамат');
+  await expect(windows.nth(0)).toContainText('никто');
   await expect(summary.getByText(/Руслан/)).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
