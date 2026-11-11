@@ -91,6 +91,7 @@ function TeamApp() {
                   <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
                   <Route path="/players"><Players /></Route>
                   <Route path="/profile/skills"><SkillAssessment /></Route>
+                  <Route path="/profile/availability"><Profile availability /></Route>
                   <Route path="/profile/settings/:section">{params => <Profile settings={params.section} />}</Route>
                   <Route path="/profile/settings"><Redirect to="/profile" /></Route>
                   <Route path="/profile"><Profile /></Route>

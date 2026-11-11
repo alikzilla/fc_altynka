@@ -28,7 +28,7 @@ for (const width of [280, 390]) for (const role of ['player', 'organizer']) test
   expect(edit!.x).toBeGreaterThan(position!.x + position!.width);
   expect(edit!.x + edit!.width).toBeLessThanOrEqual(football!.x + football!.width);
   const editing = page.getByRole('navigation', { name: 'Настройка профиля', exact: true });
-  await expect(editing.getByRole('link')).toHaveCount(2);
+  await expect(editing.getByRole('link')).toHaveCount(3);
   await expect(page.getByRole('heading', { name: 'Управление', exact: true })).toHaveCount(role === 'organizer' ? 1 : 0);
   await expect(page.getByRole('link', { name: /^Игроки/ })).toHaveCount(1);
   await expect(page.getByRole('switch')).toHaveCount(2);
@@ -102,7 +102,7 @@ test('profile destination remains current while editing settings', async ({ page
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Профиль', exact: true })).toHaveAttribute('aria-current', 'page');
   await page.getByRole('dialog', { name: 'Позиция и рабочая нога' }).getByRole('button', { name: 'Закрыть', exact: true }).click();
   await expect(page).toHaveURL('/profile');
-  await expect(page.getByRole('navigation', { name: 'Настройка профиля' }).getByRole('link')).toHaveCount(2);
+  await expect(page.getByRole('navigation', { name: 'Настройка профиля' }).getByRole('link')).toHaveCount(3);
   await page.goto('/profile/settings');
   await expect(page).toHaveURL('/profile');
 });

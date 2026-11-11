@@ -1,4 +1,4 @@
-import { todayAlmaty } from '@altynka/core';
+import { DAY_PART_LABEL, WEEKDAY_SHORT, formatDateRu, plural, todayAlmaty, weekdayOf, type AvailabilityPersonDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
@@ -8,6 +8,31 @@ import { useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { TemporalInput } from '../components/TemporalInput';
 import { ActionSheet } from '../components/ActionSheet';
+import { AvailabilityGrid } from '../components/AvailabilityGrid';
+import { useResource } from '../hooks/useResource';
+
+const names = (people: AvailabilityPersonDto[]) => people.map(p => p.parts.length ? `${p.name} (${p.parts.map(part => DAY_PART_LABEL[part].toLowerCase()).join(', ')})` : p.name).join(', ');
+
+/** Кто может играть в ближайшие дни: организатор выбирает дату по отметкам игроков. */
+function AvailabilitySummary({ communityId, date, onPick }: { communityId: number; date: string; onPick: (date: string) => void }) {
+  const { data } = useResource<AvailabilitySummaryDto>(`/api/availability/summary?communityId=${communityId}`);
+  // Сводка — подсказка: без неё матч создаётся как раньше.
+  if (!data?.days) return null;
+  if (!data.days.some(d => d.yes.length || d.no.length)) return <p className="muted">Игроки пока не отметили, когда могут играть. Календарь — в профиле, «Когда могу играть».</p>;
+  const day = data.days.find(d => d.date === date);
+  return <section className="availability-summary" aria-label="Кто может играть">
+    <h3>Кто может играть</h3>
+    <AvailabilityGrid label="Сколько человек может по дням" selected={day?.date ?? null} onSelect={onPick} cells={data.days.map(d => ({
+      key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: null, count: d.yes.length,
+      label: `${formatDateRu(d.date)} — ${d.yes.length ? `${plural(d.yes.length, 'может', 'могут', 'могут')} ${d.yes.length}` : 'никто не отметил, что может'}`,
+    }))} />
+    {day ? <div aria-live="polite">
+      <p><b>Могут · {day.yes.length}</b>{day.yes.length ? `: ${names(day.yes)}` : ''}</p>
+      <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
+      <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
+    </div> : <p className="muted">Отметки игроков видны на ближайшие две недели.</p>}
+  </section>;
+}
 
 export function NewEvent({ onClose }: { onClose: () => void }) {
   const me = useMe();
@@ -48,6 +73,7 @@ export function NewEvent({ onClose }: { onClose: () => void }) {
     <form className="form new-event-form" onSubmit={submit} aria-busy={busy}>
       <fieldset disabled={busy} className="form-fields">
         <label>Дата<TemporalInput type="date" required min={todayAlmaty(new Date())} value={date} onChange={e => setDate(e.target.value)} /></label>
+        {communityId !== null && <AvailabilitySummary communityId={communityId} date={date} onPick={setDate} />}
         {groups.length > 1 && <label>Группа
           <select required aria-describedby="group-hint" value={picked ?? ''} onChange={e => setPicked(e.target.value ? Number(e.target.value) : null)}>
             <option value="" disabled>Выбери группу</option>

@@ -6,6 +6,8 @@ import { ANNOUNCE_BATCH } from '../../src/sync/personal';
 import { __setTgClientForTests } from '../../src/telegram/client';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
+import { saveDay, saveWeekly } from '../../src/domain/availability';
+import { weekdayOf } from '@altynka/core';
 import { db, seedCommunity, seedUser, setMemberProfile } from '../helpers';
 
 let tg: FakeTg;
@@ -48,6 +50,39 @@ test('a new match is announced privately to subscribers with a signup button, on
   expect(tg.sent.filter(m => m.chatId < 0)).toHaveLength(1);
   await w.flush();
   expect(w.to(501)).toHaveLength(1);
+});
+
+test('the availability calendar mutes «не могу», marks «могу» and leaves an empty calendar alone', async () => {
+  const c = await seedCommunity();
+  const org = await seedUser('Азамат', { communityId: c.id, role: 'organizer', tgId: 101 });
+  const seed = async (name: string, tgId: number) => {
+    const p = await seedUser(name, { communityId: c.id, tgId });
+    await setMemberProfile(p.id, { notificationsEnabled: true, pmAvailable: true });
+    tg.members.add(tgId);
+    return p;
+  };
+  const [away, free, usual, changed] = [await seed('Занят', 501), await seed('Свободен', 502), await seed('Обычно занят', 503), await seed('Передумал', 504), await seed('Пусто', 505)];
+  const date = futureDate();
+  const no = { status: 'no' as const, parts: [] };
+  const weekly = Array.from({ length: 7 }, (_, i) => i === weekdayOf(date) ? no : null);
+  await saveDay(db(), away.id, date, no, 0);
+  await saveDay(db(), free.id, date, { status: 'yes', parts: ['evening'] }, 0);
+  await saveWeekly(db(), usual.id, weekly);
+  // Обычно не может, но на эту дату отметил «могу»: отметка на дату важнее.
+  await saveWeekly(db(), changed.id, weekly);
+  await saveDay(db(), changed.id, date, { status: 'yes', parts: [] }, 0);
+  const d = { db: db(), now: Date.now(), sync: new FakeSync() };
+  const ev = await createEvent(d, { communityId: c.id, date, comment: null, createdBy: org.id });
+  const stub = env.EVENT_SYNC.get(env.EVENT_SYNC.idFromName(`event:${ev}`));
+  await stub.request(ev, d.sync.calls.at(-1)!.req);
+  await runDurableObjectAlarm(stub);
+  const to = (tgId: number) => tg.sent.filter(m => m.chatId === tgId);
+  expect(to(501)).toHaveLength(0);
+  expect(to(503)).toHaveLength(0);
+  expect(to(502)[0].html).toContain('В твоём календаре этот день отмечен свободным.');
+  expect(to(504)[0].html).toContain('В твоём календаре этот день отмечен свободным.');
+  expect(to(505)).toHaveLength(1);
+  expect(to(505)[0].html).not.toContain('календаре');
 });
 
 test('a large announcement is delivered in batches across alarms without duplicates', async () => {

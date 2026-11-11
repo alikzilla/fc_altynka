@@ -224,3 +224,21 @@ export const feedHidden = sqliteTable('feed_hidden', {
   hiddenBy: integer('hidden_by').notNull().references(() => users.id),
   createdAt: integer('created_at').notNull(),
 }, t => [primaryKey({ columns: [t.eventId, t.slot] })]);
+
+/** Обычный график доступности по дням недели (0 — понедельник); общий для всех групп человека. */
+export const availabilityWeekly = sqliteTable('availability_weekly', {
+  userId: integer('user_id').notNull().references(() => users.id),
+  weekday: integer('weekday').notNull(),
+  status: text('status', { enum: ['yes', 'no'] }).notNull(),
+  /** Части дня через запятую; пусто — любое время. */
+  parts: text('parts').notNull().default(''),
+}, t => [primaryKey({ columns: [t.userId, t.weekday] }), check('availability_weekday', sql`${t.weekday} between 0 and 6`)]);
+
+/** Отметка на конкретную дату; важнее обычного графика. */
+export const availabilityDays = sqliteTable('availability_days', {
+  userId: integer('user_id').notNull().references(() => users.id),
+  date: text('date').notNull(),
+  status: text('status', { enum: ['yes', 'no'] }).notNull(),
+  parts: text('parts').notNull().default(''),
+  updatedAt: integer('updated_at').notNull(),
+}, t => [primaryKey({ columns: [t.userId, t.date] })]);

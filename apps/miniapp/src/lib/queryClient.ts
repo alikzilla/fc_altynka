@@ -40,6 +40,8 @@ export function shouldRefresh(writePath: string | undefined, readPath: unknown):
   if (typeof readPath !== 'string' || writePath === undefined || PERSON_WRITE.test(writePath)) return true;
   // A reaction changes only the feed, and the feed has already shown it.
   if (/^\/api\/feed\//.test(writePath)) return false;
+  // The availability calendar touches only itself and the organizer's summary.
+  if (/^\/api\/availability(\/|$)/.test(writePath)) return /^\/api\/availability(\/|\?|$)/.test(readPath);
   // A finished match changes profile statistics and ratings; a bill may save the receiver's own Kaspi number.
   if (/\/finish$|\/review$|\/bill$/.test(writePath)) return true;
   return !PERSON_READ.test(readPath);
