@@ -40,7 +40,7 @@ test('a new match is announced privately to subscribers with a signup button, on
   await w.flush();
   expect(w.to(501)).toHaveLength(1);
   expect(w.to(501)[0].html).toContain('Открыта запись');
-  expect(w.to(501)[0].html).toContain('Берём манишки');
+  expect(w.to(501)[0].html).not.toContain('Берём манишки');
   expect(JSON.stringify(w.to(501)[0].keyboard)).toContain(`mj:${w.ev}:c`);
   expect(w.to(101)).toHaveLength(0);
   expect(w.to(900)).toHaveLength(0);
@@ -69,7 +69,7 @@ test('schedule, its change and cancellation reach signed-up subscribers privatel
   const first = w.to(501).filter(m => m.html.includes('Игра назначена'));
   expect(first).toHaveLength(1);
   expect(first[0].html).toContain('21:00–22:00 · Шанырак');
-  expect(first[0].html).toContain('Ты в основе · место 1');
+  expect(first[0].html).toContain('Ты в основе.');
   // Второй подписчик не записан: личного сообщения о времени нет.
   expect(w.to(502).filter(m => m.html.includes('Игра назначена'))).toHaveLength(0);
 

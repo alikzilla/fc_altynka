@@ -71,7 +71,7 @@ export function placeIn(view: EventView, tgId: number): MyPlace | null {
 
 export const signupOpen = (view: EventView) => view.status === 'collecting' || view.status === 'scheduled';
 
-const placeLine = (place: MyPlace | null) => place ? `Ты ${place.inMain ? 'в основе' : 'в резерве'} · место ${place.position}` : 'Ты ещё не записан';
+const placeLine = (place: MyPlace | null) => place ? `Ты ${place.inMain ? 'в основе' : 'в резерве'}` : 'Ты ещё не записан';
 
 /** Когда, где и сколько мест — те же строки в карточке матча и в главном меню. */
 export function matchSummary(view: EventView, place: MyPlace | null): string[] {
@@ -93,8 +93,7 @@ export function signupButton(view: EventView, place: MyPlace | null, origin: 'h'
 export function matchCard(env: LinkEnv, view: EventView, place: MyPlace | null, title = 'Футбол'): Rendered {
   const open = { text: 'Открыть матч', url: miniAppLink(env, `e${view.id}`) };
   return {
-    html: [...teamTitle(view), `<b>${title} · ${formatDateRu(view.date)}</b>`, ...matchSummary(view, place),
-      ...(view.comment ? ['', escapeHtml(view.comment)] : [])].join('\n'),
+    html: [...teamTitle(view), `<b>${title} · ${formatDateRu(view.date)}</b>`, ...matchSummary(view, place)].join('\n'),
     keyboard: { inline_keyboard: signupOpen(view) ? [[signupButton(view, place, 'c'), open]] : [[open]] },
   };
 }

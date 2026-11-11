@@ -216,7 +216,8 @@ test('home shows the nearest match and signs up or cancels with one tap in the p
   expect(t.answers().at(-1)).toBe('Ты в основе · место 1');
   expect((await loadQueue(db(), event.id)).main.map(s => s.userId)).toEqual([player.id]);
   expect(t.sync.calls.at(-1)).toMatchObject({ eventId: event.id, req: { parts: ['event'] } });
-  expect(edits(t).at(-1)!.payload.text).toContain('Ты в основе · место 1');
+  expect(edits(t).at(-1)!.payload.text).toContain('Ты в основе');
+  expect(edits(t).at(-1)!.payload.text).not.toContain('место 1');
   expect(JSON.stringify(edits(t).at(-1)!.payload.reply_markup)).toContain(`ml:${event.id}:h`);
 
   await t.bot.handleUpdate(privateTap(501, `ml:${event.id}:c`));
