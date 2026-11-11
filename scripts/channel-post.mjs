@@ -110,6 +110,8 @@ export async function runChannelPost({ argv = [], loadEnv = loadTelegramEnv, fet
       return result.result;
     } catch (error) {
       if (error?.name === 'TimeoutError') reason = 'request timed out';
+      // A code such as ENOTFOUND or SELF_SIGNED_CERT_IN_CHAIN tells a blocked host from an untrusted proxy certificate.
+      else if (reason === 'network error' && /^[A-Z0-9_]+$/.test(String(error?.cause?.code ?? ''))) reason = `network error: ${error.cause.code}`;
       throw new Error(`Telegram ${name} failed (${reason}).`);
     }
   };
