@@ -32,6 +32,8 @@ for (const [width, theme] of [[320, 'dark'], [390, 'light']] as const) test(`men
   await trigger.click();
   const menu = page.getByRole('dialog', { name: 'Меню' });
   await expect(menu.getByRole('link')).toHaveText(['Создать матч', 'Статистика', 'Игроки']);
+  // The sheet grows out of the centre button; wait for the opening animation to settle.
+  await expect.poll(() => menu.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
   await axe(page);
   await page.keyboard.press('Escape');
   await expect(menu).toHaveCount(0);
