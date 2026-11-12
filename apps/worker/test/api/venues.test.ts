@@ -62,3 +62,25 @@ test('venues belong to one group: another group neither sees nor deletes them', 
   expect(own.status).toBe(200);
   expect(await db().select().from(venues)).toHaveLength(2);
 });
+
+test('the organizer edits a venue; a rename cannot collide and never touches a foreign group', async () => {
+  const first = (await (await add({ name: 'Манеж', hourlyRate: 20000 })).json<{ venue: { id: number } }>()).venue;
+  await add({ name: 'Школа' });
+  const patch = (id: number, body: unknown, as = w.org) => apiRequest(`/api/venues/${id}`, { as, method: 'PATCH', body });
+  expect((await patch(first.id, { name: 'Манеж' }, w.player)).status).toBe(403);
+  const saved = await patch(first.id, { name: ' Манеж Арена ', address: 'Толе би, 1', mapUrl: 'https://go.2gis.com/abc', hourlyRate: null });
+  expect(saved.status).toBe(200);
+  expect((await saved.json<VenuesDto & { venue: unknown }>()).venue).toEqual({ id: first.id, name: 'Манеж Арена', address: 'Толе би, 1', mapUrl: 'https://go.2gis.com/abc', hourlyRate: null });
+  // Keeping its own name (any case) is not a duplicate; taking another venue's name is.
+  expect((await patch(first.id, { name: 'манеж арена' })).status).toBe(200);
+  const dup = await patch(first.id, { name: 'ШКОЛА' });
+  expect(dup.status).toBe(409);
+  expect(await dup.json()).toEqual({ error: 'duplicate' });
+  expect((await patch(first.id, { name: 'x', mapUrl: 'http://insecure.example' })).status).toBe(400);
+  expect((await list()).map(v => v.name)).toEqual(['манеж арена', 'Школа']);
+  const [foreign] = await db().insert(communities).values({ tgChatId: -900, title: 'Чужая' }).returning();
+  w.tg.chatMembers.set(foreign.tgChatId, new Set([3001]));
+  const [theirs] = await db().insert(venues).values({ communityId: foreign.id, name: 'Чужое поле', createdAt: 1 }).returning();
+  expect((await patch(theirs.id, { name: 'Захват' })).status).toBe(404);
+  expect((await patch(999999, { name: 'Нет' })).status).toBe(404);
+});

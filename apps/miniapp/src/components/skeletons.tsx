@@ -127,6 +127,28 @@ export function PlayersSkeleton() {
   </Skeleton>;
 }
 
+/** Таблица статистики: те же строки, что после загрузки; подиум появляется только при трёх игроках. */
+export function StatisticsSkeleton() {
+  return <Skeleton>
+    <div className="card list stat-list">{times(6).map(index => <div className="btn-plain stat-row" key={index}>
+      <span className="stat-rank">{index + 1}</span>
+      <span className="avatar sk-fill" />
+      <span className="stat-name"><b><Sk w={pick(['58%', '44%', '66%'], index)} /></b><small className="muted"><Sk w="62%" /></small></span>
+      <span className="stat-value"><Sk w="1.2em" /></span>
+    </div>)}</div>
+  </Skeleton>;
+}
+
+export function VenuesSkeleton() {
+  return <Skeleton>
+    <div className="venue-cards">{times(2).map(index => <div className="card material-graphite venue-card" key={index}>
+      <div className="venue-card-head"><span className="venue-card-icon sk-fill" />
+        <div className="venue-info"><h3 className="venue-name"><Sk w={pick(['58%', '44%'], index)} /></h3><p className="venue-address"><Sk w="72%" /></p></div></div>
+      <div className="venue-meta"><span className="venue-map-link"><Sk w="8em" /></span><span className="venue-rate"><Sk w="6em" /></span></div>
+    </div>)}</div>
+  </Skeleton>;
+}
+
 const STATS: [string, string][] = [['goals', 'Голы'], ['assists', 'Ассисты'], ['', 'Игры'], ['wins-stat', 'Побед'], ['foot-stat', 'Нога']];
 
 function PlayerSportsSkeleton() {
@@ -306,6 +328,8 @@ export function RouteSkeleton({ path, search = '' }: { path: string; search?: st
   if (review) return <SkFrame title="Оценка матча" back={`/event/${review[1]}`}><ReviewSkeleton /></SkFrame>;
   if (/^\/event\/\d+/.test(path)) return <SkFrame title="Матч" back={matchOrigin()} subtitle className="match-screen"><EventSkeleton /></SkFrame>;
   if (path.startsWith('/players')) return <SkFrame title="Игроки" back="/profile"><div className="form player-search"><span className="sk-search">Найти по имени</span></div><PlayersSkeleton /></SkFrame>;
+  if (path === '/stats') return <SkFrame title="Статистика" back="/"><div className="tabs stat-boards">{['Голы', 'Пасы', 'Гол+пас', 'Игры', 'Победы'].map((label, index) => <span className={`tab-sk ${index ? '' : 'on'}`} key={label}>{label}</span>)}</div><StatisticsSkeleton /></SkFrame>;
+  if (path === '/venues') return <SkFrame title="Площадки" back="/"><section className="venues-group"><VenuesSkeleton /></section></SkFrame>;
   if (path === '/profile/skills') return <SkFrame title="Твоя игра" back="/profile"><Skeleton><div className="card material-blue"><h2><Sk w="54%" /></h2><p><Sk w="96%" /> <Sk w="62%" /></p><span className="btn primary wide sk-fill" /></div></Skeleton></SkFrame>;
   if (path.startsWith('/profile')) return <SkFrame title="Профиль"><PlayerProfileSkeleton /></SkFrame>;
   return <SkFrame title="Ближайший матч">

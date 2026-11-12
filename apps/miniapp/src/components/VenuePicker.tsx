@@ -42,7 +42,7 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
 
   if (adding) return <ActionSheet title="Новая площадка" className="venue-sheet" onClose={() => setAdding(false)} busy={busy}
     footer={<button className="btn primary wide" type="submit" form={formId} disabled={busy}>{busy ? 'Сохраняем…' : 'Добавить площадку'}</button>}>
-    <VenueForm formId={formId} communityId={communityId} busy={busy} setBusy={setBusy} onAdded={(dto, venue) => { replace(dto); setPicked(venue.name); setAdding(false); }} />
+    <VenueForm formId={formId} communityId={communityId} busy={busy} setBusy={setBusy} onSaved={(dto, venue) => { replace(dto); setPicked(venue.name); setAdding(false); }} />
   </ActionSheet>;
 
   return <ActionSheet title="Место проведения" className="venue-sheet" onClose={onClose} busy={busy} footer={pending && <>
@@ -76,11 +76,12 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
   </ActionSheet>;
 }
 
-function VenueForm({ formId, communityId, busy, setBusy, onAdded }: { formId: string; communityId: number; busy: boolean; setBusy: (busy: boolean) => void; onAdded: (dto: VenuesDto, venue: VenueDto) => void }) {
-  const [name, setName] = useState('');
-  const [address, setAddress] = useState('');
-  const [mapUrl, setMapUrl] = useState('');
-  const [rate, setRate] = useState('');
+/** Форма площадки: без `venue` добавляет новую, с ним сохраняет правку. */
+export function VenueForm({ formId, communityId, venue, busy, setBusy, onSaved }: { formId: string; communityId: number; venue?: VenueDto; busy: boolean; setBusy: (busy: boolean) => void; onSaved: (dto: VenuesDto, venue: VenueDto) => void }) {
+  const [name, setName] = useState(venue?.name ?? '');
+  const [address, setAddress] = useState(venue?.address ?? '');
+  const [mapUrl, setMapUrl] = useState(venue?.mapUrl ?? '');
+  const [rate, setRate] = useState(venue?.hourlyRate == null ? '' : String(venue.hourlyRate));
   const [error, setError] = useState<string | null>(null);
   const locked = useRef(false);
   async function submit(e: React.FormEvent) {
@@ -90,12 +91,12 @@ function VenueForm({ formId, communityId, busy, setBusy, onAdded }: { formId: st
     if (url && !/^https:\/\/\S+$/.test(url)) { setError('Ссылка на карту должна начинаться с https://'); return; }
     locked.current = true; setBusy(true); setError(null);
     try {
-      const saved = await api.send<VenuesDto & { venue: VenueDto }>('POST', venuesPath(communityId), {
+      const saved = await api.send<VenuesDto & { venue: VenueDto }>(venue ? 'PATCH' : 'POST', venue ? `/api/venues/${venue.id}` : venuesPath(communityId), {
         name: name.trim(), address: address.trim() || null, mapUrl: url || null, hourlyRate: rate === '' ? null : Math.round(Number(rate)),
       });
-      onAdded({ venues: saved.venues }, saved.venue);
+      onSaved({ venues: saved.venues }, saved.venue);
     } catch (err) {
-      setError(err instanceof ApiError && ADD_ERRORS[err.code] || 'Не получилось добавить площадку. Проверь соединение и попробуй ещё раз.');
+      setError(err instanceof ApiError && ADD_ERRORS[err.code] || (venue ? 'Не получилось сохранить площадку. Проверь соединение и попробуй ещё раз.' : 'Не получилось добавить площадку. Проверь соединение и попробуй ещё раз.'));
     } finally { locked.current = false; setBusy(false); }
   }
   return <form id={formId} className="form" onSubmit={submit}>
@@ -105,7 +106,7 @@ function VenueForm({ formId, communityId, busy, setBusy, onAdded }: { formId: st
       <label>Ссылка на карту · необязательно<input inputMode="url" maxLength={300} placeholder="https://go.2gis.com/…" value={mapUrl} onChange={e => setMapUrl(e.target.value)} /></label>
       <label>Цена за час, ₸ · необязательно<input inputMode="numeric" type="number" min={0} max={10_000_000} step={1} value={rate} onChange={e => setRate(e.target.value)} /></label>
     </fieldset>
-    <p className="muted">Площадку увидят все организаторы группы.</p>
+    <p className="muted">Площадку увидят все участники группы.</p>
     {error && <p className="field-error" role="alert">{error}</p>}
   </form>;
 }

@@ -203,13 +203,14 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .toast { position: fixed; top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); z-index: 30; width: auto; max-width: 400px; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; margin: 0 auto; border: 0; background: #e3dced; color: #221c2c; padding: 14px 18px; border-radius: 24px; font-size: 14px; font-weight: 500; }
 .nav-shell { position: fixed; left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .nav { display: grid; grid-template-columns: 1fr 1fr 58px 1fr 1fr; align-items: center; width: 100%; max-width: 416px; height: 82px; padding: 8px 5px; border-radius: 32px; background: radial-gradient(ellipse 110% 100% at 22% -40%, #7773bc 0%, #3b3e78 50%, transparent 100%), radial-gradient(ellipse 45% 100% at 100% 140%, #444d91 0%, transparent 100%), #10142f; box-shadow: var(--rim), inset 0 -2px 6px #8d90d34d, 0 6px 16px #0006; pointer-events: auto; } /* taste-skill-ignore: user-approved Airofit dock */
-.nav.nav-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 58px; color: #bec0da; font-size: 12px; transition: transform 140ms var(--ease-out); }
 .nav a.on { color: #fffaff; }
 .nav-icon { display: grid; place-items: center; width: 39px; height: 33px; border-radius: 17px; position: relative; }
 .nav-icon svg { width: 21px; height: 21px; }
 .nav a.on .nav-icon { background: #cecdf924; box-shadow: inset 0 1px 1px #ffffff21; }
-.nav a.nav-create { width: 52px; height: 52px; min-height: 52px; border-radius: 50%; margin: auto; color: #21243e; background: linear-gradient(155deg, #f4f1fb, #bcbfdc); box-shadow: inset 0 1px 1px #fffd, inset 0 -1px 2px #9394b580; } /* taste-skill-ignore */
+.nav .nav-create { width: 52px; height: 52px; min-height: 52px; border-radius: 50%; margin: auto; color: #21243e; background: linear-gradient(155deg, #f4f1fb, #bcbfdc); box-shadow: inset 0 1px 1px #fffd, inset 0 -1px 2px #9394b580; } /* taste-skill-ignore */
+.nav button.nav-create { border: 0; padding: 0; display: grid; place-items: center; cursor: pointer; transition: transform 140ms var(--ease-out); }
+.nav button.nav-create:active { transform: scale(.97); }
 .nav-create .nav-icon { background: none !important; box-shadow: none !important; }
 .nav-create svg { width: 24px; height: 24px; }
 .nav-dot { width: 5px; height: 5px; border-radius: 50%; background: #e2d5ff; position: absolute; right: 1px; top: 0; }
@@ -384,7 +385,6 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
   .match-headline { font-size: 38px; }
   .nav-shell { left: calc(8px + var(--safe-left)); right: calc(8px + var(--safe-right)); }
   .nav { grid-template-columns: 1fr 1fr 54px 1fr 1fr; padding-inline: 3px; }
-  .nav.nav-four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .card:not(.match-card) { padding: 18px; }
   .card.list, .card.archive-list { padding: 4px 12px; }
   .card.task-preview { padding: 13px; gap: 8px; }
@@ -397,11 +397,11 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
 }
 @media (prefers-contrast: more) {
   .card, .nav, .tabs { background: #19191f; box-shadow: none; outline: 1px solid #b6b2c2; outline-offset: -1px; }
-  .btn, .btn.primary, .nav a.nav-create { background: #e5def5; color: #191c30; box-shadow: none; }
+  .btn, .btn.primary, .nav .nav-create { background: #e5def5; color: #191c30; box-shadow: none; }
   .material-coral .btn.primary { background: #e5def5; }
 }
 @media (forced-colors: active) {
-  .btn, .chip-btn, .tabs button, .nav a.nav-create, .sheet-action, .toast { border: 1px solid ButtonText; }
+  .btn, .chip-btn, .tabs button, .nav .nav-create, .sheet-action, .toast { border: 1px solid ButtonText; }
   .card, .nav { outline: 1px solid CanvasText; outline-offset: -1px; }
   .tabs button.on, .chip-btn.on { outline: 2px solid Highlight; }
 }

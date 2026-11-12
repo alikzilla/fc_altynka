@@ -45,7 +45,8 @@ test('creation opens over the current screen; failure preserves fields; success 
   vi.setSystemTime(new Date('2026-11-07T05:00:00Z'));
   const { loc } = open('/profile');
   await screen.findByRole('heading', { name: 'Профиль' });
-  await userEvent.click(screen.getByRole('link', { name: 'Создать матч' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Меню' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Меню' })).getByRole('link', { name: 'Создать матч' }));
   const dialog = await screen.findByRole('dialog', { name: 'Новый матч' });
   expect(screen.getByRole('heading', { name: 'Профиль' })).toBeInTheDocument();
   expect(within(dialog).queryByRole('radiogroup')).toBeNull();
@@ -79,7 +80,8 @@ test('matches separates active signups from past bills and retains direct links'
 test('creation preserves the past matches background tab when opened and closed', async () => {
   open('/matches?view=past');
   await screen.findByRole('link', { name: /31 октября/ });
-  await userEvent.click(screen.getByRole('link', { name: 'Создать матч' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Меню' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Меню' })).getByRole('link', { name: 'Создать матч' }));
   await screen.findByRole('dialog');
   expect(screen.getByRole('tab', { name: 'Прошлые' })).toHaveAttribute('aria-selected', 'true');
   expect(screen.getByRole('link', { name: /31 октября/ })).toBeInTheDocument();

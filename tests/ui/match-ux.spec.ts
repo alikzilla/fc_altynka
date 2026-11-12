@@ -1,6 +1,7 @@
 import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { openCreateMatch } from './menu';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567', community: { id: 4, title: 'Футбол по субботам' } };
 const player = { id: 1, seq: 1, userId: 1, name: 'Организатор', invitedByUserId: null, guestOfName: null, level: 5 };
@@ -19,8 +20,8 @@ test.beforeEach(async ({ page }) => {
 test('bottom sheet preserves context, traps focus, dismisses and restores focus to the trigger', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/profile');
-  const trigger = page.getByRole('link', { name: 'Создать матч', exact: true });
-  await trigger.click();
+  const trigger = page.getByRole('button', { name: 'Меню' });
+  await openCreateMatch(page);
   const dialog = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(dialog).toBeVisible();
   await expect(dialog.getByRole('heading')).toBeFocused();
@@ -40,7 +41,8 @@ test('bottom sheet preserves context, traps focus, dismisses and restores focus 
   await expect(page).toHaveURL('/profile');
   await expect(trigger).toBeFocused();
   expect(await page.evaluate(() => document.body.style.overflow)).toBe('');
-  await trigger.click();
+  await openCreateMatch(page);
+  await expect(dialog).toBeVisible();
   await page.mouse.click(195, 20);
   await expect(dialog).toHaveCount(0);
 });
@@ -61,7 +63,7 @@ test('creation retains input after error, prevents duplicate submits, and opens 
     await route.fulfill({ json: { id: 7 } });
   });
   await page.goto('/');
-  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel(/Комментарий/).fill('Берём светлые футболки');
   await dialog.getByRole('button', { name: 'Создать матч' }).click();
@@ -104,7 +106,7 @@ test('sheet preserves past matches and bill query in its background', async ({ p
     await page.goto(path);
     const tab = page.getByRole('tab', { name: path.startsWith('/matches') ? 'Прошлые' : 'Оплата', exact: true });
     await expect(tab).toHaveAttribute('aria-selected', 'true');
-    await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+    await openCreateMatch(page);
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.locator(path.startsWith('/matches') ? '#matches-past' : '#tab-bill')).toHaveAttribute('aria-selected', 'true');
     await page.keyboard.press('Escape');
@@ -122,7 +124,7 @@ test('a late create response cannot pull a person away after browser Back', asyn
     await route.fulfill({ json: { id: 7 } });
   });
   await page.goto('/profile');
-  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   await page.getByRole('dialog').getByRole('button', { name: 'Создать матч' }).click();
   await expect(page.getByRole('button', { name: 'Создаём матч…' })).toBeDisabled();
   await page.goBack();

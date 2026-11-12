@@ -39,3 +39,17 @@
 .venue-remove > div { display: flex; gap: 8px; margin-left: -8px; }
 .venue-add { margin-top: 14px; }
 .venue-add svg { width: 18px; height: 18px; }
+/* Страница «Площадки» */
+.venues-group { display: flex; flex-direction: column; gap: 10px; }
+.venue-cards { display: flex; flex-direction: column; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.card.venue-card { gap: 6px; padding: 18px 20px 10px; }
+.venue-card-head { display: flex; align-items: flex-start; gap: 14px; min-width: 0; }
+.venue-card-icon { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border-radius: 16px; color: #fffaff; background: radial-gradient(ellipse 110% 80% at 25% 120%, #e87048 0%, #973d2a 50%, transparent 100%), #3a1616; box-shadow: var(--rim); }
+.venue-card-icon svg { width: 21px; height: 21px; }
+.venue-card h3.venue-name { margin: 0; }
+.venue-card .venue-address { margin: 4px 0 0; }
+.venue-card .venue-meta { padding: 0; }
+.venue-card-actions { display: flex; gap: 8px; margin: -6px 0 0 -8px; }
+.venue-card-actions .btn-text { color: var(--hint); font-size: 12px; }
+.venue-card .venue-remove { padding: 0 0 4px; }
+.venues-group .venue-add { margin-top: 2px; }
