@@ -1,5 +1,6 @@
 import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page } from '@playwright/test';
+import { openCreateMatch } from './menu';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
@@ -54,7 +55,7 @@ for (const [side, from, to] of [['left', 8, 150], ['right', 382, 240]] as const)
 
   test(`${side} edge closes the top sheet and preserves the background`, async ({ page }) => {
     await page.goto('/profile');
-    await page.getByRole('link', { name: 'Создать матч', exact: true }).click();
+    await openCreateMatch(page);
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect.poll(async () => {
       const box = (await page.getByRole('dialog').boundingBox())!;
@@ -149,7 +150,7 @@ test('saving locks the sheet against edge navigation', async ({ page }) => {
     return new Promise<void>(resolve => { finish = async () => { await route.fulfill({ status: 503, json: { error: 'offline' } }); resolve(); }; });
   });
   await page.goto('/profile');
-  await page.getByRole('link', { name: 'Создать матч', exact: true }).click();
+  await openCreateMatch(page);
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('button', { name: 'Создать матч', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Создаём матч…' })).toBeDisabled();

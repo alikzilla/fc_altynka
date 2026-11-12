@@ -2,6 +2,7 @@ import { teamApiRoute } from './team-fixture';
 import { test, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
+import { openCreateMatch } from './menu';
 
 // Synthetic data: tests never connect to the bot, D1, or a real group.
 const me = { userId: 1, displayName: 'Алихан', kaspiPhone: '+77071234567', communities: [{ id: 1, title: 'Футбол по субботам', role: 'admin' }], telegram: { firstName: 'Алихан', lastName: 'Нурланов', username: 'alikhan', photoUrl: null } };
@@ -67,13 +68,17 @@ test('carousel and all five destinations work on a narrow phone', async ({ page 
   await page.getByRole('button', { name: 'Предыдущий матч' }).click();
   await expect(page.getByText('1 из 2', { exact: true })).toBeVisible();
   const nav = page.getByRole('navigation', { name: 'Основная навигация' });
-  for (const [label, title] of [['Матчи', 'Матчи'], ['Задачи', 'Задачи'], ['Профиль', 'Профиль'], ['Создать матч', 'Новый матч'], ['Главная', 'Ближайший матч']]) {
+  for (const [label, title] of [['Матчи', 'Матчи'], ['Задачи', 'Задачи'], ['Профиль', 'Профиль'], ['Главная', 'Ближайший матч']]) {
     await nav.getByRole('link', { name: label, exact: true }).click();
     await expect(page.getByRole('heading', { name: title, exact: true })).toBeVisible();
     await expect(nav.getByRole('link', { name: label, exact: true })).toHaveAttribute('aria-current', 'page');
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    if (label === 'Создать матч') await page.getByRole('button', { name: 'Закрыть создание матча' }).click();
   }
+  // The fifth, central control opens the menu; creation is its first icon.
+  await openCreateMatch(page);
+  await expect(page.getByRole('heading', { name: 'Новый матч', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole('button', { name: 'Закрыть создание матча' }).click();
 });
 
 test('payment obligation opens the real bill and clears after the member marks payment', async ({ page }) => {
@@ -107,7 +112,7 @@ test('network error can be retried and empty state offers the next step', async 
   failing = false;
   await page.getByRole('button', { name: 'Попробовать ещё раз' }).click();
   await expect(page.getByRole('heading', { name: 'Нет ближайших матчей' })).toBeVisible();
-  await page.getByRole('link', { name: 'Создать матч' }).first().click();
+  await openCreateMatch(page);
   await expect(page.getByRole('group', { name: 'Дата' })).toBeVisible();
 });
 

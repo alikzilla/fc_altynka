@@ -1,0 +1,54 @@
+/* Меню разделов: иконки на материалах приложения, четыре в ряд. */
+.menu-icons { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 18px 4px; padding: 4px 0 12px; }
+.menu-icon { display: flex; flex-direction: column; align-items: center; gap: 9px; min-width: 0; padding: 4px 0; border-radius: 22px; font-size: 12px; line-height: 1.3; text-align: center; color: var(--text); transition: transform 140ms var(--ease-out); }
+.menu-icon:active { transform: scale(.97); }
+.menu-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.menu-icon-tile { display: grid; place-items: center; width: 62px; height: 62px; border-radius: 22px; color: #fffaff; box-shadow: var(--rim); }
+.menu-icon-tile svg { width: 26px; height: 26px; }
+.menu-pearl { color: #21243e; background: linear-gradient(155deg, #f4f1fb, #bcbfdc); box-shadow: inset 0 1px 1px #fffd, inset 0 -1px 2px #9394b580; }
+.menu-plum { background: radial-gradient(ellipse 120% 60% at 40% -10%, #cf65aa 0%, #803766 55%, transparent 100%), #3a1239; }
+.menu-blue { background: radial-gradient(ellipse 120% 70% at 20% -20%, #8d83d5 0%, #333e88 55%, transparent 100%), #0f1a45; }
+.menu-coral { background: radial-gradient(ellipse 110% 80% at 25% 120%, #e87048 0%, #973d2a 50%, transparent 100%), #3a1616; }
+:root[data-theme=light] .menu-pearl { background: #5f4085; color: #fff; box-shadow: inset 0 1px 1px #ffffff38; }
+
+/* Статистика */
+.stat-groups { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-inline: -20px; padding-inline: 20px; }
+.stat-groups::-webkit-scrollbar, .stat-boards::-webkit-scrollbar { display: none; }
+.stat-groups .chip-btn { flex-shrink: 0; display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.stat-groups .chip-btn i { width: 8px; height: 8px; border-radius: 50%; }
+.tabs.stat-boards { display: flex; overflow-x: auto; scrollbar-width: none; }
+.stat-boards > * { flex: 1 0 auto; padding-inline: 14px; white-space: nowrap; }
+.stat-podium { display: grid; grid-template-columns: 1fr 1.15fr 1fr; align-items: end; gap: 8px; list-style: none; margin: 0; padding: 0; }
+.stat-podium li { min-width: 0; }
+.stat-podium .first { order: 2; } .stat-podium .second { order: 1; } .stat-podium .third { order: 3; }
+/* Подиум: золото, серебро и бронза как непрозрачные материалы; светлый текст в обеих темах. */
+.stat-pod { display: flex; flex-direction: column; align-items: center; gap: 7px; width: 100%; min-width: 0; border: 0; padding: 16px 8px; border-radius: 26px; color: #fbf7ef; font: inherit; text-align: center; cursor: pointer; transition: transform 140ms var(--ease-out); }
+.stat-pod:active { transform: scale(.97); }
+.stat-pod:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.stat-pod[data-medal=gold] { --medal-ink: #f6e3a1; padding-block: 24px; background: radial-gradient(ellipse 110% 36% at 45% -8%, #e9c257 0%, #8b6519 55%, transparent 100%), radial-gradient(ellipse 60% 45% at 100% 112%, #a37a22 0%, transparent 100%), #231a07; box-shadow: var(--rim), inset 0 -2px 9px #d2a43a66, inset 1px 0 7px #d2a43a40; }
+.stat-pod[data-medal=silver] { --medal-ink: #e3e8ee; background: radial-gradient(ellipse 110% 36% at 45% -8%, #d3dae2 0%, #6b7380 55%, transparent 100%), radial-gradient(ellipse 60% 45% at 100% 112%, #7c8592 0%, transparent 100%), #16181d; box-shadow: var(--rim), inset 0 -2px 9px #9aa3ad66, inset 1px 0 7px #9aa3ad40; }
+.stat-pod[data-medal=bronze] { --medal-ink: #f3bd93; background: radial-gradient(ellipse 110% 36% at 45% -8%, #dd9c68 0%, #7a4624 55%, transparent 100%), radial-gradient(ellipse 60% 45% at 100% 112%, #8f5630 0%, transparent 100%), #22130a; box-shadow: var(--rim), inset 0 -2px 9px #c0794866, inset 1px 0 7px #c0794840; }
+.stat-pod .avatar { width: 48px; height: 48px; font-size: 15px; background: #ffffff1a; color: #fbf7ef; }
+.stat-pod[data-medal=gold] .avatar { width: 56px; height: 56px; font-size: 17px; }
+.stat-place { color: var(--medal-ink); font-size: 12px; font-weight: 550; }
+.stat-pod b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 550; }
+.stat-pod-value { color: var(--medal-ink); font-size: 28px; line-height: 1; font-weight: 600; letter-spacing: -.035em; font-variant-numeric: tabular-nums; }
+.stat-list > li { display: block; border-bottom: 1px solid var(--line); }
+.stat-list > li:last-child { border-bottom: 0; }
+.stat-row { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 68px; color: inherit; font: inherit; cursor: pointer; }
+.stat-rank { flex-shrink: 0; width: 22px; color: var(--hint); font-size: 14px; font-weight: 550; text-align: center; font-variant-numeric: tabular-nums; }
+.stat-name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.stat-name b { font-size: 15px; font-weight: 550; }
+.stat-name small { display: block; margin-top: 3px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.stat-row.is-me .stat-name b { color: var(--accent-ink); }
+.stat-row.is-me .stat-rank { color: var(--accent-ink); }
+.stat-value { flex-shrink: 0; min-width: 28px; text-align: right; font-size: 20px; font-weight: 600; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.stat-note { font-size: 12px; line-height: 1.6; }
+@media (max-width: 359px) {
+  .stat-groups { margin-inline: -16px; padding-inline: 16px; }
+  .menu-icon-tile { width: 54px; height: 54px; border-radius: 19px; }
+  .stat-pod-value { font-size: 24px; }
+  .stat-row { gap: 9px; }
+}
+@media (prefers-reduced-motion: reduce) { .menu-icon, .stat-pod { transition: none; } }
+:root[data-theme=light] .stat-pod .avatar { background: #ffffff1a; color: #fbf7ef; box-shadow: var(--rim); }

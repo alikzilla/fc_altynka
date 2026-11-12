@@ -1,4 +1,4 @@
-import { SKILLS, type PlayersDto, type SkillAnswers } from '@altynka/core';
+import { SKILLS, type LeaderboardDto, type PlayersDto, type SkillAnswers } from '@altynka/core';
 import { and, eq, inArray } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { memberships, skillAssessments } from '../db/schema';
 import { activeMemberships } from '../domain/members';
 import { canManage, getEvent } from '../domain/events';
 import { finishMatch, matchReview, playerProfile, playerRatings, submitReview } from '../domain/ratings';
+import { leaderboard } from '../domain/leaderboard';
 import { body, idParam } from './validate';
 
 export const ratingsApi = new Hono<AppEnv>();
@@ -41,6 +42,12 @@ ratingsApi.get('/players', async c => {
     players: rows.filter(r => r.communityId === g.community.id).flatMap(r => { const p = ratings.get(r.userId); return p ? [{ ...p, injured: r.injured }] : []; })
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru')),
   })) });
+});
+/** Person-scoped like /players: every group of the viewer, never a foreign one. */
+ratingsApi.get('/statistics', async c => {
+  const { db, now } = c.get('deps');
+  const groups = await activeMemberships(db, c.env, c.get('user'));
+  return c.json<LeaderboardDto>(await leaderboard(db, groups.map(g => g.community), now));
 });
 ratingsApi.get('/players/:userId', async c => {
   const userId = idParam(c.req.param('userId'));

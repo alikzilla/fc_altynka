@@ -207,3 +207,20 @@ test('a peer in the same group sees the pinned achievement on the sports profile
   expect((await request('/api/me', w.player, { pinnedAchievement: 'winner' }, 'PATCH')).status).toBe(200);
   expect(await (await request(`/api/players/${w.playerUserId}`, w.org)).json()).toMatchObject({ pinnedAchievement: 'winner' });
 });
+
+test('statistics list only the groups of the viewer', async () => {
+  const [foreign] = await db().insert(communities).values({ tgChatId: -777, title: 'Чужая' }).returning();
+  const stranger = await seedUser('Чужой', { communityId: foreign.id });
+  const state = (userId: number) => JSON.stringify({ teamCount: 2, roster: [{ signupId: 1, userId, name: 'x', teamIndex: 0 }], initialPair: [0, 1], currentPair: [0, 1], receipts: [], finishParticipants: null,
+    games: [{ id: 'g1', sequence: 1, pair: [0, 1], score: [1, 0], scorers: [{ signupId: 1, goals: 1 }], assists: [], firstRestTeamIndex: null, recordedAt: 1, recordedBy: userId, updatedAt: 1, updatedBy: userId }] });
+  await db().insert(events).values([
+    { communityId: w.communityId, date: '2026-11-01', status: 'closed', protocolVersion: 1, startedAt: 1, gameStateJson: state(w.playerUserId), createdBy: w.orgUserId, createdAt: 1 },
+    { communityId: foreign.id, date: '2026-11-01', status: 'closed', protocolVersion: 1, startedAt: 1, gameStateJson: state(stranger.id), createdBy: stranger.id, createdAt: 1 },
+  ]);
+  const res = await request('/api/statistics');
+  expect(res.status).toBe(200);
+  const body = await res.json<import('@altynka/core').LeaderboardDto>();
+  expect(body.groups).toHaveLength(1);
+  expect(body.groups[0].community.id).toBe(w.communityId);
+  expect(body.groups[0].players).toMatchObject([{ userId: w.playerUserId, games: 1, goals: 1, wins: 1, assistsTracked: true }]);
+});

@@ -1,6 +1,7 @@
 import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page, type CDPSession } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { openCreateMatch } from './menu';
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: null, community: { id: 4, title: 'Футбол по субботам' } };
@@ -15,7 +16,7 @@ test.beforeEach(async ({ page }) => {
 });
 async function openSheet(page: Page) {
   await page.goto('/');
-  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   const sheet = page.getByRole('dialog');
   await expect(sheet).toBeVisible();
   await expect.poll(async () => Math.round((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height)).toBe(844);
@@ -142,7 +143,7 @@ test('pending submission ignores swipe dismiss and reduced-motion still supports
   release();
   await expect(sheet).toHaveCount(0);
   await expect(page).toHaveURL('/matches');
-  await page.getByRole('navigation').getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   const next = (await page.locator('.sheet-drag-area').boundingBox())!;
   await swipe(cdp, 195, next.y + 16, 0, 150);
   await expect(sheet).toHaveCount(0);

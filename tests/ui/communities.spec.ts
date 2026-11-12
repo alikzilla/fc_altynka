@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
+import { openCreateMatch } from './menu';
 
 const saturday = { id: 1, title: 'Футбол по субботам' };
 const work = { id: 2, title: 'Друзья с работы' };
@@ -62,7 +63,7 @@ test('one group shows no switcher, group field or tags', async ({ page }) => {
   await expect(page.getByText('Поле 1')).toBeVisible();
   await expect(page.getByText('Сменить')).toHaveCount(0);
   await expect(page.getByText(saturday.title)).toHaveCount(0);
-  await dock(page).getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   const sheet = page.getByRole('dialog', { name: 'Новый матч' });
   await expect(sheet).toBeVisible();
   await expect(sheet.getByRole('combobox', { name: 'Группа' })).toHaveCount(0);
@@ -84,7 +85,7 @@ test('two groups tag cards and require choosing a group before creating', async 
   await expect(page.getByText(work.title).first()).toBeVisible();
   await expect(page.getByText('Сменить')).toHaveCount(0);
   await axe(page);
-  await dock(page).getByRole('link', { name: 'Создать матч' }).click();
+  await openCreateMatch(page);
   const sheet = page.getByRole('dialog', { name: 'Новый матч' });
   const group = sheet.getByRole('combobox', { name: 'Группа' });
   await expect(group).toBeVisible();

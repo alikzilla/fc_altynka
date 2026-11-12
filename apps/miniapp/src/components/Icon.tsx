@@ -20,6 +20,9 @@ const paths = {
   arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
   back: <path d="m14 6-6 6 6 6" />,
   plus: <path d="M12 5v14M5 12h14" />,
+  /* Меню разделов: девять точек; «Главная» уже занята четырьмя плитками. */
+  grid: <path d="M5 5h.01M12 5h.01M19 5h.01M5 12h.01M12 12h.01M19 12h.01M5 19h.01M12 19h.01M19 19h.01" strokeWidth="3.2" />,
+  chart: <path d="M5 20v-8m7 8V4m7 16v-5" />,
   pin: <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z" /><circle cx="12" cy="10" r="2" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
   check: <path d="m5 12 4 4L19 6" />,

@@ -15,6 +15,7 @@ import { AvailabilityPrompt } from './components/AvailabilityPrompt';
 // Rarely visited screens load on demand; the first paint carries Home, Matches, the match page and Profile.
 const NewEvent = lazy(() => import('./screens/NewEvent').then(m => ({ default: m.NewEvent })));
 const Players = lazy(() => import('./screens/Players').then(m => ({ default: m.Players })));
+const Statistics = lazy(() => import('./screens/Statistics').then(m => ({ default: m.Statistics })));
 const SkillAssessment = lazy(() => import('./screens/SkillAssessment').then(m => ({ default: m.SkillAssessment })));
 const MatchReview = lazy(() => import('./screens/MatchReview').then(m => ({ default: m.MatchReview })));
 const Schedule = lazy(() => import('./screens/Schedule').then(m => ({ default: m.Schedule })));
@@ -91,6 +92,7 @@ function TeamApp() {
                   <Route path="/event/:id" component={Event} />
                   <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
                   <Route path="/players"><Players /></Route>
+                  <Route path="/stats"><Statistics /></Route>
                   <Route path="/profile/skills"><SkillAssessment /></Route>
                   <Route path="/profile/availability"><Profile availability /></Route>
                   <Route path="/profile/settings/:section">{params => <Profile settings={params.section} />}</Route>

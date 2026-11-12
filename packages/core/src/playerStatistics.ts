@@ -73,3 +73,45 @@ export function aggregatePlayerStatistics(rows: readonly PlayerProtocolSummary[]
   result.winPercentage = result.games ? Math.round(result.wins / result.games * 100) : null;
   return result;
 }
+
+/** Итоги игрока в одной группе для страницы «Статистика». */
+export interface LeaderboardRowDto {
+  userId: number; displayName: string; photoUrl: string | null;
+  /** Рейтинг общий для всех групп человека. */
+  rating: number;
+  meetings: number; games: number; goals: number; assists: number; assistsTracked: boolean; wins: number;
+}
+/** Группы смотрящего; в каждой только действующие участники, сыгравшие хотя бы одну игру. */
+export interface LeaderboardDto { groups: { community: { id: number; title: string }; players: LeaderboardRowDto[] }[] }
+
+export const LEADERBOARD_BOARDS = ['goals', 'assists', 'points', 'games', 'wins'] as const;
+export type LeaderboardBoard = typeof LEADERBOARD_BOARDS[number];
+
+/** `communityId === null` складывает человека по всем группам: он остаётся одной строкой. */
+export function mergeLeaderboard(groups: LeaderboardDto['groups'], communityId: number | null): LeaderboardRowDto[] {
+  const rows = new Map<number, LeaderboardRowDto>();
+  for (const group of groups) {
+    if (communityId !== null && group.community.id !== communityId) continue;
+    for (const player of group.players) {
+      const row = rows.get(player.userId);
+      if (!row) { rows.set(player.userId, { ...player }); continue; }
+      for (const key of ['meetings', 'games', 'goals', 'assists', 'wins'] as const) row[key] += player[key];
+      row.assistsTracked ||= player.assistsTracked;
+    }
+  }
+  return [...rows.values()];
+}
+
+/** Пасы до появления их учёта неизвестны: такой игрок не получает выдуманный ноль. */
+export function leaderboardValue(row: LeaderboardRowDto, board: LeaderboardBoard): number | null {
+  if (board === 'points') return row.goals + (row.assistsTracked ? row.assists : 0);
+  if (board === 'assists') return row.assistsTracked ? row.assists : null;
+  return row[board];
+}
+
+/** По убыванию показателя; при равенстве — больше голов, больше пасов, меньше игр, затем имя. */
+export function rankLeaderboard(rows: readonly LeaderboardRowDto[], board: LeaderboardBoard): LeaderboardRowDto[] {
+  const value = (row: LeaderboardRowDto) => leaderboardValue(row, board) ?? -1;
+  return [...rows].sort((a, b) => value(b) - value(a) || b.goals - a.goals || b.assists - a.assists || a.games - b.games
+    || a.displayName.localeCompare(b.displayName, 'ru') || a.userId - b.userId);
+}

@@ -10,6 +10,7 @@ import './styles/themes.css';
 import './styles/match.css';
 import './styles/ratings.css';
 import './styles/venues.css';
+import './styles/statistics.css';
 
 initializeTheme();
 createRoot(document.getElementById('root')!).render(

@@ -151,13 +151,15 @@ test("organizer reaches creation from the central action; a billed match does no
   const { location } = open();
   await screen.findByRole("heading", { name: "Ближайший матч" });
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-  expect(within(nav).getAllByRole("link")).toHaveLength(5);
+  expect(within(nav).getAllByRole("link")).toHaveLength(4);
   expect(
     await screen.findByRole("link", { name: /Открыть матч/ }),
   ).toHaveAttribute("href", "/event/1");
-  await userEvent.click(
-    within(nav).getByRole("link", { name: "Создать матч" }),
-  );
+  await userEvent.click(within(nav).getByRole("button", { name: "Меню" }));
+  const menu = screen.getByRole("dialog", { name: "Меню" });
+  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Создать матч", "Статистика", "Игроки"]);
+  await userEvent.click(within(menu).getByRole("link", { name: "Создать матч" }));
+  expect(screen.queryByRole("dialog", { name: "Меню" })).toBeNull();
   expect(
     await screen.findByRole("heading", { name: "Новый матч" }),
   ).toBeVisible();
@@ -170,8 +172,19 @@ test("player sees the creation sheet with an explanation instead of a form", asy
   await screen.findByText(/Создавать матчи может организатор группы/);
   expect(screen.queryByLabelText("Дата")).not.toBeInTheDocument();
   const nav = screen.getByRole("navigation", { name: "Основная навигация" });
-  expect(within(nav).queryByRole("link", { name: "Создать матч" })).toBeNull();
   expect(within(nav).getAllByRole("link")).toHaveLength(4);
+});
+
+test("a player gets the same centre menu without match creation and reaches statistics from it", async () => {
+  identity = { ...me, communities: [{ id: 1, title: "FC Altynka", role: "player" }] };
+  const { location } = open();
+  await screen.findByRole("heading", { name: "Ближайший матч" });
+  await userEvent.click(screen.getByRole("button", { name: "Меню" }));
+  const menu = screen.getByRole("dialog", { name: "Меню" });
+  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Статистика", "Игроки"]);
+  await userEvent.click(within(menu).getByRole("link", { name: "Статистика" }));
+  expect(await screen.findByRole("heading", { name: "Статистика" })).toBeVisible();
+  expect(location.history?.at(-1)).toBe("/stats");
 });
 
 test("the latest played match remains on home while its bill is open", async () => {

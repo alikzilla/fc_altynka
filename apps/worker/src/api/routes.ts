@@ -75,7 +75,7 @@ const ownBillPayment = async (c: C) => {
 
 export const api = new Hono<AppEnv>();
 api.use('*', identityMiddleware(env => depsFactory(env)));
-// Person-scoped routes (/me, /events list, /matches, /feed, /notifications, /players) need no group.
+// Person-scoped routes (/me, /events list, /matches, /feed, /notifications, /players, /statistics) need no group.
 // Object-scoped routes resolve the group from the object; a foreign object looks like a missing one.
 // Hono's `/events/:id/*` also matches `/events/:id`, but not `/events` (list and create).
 api.use('/events/:id/*', scopeCommunity(groupOf.event));
