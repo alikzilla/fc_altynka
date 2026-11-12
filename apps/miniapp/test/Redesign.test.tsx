@@ -157,7 +157,7 @@ test("organizer reaches creation from the central action; a billed match does no
   ).toHaveAttribute("href", "/event/1");
   await userEvent.click(within(nav).getByRole("button", { name: "Меню" }));
   const menu = screen.getByRole("dialog", { name: "Меню" });
-  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Создать матч", "Статистика", "Игроки"]);
+  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Создать матч", "Статистика", "Игроки", "Площадки"]);
   await userEvent.click(within(menu).getByRole("link", { name: "Создать матч" }));
   expect(screen.queryByRole("dialog", { name: "Меню" })).toBeNull();
   expect(
@@ -181,7 +181,7 @@ test("a player gets the same centre menu without match creation and reaches stat
   await screen.findByRole("heading", { name: "Ближайший матч" });
   await userEvent.click(screen.getByRole("button", { name: "Меню" }));
   const menu = screen.getByRole("dialog", { name: "Меню" });
-  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Статистика", "Игроки"]);
+  expect(within(menu).getAllByRole("link").map((a) => a.textContent)).toEqual(["Статистика", "Игроки", "Площадки"]);
   await userEvent.click(within(menu).getByRole("link", { name: "Статистика" }));
   expect(await screen.findByRole("heading", { name: "Статистика" })).toBeVisible();
   expect(location.history?.at(-1)).toBe("/stats");

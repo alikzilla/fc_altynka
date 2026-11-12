@@ -22,6 +22,22 @@ export async function addVenue(d: { db: Db; now: number }, communityId: number, 
   return row ? toDto(row) : 'duplicate';
 }
 
+/** Переименование не трогает матчи: они хранят название на момент назначения. */
+export async function updateVenue(db: Db, communityId: number, id: number, v: VenueInput): Promise<VenueDto | 'duplicate' | null> {
+  const existing = await db.select({ id: venues.id, name: venues.name }).from(venues).where(eq(venues.communityId, communityId));
+  if (!existing.some(row => row.id === id)) return null;
+  const key = v.name.toLocaleLowerCase('ru');
+  if (existing.some(row => row.id !== id && row.name.toLocaleLowerCase('ru') === key)) return 'duplicate';
+  try {
+    const [row] = await db.update(venues).set(v).where(and(eq(venues.id, id), eq(venues.communityId, communityId))).returning();
+    return row ? toDto(row) : null;
+  } catch (error) {
+    // A concurrent rename to the same exact name hits the unique index.
+    if (String((error as Error)?.message ?? error).includes('UNIQUE')) return 'duplicate';
+    throw error;
+  }
+}
+
 export async function venueCommunity(db: Db, id: number): Promise<number | null> {
   return (await db.select({ g: venues.communityId }).from(venues).where(eq(venues.id, id)))[0]?.g ?? null;
 }
