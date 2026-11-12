@@ -71,6 +71,6 @@ export interface MatchReviewSummaryDto {
 }
 export interface MatchReviewDto extends MatchReviewSummaryDto {
   serverNow: number;
-  participants: { userId: number; name: string; score: number | null }[];
+  participants: { userId: number; name: string; photoUrl?: string | null; score: number | null }[];
   ownSubmission: ReviewInput | null;
 }

@@ -4,7 +4,7 @@ import { Avatar, Icon } from '../components/Icon';
 import { RatingSlider } from '../components/RatingSlider';
 
 type Props = {
-  players: { userId: number; name: string }[];
+  players: { userId: number; name: string; photoUrl?: string | null }[];
   scores: Record<number, number>;
   gameScore: number | null;
   onScore: (userId: number, value: number | null) => void;
@@ -53,7 +53,7 @@ export function ReviewRater({ players, scores, gameScore, onScore, onGameScore, 
     <div className="skills-progress review-progress"><span className="muted">{step + 1} из {total}</span><progress value={step + 1} max={total} aria-label="Прогресс оценки" /></div>
     <div className="review-step-window">
       <section key={step} className={`card material-blue review-step ${leaving ? 'is-leaving' : ''}`} style={{ '--step-direction': direction } as CSSProperties}>
-        <div className="review-person">{!game && <Avatar name={person.name} />}<div><h3 ref={heading} tabIndex={-1}>{game ? 'Матч в целом' : person.name}</h3><p className="muted">{game ? 'Твоё общее впечатление от матча' : 'Как проявил себя в этом матче?'}</p></div></div>
+        <div className="review-person">{!game && <Avatar name={person.name} photoUrl={person.photoUrl} />}<div><h3 ref={heading} tabIndex={-1}>{game ? 'Матч в целом' : person.name}</h3><p className="muted">{game ? 'Твоё общее впечатление от матча' : 'Как проявил себя в этом матче?'}</p></div></div>
         <RatingSlider label={game ? 'Матч в целом' : `Оценка: ${person.name}`} value={value} disabled={busy || leaving} kind={game ? 'match' : 'player'}
           onChange={change} />
       </section>

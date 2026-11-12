@@ -233,3 +233,11 @@ test('the players list and a peer profile carry the saved Telegram photo', async
   const profile = await (await request(`/api/players/${w.orgUserId}`)).json<PlayerProfileDto>();
   expect(profile.photoUrl).toBe('https://t.me/i/userpic/org.jpg');
 });
+
+test('the match roster carries the Telegram photo of players', async () => {
+  await db().update(users).set({ photoUrl: 'https://t.me/i/userpic/org.jpg' }).where(eq(users.id, w.orgUserId));
+  const { eventId } = await playedMatch();
+  const detail = await (await request(`/api/events/${eventId}`)).json<import('@altynka/core').EventDetailDto>();
+  expect(detail.main.find(s => s.userId === w.orgUserId)?.photoUrl).toBe('https://t.me/i/userpic/org.jpg');
+  expect(detail.main.find(s => s.userId === w.playerUserId)?.photoUrl).toBeNull();
+});

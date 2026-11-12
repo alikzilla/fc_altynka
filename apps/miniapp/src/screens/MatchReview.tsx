@@ -51,7 +51,7 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
       <div className="card material-blue"><h2>Как прошёл матч?</h2><p>Оцени, как сыграл каждый участник, от 1 до 10. Твоё имя рядом с оценками никто не увидит.</p><p className="muted">Можно пропустить любого игрока. После отправки изменить ответы нельзя.</p><p className="muted">До {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt!)} · Алматы</p></div>
       <section className="card review-entry-card" aria-labelledby="review-entry-title">
         <h2 id="review-entry-title">Оценка игроков</h2>
-        <div className="review-entry-players">{review.participants.filter(p => p.userId !== me.userId).slice(0, 4).map(person => <Avatar key={person.userId} name={person.name} />)}<span className="muted">Оценено {Object.keys(scores).length} из {review.participants.filter(p => p.userId !== me.userId).length}</span></div>
+        <div className="review-entry-players">{review.participants.filter(p => p.userId !== me.userId).slice(0, 4).map(person => <Avatar key={person.userId} name={person.name} photoUrl={person.photoUrl} />)}<span className="muted">Оценено {Object.keys(scores).length} из {review.participants.filter(p => p.userId !== me.userId).length}</span></div>
         <p className="muted">По одному игроку за раз. В конце — впечатление от матча в целом.</p>
         {gameScore !== null && <p className="muted">Матч в целом: {gameScore} / 10</p>}
         <button className="btn primary wide" onClick={() => setRatingOpen(true)}>{Object.keys(scores).length || gameScore !== null ? 'Продолжить оценку' : 'Оценить'}</button>

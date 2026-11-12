@@ -145,13 +145,14 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
       SELECT CASE WHEN count(game_score) >= ${MIN_REVIEW_VOTES} THEN round(avg(game_score), 1) ELSE NULL END AS score
       FROM review_submissions WHERE event_id = ${ev.id}`) : Promise.resolve([]),
   ]);
+  const people = await usersById(db, participants.flatMap(p => p.userId === null ? [] : [p.userId]));
   const own = submissions[0];
   const eligible = participants.some(p => p.userId === userId);
   const scoreMap = new Map(scores.map(s => [s.userId, s.score]));
   return { state: now >= review.closesAt ? 'closed' : !eligible ? 'ineligible' : own ? own.skipped ? 'skipped' : 'submitted' : 'open',
     canFinish: false, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
     gameScore: overall[0]?.score ?? null,
-    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, score: scoreMap.get(p.userId) ?? null }]),
+    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null }]),
     ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null };
 }
 
