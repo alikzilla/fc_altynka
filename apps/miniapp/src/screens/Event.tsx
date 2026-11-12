@@ -5,6 +5,8 @@ import { useScreenSearch } from '../state/screenSearch';
 import { canManageEvent } from '../state/me';
 import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
+import { matchLink } from '../lib/bot';
+import { haptic, shareLink } from '../lib/tg';
 import { matchOrigin } from '../lib/navHistory';
 import { Icon } from '../components/Icon';
 import { GroupTag } from '../components/GroupTag';
@@ -61,10 +63,20 @@ export function Event() {
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
   const manage = ev && canManageEvent(ev) && isOpen(ev.status);
+  function invite() {
+    if (!ev) return;
+    const when = [title, weekday, ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : null, ev.place].filter(Boolean).join(' · ');
+    const roster = ev.mainCount < ev.limit ? `Записано ${ev.mainCount} из ${ev.limit}, есть места.` : 'Основа заполнена, можно встать в резерв.';
+    haptic('light');
+    shareLink(matchLink(ev.id), `Матч ${when}\n${roster}`);
+  }
   const gamePrimary = !!ev && ev.protocolVersion===1 && canManageEvent(ev) && (tab==='teams' && !!ev.gameProtocol?.canStart || tab==='games' && !!ev.gameProtocol?.canRecord);
   const actionBlocked = !gamePrimary && !!ev && isOpen(ev.status) && (canManageEvent(ev) && ev.status === 'collecting' || !ev.my);
   const View = tabViews[tab];
-  return <Screen title={title} subtitle={weekday ?? (pending ? <Sk w="5.5em" /> : undefined)} back={matchOrigin()} className="match-screen" action={manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}>
+  return <Screen title={title} subtitle={weekday ?? (pending ? <Sk w="5.5em" /> : undefined)} back={matchOrigin()} className="match-screen" action={ev && isOpen(ev.status) && <div className="match-heading-actions">
+    <button className="match-menu-button" aria-label="Позвать в матч" onClick={invite}><Icon name="share" /></button>
+    {manage && <button className="match-menu-button" aria-label="Действия матча" onClick={() => setMenu(true)}><Icon name="more" /></button>}
+  </div>}>
     {pending && <EventSkeleton />}
     {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
     {ev && <>

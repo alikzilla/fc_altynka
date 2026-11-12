@@ -15,6 +15,7 @@
 .match-personal-status svg { width: 19px; height: 19px; color: #e4cbea; }
 .match-personal-detail { color: #e0cbe1; font-size: 13px; }
 .match-personal > .btn-text { color: #e6d1ee; padding-inline: 8px; flex-shrink: 0; }
+.match-heading-actions { display: flex; flex-shrink: 0; margin-right: -10px; }
 .match-menu-button, .player-menu-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--text); border-radius: 50%; }
 .player-menu-button { color: var(--hint); margin-right: -8px; }
 .match-list-heading { min-height: 28px; }
