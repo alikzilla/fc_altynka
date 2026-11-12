@@ -141,8 +141,9 @@ test('appointment is the prerequisite for billing; assigning time unlocks the bi
   let scheduled = false;
   let started = false;
   await page.route('**/api/events/7', route => route.fulfill({ json: scheduled ? { ...draft, serverNow:Date.parse(`${draft.date}T14:00:00Z`), status: started ? 'playing' : 'scheduled', startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' } : draft }));
+  await page.route('**/api/venues?*', route => route.fulfill({ json: { venues: [{ id: 1, name: 'Школа Аксай', address: null, mapUrl: 'https://go.2gis.com/G47G5', hourlyRate: null }] } }));
   await page.route('**/api/events/7/schedule', route => {
-    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, place: 'Школа Аксай' });
+    expect(route.request().postDataJSON()).toEqual({ startTime: '20:00', durationHours: 2, limit: 15, place: 'Школа Аксай' });
     scheduled = true;
     return route.fulfill({ json: { kind: 'ok' } });
   });

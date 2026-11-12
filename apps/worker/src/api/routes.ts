@@ -16,6 +16,8 @@ import { ratingsApi } from './ratings';
 import { gamesApi } from './games';
 import { feedApi } from './feed';
 import { availabilityApi } from './availability';
+import { venuesApi } from './venues';
+import { venueCommunity } from '../domain/venues';
 import { idParam } from './validate';
 
 const defaultDeps = (env: Env): Deps => ({ db: getDb(env.DB), now: Date.now(), sync: doSyncPort(env) });
@@ -50,6 +52,10 @@ const groupOf = {
     return id === null ? null : (await first(c.get('deps').db.select({ g: events.communityId }).from(signups)
       .innerJoin(events, eq(events.id, signups.eventId)).where(eq(signups.id, id))))?.g ?? null;
   },
+  venue: async (c: C) => {
+    const id = param(c, 'id');
+    return id === null ? null : venueCommunity(c.get('deps').db, id);
+  },
   /** Group management names its group explicitly: `?communityId=`. */
   query: async (c: C) => idParam(c.req.query('communityId') ?? ''),
 };
@@ -79,6 +85,8 @@ api.use('/signups/:id', scopeCommunity(groupOf.signup));
 api.use('/members', scopeCommunity(groupOf.query, 403));
 api.use('/members/:userId', scopeCommunity(groupOf.query, 403));
 api.use('/availability/summary', scopeCommunity(groupOf.query, 403));
+api.use('/venues', scopeCommunity(groupOf.query, 403));
+api.use('/venues/:id', scopeCommunity(groupOf.venue));
 api.route('/', communitiesApi);
 api.route('/', eventsApi);
 api.route('/', membersApi);
@@ -89,3 +97,4 @@ api.route('/', ratingsApi);
 api.route('/', gamesApi);
 api.route('/', feedApi);
 api.route('/', availabilityApi);
+api.route('/', venuesApi);

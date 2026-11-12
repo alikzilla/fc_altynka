@@ -1,5 +1,5 @@
 import { guardRosterMutation } from './rosterGuard';
-import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type QueueSplit, type Role } from '@altynka/core';
+import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type MatchLimit, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { communities, events, memberships, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
@@ -219,12 +219,13 @@ async function removeSignupUnsafe(
 async function scheduleEventUnsafe(
   d: Deps,
   eventId: number,
-  v: { startTime: string; durationHours: 1 | 2; place: string | null },
+  v: { startTime: string; durationHours: 1 | 2; place: string | null; limit?: MatchLimit },
 ): Promise<'ok' | 'not_found' | 'closed' | 'past_start'> {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return 'not_found';
   if (isClosed(ev, d.now)) return 'closed';
-  if (ev.status === 'scheduled' && ev.startTime === v.startTime && ev.durationHours === v.durationHours && ev.place === v.place) return 'ok';
+  const limit = v.limit ?? limitFor(v.durationHours);
+  if (ev.status === 'scheduled' && ev.startTime === v.startTime && ev.durationHours === v.durationHours && ev.place === v.place && ev.baseLimit === limit) return 'ok';
   const start = matchStartsAt({ date: ev.date, startTime: v.startTime });
   if (start === null || start <= d.now) return 'past_start';
   const before = await loadQueue(d.db, eventId);
@@ -234,7 +235,7 @@ async function scheduleEventUnsafe(
       startTime: v.startTime,
       durationHours: v.durationHours,
       place: v.place,
-      baseLimit: limitFor(v.durationHours),
+      baseLimit: limit,
       status: 'scheduled',
     })
     .where(eq(events.id, eventId));

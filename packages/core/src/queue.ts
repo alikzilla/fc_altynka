@@ -1,9 +1,23 @@
-export const DEFAULT_LIMIT = 10;
+export const DEFAULT_LIMIT = 10 as const;
 export const RESTORE_WINDOW_MS = 120_000;
 
 export type Duration = 1 | 2;
 
-export function limitFor(duration: Duration | null): number {
+/** Формат матча задаёт размер основы: две или три команды по пять или шесть человек. */
+export const MATCH_FORMATS = [
+  { limit: 10, teamSize: 5, teamCount: 2, label: '5×5' },
+  { limit: 12, teamSize: 6, teamCount: 2, label: '6×6' },
+  { limit: 15, teamSize: 5, teamCount: 3, label: '5×5×5' },
+  { limit: 18, teamSize: 6, teamCount: 3, label: '6×6×6' },
+] as const;
+export type MatchFormat = (typeof MATCH_FORMATS)[number];
+export type MatchLimit = MatchFormat['limit'];
+export const MATCH_LIMITS = MATCH_FORMATS.map(f => f.limit) as [MatchLimit, ...MatchLimit[]];
+
+export const matchFormat = (limit: number): MatchFormat | undefined => MATCH_FORMATS.find(f => f.limit === limit);
+
+/** Основа по умолчанию, когда формат не выбран: час — две пятёрки, два часа — три. */
+export function limitFor(duration: Duration | null): MatchLimit {
   return duration === 2 ? 15 : DEFAULT_LIMIT;
 }
 

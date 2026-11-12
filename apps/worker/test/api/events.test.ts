@@ -72,6 +72,20 @@ test('schedule validates time and duration', async () => {
   expect(d).toMatchObject({ status: 'scheduled', startTime: '21:00', durationHours: 2, place: 'Шанырак', limit: 15 });
 });
 
+test('the format sets the squad size independently of the duration', async () => {
+  const id = await newEvent();
+  const post = (body: unknown) => apiRequest(`/api/events/${id}/schedule`, { method: 'POST', as: w.org, body });
+  const limit = async () => ((await (await apiRequest(`/api/events/${id}`, { as: w.org })).json()) as EventDetailDto).limit;
+  for (const bad of [11, 0, 20, '12']) expect((await post({ startTime: '21:00', durationHours: 2, limit: bad })).status).toBe(400);
+  expect((await post({ startTime: '21:00', durationHours: 2, limit: 12 })).status).toBe(200);
+  expect(await limit()).toBe(12);
+  // Меняется только формат: время и поле те же, но основа пересчитывается.
+  expect((await post({ startTime: '21:00', durationHours: 2, limit: 18 })).status).toBe(200);
+  expect(await limit()).toBe(18);
+  expect((await post({ startTime: '21:00', durationHours: 1 })).status).toBe(200);
+  expect(await limit()).toBe(10);
+});
+
 test('guest name is trimmed and length-checked', async () => {
   const id = await newEvent();
   const post = (name: string) => apiRequest(`/api/events/${id}/guests`, { method: 'POST', as: w.player, body: { name } });

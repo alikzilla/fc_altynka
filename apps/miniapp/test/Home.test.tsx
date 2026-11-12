@@ -31,7 +31,7 @@ test('the upcoming card leads with how soon the match is, then one line and two 
   expect(within(card).getByText('Через 2 дня')).toBeInTheDocument();
   expect(within(card).getByText('20:00–22:00 · Школа Аксай')).toBeInTheDocument();
   expect(within(card).getByText('Ты в резерве · №1')).toBeInTheDocument();
-  expect(within(card).getByLabelText('Записано 9 из 10, в резерве 2')).toHaveTextContent('9 / 10 · резерв 2');
+  expect(within(card).getByLabelText('Формат 5×5. Записано 9 из 10, в резерве 2')).toHaveTextContent('5×5 · 9 / 10 · резерв 2');
   vi.useRealTimers();
 });
 

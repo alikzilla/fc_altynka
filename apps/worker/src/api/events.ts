@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { todayAlmaty } from '@altynka/core';
+import { MATCH_LIMITS, limitFor, todayAlmaty, type MatchLimit } from '@altynka/core';
 import { eq } from 'drizzle-orm';
 import { signups } from '../db/schema';
 import { requireRole, type AppEnv } from '../auth/middleware';
@@ -104,13 +104,15 @@ eventsApi.post(
       startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
       durationHours: z.union([z.literal(1), z.literal(2)]),
       place: trimmed(0, 80).optional(),
+      // Формат (размер основы). Без него — по длительности, как раньше: мини-апп из кэша не сломается.
+      limit: z.number().refine((n): n is MatchLimit => (MATCH_LIMITS as number[]).includes(n)).optional(),
     }),
   ),
   async c => {
     const id = await ownEvent(c);
     if (id === null) return c.json({ error: 'not_found' }, 404);
     const v = c.req.valid('json');
-    const r = await scheduleEvent(c.get('deps'), id, { startTime: v.startTime, durationHours: v.durationHours, place: v.place || null });
+    const r = await scheduleEvent(c.get('deps'), id, { startTime: v.startTime, durationHours: v.durationHours, place: v.place || null, limit: v.limit ?? limitFor(v.durationHours) });
     return c.json({ kind: r }, statusFor(r));
   },
 );

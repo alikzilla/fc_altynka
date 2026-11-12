@@ -12,6 +12,7 @@ async function setup(page: Page, theme = 'dark') {
   await teamApiRoute(page, r => {
     const path = new URL(r.request().url()).pathname;
     if (path === '/api/me') return r.fulfill({ json: { userId: 1, displayName: 'Организатор', role: 'organizer', profileCompleted: true, theme } });
+    if (path === '/api/venues') return r.fulfill({ json: { venues: [{ id: 1, name: 'Школа Аксай', address: null, mapUrl: 'https://go.2gis.com/G47G5', hourlyRate: null }] } });
     if (path === '/api/notifications') return r.fulfill({ json: { tasks: [] } });
     if (path === '/api/events/7/schedule') { const data = r.request().postDataJSON(); submissions.push(data); value = { ...value, ...data, status: 'scheduled' }; return r.fulfill({ json: { kind: 'ok' } }); }
     return r.fulfill({ json: path === '/api/events' ? { active: [value], past: [] } : value });
@@ -37,7 +38,8 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390]) {
     const picker = page.getByRole('dialog', { name: 'Место проведения', exact: true });
     await expect(picker).toBeVisible();
     await expect(picker.locator('.venue-option')).toHaveCount(1);
-    await expect(picker.getByRole('button', { name: /Школа Аксай/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(picker.getByRole('button', { name: /^Школа Аксай/ })).toHaveAttribute('aria-pressed', 'true');
+    await expect(sheet.getByRole('button', { name: '5×5×5, 15 игроков', exact: true })).toHaveAttribute('aria-pressed', 'true');
     const map = picker.getByRole('link', { name: 'Открыть в 2ГИС' });
     await expect(map).toHaveAttribute('href', 'https://go.2gis.com/G47G5');
     await map.click();
@@ -72,7 +74,7 @@ for (const theme of ['dark', 'light']) for (const width of [320, 390]) {
     await submit.click();
     await expect(sheet).toHaveCount(0);
     await expect(page).toHaveURL('/event/7?tab=bill');
-    expect(submissions).toEqual([{ startTime: '22:30', durationHours: 2, place: 'Школа Аксай' }]);
+    expect(submissions).toEqual([{ startTime: '22:30', durationHours: 2, limit: 15, place: 'Школа Аксай' }]);
     await expect(page.locator('.match-detail-place')).toContainText('Школа Аксай');
     expect(await page.evaluate(() => document.body.style.overflow)).not.toBe('hidden');
   });

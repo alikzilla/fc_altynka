@@ -34,6 +34,18 @@ export interface MeDto {
   };
 }
 
+/** Площадка группы: организатор добавляет её один раз и потом выбирает при назначении матча. */
+export interface VenueDto {
+  id: number;
+  name: string;
+  address: string | null;
+  mapUrl: string | null;
+  /** Цена аренды за час в тенге. */
+  hourlyRate: number | null;
+}
+export interface VenuesDto { venues: VenueDto[] }
+export const VENUES_MAX = 30;
+
 export interface SignupDto {
   id: number;
   seq: number;
