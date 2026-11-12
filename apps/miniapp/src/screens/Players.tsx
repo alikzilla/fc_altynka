@@ -33,7 +33,7 @@ function PlayerRow({ person, member, communityId, managing, toggle, onSaved }: {
   const [, navigate] = useLocation();
   return <li>
     <button type="button" className="btn-plain player-directory-row" onClick={() => navigate(`/players/${person.userId}`)}>
-      <Avatar name={person.displayName} injured={person.injured} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
+      <Avatar name={person.displayName} photoUrl={person.photoUrl} injured={person.injured} /><span className="player-directory-name"><b>{person.displayName}</b><small className="muted">{person.playingPosition ? playingPositionLabel[person.playingPosition] : 'Позиция не указана'}</small></span>
       <span className="rating-small">{formatRating(person.rating.value)}</span><Icon name="back" className="chevron-right" />
     </button>
     {member && <><button className="btn-text player-management-toggle" aria-expanded={managing} aria-label={`Управление: ${person.displayName}`} onClick={toggle}>Управление</button>

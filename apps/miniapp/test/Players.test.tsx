@@ -93,3 +93,19 @@ test('a single group has no section heading', async () => {
   expect(screen.queryByRole('heading', { name: /FC Altynka/ })).toBeNull();
   expect(screen.getByRole('heading', { name: 'Игроки' })).toBeInTheDocument();
 });
+
+test('the list and the profile sheet show the Telegram photo when there is one', async () => {
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/players/12'
+    ? { ...players[0], photoUrl: 'https://t.me/i/userpic/arman.jpg', telegramUsername: null, role: 'player', statistics: { meetings: 0, games: 0, goals: 0, assists: 0, assistsTracked: false, wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0 }, gameHistory: [], pinnedAchievement: null, history: [] }
+    : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role, players: [{ ...players[0], photoUrl: 'https://t.me/i/userpic/arman.jpg' }, players[1]] }] }));
+  role = 'player';
+  const { container } = renderWithApp(<Players selectedUserId={12} />, { me: player });
+  await screen.findByText('Орг');
+  // Only the person with a photo gets an image; the other keeps initials.
+  const images = container.querySelectorAll('.player-directory img');
+  expect(images).toHaveLength(1);
+  expect(images[0]).toHaveAttribute('src', 'https://t.me/i/userpic/arman.jpg');
+  const sheet = await screen.findByRole('dialog', { name: 'Профиль игрока' });
+  await screen.findByRole('heading', { name: 'Арман', level: 2 });
+  expect(sheet.querySelector('.avatar-large img')).toHaveAttribute('src', 'https://t.me/i/userpic/arman.jpg');
+});
