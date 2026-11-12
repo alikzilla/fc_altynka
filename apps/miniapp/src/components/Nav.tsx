@@ -27,7 +27,7 @@ export function Nav() {
         {ITEMS.slice(0, 2).map(link)}
         {/* The centre control is the same for everyone: it opens the menu of sections that have no dock slot. */}
         <button type="button" className="nav-create" aria-label="Меню" aria-haspopup="dialog" aria-expanded={menu} onClick={() => { haptic('light'); setMenu(true); }}>
-          <span className="nav-icon"><Icon name="grid" /></span>
+          <span className="nav-icon"><Icon name="grid" className="nav-menu-dots" /><Icon name="close" className="nav-menu-close" /></span>
         </button>
         {ITEMS.slice(2).map(link)}
       </nav>
