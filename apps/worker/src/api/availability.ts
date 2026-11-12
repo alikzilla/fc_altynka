@@ -1,4 +1,4 @@
-import { AVAILABILITY_DAYS, DAY_PARTS, addDays, normalizeMark, todayAlmaty, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
+import { DAY_PARTS, normalizeMark, openWeekDates, todayAlmaty, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { Hono } from 'hono';
 import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
@@ -21,8 +21,8 @@ availabilityApi.put('/availability/days/:date', body(z.object({ mark })), async 
   const { db, now } = c.get('deps');
   const date = c.req.param('date');
   const today = todayAlmaty(new Date(now));
-  // Только даты календаря: прошедшие и далёкие дни не отмечаются.
-  if (!z.iso.date().safeParse(date).success || date < today || date >= addDays(today, AVAILABILITY_DAYS)) return c.json({ error: 'bad_date' }, 400);
+  // Только оставшиеся дни этой недели: прошедшие дни и следующая неделя не отмечаются.
+  if (!openWeekDates(today).includes(date)) return c.json({ error: 'bad_date' }, 400);
   const v = c.req.valid('json').mark;
   await saveDay(db, c.get('user').id, date, v && normalizeMark(v), now);
   return c.json<AvailabilityDto>(await getAvailability(db, c.get('user').id, now));

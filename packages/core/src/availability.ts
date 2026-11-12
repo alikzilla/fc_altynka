@@ -9,8 +9,6 @@ export type AvailabilityStatus = 'yes' | 'no';
 /** Отметка на день; её отсутствие (null) значит «не указано». */
 export interface AvailabilityMark { status: AvailabilityStatus; parts: DayPart[] }
 
-/** На сколько дней вперёд, считая сегодня, показывается календарь: дальше недели планы мало кто знает. */
-export const AVAILABILITY_DAYS = 7;
 /** Понедельник первый, как в календаре. */
 export const WEEKDAY_SHORT = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'] as const;
 
@@ -28,8 +26,24 @@ export function weekStart(date: string): string {
   return addDays(date, -weekdayOf(date));
 }
 
-/** Даты календаря: сегодня и следующие дни. */
-export function availabilityDates(today: string, count = AVAILABILITY_DAYS): string[] {
+/** Начало недели (понедельник, 00:00 по Алматы) в миллисекундах; Алматы круглый год UTC+5. */
+export function weekStartsAt(today: string): number {
+  return Date.parse(`${weekStart(today)}T00:00:00+05:00`);
+}
+
+/** Календарь игрока — текущая неделя целиком, с понедельника по воскресенье. */
+export function weekDates(today: string): string[] {
+  const start = weekStart(today);
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i));
+}
+
+/** Дни этой недели, которые ещё можно отметить: с сегодняшнего по воскресенье. */
+export function openWeekDates(today: string): string[] {
+  return weekDates(today).filter(date => date >= today);
+}
+
+/** Лента дат подряд: сегодня и следующие дни (выбор даты нового матча). */
+export function availabilityDates(today: string, count: number): string[] {
   return Array.from({ length: count }, (_, i) => addDays(today, i));
 }
 
@@ -49,15 +63,19 @@ export function availabilityLabel(mark: AvailabilityMark | null): string {
 export interface AvailabilityDayDto {
   date: string;
   mark: AvailabilityMark | null;
+  /** День этой недели уже прошёл: отметка видна, но изменить её нельзя. */
+  past: boolean;
 }
 
 export interface AvailabilityDto {
   days: AvailabilityDayDto[];
+  /** Человек уже отмечал дни на этой неделе (с понедельника по Алматы): еженедельная просьба не нужна. */
+  markedThisWeek: boolean;
 }
 
 export interface AvailabilityPersonDto { userId: number; name: string; parts: DayPart[] }
 
-/** Сводка по группе для организатора: кто может и кто не может в каждый из ближайших дней. */
+/** Сводка по группе для организатора: кто может и кто не может в каждый из оставшихся дней недели. */
 export interface AvailabilitySummaryDto {
   community: CommunityDto;
   days: { date: string; yes: AvailabilityPersonDto[]; no: AvailabilityPersonDto[]; unknown: number }[];

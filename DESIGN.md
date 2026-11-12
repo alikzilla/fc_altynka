@@ -76,7 +76,13 @@ An inset panel contains the position above five cells: goals, assists (a real co
 
 Scheduling opens in the shared ActionSheet over the current match and retains its tab.
 The venue field is a button opening a second ActionSheet; it never opens a keyboard.
-The catalogue currently contains only Школа Аксай and the supplied 2GIS link.
+The catalogue belongs to the group: the picker lists its venues and ends with «Добавить площадку»,
+which swaps the picker for the «Новая площадка» form (name required; address, https map link and
+hourly price optional) and returns with the new venue selected. Each card has a quiet «Удалить»
+that asks for confirmation inline; deleting never changes matches that already name the venue.
+The map link appears only when a link is saved («Открыть в 2ГИС» for 2GIS, otherwise «Открыть на карте»).
+Below duration the sheet offers the match format as four chips in the same two-column grid
+(5×5, 6×6, 5×5×5, 6×6×6 with the squad size underneath); duration suggests a format only until one is picked.
 Unknown address and tariff stay explicitly unspecified. A known tariff uses
 `18 000 ₸ / час` on one unbroken line. Explicit selection returns to the appointment
 draft without resetting time/duration; dismissing keeps the existing venue, including

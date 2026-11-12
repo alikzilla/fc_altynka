@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
   await teamApiRoute(page, route => {
     const path = new URL(route.request().url()).pathname;
-    return route.fulfill({ json: path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/players' ? [{ userId: 1, displayName: me.displayName, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } }] : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
+    return route.fulfill({ json: path === '/api/venues' ? { venues: [{ id: 1, name: 'Крытый манеж с очень длинным названием площадки', address: 'Улица с длинным названием, дом 123, корпус 4', mapUrl: 'https://go.2gis.com/G47G5', hourlyRate: 10000000 }] } : path === '/api/me' ? me : path === '/api/notifications' ? { tasks: [] } : path === '/api/events' ? { active: [event], past: [] } : path === '/api/matches' ? { events: [], nextCursor: null } : path === '/api/players' ? [{ userId: 1, displayName: me.displayName, playingPosition: null, dominantFoot: null, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } }] : path === '/api/members' ? [{ userId: 1, displayName: me.displayName, role: 'admin', level: 5 }] : { ...event, status: page.url().includes('tab=bill') ? 'playing' : event.status } });
   });
 });
 

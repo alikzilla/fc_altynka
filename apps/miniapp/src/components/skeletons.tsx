@@ -2,6 +2,7 @@
  * Скелеты повторяют загруженную разметку: те же классы карточек, отступы и высоты строк.
  * Постоянные подписи остаются текстом, данные заменяет <Sk />. Меняешь экран — поправь и его скелет.
  */
+import { MATCH_FORMATS } from '@altynka/core';
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
@@ -254,7 +255,10 @@ export function ScheduleSkeleton() {
       <fieldset className="form-fields">
         <label>Начало<span className="temporal-field"><Sk w="3em" /></span></label>
         <fieldset className="form-fields"><legend className="schedule-field-label">Продолжительность</legend><div className="schedule-duration">
-          {['1 час', '2 часа'].map((label, index) => <span className="chip-btn sk-chip" key={label}><b>{label}</b><small>До {index ? 15 : 10} игроков</small></span>)}
+          {['1 час', '2 часа'].map(label => <span className="chip-btn sk-chip" key={label}><b>{label}</b></span>)}
+        </div></fieldset>
+        <fieldset className="form-fields"><legend className="schedule-field-label">Формат</legend><div className="schedule-duration">
+          {MATCH_FORMATS.map(f => <span className="chip-btn sk-chip" key={f.limit}><b>{f.label}</b><small>{f.limit} игроков в основе</small></span>)}
         </div></fieldset>
         <div><span className="schedule-field-label">Место проведения <span>· необязательно</span></span>
           <span className="venue-trigger"><Icon name="pin" /><span><Sk w="9em" /></span><Icon name="back" className="venue-chevron" /></span>

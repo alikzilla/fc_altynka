@@ -1,4 +1,4 @@
-import { canRestore, demotedIds, limitFor, promotedIds, splitQueue } from '../src';
+import { MATCH_FORMATS, MATCH_LIMITS, canRestore, demotedIds, limitFor, matchFormat, promotedIds, splitQueue } from '../src';
 
 const e = (seq: number) => ({ id: seq, seq });
 const ids = (xs: { id: number }[]) => xs.map(x => x.id);
@@ -44,4 +44,12 @@ test('canRestore window', () => {
   expect(canRestore(1_000_000 - 119_999, 1_000_000)).toBe(true);
   expect(canRestore(1_000_000 - 120_001, 1_000_000)).toBe(false);
   expect(canRestore(null, 1_000_000)).toBe(false);
+});
+
+test('match formats: two or three teams of five or six', () => {
+  expect(MATCH_LIMITS).toEqual([10, 12, 15, 18]);
+  for (const f of MATCH_FORMATS) expect(f.teamSize * f.teamCount).toBe(f.limit);
+  expect(matchFormat(12)?.label).toBe('6×6');
+  expect(matchFormat(18)?.label).toBe('6×6×6');
+  expect(matchFormat(11)).toBeUndefined();
 });

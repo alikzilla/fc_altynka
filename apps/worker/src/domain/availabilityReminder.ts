@@ -1,4 +1,4 @@
-import { TIME_ZONE, availabilityDates, todayAlmaty, weekdayOf } from '@altynka/core';
+import { TIME_ZONE, openWeekDates, todayAlmaty, weekdayOf } from '@altynka/core';
 import { and, asc, eq, exists, gte, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { availabilityDays, communities, memberships, users } from '../db/schema';
@@ -36,7 +36,7 @@ export async function sendAvailabilityReminders(d: { db: Db; now: number; tg: Tg
     .orderBy(asc(users.id)).limit(REMINDER_BATCH);
   if (!people.length) return result;
   const ids = people.map(p => p.id);
-  const dates = availabilityDates(today);
+  const dates = openWeekDates(today);
   const marked = new Map<number, Set<string>>();
   for (const row of await d.db.select({ userId: availabilityDays.userId, date: availabilityDays.date }).from(availabilityDays)
     .where(and(inArray(availabilityDays.userId, ids), gte(availabilityDays.date, today)))) {

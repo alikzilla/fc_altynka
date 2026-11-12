@@ -3,10 +3,12 @@ import { expect, test, type Page } from '@playwright/test';
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 const dates = Array.from({ length: 7 }, (_, i) => day(i));
+// Неделя в календаре игрока: первые два дня уже прошли (как будто сегодня среда).
+const week = dates.map((date, i) => ({ date, past: i < 2 }));
 const me = (role: 'player' | 'organizer') => ({ userId: 2, displayName: 'Тимур', kaspiPhone: null, profileCompleted: true, theme: 'dark', communities: [{ id: 1, title: 'FC Altynka', role }] });
 
 async function mock(page: Page, role: 'player' | 'organizer') {
-  const calendar = { days: dates.map((date, i) => ({ date, mark: i === 2 ? { status: 'no', parts: [] } : i === 4 ? { status: 'yes', parts: ['evening'] } : null })) };
+  const calendar = { markedThisWeek: false, days: week.map((d, i) => ({ ...d, mark: i === 0 ? { status: 'no', parts: [] } : i === 4 ? { status: 'yes', parts: ['evening'] } : null })) };
   const writes: { path: string; body: unknown }[] = [];
   await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
   await page.route('**/api/**', async route => {
@@ -15,7 +17,7 @@ async function mock(page: Page, role: 'player' | 'organizer') {
       const body = route.request().postDataJSON();
       writes.push({ path: url.pathname, body });
       const date = url.pathname.split('/').pop()!;
-      calendar.days = calendar.days.map(d => d.date === date ? { date, mark: body.mark } : d);
+      calendar.days = calendar.days.map(d => d.date === date ? { ...d, mark: body.mark } : d);
       return route.fulfill({ json: calendar });
     }
     if (url.pathname === '/api/me') return route.fulfill({ json: me(role) });
@@ -38,15 +40,20 @@ for (const width of [280, 390]) test(`availability sheet over the profile: mark 
   await page.goto('/profile/availability');
   const sheet = page.getByRole('dialog', { name: 'Когда могу играть' });
   await expect(sheet).toBeVisible();
-  const grid = sheet.getByRole('group', { name: 'Ближайшие 7 дней' });
+  const grid = sheet.getByRole('group', { name: 'Эта неделя' });
   await expect(grid.getByRole('button')).toHaveCount(7);
-  await expect(grid.getByRole('button', { name: /— не могу$/ })).toHaveCount(1);
+  // Прошедшие дни недели видны, но недоступны; выбран первый доступный день.
+  await expect(grid.getByRole('button', { name: /— день прошёл$/ })).toHaveCount(2);
+  await expect(grid.getByRole('button').nth(0)).toBeDisabled();
+  await expect(grid.getByRole('button').nth(1)).toBeDisabled();
+  await expect(grid.getByRole('button').nth(2)).toHaveAttribute('aria-pressed', 'true');
+  await expect(grid.getByRole('button', { name: /— не могу$/ })).toHaveCount(0);
   for (const cell of await grid.getByRole('button').all()) expect((await cell.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await grid.getByRole('button').nth(1).click();
+  await grid.getByRole('button').nth(3).click();
   const editor = sheet.getByRole('region');
   await editor.getByRole('button', { name: 'Не могу', exact: true }).click();
-  await expect(grid.getByRole('button', { name: /— не могу$/ })).toHaveCount(2);
-  expect(writes.at(-1)).toEqual({ path: `/api/availability/days/${dates[1]}`, body: { mark: { status: 'no', parts: [] } } });
+  await expect(grid.getByRole('button', { name: /— не могу$/ })).toHaveCount(1);
+  expect(writes.at(-1)).toEqual({ path: `/api/availability/days/${dates[3]}`, body: { mark: { status: 'no', parts: [] } } });
 
   await grid.getByRole('button').nth(5).click();
   await editor.getByRole('button', { name: 'Могу', exact: true }).click();

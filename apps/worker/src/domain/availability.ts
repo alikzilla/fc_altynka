@@ -1,8 +1,8 @@
 import {
-  DAY_PARTS, availabilityDates, normalizeMark, todayAlmaty,
+  DAY_PARTS, normalizeMark, openWeekDates, todayAlmaty, weekDates, weekStart, weekStartsAt,
   type AvailabilityDto, type AvailabilityMark, type AvailabilityPersonDto, type AvailabilitySummaryDto, type DayPart,
 } from '@altynka/core';
-import { and, eq, gte, lte } from 'drizzle-orm';
+import { and, eq, gte, lte, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { availabilityDays, memberships, users, type CommunityRow } from '../db/schema';
 
@@ -14,9 +14,15 @@ export function toMark(row: { status: 'yes' | 'no'; parts: string }): Availabili
 
 export async function getAvailability(db: Db, userId: number, now: number): Promise<AvailabilityDto> {
   const today = todayAlmaty(new Date(now));
+  const since = weekStartsAt(today);
   const marks = new Map<string, AvailabilityMark>();
-  for (const row of await db.select().from(availabilityDays).where(and(eq(availabilityDays.userId, userId), gte(availabilityDays.date, today)))) marks.set(row.date, toMark(row));
-  return { days: availabilityDates(today).map(date => ({ date, mark: marks.get(date) ?? null })) };
+  let markedThisWeek = false;
+  // Отметил в понедельник — до следующего понедельника просьбы нет, даже когда этот день уже прошёл.
+  for (const row of await db.select().from(availabilityDays).where(and(eq(availabilityDays.userId, userId), or(gte(availabilityDays.date, weekStart(today)), gte(availabilityDays.updatedAt, since))))) {
+    marks.set(row.date, toMark(row));
+    if (row.updatedAt >= since) markedThisWeek = true;
+  }
+  return { days: weekDates(today).map(date => ({ date, mark: marks.get(date) ?? null, past: date < today })), markedThisWeek };
 }
 
 /** Отметка на дату; null возвращает день к «не указано». */
@@ -55,7 +61,7 @@ export async function availabilityOn(db: Db, communityId: number, date: string):
 }
 
 export async function availabilitySummary(db: Db, community: CommunityRow, now: number): Promise<AvailabilitySummaryDto> {
-  const byDate = await membersOn(db, community.id, availabilityDates(todayAlmaty(new Date(now))));
+  const byDate = await membersOn(db, community.id, openWeekDates(todayAlmaty(new Date(now))));
   const days = [...byDate].map(([date, members]) => {
     const people = (status: 'yes' | 'no'): AvailabilityPersonDto[] => members
       .filter(m => m.mark?.status === status)

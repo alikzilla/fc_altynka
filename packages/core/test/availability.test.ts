@@ -1,4 +1,4 @@
-import { weekStart, addDays, availabilityDates, availabilityLabel, normalizeMark, weekdayOf } from '../src/availability';
+import { weekStart, weekStartsAt, addDays, availabilityDates, openWeekDates, weekDates, availabilityLabel, normalizeMark, weekdayOf } from '../src/availability';
 
 test('weekday starts on Monday', () => {
   expect(weekdayOf('2026-11-09')).toBe(0);
@@ -10,12 +10,22 @@ test('the week starts on its Monday', () => {
   expect(weekStart('2026-11-09')).toBe('2026-11-09');
   expect(weekStart('2026-11-15')).toBe('2026-11-09');
   expect(weekStart('2026-12-02')).toBe('2026-11-30');
+  // Понедельник 9 ноября, 00:00 по Алматы — это воскресенье 19:00 UTC.
+  expect(weekStartsAt('2026-11-12')).toBe(Date.parse('2026-11-08T19:00:00Z'));
 });
 
 test('calendar dates cross month and year borders', () => {
   expect(addDays('2026-12-31', 1)).toBe('2027-01-01');
-  expect(availabilityDates('2026-11-28')).toHaveLength(7);
-  expect(availabilityDates('2026-11-28').at(-1)).toBe('2026-12-04');
+  expect(availabilityDates('2026-11-28', 7)).toHaveLength(7);
+  expect(availabilityDates('2026-11-28', 7).at(-1)).toBe('2026-12-04');
+});
+
+test('the calendar is the current week, Monday to Sunday; only today and later can be marked', () => {
+  expect(weekDates('2026-11-12')).toEqual(['2026-11-09', '2026-11-10', '2026-11-11', '2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15']);
+  expect(weekDates('2026-12-02')[0]).toBe('2026-11-30');
+  expect(openWeekDates('2026-11-12')).toEqual(['2026-11-12', '2026-11-13', '2026-11-14', '2026-11-15']);
+  expect(openWeekDates('2026-11-09')).toHaveLength(7);
+  expect(openWeekDates('2026-11-15')).toEqual(['2026-11-15']);
 });
 
 test('parts are ordered, deduplicated and dropped for «не могу»', () => {

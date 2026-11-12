@@ -239,3 +239,16 @@ export const availabilityDays = sqliteTable('availability_days', {
   parts: text('parts').notNull().default(''),
   updatedAt: integer('updated_at').notNull(),
 }, t => [primaryKey({ columns: [t.userId, t.date] })]);
+
+/** Площадка группы. Матч хранит название (`events.place`), а не ссылку: удаление площадки не трогает историю. */
+export const venues = sqliteTable('venues', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  communityId: integer('community_id').notNull().references(() => communities.id),
+  name: text('name').notNull(),
+  address: text('address'),
+  mapUrl: text('map_url'),
+  /** Цена аренды за час в тенге. */
+  hourlyRate: integer('hourly_rate'),
+  createdBy: integer('created_by').references(() => users.id),
+  createdAt: integer('created_at').notNull(),
+}, t => [uniqueIndex('venues_community_name').on(t.communityId, t.name)]);

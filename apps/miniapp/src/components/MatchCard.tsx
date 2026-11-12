@@ -1,4 +1,4 @@
-import { formatDateRu, matchCountdown, todayAlmaty, type EventSummaryDto } from "@altynka/core";
+import { formatDateRu, matchCountdown, matchFormat, todayAlmaty, type EventSummaryDto } from "@altynka/core";
 import { Link } from "wouter";
 import { GroupTag } from "./GroupTag";
 import { Icon } from "./Icon";
@@ -29,7 +29,9 @@ export function MatchCard({
     e.startTime && e.durationHours
       ? timeRange(e.startTime, e.durationHours)
       : "Время уточняется";
-  const roster = `${e.mainCount} / ${e.limit}${e.reserveCount ? ` · резерв ${e.reserveCount}` : ""}`;
+  // Формат выбирают при назначении матча; до этого размер основы — значение по умолчанию.
+  const format = e.status === "collecting" ? undefined : matchFormat(e.limit);
+  const roster = `${format ? `${format.label} · ` : ""}${e.mainCount} / ${e.limit}${e.reserveCount ? ` · резерв ${e.reserveCount}` : ""}`;
   return (
     <article
       className={`card match-card ${index % 2 ? "material-blue" : "material-plum"}`}
@@ -44,7 +46,7 @@ export function MatchCard({
         <MyTag event={e} />
         <span
           className="match-tag"
-          aria-label={`Записано ${e.mainCount} из ${e.limit}${e.reserveCount ? `, в резерве ${e.reserveCount}` : ""}`}
+          aria-label={`${format ? `Формат ${format.label}. ` : ""}Записано ${e.mainCount} из ${e.limit}${e.reserveCount ? `, в резерве ${e.reserveCount}` : ""}`}
         >
           {roster}
         </span>
