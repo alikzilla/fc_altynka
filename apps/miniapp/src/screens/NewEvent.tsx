@@ -12,7 +12,7 @@ import { useResource } from '../hooks/useResource';
 
 const names = (people: AvailabilityPersonDto[]) => people.map(p => p.name).join(', ');
 
-/** Матч создаётся не дальше двух недель: лента — единственный выбор даты. Игроки отмечают только первую неделю. */
+/** Матч создаётся не дальше двух недель: лента — единственный выбор даты. Игроки отмечают только текущую неделю, до воскресенья. */
 const PICKER_DAYS = 14;
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
 
@@ -47,7 +47,7 @@ function MatchDatePicker({ communityId, date, onPick }: { communityId: number | 
         <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
         <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
       </div>
-    </details> : data?.days ? <p className="muted">На этот день отметок ещё нет: игроки отмечают неделю вперёд.</p> : null}
+    </details> : data?.days ? <p className="muted">На этот день отметок ещё нет: игроки отмечают только текущую неделю.</p> : null}
   </section>;
 }
 

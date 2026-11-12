@@ -20,7 +20,7 @@ export function AvailabilityPrompt() {
   // Сначала анкета навыков: два листа подряд на первом входе — лишнее.
   const wanted = path === '/' && !answered && me.communities.length > 0 && !(me.rating && !me.rating.selfAssessment);
   const { data } = useResource<AvailabilityDto>(wanted ? '/api/availability' : null);
-  if (!wanted || !data || data.markedThisWeek || !data.days?.some(day => !day.mark)) return null;
+  if (!wanted || !data || data.markedThisWeek || !data.days?.some(day => !day.past && !day.mark)) return null;
   const answer = () => { setAnswered(true); try { localStorage.setItem(key, week); } catch { /* Лист всё равно закрывается; без хранилища он появится при следующем входе. */ } };
   return <ActionSheet title="Когда сможешь играть?" onClose={answer} footer={<div className="skills-prompt-actions"><button className="btn primary wide" onClick={() => { answer(); navigate('/profile/availability'); }}>Отметить дни</button><button className="btn-text" onClick={answer}>Позже</button></div>}>
     <p>Отметь дни на эту неделю. Организатор увидит, кто может, и выберет день для игры.</p><p className="muted">В занятые дни бот не напишет о новом матче.</p>

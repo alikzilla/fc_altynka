@@ -1,4 +1,4 @@
-import { availabilityDates, formatDateRu, todayAlmaty, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
+import { availabilityDates, formatDateRu, weekDates, todayAlmaty, type AvailabilityDto, type AvailabilitySummaryDto } from '@altynka/core';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
@@ -11,17 +11,22 @@ import { organizer, player, renderWithApp } from './render';
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/lib/tg');
 
-const dates = availabilityDates('2026-11-11');
-const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: null })), markedThisWeek: false });
+// Среда 11 ноября: неделя с понедельника 9-го по воскресенье 15-е, понедельник и вторник уже прошли.
+const dates = weekDates('2026-11-11');
+const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: null, past: date < '2026-11-11' })), markedThisWeek: false });
 
 beforeEach(() => { queryClient.clear(); });
 
 test('«не могу» saves at once; «могу» is saved only together with a time window', async () => {
   (api.get as Mock).mockResolvedValue(empty());
-  (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ days: empty().days.map((d, i) => i === 1 ? { ...d, mark: body.mark } : d) }));
+  (api.send as Mock).mockImplementation(async (_m, _p, body) => ({ ...empty(), days: empty().days.map(d => d.date === '2026-11-12' ? { ...d, mark: body.mark } : d) }));
   renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
-  const grid = await screen.findByRole('group', { name: 'Ближайшие 7 дней' });
-  expect(within(grid).getAllByRole('button')).toHaveLength(7);
+  const grid = await screen.findByRole('group', { name: 'Эта неделя' });
+  // Неделя целиком, с понедельника; прошедшие дни видны, но недоступны, выбран сегодняшний.
+  expect(within(grid).getAllByRole('button').map(b => b.textContent)).toEqual(['Пн9', 'Вт10', 'Ср11', 'Чт12', 'Пт13', 'Сб14', 'Вс15']);
+  expect(within(grid).getByRole('button', { name: 'понедельник, 9 ноября — день прошёл' })).toBeDisabled();
+  expect(within(grid).getByRole('button', { name: 'вторник, 10 ноября — день прошёл' })).toBeDisabled();
+  expect(within(grid).getByRole('button', { pressed: true })).toHaveAccessibleName('среда, 11 ноября — не указано');
   await userEvent.click(within(grid).getByRole('button', { name: 'четверг, 12 ноября — не указано' }));
   const editor = screen.getByRole('region', { name: 'Четверг, 12 ноября' });
   expect(within(editor).getByRole('button', { name: 'Не указано' })).toHaveAttribute('aria-pressed', 'true');
@@ -65,7 +70,7 @@ test('a failed save says so and reloads the calendar', async () => {
 });
 
 // Лист создания сверяет дату с настоящим «сегодня», поэтому сводка считается от него.
-const upcoming = availabilityDates(todayAlmaty(new Date()));
+const upcoming = availabilityDates(todayAlmaty(new Date()), 7);
 const upcoming2 = availabilityDates(todayAlmaty(new Date()), 14);
 const summary = (): AvailabilitySummaryDto => ({ community: { id: 1, title: 'FC Altynka' }, days: upcoming.map((date, i) => ({
   date, unknown: 4,

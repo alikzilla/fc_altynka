@@ -56,7 +56,7 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
   /** Показываем выбор сразу; ответ сервера принимаем только от последнего сохранения. */
   async function saveDay(dto: AvailabilityDto, day: string, mark: AvailabilityMark | null) {
     const operation = ++latest.current;
-    replace({ ...dto, days: dto.days.map(d => d.date === day ? { date: day, mark } : d), markedThisWeek: dto.markedThisWeek || mark !== null });
+    replace({ ...dto, days: dto.days.map(d => d.date === day ? { ...d, mark } : d), markedThisWeek: dto.markedThisWeek || mark !== null });
     haptic('light');
     try {
       const saved = await api.send<AvailabilityDto>('PUT', `/api/availability/days/${day}`, { mark });
@@ -68,15 +68,16 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
     }
   }
 
-  const selectedDay = data?.days.find(d => d.date === date) ?? data?.days[0];
+  // Неделя показана целиком; прошедшие дни недоступны, по умолчанию выбран сегодняшний.
+  const selectedDay = data?.days.find(d => d.date === date && !d.past) ?? data?.days.find(d => !d.past);
   return <ActionSheet title="Когда могу играть" description="Отметки сохраняются сразу" className="availability-sheet" onClose={onClose}>
-    <p className="muted availability-intro">Отметь дни на ближайшую неделю. В дни, когда не можешь, бот не напишет о новом матче. Организатор видит, кто может, и выбирает день для игры. Пока день не отмечен, уведомления приходят как обычно.</p>
+    <p className="muted availability-intro">Отметь дни этой недели, с сегодняшнего по воскресенье. В дни, когда не можешь, бот не напишет о новом матче. Организатор видит, кто может, и выбирает день для игры. Пока день не отмечен, уведомления приходят как обычно.</p>
     {error && !data && <ErrorNote text="Не получилось загрузить календарь" retry={reload} />}
     {!data && !error && <Skeleton><div className="availability-editor"><p><Sk w="100%" /> <Sk w="100%" /> <Sk w="60%" /></p></div></Skeleton>}
     {data && selectedDay && <>
-      <AvailabilityGrid label="Ближайшие 7 дней" selected={selectedDay.date} onSelect={setDate} cells={data.days.map(d => ({
-        key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: d.mark?.status ?? null,
-        label: `${formatDateRu(d.date)} — ${availabilityLabel(d.mark).toLowerCase()}`,
+      <AvailabilityGrid label="Эта неделя" selected={selectedDay.date} onSelect={setDate} cells={data.days.map(d => ({
+        key: d.date, top: WEEKDAY_SHORT[weekdayOf(d.date)], main: String(Number(d.date.slice(8))), tone: d.mark?.status ?? null, disabled: d.past,
+        label: `${formatDateRu(d.date)} — ${d.past ? 'день прошёл' : availabilityLabel(d.mark).toLowerCase()}`,
       }))} />
       <MarkEditor title={capital(formatDateRu(selectedDay.date))} mark={selectedDay.mark} choosing={choosing === selectedDay.date && selectedDay.mark?.status !== 'yes'}
         onChange={mark => {
