@@ -1,6 +1,6 @@
 import { REVIEW_WINDOW_MS, type MatchReviewDto, type PlayerProfileDto, type PlayersDto, type SkillAnswers } from '@altynka/core';
 import { eq } from 'drizzle-orm';
-import { communities, events, signups } from '../../src/db/schema';
+import { communities, events, signups, users } from '../../src/db/schema';
 import { createEvent } from '../../src/domain/events';
 import { apiRequest, db, seedUser } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
@@ -223,4 +223,13 @@ test('statistics list only the groups of the viewer', async () => {
   expect(body.groups).toHaveLength(1);
   expect(body.groups[0].community.id).toBe(w.communityId);
   expect(body.groups[0].players).toMatchObject([{ userId: w.playerUserId, games: 1, goals: 1, wins: 1, assistsTracked: true }]);
+});
+
+test('the players list and a peer profile carry the saved Telegram photo', async () => {
+  await db().update(users).set({ photoUrl: 'https://t.me/i/userpic/org.jpg' }).where(eq(users.id, w.orgUserId));
+  const list = await (await request('/api/players')).json<PlayersDto>();
+  expect(list.groups[0].players.find(p => p.userId === w.orgUserId)?.photoUrl).toBe('https://t.me/i/userpic/org.jpg');
+  expect(list.groups[0].players.find(p => p.userId === w.playerUserId)?.photoUrl).toBeNull();
+  const profile = await (await request(`/api/players/${w.orgUserId}`)).json<PlayerProfileDto>();
+  expect(profile.photoUrl).toBe('https://t.me/i/userpic/org.jpg');
 });

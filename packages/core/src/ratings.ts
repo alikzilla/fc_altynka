@@ -41,6 +41,8 @@ export interface PlayerRatingDto {
 export interface PlayerSummaryDto {
   userId: number;
   displayName: string;
+  /** Последнее фото из Telegram; нет, пока человек не открывал мини-апп или скрыл фото. */
+  photoUrl?: string | null;
   playingPosition: PlayingPosition | null;
   dominantFoot: DominantFoot | null;
   rating: PlayerRatingDto;

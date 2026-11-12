@@ -58,7 +58,7 @@ export async function playerRatings(db: Db, userIds: number[], now: number, know
     const selfAssessment = skillMap.get(user.id) ?? null;
     const initial = selfAssessment ? selfAssessmentRating(selfAssessment) : (levelMap.get(user.id) ?? 5);
     const matches = gameMap.get(user.id) ?? [];
-    return [user.id, { userId: user.id, displayName: user.displayName, playingPosition: user.playingPosition,
+    return [user.id, { userId: user.id, displayName: user.displayName, photoUrl: user.photoUrl, playingPosition: user.playingPosition,
       dominantFoot: user.dominantFoot, rating: { value: calculatePlayerRating(initial, matches), initial, selfAssessment, matchesCount: matches.length } }];
   }));
 }

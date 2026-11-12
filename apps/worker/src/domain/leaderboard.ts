@@ -1,7 +1,7 @@
 import { aggregatePlayerStatistics, summarizePlayerProtocol, type GameState, type LeaderboardDto, type PlayerProtocolSummary } from '@altynka/core';
 import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, memberships, users } from '../db/schema';
+import { events, memberships } from '../db/schema';
 import { playerRatings } from './ratings';
 
 /**
@@ -15,8 +15,7 @@ export async function leaderboard(db: Db, groups: { id: number; title: string }[
     db.select({ communityId: events.communityId, state: events.gameStateJson }).from(events)
       .where(and(inArray(events.communityId, ids), eq(events.protocolVersion, 1), isNotNull(events.startedAt),
         isNotNull(events.gameStateJson), ne(events.status, 'cancelled'))),
-    db.select({ communityId: memberships.communityId, userId: memberships.userId, photoUrl: users.photoUrl }).from(memberships)
-      .innerJoin(users, eq(users.id, memberships.userId))
+    db.select({ communityId: memberships.communityId, userId: memberships.userId }).from(memberships)
       .where(and(inArray(memberships.communityId, ids), eq(memberships.active, true))),
   ]);
   const summaries = new Map<string, PlayerProtocolSummary[]>();
@@ -37,7 +36,7 @@ export async function leaderboard(db: Db, groups: { id: number; title: string }[
       const person = people.get(m.userId);
       if (!person) return [];
       const { meetings, games, goals, assists, assistsTracked, wins } = aggregatePlayerStatistics(summaries.get(`${community.id}:${m.userId}`)!);
-      return [{ userId: m.userId, displayName: person.displayName, photoUrl: m.photoUrl, rating: person.rating.value, meetings, games, goals, assists, assistsTracked, wins }];
+      return [{ userId: m.userId, displayName: person.displayName, photoUrl: person.photoUrl ?? null, rating: person.rating.value, meetings, games, goals, assists, assistsTracked, wins }];
     }).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru') || a.userId - b.userId),
   })) };
 }

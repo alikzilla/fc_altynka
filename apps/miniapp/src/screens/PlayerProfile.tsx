@@ -14,7 +14,7 @@ export function PlayerProfileSheet({ userId, onClose }: { userId: number; onClos
     {loading && !data && <PlayerProfileSkeleton />}
     {error && <ErrorNote text={error.status === 404 ? 'Игрок не найден в команде' : 'Не получилось загрузить профиль'} retry={reload} />}
     {data && <div className={`player-profile-content ${reveal}`}>
-      <PlayerSportsCard name={data.displayName} username={data.telegramUsername} role={data.role??'player'} playingPosition={data.playingPosition} dominantFoot={data.dominantFoot} rating={data.rating} statistics={data.statistics} injured={data.injured}/>
+      <PlayerSportsCard name={data.displayName} username={data.telegramUsername} photoUrl={data.photoUrl} role={data.role??'player'} playingPosition={data.playingPosition} dominantFoot={data.dominantFoot} rating={data.rating} statistics={data.statistics} injured={data.injured}/>
       {data.statistics && <PlayerAchievements statistics={data.statistics} pinned={data.pinnedAchievement ?? null}/>}
       <PlayerGameHistory profile={data}/>
     </div>}
