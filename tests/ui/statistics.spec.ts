@@ -69,3 +69,23 @@ test('a player sees the same centre button and a menu without match creation', a
   await page.getByRole('button', { name: 'Меню' }).click();
   await expect(page.getByRole('dialog', { name: 'Меню' }).getByRole('link')).toHaveText(['Статистика', 'Игроки', 'Площадки']);
 });
+
+test('focus rings appear for keyboard navigation only, never after a tap', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 780 });
+  await mockApi(page, 'organizer');
+  await page.goto('/');
+  const trigger = page.getByRole('button', { name: 'Меню' });
+  const outline = (name: string) => page.getByRole('dialog', { name: 'Меню' }).getByRole('link', { name }).evaluate(node => getComputedStyle(node).outlineStyle);
+  await trigger.click();
+  // The menu focuses its first icon when it opens; after a tap that must not draw a border.
+  const menu = page.getByRole('dialog', { name: 'Меню' });
+  await expect(menu.getByRole('link', { name: 'Создать матч' })).toBeFocused();
+  expect(await outline('Создать матч')).toBe('none');
+  await page.keyboard.press('Tab');
+  await expect(menu.getByRole('link', { name: 'Статистика' })).toBeFocused();
+  expect(await outline('Статистика')).toBe('solid');
+  await page.mouse.click(195, 100);
+  await expect(page.getByRole('dialog', { name: 'Меню' })).toHaveCount(0);
+  await expect(trigger).toBeFocused();
+  expect(await trigger.evaluate(node => getComputedStyle(node).outlineStyle)).toBe('none');
+});
