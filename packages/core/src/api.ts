@@ -51,6 +51,8 @@ export interface SignupDto {
   seq: number;
   name: string;
   userId: number | null;
+  /** Фото игрока из Telegram; у гостей и тех, кто не открывал мини-апп, его нет. */
+  photoUrl?: string | null;
   guestOfName: string | null;
   invitedByUserId: number | null;
   /** Только для организатора и админа: уровень игрока или гостя (guestLevel ?? 5). */

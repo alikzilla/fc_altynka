@@ -146,6 +146,7 @@ export async function eventDetail(
       guestOfName: s.userId === null && s.invitedBy !== null ? (byId.get(s.invitedBy)?.displayName ?? null) : null,
       invitedByUserId: s.userId === null ? s.invitedBy : null,
     };
+    if (s.userId !== null) base.photoUrl = byId.get(s.userId)?.photoUrl ?? null;
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
     if (showLevels && s.userId !== null) base.kaspiPhone = byId.get(s.userId)?.kaspiPhone ?? null;
     if (s.userId !== null && injured.has(s.userId)) base.injured = true;
