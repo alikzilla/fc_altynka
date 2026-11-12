@@ -28,6 +28,11 @@ export function weekStart(date: string): string {
   return addDays(date, -weekdayOf(date));
 }
 
+/** Начало недели (понедельник, 00:00 по Алматы) в миллисекундах; Алматы круглый год UTC+5. */
+export function weekStartsAt(today: string): number {
+  return Date.parse(`${weekStart(today)}T00:00:00+05:00`);
+}
+
 /** Даты календаря: сегодня и следующие дни. */
 export function availabilityDates(today: string, count = AVAILABILITY_DAYS): string[] {
   return Array.from({ length: count }, (_, i) => addDays(today, i));
@@ -53,6 +58,8 @@ export interface AvailabilityDayDto {
 
 export interface AvailabilityDto {
   days: AvailabilityDayDto[];
+  /** Человек уже отмечал дни на этой неделе (с понедельника по Алматы): еженедельная просьба не нужна. */
+  markedThisWeek: boolean;
 }
 
 export interface AvailabilityPersonDto { userId: number; name: string; parts: DayPart[] }

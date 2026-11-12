@@ -11,7 +11,7 @@ vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/
 vi.mock('../src/lib/tg');
 
 const today = todayAlmaty(new Date());
-const calendar = (marked: number): AvailabilityDto => ({ days: availabilityDates(today).map((date, i) => ({ date, mark: i < marked ? { status: 'yes', parts: [] } : null })) });
+const calendar = (marked: number, markedThisWeek = false): AvailabilityDto => ({ markedThisWeek, days: availabilityDates(today).map((date, i) => ({ date, mark: i < marked ? { status: 'yes', parts: [] } : null })) });
 const key = `altynka:availability-prompt:${player.userId}`;
 const dialog = () => screen.queryByRole('dialog', { name: 'Когда сможешь играть?' });
 
@@ -51,5 +51,13 @@ test('a fully marked week, another screen, no group or pending skills keep it aw
   renderWithApp(<AvailabilityPrompt />, { me: noGroups, path: '/' });
   renderWithApp(<AvailabilityPrompt />, { me: { ...player, rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 } } as typeof player, path: '/' });
   expect(api.get).not.toHaveBeenCalled();
+  expect(dialog()).toBeNull();
+});
+
+test('whoever already marked days this week is not asked again when a new empty day appears', async () => {
+  (api.get as Mock).mockResolvedValue(calendar(6, true));
+  renderWithApp(<AvailabilityPrompt />, { me: player, path: '/' });
+  await waitFor(() => expect(api.get).toHaveBeenCalled());
+  await waitFor(() => expect(queryClient.isFetching()).toBe(0));
   expect(dialog()).toBeNull();
 });

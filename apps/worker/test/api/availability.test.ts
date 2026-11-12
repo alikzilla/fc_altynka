@@ -14,6 +14,7 @@ test('an empty calendar is 7 unknown days starting today', async () => {
   const dto = await (await apiRequest('/api/availability', { as: w.player })).json<AvailabilityDto>();
   expect(dto.days).toHaveLength(7);
   expect(dto.days[0]).toEqual({ date: today, mark: null });
+  expect(dto.markedThisWeek).toBe(false);
 });
 
 test('a day is marked with time windows, changed and cleared', async () => {
@@ -61,4 +62,24 @@ test('the organizer sees names per day; a player and an outsider do not', async 
 test('a foreign group is closed even to an organizer of another group', async () => {
   const [other] = await db().insert(communities).values({ tgChatId: -100777, title: 'Другая' }).returning();
   expect((await apiRequest(`/api/availability/summary?communityId=${other.id}`, { as: w.org })).status).toBe(403);
+});
+
+test('marking a day counts for the whole week, from Monday to Sunday by Almaty time', async () => {
+  // 7 ноября 2026 — суббота. Отметка сделана сейчас: до конца недели просьба не нужна.
+  let dto = await (await put(`/api/availability/days/${today}`, { mark: { status: 'no' } })).json<AvailabilityDto>();
+  expect(dto.markedThisWeek).toBe(true);
+  w.clock.now = Date.parse('2026-11-08T18:59:00Z'); // воскресенье, 23:59 по Алматы
+  dto = await (await apiRequest('/api/availability', { as: w.player })).json<AvailabilityDto>();
+  expect(dto.markedThisWeek).toBe(true);
+  expect(dto.days.every(d => d.mark === null)).toBe(true);
+  w.clock.now = Date.parse('2026-11-08T19:00:00Z'); // понедельник, 00:00 по Алматы
+  dto = await (await apiRequest('/api/availability', { as: w.player })).json<AvailabilityDto>();
+  expect(dto.markedThisWeek).toBe(false);
+  // Отметка прошлой недели на день новой недели видна в календаре, но неделю не закрывает.
+  w.clock.now = Date.parse('2026-11-07T05:00:00Z');
+  await put(`/api/availability/days/${addDays(today, 3)}`, { mark: { status: 'yes', parts: ['evening'] } });
+  w.clock.now = Date.parse('2026-11-09T05:00:00Z');
+  dto = await (await apiRequest('/api/availability', { as: w.player })).json<AvailabilityDto>();
+  expect(dto.days[1].mark).toEqual({ status: 'yes', parts: ['evening'] });
+  expect(dto.markedThisWeek).toBe(false);
 });

@@ -56,7 +56,7 @@ export function AvailabilitySheet({ onClose }: { onClose: () => void }) {
   /** Показываем выбор сразу; ответ сервера принимаем только от последнего сохранения. */
   async function saveDay(dto: AvailabilityDto, day: string, mark: AvailabilityMark | null) {
     const operation = ++latest.current;
-    replace({ days: dto.days.map(d => d.date === day ? { date: day, mark } : d) });
+    replace({ ...dto, days: dto.days.map(d => d.date === day ? { date: day, mark } : d), markedThisWeek: dto.markedThisWeek || mark !== null });
     haptic('light');
     try {
       const saved = await api.send<AvailabilityDto>('PUT', `/api/availability/days/${day}`, { mark });

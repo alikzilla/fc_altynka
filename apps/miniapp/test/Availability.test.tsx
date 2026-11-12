@@ -12,7 +12,7 @@ vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/
 vi.mock('../src/lib/tg');
 
 const dates = availabilityDates('2026-11-11');
-const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: null })) });
+const empty = (): AvailabilityDto => ({ days: dates.map(date => ({ date, mark: null })), markedThisWeek: false });
 
 beforeEach(() => { queryClient.clear(); });
 
