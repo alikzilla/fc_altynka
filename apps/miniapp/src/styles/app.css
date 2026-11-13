@@ -153,6 +153,16 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .system-switch-input:checked + .system-switch-control { background: var(--accent); }
 .system-switch-input:checked + .system-switch-control::after { background: var(--on-accent); transform: translateX(20px); }
 .system-switch-input:focus-visible + .system-switch-control { outline: 3px solid var(--accent); outline-offset: 4px; }
+/* Full screen in Telegram: content scrolls under the status bar and Telegram's floating buttons. A band of the
+   page colour sits behind the status bar and fades out across the button row, so scrolled content never runs
+   into the clock or the buttons. Outside full screen both insets are zero and the band has no height. */
+body::before { content: ''; position: fixed; inset: 0 0 auto; z-index: 4; height: calc(var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); background: linear-gradient(var(--bg) 0 var(--safe-top), color-mix(in srgb, var(--bg) 80%, transparent) calc(var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px) * .6), transparent); pointer-events: none; }
+/* An action in the settings list: the same row as a switch, with a text action where the switch would be. */
+.system-action-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 80px; padding: 14px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+button.system-action-row { cursor: pointer; }
+.system-action-label { flex-shrink: 0; color: var(--accent); font-size: 14px; font-weight: 550; }
+.system-action-done { flex-shrink: 0; width: 22px; height: 22px; color: #86c8a2; }
+:root[data-theme='light'] .system-action-done { color: #34714e; }
 .system-switch-input:disabled + .system-switch-control { opacity: .5; }
 .system-setting-recovery { padding-bottom: 12px; }
 .profile-settings-list { display: flex; flex-direction: column; gap: 0; padding: 4px 18px; }

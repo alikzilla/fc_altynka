@@ -35,14 +35,27 @@ export function TossCoin({ faces, result, failed = false, disabled = false, onTo
   const busy = useRef(false);
   const reduced = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-  // Spread the ring lettering over the whole circumference so the seam has no gap.
+  // Spread the ring lettering over the whole circumference so the seam has no gap. The coin mounts inside a
+  // sheet that is not on screen yet, where text measures zero: fit it once the ring has a size, and again
+  // when the font has loaded.
   useLayoutEffect(() => {
     const text = ring.current, path = ringPath.current;
     if (!text || !path || typeof text.getComputedTextLength !== 'function' || typeof path.getTotalLength !== 'function') return;
-    text.style.letterSpacing = '0px';
-    const length = text.getComputedTextLength();
-    const chars = text.textContent?.length ?? 0;
-    if (length > 0 && chars) text.style.letterSpacing = `${(path.getTotalLength() - length) / chars}px`;
+    let live = true;
+    const fit = () => {
+      if (!live) return false;
+      text.style.letterSpacing = '0px';
+      const length = text.getComputedTextLength();
+      const chars = text.textContent?.length ?? 0;
+      if (length <= 0 || !chars) return false;
+      text.style.letterSpacing = `${(path.getTotalLength() - length) / chars}px`;
+      return true;
+    };
+    void document.fonts?.ready.then(fit);
+    const svg = text.ownerSVGElement;
+    const observer = !fit() && svg && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(() => { if (fit()) observer?.disconnect(); }) : null;
+    if (svg) observer?.observe(svg);
+    return () => { live = false; observer?.disconnect(); };
   }, []);
 
   useEffect(() => () => { if (flight.current) cancelAnimationFrame(flight.current.frame); }, []);
@@ -130,7 +143,7 @@ export function TossCoin({ faces, result, failed = false, disabled = false, onTo
         <span className="coin" ref={coin}>
           <span className="coin-edge" />
           <span className="coin-face">
-            <svg className="coin-ring" viewBox="0 0 170 170"><defs><path id="coin-ring-path" ref={ringPath} d="M85,85 m-71,0 a71,71 0 1,1 142,0 a71,71 0 1,1 -142,0" /></defs><text ref={ring} dy="4"><textPath href="#coin-ring-path">FC ALTYNKA • 2026 • FC ALTYNKA • 2026 • </textPath></text></svg>
+            <svg className="coin-ring" viewBox="0 0 170 170"><defs><path id="coin-ring-path" ref={ringPath} d="M85,85 m-71,0 a71,71 0 1,1 142,0 a71,71 0 1,1 -142,0" /></defs><text ref={ring} dy="4"><textPath href="#coin-ring-path">ФК АЛТЫНКА • 2026 • ФК АЛТЫНКА • 2026 • </textPath></text></svg>
             <span className={`coin-centre team-${shown.key}`}><span className="coin-enamel" /><b>{shown.name}</b></span>
           </span>
         </span>
