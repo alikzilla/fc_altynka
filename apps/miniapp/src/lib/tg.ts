@@ -73,6 +73,11 @@ export function openTelegramLink(url: string): void {
   else window.open(url, '_blank', 'noopener,noreferrer');
 }
 
+/** Telegram's own «Переслать» chooser with a link and a line of text. */
+export function shareLink(url: string, text: string): void {
+  openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
+}
+
 /** null means the client cannot offer the native permission dialog. */
 export async function requestWriteAccess(): Promise<boolean | null> {
   const app = wa();

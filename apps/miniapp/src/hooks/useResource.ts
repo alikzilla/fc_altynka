@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useCallback } from "react";
-import { api, ApiError } from "../lib/api";
+import type { ApiError } from "../lib/api";
 import { queryClient, resourceKey } from "../lib/queryClient";
+import { fetchResource } from "../lib/resource";
 
 /** `alwaysRefresh`: refetch on every open, showing the cached copy meanwhile (data others may have just changed). */
 export function useResource<T>(path: string | null, { alwaysRefresh = false }: { alwaysRefresh?: boolean } = {}) {
@@ -11,13 +12,7 @@ export function useResource<T>(path: string | null, { alwaysRefresh = false }: {
       queryKey: key,
       enabled: !!path,
       ...(alwaysRefresh ? { refetchOnMount: 'always' as const } : {}),
-      queryFn: async ({ signal }) => {
-        try {
-          return await api.get<T>(path!, { signal });
-        } catch (error) {
-          throw error instanceof ApiError ? error : new ApiError(0, "network");
-        }
-      },
+      queryFn: ({ signal }) => fetchResource<T>(path!, signal),
     },
     queryClient,
   );
@@ -47,7 +42,8 @@ export function useResource<T>(path: string | null, { alwaysRefresh = false }: {
   return {
     data: path ? query.data : undefined,
     error: path && query.isError ? query.error : undefined,
-    loading: !!path && query.isFetching,
+    // Offline, a request waits for the connection instead of failing: the screen keeps its skeleton meanwhile.
+    loading: !!path && (query.isFetching || query.isPaused),
     reload,
     replace,
   };

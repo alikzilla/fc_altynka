@@ -2,9 +2,10 @@
    Deeper screens arrive from the right, Back returns them, dock tabs cross-fade in place. The dock and toasts stand still. */
 :root[data-nav] .nav-shell { view-transition-name: dock; }
 :root[data-nav] .toast { view-transition-name: toast; }
-::view-transition-group(dock), ::view-transition-group(toast) { animation: none; }
-::view-transition-old(dock), ::view-transition-old(toast) { display: none; }
-::view-transition-new(dock), ::view-transition-new(toast) { animation: none; }
+:root[data-nav] .connection-notice { view-transition-name: connection; }
+::view-transition-group(dock), ::view-transition-group(toast), ::view-transition-group(connection) { animation: none; }
+::view-transition-old(dock), ::view-transition-old(toast), ::view-transition-old(connection) { display: none; }
+::view-transition-new(dock), ::view-transition-new(toast), ::view-transition-new(connection) { animation: none; }
 
 :root[data-nav='fade']::view-transition-old(root) { animation: nav-fade-out 110ms ease-out both; }
 :root[data-nav='fade']::view-transition-new(root) { animation: nav-fade-in 170ms ease-out both; }
@@ -14,6 +15,22 @@
 
 :root[data-nav='back']::view-transition-old(root) { animation: nav-fade-out 110ms ease-out both, nav-out-right 240ms var(--ease-out) both; }
 :root[data-nav='back']::view-transition-new(root) { animation: nav-fade-in 180ms ease-out both, nav-in-left 240ms var(--ease-out) both; }
+
+/* A tab inside a screen: the page stands still, only the panel slides. The fixed contextual action belongs
+   to the tab but stays where it is and cross-fades (the in-card action on the games tab is not fixed). */
+:root[data-nav^='tab'] .tab-panel { view-transition-name: tab-panel; }
+:root[data-nav^='tab'] .match-action:not(.game-current .match-action) { view-transition-name: match-action; }
+:root[data-nav^='tab']::view-transition-old(root), :root[data-nav^='tab']::view-transition-new(root) { animation: none; }
+::view-transition-group(tab-panel) { animation-duration: 220ms; animation-timing-function: var(--ease-out); }
+::view-transition-group(match-action), ::view-transition-old(match-action), ::view-transition-new(match-action) { animation-duration: 160ms; }
+:root[data-nav='tab-forward']::view-transition-old(tab-panel) { animation: nav-fade-out 110ms ease-out both, tab-out-left 220ms var(--ease-out) both; }
+:root[data-nav='tab-forward']::view-transition-new(tab-panel) { animation: nav-fade-in 170ms ease-out both, tab-in-right 220ms var(--ease-out) both; }
+:root[data-nav='tab-back']::view-transition-old(tab-panel) { animation: nav-fade-out 110ms ease-out both, tab-out-right 220ms var(--ease-out) both; }
+:root[data-nav='tab-back']::view-transition-new(tab-panel) { animation: nav-fade-in 170ms ease-out both, tab-in-left 220ms var(--ease-out) both; }
+@keyframes tab-out-left { to { transform: translate3d(-18px, 0, 0); } }
+@keyframes tab-in-right { from { transform: translate3d(24px, 0, 0); } }
+@keyframes tab-out-right { to { transform: translate3d(18px, 0, 0); } }
+@keyframes tab-in-left { from { transform: translate3d(-24px, 0, 0); } }
 
 @keyframes nav-fade-out { to { opacity: 0; } }
 @keyframes nav-fade-in { from { opacity: 0; } }

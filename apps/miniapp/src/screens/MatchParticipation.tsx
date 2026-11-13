@@ -2,6 +2,7 @@ import type { EventDetailDto } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
+import { patchResource } from '../lib/resource';
 import { isOpen, STATUS_LABEL } from '../lib/labels';
 import { haptic } from '../lib/tg';
 import { canManageEvent, useMe } from '../state/me';
@@ -33,13 +34,21 @@ export function MatchParticipation({ ev, reload, suppressAction = false }: { ev:
   async function change(join: boolean) {
     if (locked.current || !open) return;
     locked.current = true; setBusy(true); setFailure(null);
+    // With a free spot in the main roster the answer is known in advance: show it at once, undo it if the request fails.
+    const instant = join && !ev.my && ev.mainCount < ev.limit;
+    const undo = instant ? await patchResource<EventDetailDto>(`/api/events/${ev.id}`, current => current.my || current.mainCount >= current.limit ? current : {
+      ...current, my: 'main', mainCount: current.mainCount + 1,
+      main: [...current.main, { id: -1, seq: Math.max(0, ...current.main.map(s => s.seq), ...current.reserve.map(s => s.seq)) + 1, name: me.displayName, userId: me.userId, photoUrl: me.telegram?.photoUrl ?? null, guestOfName: null, invitedByUserId: null }],
+    }) : null;
+    if (undo) haptic('success');
     try {
       const r = await api.send<JoinResult>('POST', `/api/events/${ev.id}/${join ? 'join' : 'leave'}`);
-      haptic('success');
+      if (!undo) haptic('success');
       if (join && r.kind !== 'already') noteJoinedMatch();
       toast(join ? r.kind === 'reserve' ? `Ты в резерве · №${r.position}` : r.kind === 'already' ? 'Ты уже записан' : 'Ты в основе' : successor ? `Ты вышел из списка. Место перешло к ${successor}` : 'Ты вышел из списка');
       setEditing(false);
     } catch (e) {
+      undo?.();
       haptic('error');
       setFailure({ join, text: e instanceof ApiError && e.status === 409 ? 'Запись уже закрыта. Обнови страницу матча.' : join ? 'Не получилось записаться. Проверь интернет и попробуй ещё раз.' : 'Не получилось выйти из списка. Проверь интернет и попробуй ещё раз.' });
     } finally { locked.current = false; setBusy(false); reload(); }
