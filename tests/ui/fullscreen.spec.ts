@@ -86,7 +86,7 @@ test('settings add the home-screen icon and turn full screen off for this phone'
   await add.click();
   expect(await calls(page)).toContain('addToHomeScreen');
   await page.evaluate(() => (window as unknown as { tgListeners: Record<string, () => void> }).tgListeners.homeScreenAdded?.());
-  await expect(page.getByText('Уже добавлена: FC Altynka открывается прямо с экрана телефона')).toBeVisible();
+  await expect(page.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeVisible();
 
   const toggle = page.getByRole('switch', { name: 'Во весь экран' });
   await expect(toggle).toBeChecked();

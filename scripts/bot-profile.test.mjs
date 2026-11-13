@@ -5,7 +5,7 @@ import { runBotProfile } from './bot-profile.mjs';
 test('default dry run shows the public configuration without reading credentials or calling Telegram', async () => {
   const logs = [];
   const config = await runBotProfile({ log: text => logs.push(text), loadEnv: () => { throw new Error('must not load secrets'); }, fetcher: () => { throw new Error('must not fetch'); } });
-  assert.equal(config.find(c => c.method === 'setMyName').payload.name, 'FC Altynka');
+  assert.equal(config.find(c => c.method === 'setMyName').payload.name, 'ФК Алтынка');
   assert.match(logs.join('\n'), /dry-run/);
   const scopes = config.filter(c => c.method === 'setMyCommands');
   assert.deepEqual(scopes.map(c => c.payload.scope.type), ['all_private_chats', 'all_group_chats']);

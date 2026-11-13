@@ -30,7 +30,7 @@ export function SystemSettings() {
     if (homeScreen !== 'added' || !homeRequested.current) return;
     homeRequested.current = false;
     haptic('success');
-    toast('Иконка FC Altynka на главном экране');
+    toast('Иконка ФК Алтынка на главном экране');
   }, [homeScreen, toast]);
   const enabled = notifications?.enabled ?? false;
   const available = notifications?.available ?? false;
@@ -105,9 +105,9 @@ export function SystemSettings() {
       </div>}
       {homeScreen && homeScreen !== 'unsupported' && <div className="system-setting-item">
         {homeScreen === 'added'
-          ? <div className="system-action-row"><span className="system-switch-copy"><b>Иконка на главном экране</b><small>Уже добавлена: FC Altynka открывается прямо с экрана телефона</small></span><Icon name="check" className="system-action-done" /></div>
+          ? <div className="system-action-row"><span className="system-switch-copy"><b>Иконка на главном экране</b><small>Уже добавлена: ФК Алтынка открывается прямо с экрана телефона</small></span><Icon name="check" className="system-action-done" /></div>
           : <button type="button" className="system-action-row" aria-describedby="home-screen-description" onClick={() => { homeRequested.current = true; haptic('light'); addToHomeScreen(); }}>
-              <span className="system-switch-copy"><b>Иконка на главном экране</b><small id="home-screen-description">Открывай FC Altynka с экрана телефона, как приложение</small></span>
+              <span className="system-switch-copy"><b>Иконка на главном экране</b><small id="home-screen-description">Открывай ФК Алтынка с экрана телефона, как приложение</small></span>
               <span className="system-action-label">Добавить</span>
             </button>}
       </div>}

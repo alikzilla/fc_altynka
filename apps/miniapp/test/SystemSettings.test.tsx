@@ -58,15 +58,15 @@ test('the home-screen icon can be added once and then reads as added', async () 
   await userEvent.click(screen.getByRole('button', { name: /Иконка на главном экране.*Добавить/ }));
   expect(app.addToHomeScreen).toHaveBeenCalledTimes(1);
   act(() => listeners.get('homeScreenAdded')?.());
-  expect(screen.getByText('Иконка FC Altynka на главном экране')).toBeInTheDocument();
-  expect(screen.getByText('Уже добавлена: FC Altynka открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Иконка ФК Алтынка на главном экране')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Добавить/ })).not.toBeInTheDocument();
 });
 
 test('an icon added earlier shows as added; unsupported clients and the browser show nothing', () => {
   telegram({ status: 'added' });
   const first = renderWithApp(<SystemSettings />, { me: player });
-  expect(screen.getByText('Уже добавлена: FC Altynka открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
   first.unmount();
   telegram({ status: 'unsupported' });
   const second = renderWithApp(<SystemSettings />, { me: player });

@@ -67,7 +67,7 @@ function TeamApp() {
     const text = error.status === 401 ? 'Открой мини-апп из Telegram' : 'Нет связи, попробуй позже';
     return (
       <main className="screen">
-        <h1 className="title">FC Altynka</h1>
+        <h1 className="title">ФК Алтынка</h1>
         <ErrorNote text={text} retry={reloadMe} />
       </main>
     );

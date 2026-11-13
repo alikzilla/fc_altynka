@@ -36,6 +36,10 @@ Each material is opaque. Inner shadows simulate the user-requested curved edge. 
 
 Primary buttons use a pale pearly fill with dark text. Coral surfaces receive a warm pearl variant. Secondary buttons are darker. Buttons have at least 48 px height, pill corners, visible focus and short press feedback. Destructive actions retain explicit text and confirmation.
 
+## Name
+
+The product is called «ФК Алтынка» everywhere people read it: the page title, the error screen, interface copy and the bot's Telegram name and descriptions (`scripts/bot-profile.mjs`). «ФК Алтынка» is not declined («Открывай ФК Алтынка…»). Latin spelling remains only in code and link names (`fc_altynka_bot`, `fc_altynka_app`, `@fc_altynka_news`) and in the toss coin's engraving.
+
 ## Typography and frame
 
 Apple system stack with bundled Onest Variable fallback, optical sizing enabled. Screen titles 28 px / 600, 27 px below 360 px; section headings 18 px / 550; body 16 px; metadata 12–14 px. Navigation labels are 12 px; 12 px is the text floor everywhere. The home match cards lead with one 44 px / 550 answer (38 px on narrow phones) under a quiet 14 px date. Dates, amounts and roster counts use tabular figures.
