@@ -38,7 +38,7 @@ Primary buttons use a pale pearly fill with dark text. Coral surfaces receive a 
 
 ## Name
 
-The product is called «ФК Алтынка» everywhere people read it: the page title, the error screen, interface copy and the bot's Telegram name and descriptions (`scripts/bot-profile.mjs`). «ФК Алтынка» is not declined («Открывай ФК Алтынка…»). Latin spelling remains only in code and link names (`fc_altynka_bot`, `fc_altynka_app`, `@fc_altynka_news`) and in the toss coin's engraving.
+The product is called «ФК Алтынка» everywhere people read it: the page title, the error screen, interface copy and the bot's Telegram name and descriptions (`scripts/bot-profile.mjs`). «ФК Алтынка» is not declined («Открывай ФК Алтынка…»). Latin spelling remains only in code and link names (`fc_altynka_bot`, `fc_altynka_app`, `@fc_altynka_news`); the toss coin is engraved «ФК АЛТЫНКА • 2026 •».
 
 ## Typography and frame
 
@@ -192,7 +192,7 @@ the existing accent outline and aria-pressed; labels always accompany the color.
 Draft/publication state stays visible. «Начать матч» opens one sheet «Начинаем матч»: step 1 checks the
 kits (tappable team chips with player counts), step 2 is the toss. With three teams it asks «Кто отдыхает
 первым?», with two «Кто начинает с мячом?». The toss coin is a club token styled after the bimetal
-200 tenge coin: silver ring with «FC ALTYNKA • 2026 •» spread evenly round it, gold centre with horizontal
+200 tenge coin: silver ring with «ФК АЛТЫНКА • 2026 •» spread evenly round it, gold centre with horizontal
 engraving, an enamel dot in the team colour and the team name, 16 notches on the edge; no state emblem or
 «QAZAQSTAN» lettering. Tapping or flicking it sends the start request; the coin rises, cycles the team
 faces with light haptics, hangs until the server answers (at least ≈1.1 s) and lands on the server's
