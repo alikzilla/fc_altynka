@@ -205,6 +205,21 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .chip-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 /* Toasts belong at the safe top, clear of the contextual action and navigation. */
 .toast { position: fixed; top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); z-index: 30; width: auto; max-width: 400px; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; margin: 0 auto; border: 0; background: #e3dced; color: #221c2c; padding: 14px 18px; border-radius: 24px; font-size: 14px; font-weight: 500; }
+/* Connection notice: the safe-top position of toasts. While it is shown the screen and toasts step below it
+   (OfflineNotice measures it into --connection-height), so the title and Back stay reachable. */
+.connection-notice { position: fixed; inset: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) auto calc(20px + var(--safe-left)); z-index: 31; width: auto; max-width: 400px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); color: var(--text); box-shadow: 0 6px 16px #0006; overflow: visible; animation: connection-in 220ms var(--ease-out) both; }
+.connection-notice svg { width: 20px; height: 20px; color: var(--hint); }
+.connection-back svg { color: #86c8a2; }
+:root[data-theme='light'] .connection-back svg { color: #34714e; }
+:root[data-theme='light'] .connection-notice { box-shadow: 0 4px 14px #44324f1f; }
+.connection-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.connection-copy b { font-size: 14px; font-weight: 600; }
+.connection-copy small { font-size: 12px; color: var(--hint); }
+:root[data-offline] .toast { top: calc(22px + var(--connection-height, 58px) + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); }
+.screen { transition: padding-top 220ms var(--ease-out); }
+:root[data-offline] .screen { padding-top: calc(28px + var(--connection-height, 58px) + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); }
+@keyframes connection-in { from { opacity: 0; transform: translate3d(0, -8px, 0); } }
+@media (max-width: 359px) { .connection-notice { left: calc(16px + var(--safe-left)); right: calc(16px + var(--safe-right)); } }
 .nav-shell { position: fixed; left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .nav { display: grid; grid-template-columns: 1fr 1fr 58px 1fr 1fr; align-items: center; width: 100%; max-width: 416px; height: 82px; padding: 8px 5px; border-radius: 32px; background: radial-gradient(ellipse 110% 100% at 22% -40%, #7773bc 0%, #3b3e78 50%, transparent 100%), radial-gradient(ellipse 45% 100% at 100% 140%, #444d91 0%, transparent 100%), #10142f; box-shadow: var(--rim), inset 0 -2px 6px #8d90d34d, 0 6px 16px #0006; pointer-events: auto; } /* taste-skill-ignore: user-approved Airofit dock */
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 58px; color: #bec0da; font-size: 12px; transition: transform 140ms var(--ease-out); }

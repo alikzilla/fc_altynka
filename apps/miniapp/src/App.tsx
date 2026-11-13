@@ -27,6 +27,7 @@ import { ScreenSearchContext } from './state/screenSearch';
 import { ready, startParam } from './lib/tg';
 import { ErrorNote, ToastProvider } from './components/ui';
 import { RouteSkeleton } from './components/skeletons';
+import { OfflineNotice } from './components/OfflineNotice';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
@@ -48,7 +49,7 @@ export function App() {
     }
     return cleanup;
   }, [navigate]);
-  return <TeamApp />;
+  return <><TeamApp /><OfflineNotice /></>;
 }
 
 function TeamApp() {

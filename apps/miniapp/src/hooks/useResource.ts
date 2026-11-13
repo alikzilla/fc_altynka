@@ -42,7 +42,8 @@ export function useResource<T>(path: string | null, { alwaysRefresh = false }: {
   return {
     data: path ? query.data : undefined,
     error: path && query.isError ? query.error : undefined,
-    loading: !!path && query.isFetching,
+    // Offline, a request waits for the connection instead of failing: the screen keeps its skeleton meanwhile.
+    loading: !!path && (query.isFetching || query.isPaused),
     reload,
     replace,
   };

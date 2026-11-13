@@ -164,6 +164,27 @@ test('a finished match has nothing to invite to', async () => {
   expect(screen.queryByRole('button', { name: 'Позвать в матч' })).not.toBeInTheDocument();
 });
 
+test('switching tabs slides the panel toward the chosen tab and keeps the address in sync', async () => {
+  const kinds: string[] = [];
+  const observer = new MutationObserver(() => { const kind = document.documentElement.dataset.nav; if (kind) kinds.push(kind); });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-nav'] });
+  const finished: Promise<void>[] = [];
+  Object.assign(document, { startViewTransition: (update: () => void) => { update(); const done = Promise.resolve(); finished.push(done); return { finished: done }; } });
+  try {
+    const { loc } = open('list');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Оплата' }));
+    expect(loc.history?.at(-1)).toBe('/event/7?tab=bill');
+    await userEvent.click(screen.getByRole('tab', { name: 'Составы' }));
+    expect(loc.history?.at(-1)).toBe('/event/7?tab=teams');
+    await act(async () => { await Promise.all(finished); });
+    expect(kinds).toEqual(['tab-forward', 'tab-back']);
+    expect(document.documentElement.dataset.nav).toBeUndefined();
+  } finally {
+    observer.disconnect();
+    delete (document as { startViewTransition?: unknown }).startViewTransition;
+  }
+});
+
 test('organizer scheduling has priority over own signup', async () => {
   me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
   open();

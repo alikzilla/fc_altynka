@@ -1,5 +1,5 @@
 import type { EventDetailDto } from '@altynka/core';
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Link, useLocation, useParams } from 'wouter';
 import { useScreenSearch } from '../state/screenSearch';
 import { canManageEvent } from '../state/me';
@@ -7,6 +7,8 @@ import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { matchLink } from '../lib/bot';
 import { haptic, shareLink } from '../lib/tg';
+import { slideTab } from '../lib/pageTransition';
+import { preloadable } from '../lib/preloadable';
 import { matchOrigin } from '../lib/navHistory';
 import { Icon } from '../components/Icon';
 import { GroupTag } from '../components/GroupTag';
@@ -19,9 +21,12 @@ import { MatchParticipation } from './MatchParticipation';
 import { EventList } from './EventList';
 import { MatchRatings } from './MatchRatings';
 
-const Teams = lazy(() => import('./Teams').then(m => ({ default: m.Teams })));
-const Bill = lazy(() => import('./Bill').then(m => ({ default: m.Bill })));
-const MatchGames = lazy(() => import('./MatchGames').then(m => ({ default: m.MatchGames })));
+const Teams = preloadable(() => import('./Teams').then(m => m.Teams));
+const Bill = preloadable(() => import('./Bill').then(m => m.Bill));
+const MatchGames = preloadable(() => import('./MatchGames').then(m => m.MatchGames));
+const PRELOAD: Partial<Record<Tab, () => void>> = { teams: Teams.preload, games: MatchGames.preload, bill: Bill.preload };
+// Tabs slide toward the side of the chosen tab; both tab sets keep this order.
+const TAB_ORDER: Tab[] = ['list', 'teams', 'games', 'bill'];
 
 export type Tab = 'list' | 'teams' | 'games' | 'bill';
 const BASE_TABS: [Tab, string][] = [['list', 'Участники'], ['teams', 'Составы'], ['bill', 'Оплата']];
@@ -63,6 +68,11 @@ export function Event() {
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
   const manage = ev && canManageEvent(ev) && isOpen(ev.status);
+  function openTab(next: Tab) {
+    const go = () => navigate(`/event/${id}?tab=${next}`, { replace: true });
+    if (next === tab) { go(); return; }
+    slideTab(TAB_ORDER.indexOf(next) > TAB_ORDER.indexOf(tab) ? 'forward' : 'back', go);
+  }
   function invite() {
     if (!ev) return;
     const when = [title, weekday, ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : null, ev.place].filter(Boolean).join(' · ');
@@ -86,11 +96,11 @@ export function Event() {
         <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />
-      <div className={`tabs ${reveal}`} role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={tab === k ? `panel-${k}` : undefined} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onClick={() => navigate(`/event/${id}?tab=${k}`, { replace: true })} onKeyDown={e => {
+      <div className={`tabs ${reveal}`} role="tablist" aria-label="Детали матча">{TABS.map(([k, label]) => <button key={k} id={`tab-${k}`} role="tab" aria-controls={tab === k ? `panel-${k}` : undefined} tabIndex={tab === k ? 0 : -1} aria-selected={tab === k} className={tab === k ? 'on' : ''} onPointerDown={() => PRELOAD[k]?.()} onClick={() => openTab(k)} onKeyDown={e => {
         const index = TABS.findIndex(([key]) => key === k);
         const next = e.key === 'ArrowRight' ? (index + 1) % TABS.length : e.key === 'ArrowLeft' ? (index + TABS.length - 1) % TABS.length : e.key === 'Home' ? 0 : e.key === 'End' ? TABS.length - 1 : -1;
         if (next < 0) return;
-        e.preventDefault(); navigate(`/event/${id}?tab=${TABS[next][0]}`, { replace: true });
+        e.preventDefault(); openTab(TABS[next][0]);
         document.getElementById(`tab-${TABS[next][0]}`)?.focus();
       }}>{label}</button>)}</div>
       <div id={`panel-${tab}`} role="tabpanel" aria-labelledby={`tab-${tab}`} className={`tab-panel ${reveal}`}><Suspense fallback={<EventTabSkeleton tab={tab} />}>{View && <View key={`${id}-${tab}`} ev={ev} reload={reload} actionBlocked={actionBlocked} />}</Suspense></div>
