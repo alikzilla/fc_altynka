@@ -67,7 +67,8 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
    Surface gradients and inset light are explicitly approved Airofit references. */
 .screen { width: 100%; max-width: 440px; min-height: 100svh; margin: 0 auto; padding: calc(28px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) calc(148px + var(--safe-bottom)) calc(20px + var(--safe-left)); display: flex; flex-direction: column; gap: 20px; }
 .screen { position: relative; }
-.edge-back-cue { position: absolute; z-index: 20; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }
+.edge-back-layer { position: absolute; inset: 0; z-index: 20; overflow: hidden; pointer-events: none; }
+.edge-back-cue { position: absolute; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }
 .edge-back-cue[data-active] { opacity: 1; }
 .edge-back-cue[data-ready] { background: var(--accent); color: var(--on-accent); }
 .edge-back-cue[data-active] { will-change: transform; }
