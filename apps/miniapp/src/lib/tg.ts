@@ -14,6 +14,12 @@ interface TgWebApp {
   setBottomBarColor?(color: string): void;
   onEvent?(event: string, callback: () => void): void;
   offEvent?(event: string, callback: () => void): void;
+  platform?: string;
+  isFullscreen?: boolean;
+  requestFullscreen?(): void;
+  exitFullscreen?(): void;
+  addToHomeScreen?(): void;
+  checkHomeScreenStatus?(callback: (status: HomeScreenStatus) => void): void;
   openLink(url: string): void;
   openTelegramLink?(url: string): void;
   requestWriteAccess?(callback: (granted: boolean) => void): void;
@@ -23,6 +29,9 @@ interface TgWebApp {
   };
   BackButton?: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
 }
+
+/** Telegram's answer about the mini app's icon on the phone's home screen. */
+export type HomeScreenStatus = 'unsupported' | 'unknown' | 'added' | 'missed';
 
 const wa = (): TgWebApp | undefined => (window as unknown as { Telegram?: { WebApp?: TgWebApp } }).Telegram?.WebApp;
 
@@ -47,10 +56,63 @@ export function ready(): () => void {
   if (app?.isVersionAtLeast?.('7.7')) app.disableVerticalSwipes?.();
   app?.ready();
   app?.expand();
+  // On phones the app takes the whole screen, like an installed app, unless turned off on this device.
+  if (canFullscreen() && fullscreenPreferred()) applyFullscreen(true);
   return () => {
     app?.offEvent?.('themeChanged', syncTheme);
     window.removeEventListener('altynka:theme', syncTheme);
   };
+}
+
+const FULLSCREEN_KEY = 'altynka:fullscreen';
+const PHONES = new Set(['ios', 'android', 'android_x']);
+
+/** Full screen exists only in Telegram 8.0+ on phones; on computers the mini app keeps its window. */
+export function canFullscreen(): boolean {
+  const app = wa();
+  return !!app?.requestFullscreen && !!app.isVersionAtLeast?.('8.0') && PHONES.has(app.platform ?? '');
+}
+
+/** The choice is per device: one phone can show full screen while another does not. */
+export function fullscreenPreferred(): boolean {
+  try { return localStorage.getItem(FULLSCREEN_KEY) !== 'off'; } catch { return true; }
+}
+
+function applyFullscreen(on: boolean): void {
+  const app = wa();
+  try {
+    if (on && !app?.isFullscreen) app?.requestFullscreen?.();
+    if (!on && app?.isFullscreen) app?.exitFullscreen?.();
+  } catch {
+    // Telegram throws on clients without the method; the app simply stays in its window.
+  }
+}
+
+export function setFullscreenPreferred(on: boolean): void {
+  try { localStorage.setItem(FULLSCREEN_KEY, on ? 'on' : 'off'); } catch { /* storage may be disabled; the choice still applies now */ }
+  applyFullscreen(on);
+}
+
+/**
+ * Telegram's own shortcut: an FC Altynka icon on the phone's home screen that opens the mini app directly.
+ * Reports the current status and again once the icon is added; returns the unsubscribe. Reports nothing
+ * outside Telegram or on clients without the feature.
+ */
+export function watchHomeScreen(report: (status: HomeScreenStatus) => void): () => void {
+  const app = wa();
+  if (!app?.isVersionAtLeast?.('8.0') || !app.checkHomeScreenStatus) return () => {};
+  const added = () => report('added');
+  app.onEvent?.('homeScreenAdded', added);
+  try {
+    app.checkHomeScreenStatus(report);
+  } catch {
+    // The client advertises the version but not the method.
+  }
+  return () => app.offEvent?.('homeScreenAdded', added);
+}
+
+export function addToHomeScreen(): void {
+  try { wa()?.addToHomeScreen?.(); } catch { /* not available on this client */ }
 }
 
 export function haptic(kind: 'light' | 'heavy' | 'success' | 'error'): void {
