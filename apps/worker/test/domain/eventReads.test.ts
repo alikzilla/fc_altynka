@@ -117,3 +117,20 @@ test('prepared teams become stale after the queue changes and a later detail can
   expect(second?.teams?.stale).toBe(true);
   expect(second?.gameProtocol?.canStart).toBe(false);
 });
+
+test('detail carries the map link of the group venue named like the place, and only that group\'s', async () => {
+  const w = await fixture('scheduled');
+  const viewer = { userId: w.actorId, role: 'player' as const, community: w.community };
+  expect((await eventDetail(w.d.db, w.eventId, viewer, w.d.now))?.placeMapUrl).toBeNull();
+
+  const [other] = await w.d.db.insert(schema.communities).values({ tgChatId: -100777, title: 'Другая группа' }).returning();
+  await w.d.db.insert(schema.venues).values({ communityId: other.id, name: 'Arena', mapUrl: 'https://go.2gis.com/foreign', createdAt: 1 });
+  expect((await eventDetail(w.d.db, w.eventId, viewer, w.d.now))?.placeMapUrl).toBeNull();
+
+  await w.d.db.insert(schema.venues).values({ communityId: w.community.id, name: 'Arena', mapUrl: 'https://go.2gis.com/arena', createdAt: 1 });
+  expect((await eventDetail(w.d.db, w.eventId, viewer, w.d.now))?.placeMapUrl).toBe('https://go.2gis.com/arena');
+
+  // A hand-typed place that matches no venue has no link.
+  await w.d.db.update(schema.events).set({ place: 'Двор у школы' }).where(eq(schema.events.id, w.eventId));
+  expect((await eventDetail(w.d.db, w.eventId, viewer, w.d.now))?.placeMapUrl).toBeNull();
+});

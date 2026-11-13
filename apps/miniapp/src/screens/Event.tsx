@@ -6,7 +6,8 @@ import { canManageEvent } from '../state/me';
 import { isOpen, timeRange } from '../lib/labels';
 import { api } from '../lib/api';
 import { matchLink } from '../lib/bot';
-import { haptic, shareLink } from '../lib/tg';
+import { copy, haptic, shareLink } from '../lib/tg';
+import { is2gis } from '../lib/venues';
 import { slideTab } from '../lib/pageTransition';
 import { preloadable } from '../lib/preloadable';
 import { matchOrigin } from '../lib/navHistory';
@@ -68,6 +69,10 @@ export function Event() {
   const title = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', day: 'numeric', month: 'long', ...(date.getUTCFullYear() !== new Date().getFullYear() ? { year: 'numeric' } : {}) }).format(date) : 'Матч';
   const weekday = date ? new Intl.DateTimeFormat('ru-RU', { timeZone: 'UTC', weekday: 'long' }).format(date) : undefined;
   const manage = ev && canManageEvent(ev) && isOpen(ev.status);
+  async function copyPlace(url: string) {
+    if (await copy(url)) { haptic('success'); toast(is2gis(url) ? 'Ссылка на 2ГИС скопирована' : 'Ссылка на карту скопирована'); }
+    else toast('Не получилось скопировать ссылку', { tone: 'error' });
+  }
   function openTab(next: Tab) {
     const go = () => navigate(`/event/${id}?tab=${next}`, { replace: true });
     if (next === tab) { go(); return; }
@@ -92,7 +97,9 @@ export function Event() {
     {ev && <>
       <section className={`card material-plum event-summary ${reveal} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Матч и твоё участие">
         <div className="match-summary-top"><GroupTag community={ev.community} always /><p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p></div>
-        <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>
+        {ev.place && ev.placeMapUrl
+          ? <button type="button" className="match-detail-place match-place-copy" aria-label={`${ev.place}, скопировать ссылку ${is2gis(ev.placeMapUrl) ? 'на 2ГИС' : 'на карту'}`} onClick={() => copyPlace(ev.placeMapUrl!)}><Icon name="pin" /><span>{ev.place}</span><Icon name="copy" className="match-place-copy-icon" /></button>
+          : <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>}
         <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />

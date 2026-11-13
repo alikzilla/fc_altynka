@@ -1,7 +1,7 @@
 import { matchPhase, myMatchResult, splitQueue, teamColorsFor, type GameState, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, lt, or } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, memberships, signups, type EventRow, type SignupRow } from '../db/schema';
+import { events, memberships, signups, venues, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
 import { getEvent, loadQueue } from './events';
 import { teamsDtoFromEvent } from './teams';
@@ -152,6 +152,9 @@ export async function eventDetail(
     if (s.userId !== null && injured.has(s.userId)) base.injured = true;
     return base;
   };
+  // A match keeps the venue's name, not the venue: the link is looked up in the group's current catalogue.
+  const venue = ev.place ? (await db.select({ mapUrl: venues.mapUrl }).from(venues)
+    .where(and(eq(venues.communityId, ev.communityId), eq(venues.name, ev.place))).limit(1))[0] : undefined;
   const { state, canFinish, completedAt, closesAt, gameScore } = await matchReview(db, ev, viewer.userId, showLevels, now);
   const teams = await teamsDtoFromEvent(db, ev, q.main.map(s => s.id));
   return {
@@ -159,6 +162,7 @@ export async function eventDetail(
     gameProtocol: await gameProtocolFromEvent({db,now,sync:{request:async()=>{}}}, ev, showLevels, { teams, mainCount: q.main.length }),
     ...summary(ev, q, viewer.userId, now, viewer.community),
     viewerRole: viewer.role,
+    placeMapUrl: venue?.mapUrl ?? null,
     comment: ev.comment,
     main: q.main.map(dto),
     reserve: q.reserve.map(dto),

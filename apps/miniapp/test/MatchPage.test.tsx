@@ -185,6 +185,23 @@ test('switching tabs slides the panel toward the chosen tab and keeps the addres
   }
 });
 
+test('tapping the place copies the venue map link', async () => {
+  ev.placeMapUrl = 'https://go.2gis.com/arena';
+  const writeText = vi.fn(async () => {});
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Arena Football · Абая, 150, скопировать ссылку на 2ГИС' }));
+  expect(writeText).toHaveBeenCalledWith('https://go.2gis.com/arena');
+  expect(await screen.findByText('Ссылка на 2ГИС скопирована')).toBeInTheDocument();
+});
+
+test('a place without a saved link stays plain text', async () => {
+  open();
+  const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
+  expect(within(card).getByText('Arena Football · Абая, 150')).toBeVisible();
+  expect(within(card).queryByRole('button', { name: /скопировать ссылку/ })).not.toBeInTheDocument();
+});
+
 test('organizer scheduling has priority over own signup', async () => {
   me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
   open();

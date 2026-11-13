@@ -10,6 +10,11 @@
 .match-detail-time.unknown { font-size: 17px; letter-spacing: -.015em; }
 .match-detail-place { display: flex; align-items: flex-start; gap: 8px; margin-top: 8px; font-size: 13px; line-height: 1.45; color: #e2d3e5; }
 .match-detail-place svg { width: 16px; height: 16px; margin-top: 2px; }
+/* With a saved map link the place copies it: same line, a copy glyph after the name, a 44 px hit area around it. */
+.match-place-copy { position: relative; width: fit-content; max-width: 100%; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; text-align: left; cursor: pointer; transition: transform 140ms var(--ease-out); -webkit-tap-highlight-color: transparent; }
+.match-place-copy::after { content: ''; position: absolute; inset: -12px -10px; }
+.match-place-copy:active { transform: scale(.97); }
+.match-place-copy .match-place-copy-icon { width: 14px; height: 14px; margin-top: 3px; opacity: .7; }
 .match-personal { margin: 12px 0 -4px; padding-top: 4px; border-top: 1px solid #ebc9ed2a; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; }
 .match-personal-status { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 550; }
 .match-personal-status svg { width: 19px; height: 19px; color: #e4cbea; }
