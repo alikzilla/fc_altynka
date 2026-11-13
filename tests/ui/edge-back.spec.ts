@@ -171,3 +171,42 @@ test('reduced motion keeps back navigation available', async ({ page }) => {
   await swipe(page, 8, 150);
   await expect(page).toHaveURL('/profile');
 });
+
+// The cue starts half beyond the edge it was pulled from. Past the right edge it must not widen the page
+// (or the sheet) into a horizontal scroll, neither during the pull nor after a pull that was let go.
+const overflow = (page: Page, selector: string) => page.locator(selector).first().evaluate(node => {
+  const scroller = node.tagName === 'DIALOG' ? node : document.documentElement;
+  return { width: scroller.scrollWidth - scroller.clientWidth, x: node.tagName === 'DIALOG' ? node.scrollLeft : window.scrollX };
+});
+
+test('a pull from the right edge never makes the screen scroll sideways', async ({ page }) => {
+  await page.goto('/players');
+  await ready(page, 'Игроки');
+  await touch(page, 'touchstart', 386, 300);
+  expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
+  await touch(page, 'touchmove', 370, 301);
+  expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
+  await touch(page, 'touchmove', 350, 302);
+  expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
+  // Let go before the threshold: the page stays and still does not scroll sideways.
+  await touch(page, 'touchend', 350, 302);
+  await expect(page).toHaveURL('/players');
+  expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
+});
+
+test('a pull from the right edge of a sheet never makes the sheet scroll sideways', async ({ page }) => {
+  await page.goto('/profile');
+  await openCreateMatch(page);
+  const dialog = page.getByRole('dialog');
+  await expect(dialog).toBeVisible();
+  await expect.poll(async () => Math.round((await dialog.boundingBox())!.y + (await dialog.boundingBox())!.height)).toBe(844);
+  const box = (await dialog.boundingBox())!;
+  const y = box.y + box.height / 2;
+  await touch(page, 'touchstart', 386, y, 'dialog');
+  await touch(page, 'touchmove', 360, y + 1, 'dialog');
+  expect(await overflow(page, 'dialog')).toEqual({ width: 0, x: 0 });
+  await touch(page, 'touchend', 360, y + 1, 'dialog');
+  await expect(dialog).toBeVisible();
+  expect(await overflow(page, 'dialog')).toEqual({ width: 0, x: 0 });
+  expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
+});
