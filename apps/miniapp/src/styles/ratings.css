@@ -108,3 +108,27 @@
 @media (prefers-contrast: more) {
   .skill-meters meter, .skills-progress progress { outline: 1px solid var(--hint); }
 }
+
+/* Award step: one choice per prize. Rows take their tint from the card's own ink, so both themes hold. */
+.award-picker { display: grid; gap: 8px; min-width: 0; margin: 0; padding: 0; border: 0; }
+.award-option { display: grid; grid-template-columns: 22px 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; min-height: 56px; padding: 8px 14px; border-radius: 18px; background: color-mix(in srgb, currentColor 9%, transparent); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: background-color 140ms ease-out; }
+.award-option[data-on] { background: color-mix(in srgb, currentColor 20%, transparent); }
+.award-option input { appearance: none; width: 22px; height: 22px; margin: 0; padding: 0; border: 2px solid color-mix(in srgb, currentColor 55%, transparent); border-radius: 50%; background: none; }
+.award-option input:checked { border-color: currentColor; background: radial-gradient(circle, currentColor 0 44%, transparent 48%); }
+.award-option input:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.award-option-name { min-width: 0; font-size: 16px; font-weight: 550; overflow-wrap: anywhere; }
+.award-option-score { font-size: 12px; opacity: .78; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.award-picker:disabled .award-option { cursor: default; opacity: .6; }
+
+/* Winners of a closed vote. */
+.match-awards { gap: 6px; }
+.match-awards h2 { font-size: 18px; line-height: 1.3; font-weight: 550; letter-spacing: -.025em; }
+.match-awards ul { display: grid; margin: 0; padding: 0; list-style: none; }
+.match-awards li { display: grid; grid-template-columns: minmax(96px, auto) minmax(0, 1fr) auto; align-items: baseline; gap: 4px 12px; min-height: 48px; padding: 12px 0; border-top: 1px solid var(--line); }
+.match-awards li:first-child { border-top: 0; }
+.match-award-label { font-size: 13px; color: var(--hint); }
+.match-award-winners { min-width: 0; font-size: 16px; font-weight: 550; overflow-wrap: anywhere; }
+.match-award-winners a { color: inherit; text-decoration: none; }
+.match-award-votes { font-size: 12px; color: var(--hint); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.match-award-none { grid-column: 2 / -1; font-size: 14px; color: var(--hint); }
+@media (prefers-reduced-motion: reduce) { .award-option { transition: none; } }

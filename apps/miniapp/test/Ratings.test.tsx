@@ -47,6 +47,97 @@ test('public profile sheet places the rating with identity and keeps match histo
 
 const openReview: MatchReviewDto = { state: 'open', canFinish: false, completedAt: 1, closesAt: Date.now() + 3600000, serverNow: Date.now(), gameScore: null, participants: [{ userId: player.userId, name: 'Игрок', score: null }, { userId: 12, name: 'Арман', score: null }], ownSubmission: null, awards: null };
 
+/** Walks past the five award steps without picking anybody. */
+async function skipAwards(dialog: HTMLElement, from = 0) {
+  for (const title of ['MVP матча', 'Лучший нападающий', 'Лучший полузащитник', 'Лучший защитник', 'Лучший вратарь'].slice(from)) {
+    expect(await within(dialog).findByRole('heading', { name: title })).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить награду' }));
+  }
+}
+const trioReview: MatchReviewDto = { ...openReview, participants: [...openReview.participants, { userId: 13, name: 'Ерлан', score: null }] };
+async function openRater(review: MatchReviewDto) {
+  (api.get as Mock).mockResolvedValue(review);
+  (api.send as Mock).mockResolvedValue({ ...review, state: 'submitted' });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  await userEvent.click(await screen.findByRole('button', { name: 'Оценить' }));
+  return screen.getByRole('dialog');
+}
+async function rate(dialog: HTMLElement, name: string, value: number) {
+  fireEvent.change(await within(dialog).findByRole('slider', { name: `Оценка: ${name}` }), { target: { value: String(value) } });
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
+}
+
+test('five award steps follow the players, show the ratings just given and are sent with them', async () => {
+  const dialog = await openRater(trioReview);
+  await rate(dialog, 'Арман', 8); await rate(dialog, 'Ерлан', 9);
+  expect(await within(dialog).findByRole('heading', { name: 'MVP матча' })).toBeInTheDocument();
+  expect(within(dialog).getByText('Кто был лучшим игроком матча?')).toBeInTheDocument();
+  expect(within(dialog).getByText('3 из 8')).toBeInTheDocument();
+  expect(within(dialog).queryByRole('radio', { name: /Игрок/ })).toBeNull();
+  expect(within(dialog).getByRole('radio', { name: /Ерлан/ }).closest('label')).toHaveTextContent('твоя оценка 9');
+  expect(within(dialog).getByRole('button', { name: 'Далее' })).toBeDisabled();
+  await userEvent.click(within(dialog).getByRole('radio', { name: /Ерлан/ }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
+  await skipAwards(dialog, 1);
+  expect(await within(dialog).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
+  expect(within(dialog).getByText(/наград: 1 из 5/)).toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Отправить оценки' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/review',
+    { scores: [{ userId: 12, score: 8 }, { userId: 13, score: 9 }], gameScore: null, skipped: false, awards: { mvp: 13 } });
+});
+
+test('skipping an award clears the pick, and a poll without picks sends no awards field', async () => {
+  const dialog = await openRater(trioReview);
+  await rate(dialog, 'Арман', 8); await rate(dialog, 'Ерлан', 9);
+  await userEvent.click(await within(dialog).findByRole('radio', { name: /Арман/ }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить награду' }));
+  expect(await within(dialog).findByRole('heading', { name: 'Лучший нападающий' })).toBeInTheDocument();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Назад' }));
+  expect(await within(dialog).findByRole('radio', { name: /Арман/ })).not.toBeChecked();
+  await skipAwards(dialog);
+  await userEvent.click(await within(dialog).findByRole('button', { name: 'Отправить оценки' }));
+  expect((api.send as Mock).mock.calls[0][2]).toEqual({ scores: [{ userId: 12, score: 8 }, { userId: 13, score: 9 }], gameScore: null, skipped: false });
+});
+
+test('an unrated candidate shows a dash, and awards alone cannot be submitted', async () => {
+  const dialog = await openRater(openReview);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить игрока' }));
+  const arman = await within(dialog).findByRole('radio', { name: /Арман/ });
+  expect(arman.closest('label')).toHaveTextContent('—');
+  await userEvent.click(arman);
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
+  await skipAwards(dialog, 1);
+  expect(await within(dialog).findByRole('button', { name: 'Отправить оценки' })).toBeDisabled();
+  expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).toBeInTheDocument();
+});
+
+test('with nobody else to pick there are no award steps', async () => {
+  const dialog = await openRater({ ...openReview, participants: [openReview.participants[0]] });
+  expect(within(dialog).getByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
+  expect(within(dialog).getByText('1 из 1')).toBeInTheDocument();
+});
+
+test('a closed match lists winners, shared winners and awards nobody won', async () => {
+  const who = (userId: number, name: string) => ({ userId, name, photoUrl: null });
+  (api.get as Mock).mockResolvedValue({ ...openReview, state: 'closed', closesAt: 2, awards: {
+    mvp: { winners: [who(12, 'Арман')], votes: 6 }, forward: null, midfielder: { winners: [who(12, 'Арман'), who(13, 'Ерлан')], votes: 2 },
+    defender: { winners: [who(13, 'Ерлан'), who(14, 'Санжар'), who(15, 'Тимур')], votes: 3 }, goalkeeper: null } });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  const block = (await screen.findByRole('heading', { name: 'Награды матча' })).closest('section')!;
+  const rows = within(block).getAllByRole('listitem');
+  expect(rows.map(row => row.textContent)).toEqual([
+    'MVP матчаАрман6 голосов', 'НападающийНедостаточно голосов', 'ПолузащитникАрман и Ерлан2 голоса',
+    'ЗащитникЕрлан, Санжар и Тимур3 голоса', 'ВратарьНедостаточно голосов']);
+  expect(within(rows[0]).getByRole('link', { name: 'Арман' })).toHaveAttribute('href', '/players/12');
+});
+
+test('a closed match without awards shows no awards block', async () => {
+  (api.get as Mock).mockResolvedValue({ ...openReview, state: 'closed', closesAt: 2 });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  expect(await screen.findByText('Оценки за матч')).toBeInTheDocument();
+  expect(screen.queryByRole('heading', { name: 'Награды матча' })).toBeNull();
+});
+
 test('review opens a sequential sheet, allows skipping a player and submits the game score explicitly', async () => {
   (api.get as Mock).mockResolvedValue(openReview);
   (api.send as Mock).mockResolvedValue({ ...openReview, state: 'submitted' });
@@ -56,6 +147,7 @@ test('review opens a sequential sheet, allows skipping a player and submits the 
   expect(within(dialog).getByRole('heading', { name: 'Арман' })).toBeInTheDocument();
   expect(within(dialog).queryByRole('heading', { name: 'Игрок' })).toBeNull();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить игрока' }));
+  await skipAwards(dialog);
   expect(await within(dialog).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
   fireEvent.change(within(dialog).getByRole('slider'), { target: { value: '8' } });
   expect(api.send).not.toHaveBeenCalled();
@@ -76,7 +168,7 @@ test('rating a player stays on the same player until Next is pressed', async () 
   expect(slider).toBeEnabled();
   expect(within(dialog).getByRole('heading', { name: 'Арман' })).toBeInTheDocument();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
-  expect(await within(dialog).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
+  expect(await within(dialog).findByRole('heading', { name: 'MVP матча' })).toBeInTheDocument();
   expect(api.send).not.toHaveBeenCalled();
 });
 
