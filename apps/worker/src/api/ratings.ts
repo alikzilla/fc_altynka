@@ -14,8 +14,10 @@ import { body, idParam } from './validate';
 export const ratingsApi = new Hono<AppEnv>();
 const score = z.number().int().min(1).max(10);
 const skillsBody = z.object({ teamwork: score, dribbling: score, technique: score, shooting: score, stamina: score, physical: score, passing: score, defending: score }).strict();
-const reviewBody = z.object({ scores: z.array(z.object({ userId: z.number().int().positive(), score }).strict()).max(100), gameScore: score.nullable(), skipped: z.boolean() }).strict()
-  .refine(v => v.skipped ? v.scores.length === 0 && v.gameScore === null : v.scores.length > 0 || v.gameScore !== null);
+const pick = z.number().int().positive().optional();
+const awardPicks = z.object({ mvp: pick, forward: pick, midfielder: pick, defender: pick, goalkeeper: pick }).strict();
+const reviewBody = z.object({ scores: z.array(z.object({ userId: z.number().int().positive(), score }).strict()).max(100), gameScore: score.nullable(), skipped: z.boolean(), awards: awardPicks.optional() }).strict()
+  .refine(v => v.skipped ? v.scores.length === 0 && v.gameScore === null && !Object.keys(v.awards ?? {}).length : v.scores.length > 0 || v.gameScore !== null);
 
 const myRating = async (db: Db, userId: number, now: number) => (await playerRatings(db, [userId], now)).get(userId)!.rating;
 

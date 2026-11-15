@@ -1,6 +1,6 @@
 import {
-  calculatePlayerRating, matchStartsAt, MIN_REVIEW_VOTES, REVIEW_WINDOW_MS,
-  selfAssessmentRating, SKILLS, type MatchReviewDto, type PlayerProfileDto,
+  AWARDS, calculatePlayerRating, matchStartsAt, MIN_REVIEW_VOTES, normalizeAwardPicks, REVIEW_WINDOW_MS,
+  selfAssessmentRating, SKILLS, type MatchAwardsDto, type MatchReviewDto, type PlayerProfileDto,
   type PlayerSummaryDto, type RatedMatch, type ReviewInput, type SkillAnswers,
 } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
@@ -12,6 +12,7 @@ import { getEvent } from './events';
 import { parseGameState } from './gameStore';
 import { usersById } from '../sync/parts';
 import { playerGameStatistics } from './playerStatistics';
+import { awardsByEvent } from './awards';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
@@ -135,7 +136,8 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     return { ...empty, state: state?.finishParticipants?.length ? 'pending' : 'ineligible', canFinish: false, completedAt: ev.completedAt };
   }
   if (!review || ev.status === 'cancelled') return { ...empty, canFinish: ev.status !== 'cancelled' && empty.canFinish };
-  const [participants, submissions, scores, overall] = await Promise.all([
+  const closed = now >= review.closesAt;
+  const [participants, submissions, scores, overall, results] = await Promise.all([
     db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id)),
     db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId))),
     now >= review.closesAt ? db.all<{ userId: number; score: number | null }>(sql`
@@ -144,16 +146,23 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     now >= review.closesAt ? db.all<{ score: number | null }>(sql`
       SELECT CASE WHEN count(game_score) >= ${MIN_REVIEW_VOTES} THEN round(avg(game_score), 1) ELSE NULL END AS score
       FROM review_submissions WHERE event_id = ${ev.id}`) : Promise.resolve([]),
+    closed ? awardsByEvent(db, [ev.id]).then(map => map.get(ev.id) ?? null) : Promise.resolve(null),
   ]);
   const people = await usersById(db, participants.flatMap(p => p.userId === null ? [] : [p.userId]));
   const own = submissions[0];
   const eligible = participants.some(p => p.userId === userId);
   const scoreMap = new Map(scores.map(s => [s.userId, s.score]));
+  const nameOf = new Map(participants.flatMap(p => p.userId === null ? [] : [[p.userId, p.name] as const]));
+  // Nothing awarded (or a match closed before awards existed) reads as "no awards", not five empty rows.
+  const awards: MatchAwardsDto | null = results && AWARDS.some(key => results[key]) ? Object.fromEntries(AWARDS.map(key => {
+    const result = results[key];
+    return [key, result && { votes: result.votes, winners: result.winners.map(userId => ({ userId, name: nameOf.get(userId) ?? 'Игрок', photoUrl: people.get(userId)?.photoUrl ?? null })) }];
+  })) as MatchAwardsDto : null;
   return { state: now >= review.closesAt ? 'closed' : !eligible ? 'ineligible' : own ? own.skipped ? 'skipped' : 'submitted' : 'open',
     canFinish: false, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
     gameScore: overall[0]?.score ?? null,
     participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null }]),
-    ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null, awards: null };
+    ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null, awards };
 }
 
 /** Complete the review outbox stored by finish; names come from the immutable game roster. */
@@ -169,7 +178,9 @@ export async function ensureGameReview(d: Deps, eventId: number): Promise<void> 
 }
 
 export async function submitReview(d: Deps, ev: EventRow, userId: number, input: ReviewInput): Promise<'ok' | 'invalid' | 'closed' | 'conflict' | 'forbidden'> {
-  const normalized: ReviewInput = { scores: [...input.scores].sort((a, b) => a.userId - b.userId), gameScore: input.gameScore, skipped: input.skipped };
+  // `awards` is written only when something was picked, so a poll without awards keeps its pre-awards payload.
+  const picks = normalizeAwardPicks(input.awards);
+  const normalized: ReviewInput = { scores: [...input.scores].sort((a, b) => a.userId - b.userId), gameScore: input.gameScore, skipped: input.skipped, ...(picks ? { awards: picks } : {}) };
   const payload = JSON.stringify(normalized);
   const [existing] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
   if (existing) return existing.payloadJson === payload ? 'ok' : 'conflict';
@@ -179,6 +190,7 @@ export async function submitReview(d: Deps, ev: EventRow, userId: number, input:
   const ids = new Set(participants.flatMap(p => p.userId === null ? [] : [p.userId]));
   if (!ids.has(userId)) return 'forbidden';
   if (new Set(input.scores.map(s => s.userId)).size !== input.scores.length || input.scores.some(s => s.userId === userId || !ids.has(s.userId))) return 'invalid';
+  if (Object.values(picks ?? {}).some(id => id === userId || !ids.has(id))) return 'invalid';
   // Inserting one immutable submission also inserts its votes via trigger, atomically.
   await d.db.run(sql`INSERT INTO review_submissions(event_id, user_id, payload_json, skipped, game_score, created_at)
     SELECT r.event_id, ${userId}, ${payload}, ${input.skipped ? 1 : 0}, ${input.gameScore}, ${d.now}

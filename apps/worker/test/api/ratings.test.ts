@@ -241,3 +241,18 @@ test('the match roster carries the Telegram photo of players', async () => {
   expect(detail.main.find(s => s.userId === w.orgUserId)?.photoUrl).toBe('https://t.me/i/userpic/org.jpg');
   expect(detail.main.find(s => s.userId === w.playerUserId)?.photoUrl).toBeNull();
 });
+
+test('review accepts a body without awards (old mini app) and with picks, rejects an unknown award', async () => {
+  const { eventId, roster, extra } = await playedMatch();
+  await request(`/api/events/${eventId}/finish`, w.org, { participantSignupIds: roster.map(s => s.id) });
+  const path = `/api/events/${eventId}/review`;
+  const body = { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: null, skipped: false };
+  expect((await request(path, w.org, body)).status).toBe(200);
+  expect((await request(path, { id: extra[0].tgId, first_name: 'Партнёр' }, { ...body, awards: { captain: w.playerUserId } })).status).toBe(400);
+  expect((await request(path, { id: extra[0].tgId, first_name: 'Партнёр' }, { scores: [], gameScore: null, skipped: true, awards: { mvp: w.playerUserId } })).status).toBe(400);
+  const picked = await request(path, { id: extra[0].tgId, first_name: 'Партнёр' }, { ...body, awards: { mvp: w.playerUserId } });
+  expect(picked.status).toBe(200);
+  const own = await picked.json() as MatchReviewDto;
+  expect(own.ownSubmission?.awards).toEqual({ mvp: w.playerUserId });
+  expect(own.awards).toBeNull();
+});
