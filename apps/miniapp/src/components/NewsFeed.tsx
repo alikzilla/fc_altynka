@@ -15,7 +15,7 @@ const PREVIEW = 5;
 type IconName = Parameters<typeof Icon>[0]['name'];
 const ICON: Record<FeedKind, IconName> = {
   winner: 'trophy', hero: 'flame', hat_trick: 'ball', scorer: 'ball', assistant: 'target', duo: 'people', blowout: 'flame', goal_fest: 'ball',
-  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy',
+  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy', awards: 'star',
   signup_open: 'calendar', scheduled: 'clock', squad_full: 'people', teams_ready: 'shirt',
 };
 
@@ -23,14 +23,14 @@ const ICON: Record<FeedKind, IconName> = {
 const LABEL: Record<FeedKind, string> = {
   winner: 'Итог матча', hero: 'Герой матча', hat_trick: 'Хет-трик', scorer: 'Бомбардир', assistant: 'Ассистент', duo: 'Связка',
   blowout: 'Крупный счёт', goal_fest: 'Голевая игра', streak: 'Серия побед', summary: 'Матч в цифрах', achievement: 'Достижение',
-  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков',
+  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков', awards: 'Награды матча',
   signup_open: 'Запись открыта', scheduled: 'Время и поле', squad_full: 'Состав собран', teams_ready: 'Составы',
 };
 
 /** Team news opens the teams tab, a finished match its games. A post about a player opens that player's profile in place. */
 function target(post: FeedPostDto): string {
   if (post.kind === 'teams_ready') return `/event/${post.eventId}?tab=teams`;
-  if (post.kind === 'signup_open' || post.kind === 'scheduled' || post.kind === 'squad_full' || post.kind === 'top_rated') return `/event/${post.eventId}`;
+  if (post.kind === 'signup_open' || post.kind === 'scheduled' || post.kind === 'squad_full' || post.kind === 'top_rated' || post.kind === 'awards') return `/event/${post.eventId}`;
   return `/event/${post.eventId}?tab=games`;
 }
 

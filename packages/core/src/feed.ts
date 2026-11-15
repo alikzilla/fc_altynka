@@ -1,5 +1,6 @@
 import { ACHIEVEMENT_TIER_LABEL, playerAchievements } from './achievements';
 import type { CommunityDto } from './api';
+import { AWARDS, AWARD_LABEL, type AwardKey } from './awards';
 import { plural } from './format';
 import { calculateStandings, type GameResult, type GameRosterPlayer, type GameState } from './games';
 import { aggregatePlayerStatistics, summarizePlayerProtocol, type PlayerProtocolSummary } from './playerStatistics';
@@ -10,7 +11,7 @@ export const FEED_MATCH_KINDS = ['winner', 'hero', 'hat_trick', 'scorer', 'assis
   'achievement', 'debut', 'scoring_run', 'winning_run'] as const;
 /** News about a match that is still ahead; they leave the feed once the match is played or cancelled. */
 export const FEED_UPCOMING_KINDS = ['signup_open', 'scheduled', 'squad_full', 'teams_ready'] as const;
-export const FEED_KINDS = [...FEED_MATCH_KINDS, 'top_rated', ...FEED_UPCOMING_KINDS] as const;
+export const FEED_KINDS = [...FEED_MATCH_KINDS, 'top_rated', 'awards', ...FEED_UPCOMING_KINDS] as const;
 export type FeedKind = typeof FEED_KINDS[number];
 export type FeedUpcomingKind = typeof FEED_UPCOMING_KINDS[number];
 
@@ -473,6 +474,28 @@ export function composeTopRatedPost(v: { eventId: number; date: string; winners:
     `Игроки не смогли выбрать одного: ${A} и ${B}, по ${s} за матч ${d}.`,
     `Лучших двое: ${A} и ${B} получили одинаковую оценку за матч ${d}, ${s}.`,
   ] });
+}
+
+/**
+ * The awards of a match once anonymous voting has closed: one post naming every prize that was given.
+ * The label comes before the name, so names stay in the nominative; prizes nobody won are not mentioned.
+ */
+export function composeAwardsPost(v: { eventId: number; date: string; winners: Record<AwardKey, readonly { userId: number; name: string }[]>; recent?: RecentVariants }): FeedDraft | null {
+  const given = AWARDS.filter(award => v.winners[award].length);
+  if (!given.length) return null;
+  const d = formatDayMonthRu(v.date);
+  const prizes = given.map(award => `${AWARD_LABEL[award]}: ${list(v.winners[award].map(w => w.name))}`).join('. ');
+  return draft(new Voice(String(v.eventId), v.recent), {
+    kind: 'awards', slot: 'awards', score: 0, userId: v.winners.mvp.length === 1 ? v.winners.mvp[0].userId : null,
+    highlights: [...new Set(given.flatMap(award => v.winners[award].map(w => w.name)))],
+    lines: [
+      `Голосование за матч ${d} закрыто. ${prizes}.`,
+      `Награды матча ${d}. ${prizes}.`,
+      `Игроки называют лучших в матче ${d}. ${prizes}.`,
+      `Итоги голосования за матч ${d}. ${prizes}.`,
+      `Лучшие в матче ${d} по выбору партнёров. ${prizes}.`,
+    ],
+  });
 }
 
 export interface UpcomingFeedInput {

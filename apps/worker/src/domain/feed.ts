@@ -1,11 +1,12 @@
 import {
-  composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_REVIEW_VOTES, registrationOpen,
-  splitQueue, type CommunityDto, type FeedDraft, type FeedDto, type FeedKind, type FeedReaction, type FeedReactionsDto, type FeedUpcomingKind, type GameState, type RecentVariants,
+  composeAwardsPost, composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_REVIEW_VOTES, registrationOpen,
+  splitQueue, type AwardKey, type CommunityDto, type FeedDraft, type FeedDto, type FeedKind, type FeedReaction, type FeedReactionsDto, type FeedUpcomingKind, type GameState, type RecentVariants,
 } from '@altynka/core';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
-import { events, feedHidden, feedPosts, feedReactions, signups, users, type EventRow } from '../db/schema';
+import { events, feedHidden, feedPosts, feedReactions, matchParticipants, signups, users, type EventRow } from '../db/schema';
 import type { Deps } from './events';
+import { awardsByEvent } from './awards';
 
 const FEED_PAGE = 30;
 /** How long after voting closes the best-rated post may still appear. */
@@ -97,12 +98,40 @@ export async function clearEventFeed(d: Deps, eventId: number): Promise<void> {
   ]);
 }
 
+/** An awards post that names the MVP leads the vote news (position 0) and stands in for the best-rated post. */
+const AWARDS_WITH_MVP = 0;
+const AWARDS_ONLY = 1;
+
+/** One post per match with the prizes players voted for; written on the same read as the best-rated post. */
+async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
+  const closed = await d.db.all<{ eventId: number; closesAt: number }>(sql`
+    SELECT e.id AS eventId, r.closes_at AS closesAt FROM match_reviews r JOIN events e ON e.id = r.event_id
+    WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)}) AND e.status <> 'cancelled'
+      AND r.closes_at <= ${d.now} AND r.closes_at > ${d.now - VOTES_WINDOW_MS}
+      AND EXISTS (SELECT 1 FROM award_votes a WHERE a.event_id = e.id)
+      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind = 'awards')`);
+  if (!closed.length) return;
+  const results = await awardsByEvent(d.db, closed.map(c => c.eventId));
+  for (const { eventId, closesAt } of closed) {
+    const ev = await event(d.db, eventId);
+    const result = results.get(eventId);
+    if (!ev || !result) continue;
+    const names = new Map((await d.db.select({ userId: matchParticipants.userId, name: matchParticipants.name }).from(matchParticipants)
+      .where(eq(matchParticipants.eventId, eventId))).flatMap(p => p.userId === null ? [] : [[p.userId, p.name] as const]));
+    const named = (award: AwardKey) => (result[award]?.winners ?? []).map(userId => ({ userId, name: names.get(userId) ?? 'Игрок' }));
+    const winners = { mvp: named('mvp'), forward: named('forward'), midfielder: named('midfielder'), defender: named('defender'), goalkeeper: named('goalkeeper') };
+    const draft = composeAwardsPost({ eventId, date: ev.date, winners, recent: await recentVariants(d.db, ev.communityId, eventId) });
+    if (draft) await d.db.insert(feedPosts).values(row(ev, draft, winners.mvp.length ? AWARDS_WITH_MVP : AWARDS_ONLY, closesAt)).onConflictDoNothing();
+  }
+}
+
 /**
  * Voting closes by the clock, not by a request, so the best-rated post is written when somebody next reads
  * the feed. Only published aggregates (enough votes) are used; who voted how never leaves the database.
  */
 export async function publishClosedVotes(d: Deps, communityIds: number[]): Promise<void> {
   if (!communityIds.length) return;
+  await publishAwards(d, communityIds);
   const rows = await d.db.all<{ eventId: number; closesAt: number; userId: number; name: string; score: number }>(sql`
     SELECT e.id AS eventId, r.closes_at AS closesAt, v.recipient_id AS userId, p.name AS name, round(avg(v.score), 1) AS score
     FROM match_reviews r JOIN events e ON e.id = r.event_id
@@ -110,7 +139,8 @@ export async function publishClosedVotes(d: Deps, communityIds: number[]): Promi
     JOIN match_participants p ON p.event_id = v.event_id AND p.user_id = v.recipient_id
     WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)}) AND e.status <> 'cancelled'
       AND r.closes_at <= ${d.now} AND r.closes_at > ${d.now - VOTES_WINDOW_MS}
-      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind = 'top_rated')
+      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id
+        AND (f.kind = 'top_rated' OR (f.kind = 'awards' AND f.position = ${AWARDS_WITH_MVP})))
     GROUP BY e.id, v.recipient_id HAVING count(*) >= ${MIN_REVIEW_VOTES}
     ORDER BY e.id, score DESC, p.name`);
   const byEvent = new Map<number, typeof rows>();

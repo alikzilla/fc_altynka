@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_LIMIT, type FeedDraft } from '../src/feed';
+import { composeAwardsPost, composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_LIMIT, type FeedDraft } from '../src/feed';
 import type { GameResult, GameRosterPlayer, GameState } from '../src/games';
 
 const names = ['Айкын', 'Данияр', 'Ерлан', 'Тимур', 'Марат', 'Алишер'];
@@ -139,5 +139,33 @@ describe('other posts', () => {
       expect(teams.text).not.toContain('undefined');
       for (const name of teams.highlights) expect(['Красные', 'Синие', 'Зелёные']).toContain(name);
     }
+  });
+});
+
+describe('composeAwardsPost', () => {
+  const [A, B, C, D, E] = ['Алихан', 'Дамир', 'Ерлан', 'Санжар', 'Тимур'].map((name, i) => ({ userId: i + 1, name }));
+  const none = { mvp: [], forward: [], midfielder: [], defender: [], goalkeeper: [] };
+  test('names every awarded prize and signs the post with a single MVP', () => {
+    for (let eventId = 1; eventId <= 9; eventId++) {
+      const post = composeAwardsPost({ eventId, date: '2026-11-14', winners: { ...none, mvp: [A], forward: [B], defender: [C, D] } })!;
+      expect(post).toMatchObject({ kind: 'awards', slot: 'awards', userId: A.userId });
+      for (const text of ['14 ноября', 'MVP матча: Алихан', 'нападающий: Дамир', 'защитник: Ерлан и Санжар']) expect(post.text).toContain(text);
+      expect(post.text).not.toMatch(/вратар|полузащитник/i);
+      expect([...post.highlights].sort()).toEqual(['Алихан', 'Дамир', 'Ерлан', 'Санжар']);
+    }
+  });
+  test('lists three sharing winners and leaves the post unsigned for two MVPs', () => {
+    const post = composeAwardsPost({ eventId: 1, date: '2026-11-14', winners: { ...none, mvp: [A, B], defender: [C, D, E] } })!;
+    expect(post.userId).toBeNull();
+    expect(post.text).toContain('MVP матча: Алихан и Дамир');
+    expect(post.text).toContain('Ерлан, Санжар и Тимур');
+  });
+  test('a post without an MVP is unsigned, and nothing awarded is no post', () => {
+    expect(composeAwardsPost({ eventId: 1, date: '2026-11-14', winners: { ...none, goalkeeper: [E] } })).toMatchObject({ userId: null, highlights: ['Тимур'] });
+    expect(composeAwardsPost({ eventId: 1, date: '2026-11-14', winners: none })).toBeNull();
+  });
+  test('the wording varies between matches', () => {
+    const texts = new Set(Array.from({ length: 12 }, (_, i) => composeAwardsPost({ eventId: i + 1, date: '2026-11-14', winners: { ...none, mvp: [A] } })!.text));
+    expect(texts.size).toBeGreaterThanOrEqual(3);
   });
 });

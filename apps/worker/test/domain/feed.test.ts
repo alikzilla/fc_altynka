@@ -157,3 +157,36 @@ test('a match finished before the feed existed gets its stories on the next read
   const ids = restored.map(p => p.id);
   expect((await feed(w)).map(p => p.id)).toEqual(ids);
 });
+
+test('awards are announced once after voting closes and replace the best-rated post when an MVP exists', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 4)) {
+    const scores = [{ userId: w.people[0].id, score: 9 }, { userId: w.people[4].id, score: 6 }];
+    expect(await submitReview(w.d, ev, voter.id, { scores, gameScore: 8, skipped: false, awards: { mvp: w.people[0].id, goalkeeper: w.people[4].id } })).toBe('ok');
+  }
+  expect(await kinds(w)).not.toContain('awards');
+  w.d.now += 73 * 3_600_000;
+  const post = (await feed(w))[0];
+  expect(post).toMatchObject({ kind: 'awards', userId: w.people[0].id });
+  expect(post.text).toContain('MVP матча: Игрок 0');
+  expect(post.text).toContain('вратарь: Игрок 4');
+  const after = await kinds(w);
+  expect(after.filter(k => k === 'awards')).toHaveLength(1);
+  expect(after).not.toContain('top_rated');
+});
+
+test('without an MVP the best-rated post still appears next to the awards post', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 4)) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false, awards: { defender: w.people[4].id } });
+  }
+  w.d.now += 73 * 3_600_000;
+  const after = await kinds(w);
+  expect(after).toContain('top_rated');
+  expect(after).toContain('awards');
+  expect((await feed(w)).find(p => p.kind === 'awards')).toMatchObject({ userId: null });
+});
