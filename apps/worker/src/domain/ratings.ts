@@ -129,7 +129,7 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
 
 export async function matchReview(db: Db, ev: EventRow, userId: number, manage: boolean, now: number): Promise<MatchReviewDto> {
   const [review] = await db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
-  const empty: MatchReviewDto = { state: ev.ratingEnabled ? 'pending' : 'legacy', canFinish: manage && canFinishMatch(ev, now), completedAt: null, closesAt: null, gameScore: null, serverNow: now, participants: [], ownSubmission: null };
+  const empty: MatchReviewDto = { state: ev.ratingEnabled ? 'pending' : 'legacy', canFinish: manage && canFinishMatch(ev, now), completedAt: null, closesAt: null, gameScore: null, serverNow: now, participants: [], ownSubmission: null, awards: null };
   if (!review && ev.protocolVersion === 1 && ev.completedAt !== null) {
     const state = parseGameState(ev);
     return { ...empty, state: state?.finishParticipants?.length ? 'pending' : 'ineligible', canFinish: false, completedAt: ev.completedAt };
@@ -153,7 +153,7 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     canFinish: false, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
     gameScore: overall[0]?.score ?? null,
     participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null }]),
-    ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null };
+    ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null, awards: null };
 }
 
 /** Complete the review outbox stored by finish; names come from the immutable game roster. */

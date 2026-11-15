@@ -45,7 +45,7 @@ test('public profile sheet places the rating with identity and keeps match histo
   expect(within(dialog).queryByText(/Kaspi/)).toBeNull();
 });
 
-const openReview: MatchReviewDto = { state: 'open', canFinish: false, completedAt: 1, closesAt: Date.now() + 3600000, serverNow: Date.now(), gameScore: null, participants: [{ userId: player.userId, name: 'Игрок', score: null }, { userId: 12, name: 'Арман', score: null }], ownSubmission: null };
+const openReview: MatchReviewDto = { state: 'open', canFinish: false, completedAt: 1, closesAt: Date.now() + 3600000, serverNow: Date.now(), gameScore: null, participants: [{ userId: player.userId, name: 'Игрок', score: null }, { userId: 12, name: 'Арман', score: null }], ownSubmission: null, awards: null };
 
 test('review opens a sequential sheet, allows skipping a player and submits the game score explicitly', async () => {
   (api.get as Mock).mockResolvedValue(openReview);

@@ -5,6 +5,7 @@ export * from './format';
 export * from './api';
 export * from './profile';
 export * from './ratings';
+export * from './awards';
 export * from './lifecycle';
 export * from './games';
 export * from './playerStatistics';

@@ -2,6 +2,7 @@ import type { DominantFoot, PlayingPosition } from './profile';
 import type { Role } from './api';
 import type { PlayerMeetingStatistics, PlayerStatistics } from './playerStatistics';
 import type { AchievementId } from './achievements';
+import type { AwardPicks, MatchAwardsDto } from './awards';
 
 export const SKILLS = [
   { key: 'teamwork', label: 'Игра в команде', hint: 'Открывания, помощь партнёрам и взаимодействие' },
@@ -61,6 +62,8 @@ export interface ReviewInput {
   scores: { userId: number; score: number }[];
   gameScore: number | null;
   skipped: boolean;
+  /** Нет поля — награды не выбраны; так же шлёт мини-апп до появления наград. */
+  awards?: AwardPicks;
 }
 export interface MatchReviewSummaryDto {
   state: 'legacy' | 'pending' | 'open' | 'submitted' | 'skipped' | 'ineligible' | 'closed';
@@ -73,4 +76,6 @@ export interface MatchReviewDto extends MatchReviewSummaryDto {
   serverNow: number;
   participants: { userId: number; name: string; photoUrl?: string | null; score: number | null }[];
   ownSubmission: ReviewInput | null;
+  /** Победители после закрытия голосования; null до закрытия и когда ни одна награда не присуждена. */
+  awards: MatchAwardsDto | null;
 }
