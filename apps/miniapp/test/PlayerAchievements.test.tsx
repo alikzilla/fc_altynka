@@ -76,3 +76,12 @@ test('a successful pin shows as pinned at once, before the profile reloads', asy
   await userEvent.click(screen.getByRole('button', { name: 'Закрепить в профиле' }));
   expect(await screen.findByRole('button', { name: 'Закреплено в профиле ✓' })).toBeDisabled();
 });
+
+test('the list carries the MVP and position ladders', async () => {
+  renderWithApp(<PlayerAchievements statistics={stats({ mvps: 3, positionAwards: 1 })} pinned={null} onPin={vi.fn()}/>, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: /Закрепи достижение/ }));
+  const list = screen.getByRole('dialog', { name: 'Достижения' });
+  expect(list).toHaveTextContent('Уровней открыто: 3 из 49');
+  expect(list).toHaveTextContent('MVP');
+  expect(list).toHaveTextContent('Лучший на позиции');
+});

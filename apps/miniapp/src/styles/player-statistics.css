@@ -19,6 +19,11 @@
 .player-statistics>div { display:flex; flex-direction:column-reverse; gap:8px; align-items:center; min-width:0; }
 .player-statistics dt { color:var(--plum-ink); font-size:12px; line-height:1.35; white-space:nowrap; }
 .player-statistics .assists dt { letter-spacing:-.04em; }
+/* Награды матчей: MVP всегда, позиции только выигранные. Отдельная строка, чтобы сетка из пяти ячеек не сжималась. */
+.player-awards { display:flex; flex-wrap:wrap; gap:8px; margin:0; padding-top:14px; border-top:1px solid #ffffff1a; }
+.player-awards>div { display:inline-flex; align-items:baseline; gap:7px; min-height:32px; padding:5px 12px; border-radius:16px; background:#ffffff12; }
+.player-awards dt { color:var(--plum-ink); font-size:12px; line-height:1.35; white-space:nowrap; }
+.player-awards dd { margin:0; color:#faf4fb; font-size:16px; line-height:1.35; font-weight:550; font-variant-numeric:tabular-nums; }
 .player-statistics dd { --stat-height:26px; display:flex; align-items:center; justify-content:center; height:var(--stat-height); margin:0; color:#faf4fb; font-size:25px; line-height:1; font-weight:550; font-variant-numeric:tabular-nums; letter-spacing:-.035em; white-space:nowrap; }
 .player-statistics .wins-stat dd { align-items:baseline; }
 .wins-stat small { font-size:12px; margin-left:1px; }

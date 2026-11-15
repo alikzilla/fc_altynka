@@ -88,3 +88,21 @@ test('assists show the real count once any game recorded them, and a dash before
   const second=renderWithApp(<PlayerSportsCard {...props} statistics={{...base,assists:3,assistsTracked:true}}/>,{me:player});
   expect(second.container.querySelector('.assists dd')).toHaveTextContent('3');
 });
+
+test('awards sit under the statistics: the MVP count always, position awards only when won',()=>{
+  const awards={mvp:2,forward:2,midfielder:0,defender:1,goalkeeper:0};
+  const {container,unmount}=renderWithApp(<PlayerSportsCard {...props} statistics={{...props.statistics,awards,mvps:2,positionAwards:3}}/>,{me:player});
+  const row=container.querySelector('.player-awards')!;
+  expect([...row.querySelectorAll('div')].map(n=>n.textContent)).toEqual(['MVP2','Нападающий2','Защитник1']);
+  expect([...container.querySelectorAll('.player-statistics dt')].map(n=>n.textContent)).toEqual(['Голы','Ассисты','Игры','Побед','Нога']);
+  unmount();
+  const empty=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
+  expect([...empty.container.querySelectorAll('.player-awards div')].map(n=>n.textContent)).toEqual(['MVP0']);
+});
+test('awards are not invented while statistics load',()=>{
+  const {container}=renderWithApp(<PlayerSportsCard {...props} statistics={undefined} statisticsPending/>,{me:player});
+  const value=container.querySelector('.player-awards dd');
+  expect(value).not.toBeNull();
+  expect(value!.textContent).not.toBe('0');
+  expect(container.querySelectorAll('.player-awards div')).toHaveLength(1);
+});

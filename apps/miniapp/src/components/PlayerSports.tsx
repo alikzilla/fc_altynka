@@ -1,4 +1,4 @@
-import { playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
+import { AWARDS, AWARD_SHORT_LABEL, playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
@@ -66,6 +66,10 @@ export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,do
         <div><dt>Игры</dt><dd>{pending ?? statistics?.games ?? '—'}</dd></div>
         <div className="wins-stat"><dt>Побед</dt><dd>{pending ?? (statistics?.winPercentage==null?'—':<>{statistics.winPercentage}<small>%</small></>)}</dd></div>
         <div className="foot-stat"><dt>Нога</dt><WorkingFoot foot={dominantFoot}/></div>
+      </dl>
+      <dl className="player-awards" aria-label="Награды матчей">
+        <div><dt>MVP</dt><dd>{pending ?? statistics?.mvps ?? '—'}</dd></div>
+        {statistics && AWARDS.filter(key=>key!=='mvp' && statistics.awards[key]>0).map(key=><div key={key}><dt>{AWARD_SHORT_LABEL[key]}</dt><dd>{statistics.awards[key]}</dd></div>)}
       </dl>
     </div>
   </section>;

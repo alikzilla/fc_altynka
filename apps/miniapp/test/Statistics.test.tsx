@@ -54,3 +54,11 @@ test('a row opens that player profile in a sheet', async () => {
   expect(screen.getByRole('dialog', { name: 'Профиль игрока' })).toBeInTheDocument();
   expect((api.get as Mock).mock.calls.map(call => call[0])).toContain('/api/players/6');
 });
+
+test('the MVP board ranks players by MVP awards summed across groups', async () => {
+  data = { groups: [{ ...first, players: [row(2, 'Игрок', { goals: 5, mvps: 1 }), row(3, 'Дамир', { goals: 9, mvps: 2 }), row(4, 'Ернар', { goals: 4 }), row(5, 'Тимур', { goals: 1 })] },
+    { ...second, players: [row(2, 'Игрок', { goals: 6, mvps: 2 })] }] };
+  renderWithApp(<Statistics />, { me: twoGroups });
+  await userEvent.click(await screen.findByRole('button', { name: 'MVP' }));
+  expect(podium().map(text => text!.replace(/^\d место./, ''))).toEqual(['Игрок3', 'Дамир2', 'Ернар0']);
+});

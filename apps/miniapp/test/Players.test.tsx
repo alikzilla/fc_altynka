@@ -96,7 +96,7 @@ test('a single group has no section heading', async () => {
 
 test('the list and the profile sheet show the Telegram photo when there is one', async () => {
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/players/12'
-    ? { ...players[0], photoUrl: 'https://t.me/i/userpic/arman.jpg', telegramUsername: null, role: 'player', statistics: { meetings: 0, games: 0, goals: 0, assists: 0, assistsTracked: false, wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0 }, gameHistory: [], pinnedAchievement: null, history: [] }
+    ? { ...players[0], photoUrl: 'https://t.me/i/userpic/arman.jpg', telegramUsername: null, role: 'player', statistics: { meetings: 0, games: 0, goals: 0, assists: 0, assistsTracked: false, wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0, awards: { mvp: 0, forward: 0, midfielder: 0, defender: 0, goalkeeper: 0 }, mvps: 0, positionAwards: 0 }, gameHistory: [], pinnedAchievement: null, history: [] }
     : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role, players: [{ ...players[0], photoUrl: 'https://t.me/i/userpic/arman.jpg' }, players[1]] }] }));
   role = 'player';
   const { container } = renderWithApp(<Players selectedUserId={12} />, { me: player });
