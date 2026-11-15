@@ -10,7 +10,7 @@ vi.mock('../src/lib/api');
 vi.mock('../src/lib/tg');
 
 const row = (userId: number, displayName: string, over: Partial<LeaderboardRowDto> = {}): LeaderboardRowDto =>
-  ({ userId, displayName, photoUrl: null, rating: 6.5, meetings: 2, games: 8, goals: 0, assists: 0, assistsTracked: true, wins: 1, ...over });
+  ({ userId, displayName, photoUrl: null, rating: 6.5, meetings: 2, games: 8, goals: 0, assists: 0, assistsTracked: true, wins: 1, mvps: 0, ...over });
 const first = { community: { id: 1, title: 'FC Altynka' }, players: [row(2, 'Игрок', { goals: 5, assists: 1 }), row(3, 'Дамир', { goals: 9, assistsTracked: false }), row(4, 'Ернар', { goals: 4, assists: 6 }), row(5, 'Тимур', { goals: 1 })] };
 const second = { community: { id: 2, title: 'Футбол по средам' }, players: [row(2, 'Игрок', { goals: 6, assists: 2 }), row(6, 'Бекзат', { goals: 3 })] };
 let data: LeaderboardDto;

@@ -88,11 +88,13 @@ export interface LeaderboardRowDto {
   /** Рейтинг общий для всех групп человека. */
   rating: number;
   meetings: number; games: number; goals: number; assists: number; assistsTracked: boolean; wins: number;
+  /** Награды «MVP матча» в этой группе по закрытым голосованиям. */
+  mvps: number;
 }
 /** Группы смотрящего; в каждой только действующие участники, сыгравшие хотя бы одну игру. */
 export interface LeaderboardDto { groups: { community: { id: number; title: string }; players: LeaderboardRowDto[] }[] }
 
-export const LEADERBOARD_BOARDS = ['goals', 'assists', 'points', 'games', 'wins'] as const;
+export const LEADERBOARD_BOARDS = ['goals', 'assists', 'points', 'games', 'wins', 'mvps'] as const;
 export type LeaderboardBoard = typeof LEADERBOARD_BOARDS[number];
 
 /** `communityId === null` складывает человека по всем группам: он остаётся одной строкой. */
@@ -103,7 +105,7 @@ export function mergeLeaderboard(groups: LeaderboardDto['groups'], communityId: 
     for (const player of group.players) {
       const row = rows.get(player.userId);
       if (!row) { rows.set(player.userId, { ...player }); continue; }
-      for (const key of ['meetings', 'games', 'goals', 'assists', 'wins'] as const) row[key] += player[key];
+      for (const key of ['meetings', 'games', 'goals', 'assists', 'wins', 'mvps'] as const) row[key] += player[key];
       row.assistsTracked ||= player.assistsTracked;
     }
   }

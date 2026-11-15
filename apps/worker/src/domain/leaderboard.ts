@@ -3,6 +3,7 @@ import { and, eq, inArray, isNotNull, ne } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { events, memberships } from '../db/schema';
 import { playerRatings } from './ratings';
+import { communityMvpCounts } from './awards';
 
 /**
  * Итоги игроков по группам смотрящего. Считаются по тем же сохранённым протоколам, что и профиль игрока;
@@ -11,12 +12,13 @@ import { playerRatings } from './ratings';
 export async function leaderboard(db: Db, groups: { id: number; title: string }[], now: number): Promise<LeaderboardDto> {
   if (!groups.length) return { groups: [] };
   const ids = groups.map(g => g.id);
-  const [protocols, members] = await Promise.all([
+  const [protocols, members, mvps] = await Promise.all([
     db.select({ communityId: events.communityId, state: events.gameStateJson }).from(events)
       .where(and(inArray(events.communityId, ids), eq(events.protocolVersion, 1), isNotNull(events.startedAt),
         isNotNull(events.gameStateJson), ne(events.status, 'cancelled'))),
     db.select({ communityId: memberships.communityId, userId: memberships.userId }).from(memberships)
       .where(and(inArray(memberships.communityId, ids), eq(memberships.active, true))),
+    communityMvpCounts(db, ids, now),
   ]);
   const summaries = new Map<string, PlayerProtocolSummary[]>();
   for (const row of protocols) {
@@ -36,7 +38,7 @@ export async function leaderboard(db: Db, groups: { id: number; title: string }[
       const person = people.get(m.userId);
       if (!person) return [];
       const { meetings, games, goals, assists, assistsTracked, wins } = aggregatePlayerStatistics(summaries.get(`${community.id}:${m.userId}`)!);
-      return [{ userId: m.userId, displayName: person.displayName, photoUrl: person.photoUrl ?? null, rating: person.rating.value, meetings, games, goals, assists, assistsTracked, wins }];
+      return [{ userId: m.userId, displayName: person.displayName, photoUrl: person.photoUrl ?? null, rating: person.rating.value, meetings, games, goals, assists, assistsTracked, wins, mvps: mvps.get(`${community.id}:${m.userId}`) ?? 0 }];
     }).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru') || a.userId - b.userId),
   })) };
 }

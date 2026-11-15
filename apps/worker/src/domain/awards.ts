@@ -53,3 +53,21 @@ export async function playerAwardCounts(db: Db, userId: number, viewerId: number
   }
   return counts;
 }
+
+/** MVP awards per group member, keyed `${communityId}:${userId}`; closed, not cancelled matches only. */
+export async function communityMvpCounts(db: Db, communityIds: number[], now: number): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!communityIds.length) return counts;
+  const rows = await db.all<{ eventId: number; communityId: number }>(sql`
+    SELECT DISTINCT v.event_id AS eventId, e.community_id AS communityId FROM award_votes v
+    JOIN match_reviews r ON r.event_id = v.event_id JOIN events e ON e.id = v.event_id
+    WHERE v.award = 'mvp' AND e.community_id IN (${idList(communityIds)}) AND r.closes_at <= ${now} AND e.status <> 'cancelled'`);
+  const communityOf = new Map(rows.map(r => [r.eventId, r.communityId]));
+  for (const [eventId, results] of await awardsByEvent(db, rows.map(r => r.eventId))) {
+    for (const userId of results.mvp?.winners ?? []) {
+      const key = `${communityOf.get(eventId)}:${userId}`;
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  return counts;
+}

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { communities, events, memberships } from '../../src/db/schema';
 import { leaderboard } from '../../src/domain/leaderboard';
 import { db, seedUser } from '../helpers';
+import { HOUR, NOW, reviewedMatch, vote } from './awardsFixture';
 
 async function world() {
   const [a, b] = await db().insert(communities).values([{ tgChatId: -101, title: 'Альфа' }, { tgChatId: -102, title: 'Бета' }]).returning();
@@ -47,4 +48,18 @@ test('cancelled and unstarted matches are skipped, a member who left disappears,
   await db().update(memberships).set({ active: false }).where(eq(memberships.userId, w.passer.id));
   expect((await leaderboard(db(), groupsOf(w), 2)).groups[0].players.map(p => p.userId)).toEqual([w.scorer.id]);
   expect(await leaderboard(db(), [], 2)).toEqual({ groups: [] });
+});
+
+test('rows carry the MVP awards of that group only, counted after voting closes', async () => {
+  const w = await world();
+  await session(w.a.id, w.scorer.id, w.passer.id); await session(w.b.id, w.scorer.id, w.passer.id);
+  const fan = await seedUser('Болельщик', { communityId: w.a.id });
+  for (const [communityId, closesAt] of [[w.a.id, NOW - HOUR], [w.b.id, NOW - HOUR], [w.a.id, NOW + HOUR]] as const) {
+    const ev = await reviewedMatch(communityId, [w.scorer.id, w.passer.id, fan.id], { closesAt });
+    await vote(ev.id, w.passer.id, { [w.scorer.id]: 8 }, { mvp: w.scorer.id });
+    await vote(ev.id, fan.id, { [w.scorer.id]: 8 }, { mvp: w.scorer.id });
+  }
+  const result = await leaderboard(db(), groupsOf(w), NOW);
+  expect(result.groups[0].players.map(p => [p.displayName, p.mvps])).toEqual([['Алихан', 1], ['Дамир', 0]]);
+  expect(result.groups[1].players.map(p => [p.displayName, p.mvps])).toEqual([['Алихан', 1]]);
 });

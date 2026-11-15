@@ -2,7 +2,7 @@ import { expect, test } from 'vitest';
 import { leaderboardValue, mergeLeaderboard, rankLeaderboard, type LeaderboardDto, type LeaderboardRowDto } from '../src';
 
 const row = (userId: number, displayName: string, over: Partial<LeaderboardRowDto> = {}): LeaderboardRowDto =>
-  ({ userId, displayName, photoUrl: null, rating: 5, meetings: 1, games: 4, goals: 0, assists: 0, assistsTracked: true, wins: 0, ...over });
+  ({ userId, displayName, photoUrl: null, rating: 5, meetings: 1, games: 4, goals: 0, assists: 0, assistsTracked: true, wins: 0, mvps: 0, ...over });
 const groups: LeaderboardDto['groups'] = [
   { community: { id: 1, title: 'A' }, players: [row(1, 'Алихан', { goals: 5, assists: 2, wins: 3 }), row(2, 'Дамир', { goals: 6, assists: 0, assistsTracked: false })] },
   { community: { id: 2, title: 'B' }, players: [row(1, 'Алихан', { goals: 2, assists: 1, games: 3, wins: 1, meetings: 2 }), row(3, 'Ернар', { goals: 6, assists: 4 })] },
@@ -29,4 +29,13 @@ test('untracked assists are unknown, not zero, and rank last', () => {
   expect(leaderboardValue(damir, 'assists')).toBeNull();
   expect(leaderboardValue(damir, 'points')).toBe(6);
   expect(rankLeaderboard(all, 'assists').map(p => p.userId)).toEqual([3, 1, 2]);
+});
+
+test('the MVP board sums awards across groups and ranks by them', () => {
+  const awarded: LeaderboardDto['groups'] = [
+    { community: { id: 1, title: 'A' }, players: [row(7, 'Ерлан', { mvps: 2 })] },
+    { community: { id: 2, title: 'B' }, players: [row(7, 'Ерлан', { mvps: 1 }), row(8, 'Санжар', { mvps: 2, goals: 9 })] },
+  ];
+  const merged = mergeLeaderboard(awarded, null);
+  expect(rankLeaderboard(merged, 'mvps').map(r => [r.userId, leaderboardValue(r, 'mvps')])).toEqual([[7, 3], [8, 2]]);
 });

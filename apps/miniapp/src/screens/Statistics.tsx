@@ -8,7 +8,7 @@ import { useResource } from '../hooks/useResource';
 import { useMe } from '../state/me';
 import { PlayerProfileSheet } from './PlayerProfile';
 
-export const BOARDS: [LeaderboardBoard, string][] = [['goals', 'Голы'], ['assists', 'Пасы'], ['points', 'Гол+пас'], ['games', 'Игры'], ['wins', 'Победы']];
+export const BOARDS: [LeaderboardBoard, string][] = [['goals', 'Голы'], ['assists', 'Пасы'], ['points', 'Гол+пас'], ['games', 'Игры'], ['wins', 'Победы'], ['mvps', 'MVP']];
 
 const MEDALS = ['gold', 'silver', 'bronze'] as const;
 
