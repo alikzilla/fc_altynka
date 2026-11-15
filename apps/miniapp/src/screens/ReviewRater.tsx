@@ -20,7 +20,13 @@ type Props = {
 };
 
 export function ReviewRater({ players, scores, gameScore, awards, onAward, onScore, onGameScore, onClose, onSubmit, busy, error }: Props) {
-  const [step, setStep] = useState(() => { const first = players.findIndex(p => scores[p.userId] === undefined); return first < 0 ? players.length : first; });
+  // Reopening resumes at the first unanswered step: an unrated player, then an unpicked prize, else the match itself.
+  const [step, setStep] = useState(() => {
+    const player = players.findIndex(p => scores[p.userId] === undefined);
+    if (player >= 0) return player;
+    const prize = players.length ? AWARDS.findIndex(key => awards[key] === undefined) : -1;
+    return players.length + (prize >= 0 ? prize : players.length ? AWARDS.length : 0);
+  });
   const [leaving, setLeaving] = useState(false);
   const [direction, setDirection] = useState(1);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);

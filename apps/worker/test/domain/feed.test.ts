@@ -1,7 +1,8 @@
 import { eq } from 'drizzle-orm';
 import { feedPosts, users } from '../../src/db/schema';
 import { cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, scheduleEvent } from '../../src/domain/events';
-import { hideFeedPost, listFeed, setFeedReaction } from '../../src/domain/feed';
+import { awardsToPublish, hideFeedPost, listFeed, setFeedReaction } from '../../src/domain/feed';
+import { env } from 'cloudflare:test';
 import { startGameSession } from '../../src/domain/gameStart';
 import { editGameResult, finishGameSession, recordGameResult } from '../../src/domain/games';
 import { submitReview } from '../../src/domain/ratings';
@@ -189,4 +190,45 @@ test('without an MVP the best-rated post still appears next to the awards post',
   expect(after).toContain('top_rated');
   expect(after).toContain('awards');
   expect((await feed(w)).find(p => p.kind === 'awards')).toMatchObject({ userId: null });
+});
+
+test('a match where no award reached two votes is not picked up for publishing again', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  // Three voters, three different MVPs: votes exist, nobody wins.
+  for (const [i, voter] of w.people.slice(1, 4).entries()) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false, awards: { mvp: w.people[[0, 4, 1][i]].id } });
+  }
+  w.d.now += 73 * 3_600_000;
+  expect(await awardsToPublish(w.d, [w.community.id])).toEqual([]);
+  expect(await kinds(w)).not.toContain('awards');
+  expect(await kinds(w)).toContain('top_rated');
+});
+
+test('a match with a winner is picked up once and leaves the queue after its post is written', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 3)) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false, awards: { defender: w.people[4].id } });
+  }
+  w.d.now += 73 * 3_600_000;
+  expect((await awardsToPublish(w.d, [w.community.id])).map(r => r.eventId)).toEqual([w.eventId]);
+  expect(await kinds(w)).toContain('awards');
+  expect(await awardsToPublish(w.d, [w.community.id])).toEqual([]);
+});
+
+test('a failure while publishing awards does not take the best-rated post with it', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 4)) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false });
+  }
+  w.d.now += 73 * 3_600_000;
+  const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await env.DB.prepare('ALTER TABLE award_votes RENAME TO award_votes_away').run();
+  try { expect(await kinds(w)).toContain('top_rated'); }
+  finally { await env.DB.prepare('ALTER TABLE award_votes_away RENAME TO award_votes').run(); quiet.mockRestore(); }
 });

@@ -1,5 +1,5 @@
 import { SKILLS, aggregatePlayerStatistics, type MatchReviewDto, type PlayerProfileDto } from '@altynka/core';
-import { act, fireEvent, screen, within } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { Link, Route, Switch } from 'wouter';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
@@ -109,6 +109,30 @@ test('an unrated candidate shows a dash, and awards alone cannot be submitted', 
   await skipAwards(dialog, 1);
   expect(await within(dialog).findByRole('button', { name: 'Отправить оценки' })).toBeDisabled();
   expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).toBeInTheDocument();
+});
+
+test('reopening the sheet resumes at the first unanswered step, or at the match rating when all is answered', async () => {
+  const dialog = await openRater(openReview);
+  await rate(dialog, 'Арман', 8);
+  await userEvent.click(await within(dialog).findByRole('radio', { name: /Арман/ }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
+  expect(await within(dialog).findByRole('heading', { name: 'Лучший нападающий' })).toBeInTheDocument();
+  const reopen = async (from: HTMLElement) => {
+    await userEvent.click(within(from).getByRole('button', { name: 'Закрыть' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    await userEvent.click(screen.getByRole('button', { name: 'Продолжить оценку' }));
+    return screen.getByRole('dialog');
+  };
+  let sheet = await reopen(dialog);
+  expect(within(sheet).getByRole('heading', { name: 'Лучший нападающий' })).toBeInTheDocument();
+  for (const title of ['Лучший нападающий', 'Лучший полузащитник', 'Лучший защитник', 'Лучший вратарь']) {
+    expect(await within(sheet).findByRole('heading', { name: title })).toBeInTheDocument();
+    await userEvent.click(within(sheet).getByRole('radio', { name: /Арман/ }));
+    await userEvent.click(within(sheet).getByRole('button', { name: 'Далее' }));
+  }
+  expect(await within(sheet).findByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
+  sheet = await reopen(sheet);
+  expect(within(sheet).getByRole('heading', { name: 'Матч в целом' })).toBeInTheDocument();
 });
 
 test('with nobody else to pick there are no award steps', async () => {

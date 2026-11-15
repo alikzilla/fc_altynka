@@ -1,5 +1,5 @@
 import {
-  composeAwardsPost, composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_REVIEW_VOTES, registrationOpen,
+  composeAwardsPost, composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_AWARD_VOTES, MIN_REVIEW_VOTES, registrationOpen,
   splitQueue, type AwardKey, type CommunityDto, type FeedDraft, type FeedDto, type FeedKind, type FeedReaction, type FeedReactionsDto, type FeedUpcomingKind, type GameState, type RecentVariants,
 } from '@altynka/core';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
@@ -102,14 +102,24 @@ export async function clearEventFeed(d: Deps, eventId: number): Promise<void> {
 const AWARDS_WITH_MVP = 0;
 const AWARDS_ONLY = 1;
 
-/** One post per match with the prizes players voted for; written on the same read as the best-rated post. */
-async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
-  const closed = await d.db.all<{ eventId: number; closesAt: number }>(sql`
+/**
+ * Closed matches that have a prize to announce and no awards post yet. A prize needs two votes for one
+ * player, so a match where the votes scattered never enters the list and costs nothing on later reads.
+ */
+export async function awardsToPublish(d: Deps, communityIds: number[]): Promise<{ eventId: number; closesAt: number }[]> {
+  if (!communityIds.length) return [];
+  return d.db.all<{ eventId: number; closesAt: number }>(sql`
     SELECT e.id AS eventId, r.closes_at AS closesAt FROM match_reviews r JOIN events e ON e.id = r.event_id
     WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)}) AND e.status <> 'cancelled'
       AND r.closes_at <= ${d.now} AND r.closes_at > ${d.now - VOTES_WINDOW_MS}
-      AND EXISTS (SELECT 1 FROM award_votes a WHERE a.event_id = e.id)
-      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind = 'awards')`);
+      AND EXISTS (SELECT 1 FROM award_votes a WHERE a.event_id = e.id GROUP BY a.award, a.recipient_id HAVING count(*) >= ${MIN_AWARD_VOTES})
+      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind = 'awards')
+    ORDER BY e.id`);
+}
+
+/** One post per match with the prizes players voted for; written on the same read as the best-rated post. */
+async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
+  const closed = await awardsToPublish(d, communityIds);
   if (!closed.length) return;
   const results = await awardsByEvent(d.db, closed.map(c => c.eventId));
   for (const { eventId, closesAt } of closed) {
@@ -131,7 +141,8 @@ async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
  */
 export async function publishClosedVotes(d: Deps, communityIds: number[]): Promise<void> {
   if (!communityIds.length) return;
-  await publishAwards(d, communityIds);
+  // On its own guard: a failure in the awards post must not cost the group its best-rated post.
+  await feedSafely(() => publishAwards(d, communityIds));
   const rows = await d.db.all<{ eventId: number; closesAt: number; userId: number; name: string; score: number }>(sql`
     SELECT e.id AS eventId, r.closes_at AS closesAt, v.recipient_id AS userId, p.name AS name, round(avg(v.score), 1) AS score
     FROM match_reviews r JOIN events e ON e.id = r.event_id
