@@ -5,7 +5,7 @@ import AxeBuilder from '@axe-core/playwright';
 // замена на данные ничего не сдвигает. Фикстуры — синтетические, только для проверки разметки.
 const community = { id: 1, title: 'FC Altynka' };
 const rating = { value: 5.4, initial: 5, selfAssessment: { teamwork: 3, dribbling: 3, technique: 3, shooting: 3, stamina: 3, physical: 3, passing: 3, defending: 3 }, matchesCount: 2 };
-const statistics = { meetings: 3, games: 9, goals: 3, assists: 0, wins: 3, draws: 3, losses: 3, winPercentage: 33, bestGoalsInMeeting: 1, hatTricks: 0 };
+const statistics = { awards:{mvp:0,forward:0,midfielder:0,defender:0,goalkeeper:0},mvps:0,positionAwards:0,meetings: 3, games: 9, goals: 3, assists: 0, wins: 3, draws: 3, losses: 3, winPercentage: 33, bestGoalsInMeeting: 1, hatTricks: 0 };
 const meeting = (day: number) => ({ eventId: day, date: `2026-10-${day}`, place: null, community, colors: ['red', 'blue', 'yellow'], games: 3, goals: 1, wins: 1, draws: 1, losses: 1, score: null,
   results: ['win', 'draw', 'loss'].map((outcome, index) => ({ id: `g${day}${index}`, sequence: index + 1, pair: [0, 1], score: [1, 0], goals: 0, outcome })) });
 const profile = { userId: 1, displayName: 'Алихан', playingPosition: 'universal', dominantFoot: 'both', rating, role: 'admin', telegramUsername: 'alikhan', pinnedAchievement: 'scorer', statistics, history: [], gameHistory: [30, 23, 16].map(meeting) };

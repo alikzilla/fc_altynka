@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { writeFile } from 'node:fs/promises';
 
@@ -14,6 +14,14 @@ const people = [
   { userId: 3, displayName: 'Руслан', playingPosition: 'forward', dominantFoot: 'both', rating: { ...rating, value: 6.3 } },
 ];
 
+/** Walks past the award steps without picking anybody. */
+async function skipAwards(sheet: Locator, from = 0) {
+  for (const title of ['MVP матча', 'Лучший нападающий', 'Лучший полузащитник', 'Лучший защитник', 'Лучший вратарь'].slice(from)) {
+    await expect(sheet.getByRole('heading', { name: title, exact: true })).toBeVisible();
+    await sheet.getByRole('button', { name: 'Пропустить награду', exact: true }).click();
+  }
+}
+
 async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; closed?: boolean; open?: boolean } = {}) {
   let assessed = !options.fresh;
   let finished = !!options.open;
@@ -22,7 +30,9 @@ async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; c
   let savedSkills = skills;
   const now = Date.now();
   const review = () => ({ state: options.closed ? 'closed' : !finished ? 'pending' : submitted ? skipped ? 'skipped' : 'submitted' : 'open', canFinish: !finished && !options.closed, completedAt: finished || options.closed ? now : null, closesAt: options.closed ? now - 1000 : now + 72 * 3600000, serverNow: now, gameScore: options.closed ? 8.1 : null,
-    participants: people.map(p => ({ userId: p.userId, name: p.displayName, score: options.closed && p.userId !== 3 ? 7.5 : null })), ownSubmission: null });
+    participants: people.map(p => ({ userId: p.userId, name: p.displayName, score: options.closed && p.userId !== 3 ? 7.5 : null })), ownSubmission: null,
+    awards: options.closed ? { mvp: { winners: [{ userId: 2, name: 'Арман', photoUrl: null }], votes: 2 }, forward: null, midfielder: null,
+      defender: { winners: [{ userId: 2, name: 'Арман', photoUrl: null }, { userId: 3, name: 'Руслан', photoUrl: null }], votes: 2 }, goalkeeper: null } : null });
   const me = () => ({ userId: 1, displayName: 'Данияр', role: 'organizer', kaspiPhone: '+77071234567', profileCompleted: true, playingPosition: 'midfielder', dominantFoot: 'right', theme: options.theme ?? 'dark', rating: assessed ? { ...rating, selfAssessment: savedSkills } : { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, community: { id: 1, title: 'FC Altynka' } });
   const match = () => ({ id: 1, date: '2026-11-05', status: 'playing', startTime: '20:00', durationHours: 1, place: 'Шанырак', limit: 10, mainCount: 2, reserveCount: 1, my: 'main', comment: null, main: people.slice(0, 2).map(p => ({ id: p.userId, seq: p.userId, name: p.displayName, userId: p.userId, guestOfName: null, invitedByUserId: null, level: p.rating.value })), reserve: [{ id: 3, seq: 3, name: 'Руслан', userId: 3, guestOfName: null, invitedByUserId: null }], teams: null, bill: null, review: review() });
   await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
@@ -123,7 +133,7 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await page.getByRole('button', { name: 'Подтвердить участников', exact: true }).click();
   await page.getByRole('link', { name: 'Оценить матч', exact: true }).click();
   await page.getByRole('button', { name: 'Оценить', exact: true }).click();
-  const reviewSheet = page.getByRole('dialog', { name: 'Оценка игроков' });
+  const reviewSheet = page.getByRole('dialog', { name: 'Оценка матча' });
   await expect(reviewSheet.getByLabel('Оценка: Данияр', { exact: true })).toHaveCount(0);
   await reviewSheet.getByRole('slider').press('End');
   await reviewSheet.getByRole('slider').press('ArrowLeft');
@@ -131,14 +141,30 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await reviewSheet.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(reviewSheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();
   await reviewSheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
+  // Five award steps sit between the players and the match rating.
+  await expect(reviewSheet.getByRole('heading', { name: 'MVP матча', exact: true })).toBeVisible();
+  await expect(reviewSheet.getByRole('radio', { name: /Данияр/ })).toHaveCount(0);
+  await expect(reviewSheet.getByRole('radio', { name: /Арман/ })).toBeVisible();
+  await expect(reviewSheet.getByText('твоя оценка 8', { exact: true })).toBeVisible();
+  await expect(reviewSheet.getByRole('button', { name: 'Далее', exact: true })).toBeDisabled();
+  await reviewSheet.getByRole('radio', { name: /Арман/ }).check();
+  await reviewSheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+  expect(await reviewSheet.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: 'artifacts/ratings/award-step-dark-390.png', fullPage: true });
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  await reviewSheet.getByRole('button', { name: 'Далее', exact: true }).click();
+  await skipAwards(reviewSheet, 1);
   await expect(reviewSheet.getByRole('heading', { name: 'Матч в целом', exact: true })).toBeVisible();
+  await expect(reviewSheet.getByText(/наград: 1 из 5/)).toBeVisible();
   await reviewSheet.getByRole('slider').press('End');
   await reviewSheet.getByRole('slider').press('ArrowLeft');
   await reviewSheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
   await expect(reviewSheet.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
   await page.screenshot({ path: 'artifacts/ratings/review-dark-390.png', fullPage: true });
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/review'));
   await page.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
+  expect((await sent).postDataJSON()).toEqual({ scores: [{ userId: 2, score: 8 }], gameScore: 9, skipped: false, awards: { mvp: 2 } });
   await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
 });
 
@@ -147,6 +173,9 @@ test('closed results display aggregate scores and insufficient data without vote
   await mockApp(page, { closed: true });
   await page.goto('/event/1/review');
   await expect(page.getByText('Недостаточно оценок', { exact: true })).toBeVisible();
+  const awards = page.getByRole('region', { name: 'Награды матча' });
+  await expect(awards.getByRole('listitem')).toHaveText(['MVP матчаАрман2 голоса', 'НападающийНедостаточно голосов', 'ПолузащитникНедостаточно голосов', 'ЗащитникАрман и Руслан2 голоса', 'ВратарьНедостаточно голосов']);
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await expect(page.getByRole('button', { name: 'Отправить оценки', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.screenshot({ path: 'artifacts/ratings/closed-dark-320.png', fullPage: true });
@@ -211,6 +240,7 @@ test('review waits for Next after release, preserves a closed draft and permits 
   await page.getByRole('button', { name: 'Продолжить оценку', exact: true }).click();
   await expect(sheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();
   await sheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
+  await skipAwards(sheet);
   await expect(sheet.getByRole('slider', { name: 'Матч в целом', exact: true })).toBeVisible();
   expect(submissions).toEqual([]);
   await sheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
@@ -302,6 +332,7 @@ test('a failed final review retains ratings and can be submitted again', async (
   await page.getByRole('button', { name: 'Оценить', exact: true }).click();
   const sheet = page.getByRole('dialog');
   for (let i = 0; i < 2; i++) await sheet.getByRole('button', { name: 'Пропустить игрока', exact: true }).click();
+  await skipAwards(sheet);
   await expect(sheet.getByRole('slider', { name: 'Матч в целом', exact: true })).toBeVisible();
   await sheet.getByRole('slider').press('End');
   await sheet.getByRole('button', { name: 'Отправить оценки', exact: true }).click();

@@ -7,7 +7,7 @@ const community = { id: 1, title: 'Футбол по субботам' };
 const event = { community, viewerRole: 'player', id: 1, date: '2026-11-14', status: 'scheduled', startTime: '21:00', durationHours: 1, place: 'Школа Аксай', limit: 10, mainCount: 8, reserveCount: 0, my: 'main', comment: null, main: [], reserve: [], teams: null, bill: null };
 const profile = { userId: 12, displayName: 'Айкын', playingPosition: 'forward', dominantFoot: 'right', role: 'player', telegramUsername: 'aikyn', pinnedAchievement: null,
   rating: { value: 6.8, initial: 6, selfAssessment: null, matchesCount: 4 },
-  statistics: { meetings: 12, games: 48, goals: 50, assists: 11, assistsTracked: true, wins: 24, draws: 9, losses: 15, winPercentage: 50, bestGoalsInMeeting: 6, hatTricks: 5 }, history: [], gameHistory: [] };
+  statistics: { awards:{mvp:0,forward:0,midfielder:0,defender:0,goalkeeper:0},mvps:0,positionAwards:0,meetings: 12, games: 48, goals: 50, assists: 11, assistsTracked: true, wins: 24, draws: 9, losses: 15, winPercentage: 50, bestGoalsInMeeting: 6, hatTricks: 5 }, history: [], gameHistory: [] };
 const at = (iso: string) => Date.parse(iso);
 const post = (id: number, kind: string, text: string, patch: object = {}) => ({ id, kind, text, highlights: [], createdAt: at('2026-11-07T17:00:00Z'), eventId: 2, eventDate: '2026-11-07', community, userId: null, teamColor: null, player: null, reactions: { fire: 0, good: 0, bad: 0 }, myReaction: null, ...patch });
 const posts = [

@@ -167,6 +167,7 @@ function PlayerSportsSkeleton() {
     <div className="player-statistics-section">
       <div className="player-position-row"><p className="player-position-line"><Sk w="8em" /></p></div>
       <dl className="player-statistics">{STATS.map(([className, label]) => <div className={className || undefined} key={label}><dt>{label}</dt><dd><Sk w="1.1em" /></dd></div>)}</dl>
+      <dl className="player-awards"><div><dt>MVP</dt><dd><Sk w="1.1em" /></dd></div></dl>
     </div>
   </section>;
 }

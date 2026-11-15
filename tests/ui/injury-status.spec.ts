@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 // Synthetic data only: no bot, D1 or real group.
 const community = { id: 1, title: 'FC Altynka' };
 const rating = { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 };
-const statistics = { meetings: 0, games: 0, goals: 0, assists: 0, wins: 0, draws: 0, losses: 0, winPercentage: 0, bestGoalsInMeeting: 0, hatTricks: 0 };
+const statistics = { awards:{mvp:0,forward:0,midfielder:0,defender:0,goalkeeper:0},mvps:0,positionAwards:0,meetings: 0, games: 0, goals: 0, assists: 0, wins: 0, draws: 0, losses: 0, winPercentage: 0, bestGoalsInMeeting: 0, hatTricks: 0 };
 const people = [{ userId: 1, displayName: 'Алихан Нуспеков' }, { userId: 2, displayName: 'Арман Пак', injured: true }, { userId: 3, displayName: 'Олжас Пак' }];
 const players = people.map(p => ({ ...p, playingPosition: null, dominantFoot: null, rating, injured: !!p.injured }));
 const profile = (id: number) => ({ ...players.find(p => p.userId === id)!, role: 'player', telegramUsername: null, pinnedAchievement: null, statistics, history: [], gameHistory: [] });
