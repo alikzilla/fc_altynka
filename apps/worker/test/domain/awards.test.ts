@@ -1,6 +1,9 @@
 import type { ReviewInput } from '@altynka/core';
 import { env } from 'cloudflare:test';
-import { reviewSubmissions } from '../../src/db/schema';
+import { eq } from 'drizzle-orm';
+import { communities, events, memberships, reviewSubmissions } from '../../src/db/schema';
+import { playerAwardCounts } from '../../src/domain/awards';
+import { playerGameStatistics } from '../../src/domain/playerStatistics';
 import { matchReview, submitReview } from '../../src/domain/ratings';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
@@ -90,5 +93,55 @@ describe('award picks in the review', () => {
     const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);
     await submitReview(deps(), ev, w.a.id, rate(w.b.id));
     expect((await matchReview(db(), ev, w.a.id, false, NOW + HOUR)).awards).toBeNull();
+  });
+});
+
+describe('award totals of a player', () => {
+  /** Match A: b is MVP and shares defender with d. Match B: b is MVP again. Both closed at NOW. */
+  async function season() {
+    const w = await trio();
+    const e = await seedUser('Четвёртый', { communityId: w.c.id });
+    const ids = [w.a.id, w.b.id, w.d.id, e.id];
+    const evA = await reviewedMatch(w.c.id, ids, { date: '2026-11-07', closesAt: NOW - 2 * HOUR });
+    await vote(evA.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id, defender: w.b.id });
+    await vote(evA.id, e.id, { [w.b.id]: 8, [w.d.id]: 8 }, { mvp: w.b.id, defender: w.d.id });
+    await vote(evA.id, w.b.id, { [w.d.id]: 8 }, { defender: w.d.id });
+    await vote(evA.id, w.d.id, { [w.b.id]: 8 }, { defender: w.b.id, forward: w.a.id });
+    const evB = await reviewedMatch(w.c.id, ids, { date: '2026-11-10', closesAt: NOW - HOUR });
+    await vote(evB.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    await vote(evB.id, w.d.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    return { ...w, e, evA, evB };
+  }
+  it("counts a player's awards across closed matches, including a shared one", async () => {
+    const w = await season();
+    expect(await playerAwardCounts(db(), w.b.id, w.b.id, NOW)).toEqual({ mvp: 2, forward: 0, midfielder: 0, defender: 1, goalkeeper: 0 });
+    expect(await playerAwardCounts(db(), w.d.id, w.d.id, NOW)).toEqual({ mvp: 0, forward: 0, midfielder: 0, defender: 1, goalkeeper: 0 });
+    expect(await playerAwardCounts(db(), w.a.id, w.a.id, NOW)).toEqual({ mvp: 0, forward: 0, midfielder: 0, defender: 0, goalkeeper: 0 });
+  });
+  it('ignores a match that is still open', async () => {
+    const w = await season();
+    expect((await playerAwardCounts(db(), w.b.id, w.b.id, NOW - 90 * 60_000)).mvp).toBe(1);
+  });
+  it('ignores a cancelled match', async () => {
+    const w = await season();
+    await db().update(events).set({ status: 'cancelled' }).where(eq(events.id, w.evB.id));
+    expect((await playerAwardCounts(db(), w.b.id, w.b.id, NOW)).mvp).toBe(1);
+  });
+  it('a peer sees only awards from groups shared with the player', async () => {
+    const w = await season();
+    const [other] = await db().insert(communities).values({ tgChatId: -777, title: 'Другая' }).returning();
+    const stranger = await seedUser('Чужой', { communityId: other.id });
+    const mate = await seedUser('Сосед', { communityId: other.id });
+    await db().insert(memberships).values({ communityId: other.id, userId: w.b.id, checkedAt: 1 });
+    const evC = await reviewedMatch(other.id, [w.b.id, stranger.id, mate.id], { closesAt: NOW - HOUR });
+    await vote(evC.id, stranger.id, { [w.b.id]: 8 }, { goalkeeper: w.b.id });
+    await vote(evC.id, mate.id, { [w.b.id]: 8 }, { goalkeeper: w.b.id });
+    expect(await playerAwardCounts(db(), w.b.id, w.b.id, NOW)).toMatchObject({ mvp: 2, goalkeeper: 1 });
+    expect(await playerAwardCounts(db(), w.b.id, w.a.id, NOW)).toMatchObject({ mvp: 2, goalkeeper: 0 });
+    expect(await playerAwardCounts(db(), w.b.id, stranger.id, NOW)).toMatchObject({ mvp: 0, goalkeeper: 1 });
+  });
+  it('profile statistics carry award totals even without recorded games', async () => {
+    const w = await season();
+    expect((await playerGameStatistics(db(), w.b.id, w.b.id, NOW)).statistics).toMatchObject({ meetings: 0, mvps: 2, positionAwards: 1 });
   });
 });

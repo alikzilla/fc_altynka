@@ -1,6 +1,6 @@
 import type { PlayerStatistics } from './playerStatistics';
 
-export const ACHIEVEMENT_IDS = ['scorer', 'winner', 'rhythm', 'veteran', 'hat-trick'] as const;
+export const ACHIEVEMENT_IDS = ['scorer', 'winner', 'rhythm', 'veteran', 'hat-trick', 'mvp', 'position-best'] as const;
 export type AchievementId = typeof ACHIEVEMENT_IDS[number];
 export const ACHIEVEMENT_TIERS = ['wood', 'bronze', 'silver', 'gold', 'platinum', 'diamond', 'legend'] as const;
 export type AchievementTier = typeof ACHIEVEMENT_TIERS[number];
@@ -11,7 +11,7 @@ export const ACHIEVEMENT_TIER_TO: Record<AchievementTier, string> = {
   wood: 'До дерева', bronze: 'До бронзы', silver: 'До серебра', gold: 'До золота', platinum: 'До платины', diamond: 'До алмаза', legend: 'До легенды',
 };
 export const ACHIEVEMENT_TOTAL_LEVELS = ACHIEVEMENT_IDS.length * ACHIEVEMENT_TIERS.length;
-export type AchievementSymbol = 'ball' | 'trophy' | 'shirt' | 'shield' | 'flame';
+export type AchievementSymbol = 'ball' | 'trophy' | 'shirt' | 'shield' | 'flame' | 'star' | 'medal';
 
 export interface PlayerAchievement {
   id: AchievementId; title: string; metric: string; unit: readonly [string, string, string];
@@ -29,6 +29,8 @@ const LADDERS: readonly { id: AchievementId; title: string; metric: string; unit
   { id: 'rhythm', title: 'В ритме игры', metric: 'Сыгранные короткие игры', unit: ['игра', 'игры', 'игр'], symbol: 'shirt', stat: 'games', thresholds: [5, 25, 50, 100, 250, 500, 1000] },
   { id: 'veteran', title: 'Ветеран', metric: 'Сыгранные встречи', unit: ['встреча', 'встречи', 'встреч'], symbol: 'shield', stat: 'meetings', thresholds: [1, 5, 10, 25, 50, 100, 200] },
   { id: 'hat-trick', title: 'Хет-трик', metric: 'Встречи с 3+ голами', unit: ['хет-трик', 'хет-трика', 'хет-триков'], symbol: 'flame', stat: 'hatTricks', thresholds: [1, 3, 5, 10, 20, 35, 50] },
+  { id: 'mvp', title: 'MVP', metric: 'Награды «MVP матча»', unit: ['награда', 'награды', 'наград'], symbol: 'star', stat: 'mvps', thresholds: [1, 3, 5, 10, 20, 35, 50] },
+  { id: 'position-best', title: 'Лучший на позиции', metric: 'Награды лучшему нападающему, полузащитнику, защитнику и вратарю', unit: ['награда', 'награды', 'наград'], symbol: 'medal', stat: 'positionAwards', thresholds: [1, 5, 10, 25, 50, 75, 100] },
 ];
 
 export function playerAchievements(stats: PlayerStatistics): PlayerAchievement[] {

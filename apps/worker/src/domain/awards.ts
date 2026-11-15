@@ -1,4 +1,4 @@
-import { awardWinners, type AwardTally, type MatchAwardResults } from '@altynka/core';
+import { AWARDS, awardWinners, emptyAwardCounts, type AwardKey, type AwardTally, type MatchAwardResults } from '@altynka/core';
 import { sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 
@@ -32,3 +32,24 @@ export async function awardsByEvent(db: Db, eventIds: number[]): Promise<Map<num
   return out;
 }
 
+
+/**
+ * A player's awards in closed, not cancelled matches. Like the rest of the profile, a peer sees only
+ * matches of active groups shared with the player; awards do not depend on recorded games.
+ */
+export async function playerAwardCounts(db: Db, userId: number, viewerId: number, now: number): Promise<Record<AwardKey, number>> {
+  const scope = userId === viewerId ? sql`` : sql`AND c.active = 1 AND EXISTS (
+    SELECT 1 FROM memberships mine JOIN memberships theirs ON theirs.community_id = mine.community_id
+    WHERE mine.community_id = e.community_id AND mine.user_id = ${viewerId} AND mine.active = 1
+      AND theirs.user_id = ${userId} AND theirs.active = 1)`;
+  const rows = await db.all<{ eventId: number }>(sql`
+    SELECT DISTINCT v.event_id AS eventId FROM award_votes v
+    JOIN match_reviews r ON r.event_id = v.event_id JOIN events e ON e.id = v.event_id
+    JOIN communities c ON c.id = e.community_id
+    WHERE v.recipient_id = ${userId} AND r.closes_at <= ${now} AND e.status <> 'cancelled' ${scope}`);
+  const counts = emptyAwardCounts();
+  for (const results of (await awardsByEvent(db, rows.map(r => r.eventId))).values()) {
+    for (const key of AWARDS) if (results[key]?.winners.includes(userId)) counts[key]++;
+  }
+  return counts;
+}

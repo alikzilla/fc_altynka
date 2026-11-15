@@ -26,7 +26,7 @@ test('edited scores, goals and removed games replace previous statistics without
 test('aggregate counts meetings once and calculates all-time best meeting independently of displayed history',()=>{
   const a=core.summarizePlayerProtocol(protocol(),1);
   const b=core.summarizePlayerProtocol({...protocol(),games:[game('1',[0,1],[4,0],[{signupId:11,goals:4}])]},1);
-  expect(core.aggregatePlayerStatistics([a,b,core.summarizePlayerProtocol(protocol(),999)])).toEqual({meetings:2,games:3,goals:6,assists:0,assistsTracked:false,wins:2,draws:1,losses:0,winPercentage:67,bestGoalsInMeeting:4,hatTricks:1});
+  expect(core.aggregatePlayerStatistics([a,b,core.summarizePlayerProtocol(protocol(),999)])).toEqual({meetings:2,games:3,goals:6,assists:0,assistsTracked:false,wins:2,draws:1,losses:0,winPercentage:67,bestGoalsInMeeting:4,hatTricks:1,awards:core.emptyAwardCounts(),mvps:0,positionAwards:0});
   expect(core.aggregatePlayerStatistics([])).toMatchObject({meetings:0,games:0,goals:0,assists:0,winPercentage:null});
 });
 

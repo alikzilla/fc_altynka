@@ -1,5 +1,6 @@
 import { calculateStandings, type GamePair, type GameScore, type GameState } from './games';
 import type { TeamColor, TeamCount } from './teams';
+import { emptyAwardCounts, type AwardKey } from './awards';
 
 export interface PlayerShortGame {
   id: string; sequence: number; pair: GamePair; score: GameScore;
@@ -17,6 +18,12 @@ export interface PlayerStatistics {
   bestGoalsInMeeting: number;
   /** Встречи, где игрок забил три и больше. */
   hatTricks: number;
+  /** Награды матча по итогам закрытых голосований; считаются и в матчах без статистики игр. */
+  awards: Record<AwardKey, number>;
+  /** Награды «MVP матча». */
+  mvps: number;
+  /** Награды лучшему нападающему, полузащитнику, защитнику и вратарю вместе. */
+  positionAwards: number;
 }
 export interface PlayerMeetingStatistics extends PlayerProtocolSummary {
   eventId: number; date: string; place: string | null;
@@ -59,9 +66,10 @@ export function myMatchResult(state: GameState, userId: number, colors: TeamColo
   return { ...summary, teamIndex: player.teamIndex, teamCount: state.teamCount, teamRank, colors };
 }
 
-export function aggregatePlayerStatistics(rows: readonly PlayerProtocolSummary[]): PlayerStatistics {
+export function aggregatePlayerStatistics(rows: readonly PlayerProtocolSummary[], awards: Record<AwardKey, number> = emptyAwardCounts()): PlayerStatistics {
   const result: PlayerStatistics = { meetings: 0, games: 0, goals: 0, assists: 0, assistsTracked: false,
-    wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0 };
+    wins: 0, draws: 0, losses: 0, winPercentage: null, bestGoalsInMeeting: 0, hatTricks: 0,
+    awards: { ...awards }, mvps: awards.mvp, positionAwards: awards.forward + awards.midfielder + awards.defender + awards.goalkeeper };
   for (const row of rows) {
     if (!row.games) continue;
     result.meetings++;

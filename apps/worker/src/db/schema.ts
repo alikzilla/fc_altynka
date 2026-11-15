@@ -1,3 +1,4 @@
+import { ACHIEVEMENT_IDS } from '@altynka/core';
 import { sql } from 'drizzle-orm';
 import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core';
 
@@ -20,7 +21,7 @@ export const users = sqliteTable('users', {
   playingPosition: text('playing_position', { enum: ['goalkeeper', 'defender', 'midfielder', 'forward', 'universal'] }),
   dominantFoot: text('dominant_foot', { enum: ['right', 'left', 'both'] }),
   theme: text('theme', { enum: ['dark', 'light'] }).notNull().default('dark'),
-  pinnedAchievement: text('pinned_achievement', { enum: ['scorer', 'winner', 'rhythm', 'veteran', 'hat-trick'] }),
+  pinnedAchievement: text('pinned_achievement', { enum: ACHIEVEMENT_IDS }),
   notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
   pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
   /** Последнее фото из Telegram initData; обновляется при входе в мини-апп. */

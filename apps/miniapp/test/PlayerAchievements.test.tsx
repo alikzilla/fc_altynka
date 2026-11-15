@@ -18,7 +18,7 @@ test('pinned gold scorer shows tier, progress to platinum and opens its ladder',
 test('own empty slot invites pinning and opens the list; peer empty slot is inert', async () => {
   const { unmount } = renderWithApp(<PlayerAchievements statistics={stats()} pinned={null} onPin={vi.fn()}/>, { me: player });
   await userEvent.click(screen.getByRole('button', { name: /Закрепи достижение/ }));
-  expect(screen.getByRole('dialog', { name: 'Достижения' })).toHaveTextContent('Уровней открыто: 0 из 35');
+  expect(screen.getByRole('dialog', { name: 'Достижения' })).toHaveTextContent('Уровней открыто: 0 из 49');
   unmount();
   renderWithApp(<PlayerAchievements statistics={stats()} pinned={null}/>, { me: player });
   expect(screen.getByText('Ничего не закреплено').closest('button')).toBeNull();

@@ -1,6 +1,7 @@
 import { aggregatePlayerStatistics, summarizePlayerProtocol, teamColorsFor, MIN_REVIEW_VOTES, type GameState, type PlayerMeetingStatistics } from '@altynka/core';
 import { sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
+import { playerAwardCounts } from './awards';
 
 /** Call only after profile access is established; a peer sees shared active groups only. */
 export async function playerGameStatistics(db: Db, userId: number, viewerId: number, now: number) {
@@ -28,5 +29,5 @@ export async function playerGameStatistics(db: Db, userId: number, viewerId: num
       community: { id: row.communityId, title: row.communityTitle }, score: row.score,
       colors: teamColorsFor(state.teamCount, row.colors ? JSON.parse(row.colors) as string[] : null) });
   }
-  return { statistics: aggregatePlayerStatistics(history), gameHistory: history };
+  return { statistics: aggregatePlayerStatistics(history, await playerAwardCounts(db, userId, viewerId, now)), gameHistory: history };
 }
