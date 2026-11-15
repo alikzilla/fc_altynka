@@ -127,6 +127,13 @@
       "when": 1794510000000,
       "tag": "0017_venues",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1794770000000,
+      "tag": "0018_match_awards",
+      "breakpoints": true
     }
   ]
 }

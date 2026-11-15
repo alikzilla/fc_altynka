@@ -194,6 +194,16 @@ export const playerVotes = sqliteTable('player_votes', {
   foreignKey({ columns: [t.eventId, t.recipientId], foreignColumns: [matchParticipants.eventId, matchParticipants.userId] }),
   check('player_vote_score', sql`typeof(${t.score}) = 'integer' and ${t.score} between 1 and 10`),
   check('player_vote_other', sql`${t.authorId} <> ${t.recipientId}`), index('player_votes_recipient').on(t.recipientId, t.eventId)]);
+export const awardVotes = sqliteTable('award_votes', {
+  eventId: integer('event_id').notNull().references(() => matchReviews.eventId),
+  authorId: integer('author_id').notNull().references(() => users.id),
+  award: text('award').$type<import('@altynka/core').AwardKey>().notNull(),
+  recipientId: integer('recipient_id').notNull().references(() => users.id),
+}, t => [primaryKey({ columns: [t.eventId, t.authorId, t.award] }),
+  foreignKey({ columns: [t.eventId, t.authorId], foreignColumns: [reviewSubmissions.eventId, reviewSubmissions.userId] }),
+  foreignKey({ columns: [t.eventId, t.recipientId], foreignColumns: [matchParticipants.eventId, matchParticipants.userId] }),
+  check('award_vote_kind', sql`${t.award} in ('mvp', 'forward', 'midfielder', 'defender', 'goalkeeper')`),
+  check('award_vote_other', sql`${t.authorId} <> ${t.recipientId}`), index('award_votes_recipient').on(t.recipientId, t.eventId)]);
 
 /** Лента группы: текст готов при записи, `variant` помнит использованную формулировку. */
 export const feedPosts = sqliteTable('feed_posts', {
