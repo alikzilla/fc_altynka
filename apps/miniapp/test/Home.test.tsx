@@ -106,9 +106,9 @@ test('a match played yesterday leads Home with the player result, payment and su
         { kind: 'review', id: 'r9', eventId: 9, date: '2026-11-07', place: 'Arena', closesAt: 0, community: ev.community }] }
     : { active: [finished], past: [] }));
   renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
-  const card = await screen.findByRole('article', { name: 'Синие — первое место' });
+  const card = await screen.findByRole('article', { name: 'Итог матча: первое место' });
   expect(within(card).getByRole('heading', { name: '1 место' })).toBeInTheDocument();
-  expect(within(card).getByText('Синие')).toBeInTheDocument();
+  expect(within(card).queryByText('Синие')).toBeNull();
   expect(within(card).getByText((_, el) => el?.tagName === 'P' && el.textContent === '4 победы · 1 ничья · 1 поражение')).toBeInTheDocument();
   expect(within(card).getByText('2 твоих гола')).toBeInTheDocument();
   expect(within(card).getByText('6 игр')).toBeInTheDocument();
@@ -129,7 +129,7 @@ test('yesterday\'s result shares the carousel with the upcoming match', async ()
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [finished, next], past: [] }));
   renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
   const carousel = await screen.findByRole('region', { name: 'Ближайшие матчи' });
-  expect(within(carousel).getByRole('article', { name: 'Синие — первое место' })).toBeInTheDocument();
+  expect(within(carousel).getByRole('article', { name: 'Итог матча: первое место' })).toBeInTheDocument();
   expect(carousel.children).toHaveLength(2);
   expect(carousel.lastElementChild).toHaveClass('result-card');
   expect(screen.getByText('1 из 2')).toBeInTheDocument();

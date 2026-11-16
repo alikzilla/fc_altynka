@@ -1,14 +1,12 @@
-import { formatDateRu, formatTenge, plural, teamAppearance, type EventSummaryDto, type MyMatchResult, type NotificationTaskDto } from '@altynka/core';
+import { formatDateRu, formatTenge, plural, type EventSummaryDto, type MyMatchResult, type NotificationTaskDto } from '@altynka/core';
 import { Fragment } from 'react';
 import { Link } from 'wouter';
-import { GroupTag } from './GroupTag';
 import { Icon } from './Icon';
 
 const PLACE = ['первое', 'второе', 'третье'];
 
 /** The night closes on one big answer — your team's place — then the record, your goals and what is left to do. */
 export function ResultCard({ event, result, tasks }: { event: EventSummaryDto; result: MyMatchResult; tasks: readonly NotificationTaskDto[] }) {
-  const team = teamAppearance(result.teamIndex, result.colors);
   const payment = tasks.find(t => t.kind === 'payment' && t.eventId === event.id);
   const review = tasks.find(t => t.kind === 'review' && t.eventId === event.id);
   const record = [
@@ -16,12 +14,8 @@ export function ResultCard({ event, result, tasks }: { event: EventSummaryDto; r
     `${result.draws} ${plural(result.draws, 'ничья', 'ничьи', 'ничьих')}`,
     `${result.losses} ${plural(result.losses, 'поражение', 'поражения', 'поражений')}`,
   ];
-  return <article className="card material-plum result-card" aria-label={`${team.name} — ${PLACE[result.teamRank - 1] ?? PLACE[2]} место`}>
-    <div className="match-day result-card-meta">
-      <GroupTag community={event.community} />
-      <span className="result-card-date">{formatDateRu(event.date)}</span>
-      <span className={`result-card-team team-${team.key}`}><span className="team-dot" aria-hidden="true" />{team.name}</span>
-    </div>
+  return <article className="card material-plum result-card" aria-label={`Итог матча: ${PLACE[result.teamRank - 1] ?? PLACE[2]} место`}>
+    <p className="match-day result-card-date">{formatDateRu(event.date)}</p>
     <h2 className="match-headline">{result.teamRank} место</h2>
     <p className="match-when">{record.map((part, i) => <Fragment key={part}>{i ? ' · ' : ''}<span className="nowrap">{part}</span></Fragment>)}</p>
     <div className="match-tags">

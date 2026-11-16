@@ -453,11 +453,7 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
 
 /* Result card: the post-match state of the plum card. */
 .result-card { border-radius: 37px; padding: 21px; gap: 0; }
-.result-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .result-card-date::first-letter { text-transform: uppercase; }
-.result-card-team { display: inline-flex; align-items: center; color: #fbf4fc; font-weight: 550; }
-.result-card-team::before { content: '·'; margin-right: 8px; color: var(--plum-ink); font-weight: 450; }
-.result-card-team .team-dot { width: 10px; height: 10px; margin-right: 6px; box-shadow: 0 0 0 2px #ffffff26; }
 .result-card-actions { display: grid; gap: 10px; margin-top: 18px; }
 .result-card-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding-inline: 0; color: #f3e6f6; }
 

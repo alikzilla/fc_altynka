@@ -58,8 +58,10 @@
 .player-meeting-dots i { width:8px; height:8px; border-radius:50%; background:#8d8996; }
 .player-meeting-dots i[data-outcome=win] { background:#a8c7b1; }
 .player-meeting-dots i[data-outcome=loss] { background:#e59aa6; }
-.player-meeting-goals { color:var(--hint); font-size:14px; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.player-meeting-goals b { color:var(--text); font-size:16px; font-weight:500; }
+.player-meeting-figures { display:flex; align-items:center; gap:12px; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.player-meeting-figure { display:inline-flex; align-items:center; gap:5px; color:var(--hint); }
+.player-meeting-figure b { color:var(--text); font-size:16px; font-weight:500; }
+.player-meeting-figure svg { width:16px; height:16px; }
 .player-meeting-row>svg { width:18px; height:18px; color:var(--hint); }
 :root[data-theme=light] .player-meeting-dots i { background:#8a8294; }
 :root[data-theme=light] .player-meeting-dots i[data-outcome=win] { background:#3f8a55; }
