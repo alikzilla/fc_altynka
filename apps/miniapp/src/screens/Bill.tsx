@@ -236,7 +236,8 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
     return <><EmptyState title="Счёт пока не выставлен" text="Укажи расходы и получателя. После отправки счёта запись закроется." action={actionBlocked ? <button className="btn" onClick={() => setEditing(true)}>Выставить счёт</button> : <MatchAction><button className="btn primary wide" onClick={() => setEditing(true)}>Выставить счёт</button></MatchAction>} />{editing && <BillForm key="bill-editor" ev={ev} reload={reload} onDone={() => setEditing(false)} />}</>;
   }
   const isReceiver = bill.receiver.userId === me.userId;
-  const canMark = (manage || isReceiver) && bill.status === 'open';
+  // И на закрытом счёте: снятая галочка открывает его снова, так исправляют ошибочную последнюю отметку.
+  const canMark = manage || isReceiver;
   const post = async (path: string, ok: string) => {
     try {
       await api.send('POST', path);
@@ -258,7 +259,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
         {bill.status === 'closed' && <p className="muted">Счёт закрыт</p>}
       </section>
       <section><div className="section-heading"><h2>Участники расчёта</h2></div>
-        {canMark && <p className="muted bill-mark-hint">Кто-то перевёл, но не отметил? Поставь галочку сам.</p>}
+        {canMark && <p className="muted bill-mark-hint">{bill.status === 'closed' ? 'Отметил по ошибке? Сними галочку — счёт откроется снова.' : 'Кто-то перевёл, но не отметил? Поставь галочку сам.'}</p>}
         <Lines bill={bill} editable={canMark} reload={reload} /></section>
       {manage && bill.status === 'open' && (
         <>

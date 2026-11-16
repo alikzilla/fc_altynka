@@ -203,6 +203,16 @@ test('receiver toggles a line and reminds debtors', async () => {
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/remind');
 });
 
+test('closed bill keeps the checkboxes: unticking a mistaken mark reopens it', async () => {
+  (api.send as Mock).mockResolvedValue({ kind: 'ok' });
+  const closed: BillDto = { ...bill, status: 'closed', lines: bill.lines.map(l => ({ ...l, paidAmount: l.amount, state: 'paid', due: 0 })) };
+  renderWithApp(<Bill ev={{ ...evWith(2, closed), status: 'closed' }} reload={() => {}} />, { me: organizer });
+  expect(screen.getByText('Отметил по ошибке? Сними галочку — счёт откроется снова.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Напомнить должникам' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: false });
+});
+
 test('editing a bill keeps the people who were left out unchecked', async () => {
   renderWithApp(<Bill ev={evWith(3, bill)} reload={() => {}} />, { me: organizer });
   await userEvent.click(screen.getByRole('button', { name: 'Изменить' }));
