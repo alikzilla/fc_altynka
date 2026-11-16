@@ -153,7 +153,10 @@ contextual scale descriptions. Changing or releasing the slider updates only the
 the choice and slides the next peer in from the left, while the previous one leaves right.
 Neither pointer release nor Enter on the slider advances; keyboard users activate Далее. Skip and Back remain available. The game is rated last,
 followed by explicit final submission. Closing the sheet retains the page draft; a failed submit
-retains all scores. No self-score control is shown. Submission is final. The server closes voting after 72 hours;
+retains all scores. No self-score control is shown. Submission is final. The server closes voting after 72 hours,
+or at once when every participant has answered. While voting is open, an organizer sees a «Кто ответил» card
+below the page state: the count, each participant with «Ответил» or «Ждём» (never scores), and a two-step
+«Закрыть опрос» ConfirmButton that publishes the results early and cannot be undone;
 only aggregates with at least three votes are published. Loading, retry and expired states
 retain navigation and use existing components in both themes.
 

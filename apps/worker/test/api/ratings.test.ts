@@ -122,6 +122,48 @@ test('two votes stay private, explicit skip is final, and no response is never a
   expect((await (await request(path)).json() as MatchReviewDto).gameScore).toBeNull();
 });
 
+test('results open as soon as every participant has answered, a skip counts as an answer', async () => {
+  const { eventId, roster, extra } = await playedMatch();
+  await request('/api/me/skills', w.player, skills, 'PUT');
+  await request(`/api/events/${eventId}/finish`, w.org, { participantSignupIds: roster.slice(0, 4).map(s => s.id) });
+  const path = `/api/events/${eventId}/review`;
+  const body = { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: 9, skipped: false };
+  const partners = extra.slice(0, 2).map(u => ({ id: u.tgId, first_name: u.firstName }));
+  for (const as of [w.org, ...partners]) expect((await request(path, as, body)).status).toBe(200);
+  expect((await (await request(path)).json() as MatchReviewDto).state).toBe('open');
+  w.clock.now += 60_000;
+  const last = await (await request(path, w.player, { scores: [], gameScore: null, skipped: true })).json() as MatchReviewDto;
+  expect(last.state).toBe('closed');
+  expect(last.closesAt).toBe(w.clock.now);
+  expect(last.participants.find(p => p.userId === w.playerUserId)?.score).toBe(8);
+  expect(await (await request(`/api/players/${w.playerUserId}`)).json()).toMatchObject({ rating: { value: 6.5, matchesCount: 1 } });
+});
+
+test('organizer sees who answered and can close the review early; players cannot', async () => {
+  const { eventId, roster, extra } = await playedMatch();
+  await request(`/api/events/${eventId}/finish`, w.org, { participantSignupIds: roster.map(s => s.id) });
+  const path = `/api/events/${eventId}/review`;
+  const body = { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: 9, skipped: false };
+  const partners = extra.map(u => ({ id: u.tgId, first_name: u.firstName }));
+  for (const as of partners) expect((await request(path, as, body)).status).toBe(200);
+  const seen = await (await request(path, w.org)).json() as MatchReviewDto;
+  expect(seen.canClose).toBe(true);
+  expect(seen.participants.filter(p => p.voted).map(p => p.userId).sort()).toEqual(extra.map(u => u.id).sort());
+  expect(seen.participants.every(p => p.score === null)).toBe(true);
+  const hidden = await (await request(path, w.player)).json() as MatchReviewDto;
+  expect(hidden.canClose).toBe(false);
+  expect(JSON.stringify(hidden)).not.toMatch(/voted/);
+  expect((await request(`${path}/close`, w.player, {})).status).toBe(403);
+  w.clock.now += 60_000;
+  const closed = await (await request(`${path}/close`, w.org, {})).json() as MatchReviewDto;
+  expect(closed).toMatchObject({ state: 'closed', closesAt: w.clock.now, canClose: false, gameScore: 9 });
+  expect(closed.participants.find(p => p.userId === w.playerUserId)?.score).toBe(8);
+  expect(JSON.stringify(closed)).not.toMatch(/voted/);
+  expect((await request(`${path}/close`, w.org, {})).status).toBe(200);
+  expect((await (await request(path, w.org)).json() as MatchReviewDto).closesAt).toBe(closed.closesAt);
+  expect((await request(path, w.org, body)).status).toBe(409);
+});
+
 test('upcoming, cancelled and pre-migration matches cannot be finished', async () => {
   const { eventId, roster } = await playedMatch();
   const body = { participantSignupIds: roster.map(s => s.id) };
