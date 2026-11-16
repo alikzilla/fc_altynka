@@ -194,6 +194,7 @@ test('player without a bill sees a placeholder', () => {
 test('receiver toggles a line and reminds debtors', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
+  expect(screen.getByText('Кто-то перевёл, но не отметил? Поставь галочку сам.')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
   const remind = screen.getByRole('button', { name: 'Напомнить должникам' });

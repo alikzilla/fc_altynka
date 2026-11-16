@@ -196,7 +196,9 @@ function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; r
   const toggle = async (id: number, paid: boolean) => {
     try {
       await api.send('POST', `/api/bill-lines/${id}`, { paid });
+      haptic('success');
     } catch {
+      haptic('error');
       toast('Не получилось обновить отметку оплаты. Попробуй ещё раз.', { tone: 'error' });
     }
     reload();
@@ -234,6 +236,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
     return <><EmptyState title="Счёт пока не выставлен" text="Укажи расходы и получателя. После отправки счёта запись закроется." action={actionBlocked ? <button className="btn" onClick={() => setEditing(true)}>Выставить счёт</button> : <MatchAction><button className="btn primary wide" onClick={() => setEditing(true)}>Выставить счёт</button></MatchAction>} />{editing && <BillForm key="bill-editor" ev={ev} reload={reload} onDone={() => setEditing(false)} />}</>;
   }
   const isReceiver = bill.receiver.userId === me.userId;
+  const canMark = (manage || isReceiver) && bill.status === 'open';
   const post = async (path: string, ok: string) => {
     try {
       await api.send('POST', path);
@@ -254,7 +257,9 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
         {isReceiver && <p className="muted">Получатель — ты · Kaspi {formatKzPhone(bill.receiver.kaspiPhone)}</p>}
         {bill.status === 'closed' && <p className="muted">Счёт закрыт</p>}
       </section>
-      <section><div className="section-heading"><h2>Участники расчёта</h2></div><Lines bill={bill} editable={(manage || isReceiver) && bill.status === 'open'} reload={reload} /></section>
+      <section><div className="section-heading"><h2>Участники расчёта</h2></div>
+        {canMark && <p className="muted bill-mark-hint">Кто-то перевёл, но не отметил? Поставь галочку сам.</p>}
+        <Lines bill={bill} editable={canMark} reload={reload} /></section>
       {manage && bill.status === 'open' && (
         <>
           <ConfirmButton className="btn wide" label="Напомнить должникам" confirmLabel="Отправить личные напоминания?" onConfirm={() => post(`/api/bills/${bill.id}/remind`, 'Напоминания поставлены в очередь')} />
