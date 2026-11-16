@@ -160,3 +160,26 @@ test('long participant name keeps the action sheet close button in its frame', a
   expect(title.x + title.width).toBeLessThanOrEqual(close.x - 10);
   expect(close.x + close.width).toBeLessThanOrEqual(320);
 });
+
+test('the fixed match action stays in front of the lists scrolling under it', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
+  const crowd = Array.from({ length: 24 }, (_, i) => ({ ...member, id: 100 + i, seq: 20 + i, userId: 100 + i, name: `Игрок ${i + 1}` }));
+  // A slow match response shows the skeleton first; the content then fades in, and a fading block is its own
+  // stacking context. The action is declared inside the summary card, which is where it used to get buried.
+  await teamApiRoute(page, async r => {
+    const path = new URL(r.request().url()).pathname;
+    if (path === '/api/events/7') await new Promise(done => setTimeout(done, 700));
+    return r.fulfill({ json: path === '/api/me' ? { userId: 2, displayName: member.name, role: 'organizer', kaspiPhone: '+77071234567' } : path === '/api/notifications' ? { tasks: [] } : { ...event, status: 'collecting', startTime: null, durationHours: null, limit: 40, my: 'main', main: [member, ...roster, ...crowd] } });
+  });
+  await page.goto('/event/7');
+  await expect(page.locator('.event-summary.reveal')).toBeVisible();
+  const action = page.getByRole('link', { name: 'Назначить матч' });
+  await expect(action).toBeVisible();
+  for (const top of [0, 300, 900]) {
+    await page.evaluate(y => scrollTo({ top: y, behavior: 'instant' }), top);
+    const box = (await action.boundingBox())!;
+    const front = await page.evaluate(([x, y]) => document.elementFromPoint(x, y)?.closest('.match-action a')?.textContent ?? null, [box.x + box.width / 2, box.y + box.height / 2]);
+    expect(front).toBe('Назначить матч');
+  }
+});
