@@ -19,9 +19,11 @@
 .sk-pulse { animation: pulse 1.6s ease-in-out infinite; }
 .sk-round { border-radius: 50%; }
 .sk-icon { width: 17px; height: 17px; border-radius: 50%; flex-shrink: 0; }
+.sk-dots { animation: pulse 1.6s ease-in-out infinite; }
 .sk-dots i { background: var(--sk) !important; }
-.sk-progress { display: block; height: 4px; border-radius: 4px; background: #ffffff14; }
-:root[data-theme='light'] .sk-progress { background: var(--sk); }
+.sk-progress { display: block; height: 4px; border-radius: 4px; background: var(--sk); animation: pulse 1.6s ease-in-out infinite; }
+/* «Побед» выравнивает цифру и знак % по базовой линии; полоса стоит по центру, как у соседних показателей. */
+.player-statistics dd > .sk { align-self: center; }
 .sk-table-row { font-size: 13px; line-height: 2.8; }
 
 /* Вкладки и поля без интерактивности: те же размеры, что у кнопок и полей ввода. */

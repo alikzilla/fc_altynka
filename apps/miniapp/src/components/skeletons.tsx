@@ -160,7 +160,7 @@ function PlayerSportsSkeleton() {
         <div className="player-social"><span className="player-role sk-fill sk-round" /><span className="player-telegram"><Sk w="6.5em" /></span></div>
       </div>
       <span className="rating-badge">
-        <span className="rating-emblem" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="23" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
+        <span className="rating-emblem sk-pulse" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="23" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
         <small className="rating-caption"><Sk w="4em" /></small>
       </span>
     </div>
@@ -175,7 +175,7 @@ function AchievementsSkeleton() {
   return <section className="card material-graphite achievements-card">
     <div className="achievements-heading"><h2>Достижения</h2><span className="achievements-all"><Sk w="3em" /></span></div>
     <div className="achievement-pinned">
-      <span className="achievement-medal sk-pulse" data-size="lg" data-tier="locked" />
+      <span className="achievement-medal sk-fill" data-size="lg" data-tier="locked" />
       <span className="achievement-pinned-copy">
         <small><Sk w="34%" /></small>
         <strong><Sk w="62%" /></strong>

@@ -194,12 +194,23 @@ test('player without a bill sees a placeholder', () => {
 test('receiver toggles a line and reminds debtors', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
+  expect(screen.getByText('Кто-то перевёл, но не отметил? Поставь галочку сам.')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
   const remind = screen.getByRole('button', { name: 'Напомнить должникам' });
   await userEvent.click(remind);
   await userEvent.click(remind);
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/remind');
+});
+
+test('closed bill keeps the checkboxes: unticking a mistaken mark reopens it', async () => {
+  (api.send as Mock).mockResolvedValue({ kind: 'ok' });
+  const closed: BillDto = { ...bill, status: 'closed', lines: bill.lines.map(l => ({ ...l, paidAmount: l.amount, state: 'paid', due: 0 })) };
+  renderWithApp(<Bill ev={{ ...evWith(2, closed), status: 'closed' }} reload={() => {}} />, { me: organizer });
+  expect(screen.getByText('Отметил по ошибке? Сними галочку — счёт откроется снова.')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Напомнить должникам' })).not.toBeInTheDocument();
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: false });
 });
 
 test('editing a bill keeps the people who were left out unchecked', async () => {
