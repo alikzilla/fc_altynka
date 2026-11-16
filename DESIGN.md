@@ -226,7 +226,7 @@ tags, then actions. The upcoming card answers how soon («Сегодня», «З
 while playing; the status label once the day has passed), then «время · поле» («Время уточняется» /
 «Поле уточняется» when unknown); its tags are the personal one (mint «Ты в основе», warm «Ты в резерве · №n»,
 neutral «Запись открыта»/«Запись закрыта») and the roster «14 / 18 · резерв 2». It carries no group tag.
-A finished match from the last two days leads Home as a plum result card: date · team colour and name
+A finished match from the last two days leads Home as a plum result card (with upcoming matches it is the last slide of the same carousel, never a second card stacked below): date · team colour and name
 (plus the group tag with several groups), the place («2 место») as the big answer, the record
 «3 победы · 1 ничья · 2 поражения» (each part unbroken), tags for own goals («Без голов» at zero) and
 short games, then «Оплатить», «Оценить матч» and «Таблица и бомбардиры». Its payment
