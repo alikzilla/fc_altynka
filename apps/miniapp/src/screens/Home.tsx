@@ -30,8 +30,10 @@ export function Home() {
   const recent = latest[0]?.myResult && latest[0].date >= daysAgo(2) ? latest[0] : null;
   // The result card already offers its own payment and survey; the list keeps the rest.
   const otherTasks = recent ? tasks.filter(t => !('eventId' in t) || t.eventId !== recent.id || t.kind === 'schedule') : tasks;
+  // The result of the last match rides in the same carousel, after the upcoming matches.
+  const slides = upcoming.length + (recent ? 1 : 0);
   function go(direction: number) {
-    const next = Math.max(0, Math.min(upcoming.length - 1, index + direction));
+    const next = Math.max(0, Math.min(slides - 1, index + direction));
     const node = carousel.current?.children[next] as HTMLElement | undefined;
     if (node) carousel.current?.scrollTo({ left: node.offsetLeft, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }
@@ -40,14 +42,13 @@ export function Home() {
     {loading && !data && <HomeMatchSkeleton />}
     {error && <ErrorNote text="Не получилось загрузить сборы" retry={reload} />}
     {data && (upcoming.length ? <>
-      <div className={`match-carousel ${upcoming.length === 1 ? 'single' : ''} ${reveal}`} role="region" aria-label="Ближайшие матчи" ref={carousel} onScroll={e => {
+      <div className={`match-carousel ${slides === 1 ? 'single' : ''} ${reveal}`} role="region" aria-label="Ближайшие матчи" ref={carousel} onScroll={e => {
         const el = e.currentTarget;
         const first = el.children[0] as HTMLElement;
-        if (first) setIndex(Math.min(upcoming.length - 1, Math.round(el.scrollLeft / (first.offsetWidth + 12))));
-      }}>{upcoming.map((event, i) => <MatchCard key={event.id} event={event} index={i} />)}</div>
-      {upcoming.length > 1 && <div className={`carousel-controls ${reveal}`}><button className="carousel-arrow" onClick={() => go(-1)} disabled={index === 0} aria-label="Предыдущий матч"><Icon name="back" /></button><span aria-live="polite">{index + 1} из {upcoming.length}</span><button className="carousel-arrow" onClick={() => go(1)} disabled={index === upcoming.length - 1} aria-label="Следующий матч"><Icon name="back" className="chevron-right" /></button></div>}
+        if (first) setIndex(Math.min(slides - 1, Math.round(el.scrollLeft / (first.offsetWidth + 12))));
+      }}>{upcoming.map((event, i) => <MatchCard key={event.id} event={event} index={i} />)}{recent && <ResultCard event={recent} result={recent.myResult!} tasks={tasks} />}</div>
+      {slides > 1 && <div className={`carousel-controls ${reveal}`}><button className="carousel-arrow" onClick={() => go(-1)} disabled={index === 0} aria-label="Предыдущий матч"><Icon name="back" /></button><span aria-live="polite">{index + 1} из {slides}</span><button className="carousel-arrow" onClick={() => go(1)} disabled={index === slides - 1} aria-label="Следующий матч"><Icon name="back" className="chevron-right" /></button></div>}
     </> : <EmptyState className={reveal} title="Нет ближайших матчей" text={me.communities.length === 0 ? CONNECT_BOT_TEXT : canCreate ? 'Открой запись на следующий матч.' : 'Организатор ещё не открыл сбор.'} action={me.communities.length === 0 ? <ConnectGroupButton /> : canCreate && <Link className="btn primary" href="/new">Создать матч</Link>} />)}
-    {recent && upcoming.length > 0 && <ResultCard event={recent} result={recent.myResult!} tasks={tasks} />}
     {(notifications.loading && !notifications.data || notifications.error || otherTasks.length > 0) && <section className="home-section" aria-labelledby="home-tasks"><div className="section-heading"><h2 id="home-tasks">Нужно сделать</h2><Link href="/notifications">Все задачи<Icon name="arrow" /></Link></div>
       {notifications.loading && !notifications.data && <HomeTasksSkeleton groups={showGroups(me)} />}
       {notifications.error && <ErrorNote text="Не получилось обновить задачи" retry={notifications.reload} />}

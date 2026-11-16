@@ -88,6 +88,29 @@ test('closed review shows insufficient aggregates and no form', async () => {
   expect(screen.getAllByText('Недостаточно оценок').length).toBeGreaterThan(0);
 });
 
+test('organizer sees who answered and closes the review early after confirming', async () => {
+  const progress: MatchReviewDto = { ...openReview, state: 'submitted', canClose: true, participants: [{ userId: organizer.userId, name: 'Орг', score: null, voted: true }, { userId: 12, name: 'Арман', score: null, voted: false }] };
+  (api.get as Mock).mockResolvedValue(progress);
+  (api.send as Mock).mockResolvedValue({ ...progress, state: 'closed', canClose: false, closesAt: 2 });
+  renderWithApp(<MatchReview eventId={8} />, { me: organizer });
+  expect(await screen.findByText(/Ответили 1 из 2/)).toBeInTheDocument();
+  expect(screen.getByText('Ждём').closest('li')).toHaveTextContent('Арман');
+  await userEvent.click(screen.getByRole('button', { name: 'Закрыть опрос' }));
+  expect(api.send).not.toHaveBeenCalled();
+  await userEvent.click(screen.getByRole('button', { name: 'Закрыть и показать итоги?' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/review/close');
+  expect(await screen.findByText('Оценки за матч')).toBeInTheDocument();
+  expect(screen.queryByText('Кто ответил')).toBeNull();
+});
+
+test('players do not see the answer list or the close action', async () => {
+  (api.get as Mock).mockResolvedValue({ ...openReview, state: 'submitted', canClose: false });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  expect(await screen.findByText('Спасибо, оценки отправлены')).toBeInTheDocument();
+  expect(screen.queryByText('Кто ответил')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Закрыть опрос' })).toBeNull();
+});
+
 test('finish confirms the actual roster with main preselected and reserve optional', async () => {
   (api.send as Mock).mockResolvedValue({});
   const ev = { id: 8, main: [{ id: 1, userId: 1, name: 'Орг' }], reserve: [{ id: 2, userId: 2, name: 'Игрок' }], review: { ...openReview, state: 'pending', canFinish: true, completedAt: null, closesAt: null } };

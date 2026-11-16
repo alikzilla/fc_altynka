@@ -135,9 +135,12 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     return { ...empty, state: state?.finishParticipants?.length ? 'pending' : 'ineligible', canFinish: false, completedAt: ev.completedAt };
   }
   if (!review || ev.status === 'cancelled') return { ...empty, canFinish: ev.status !== 'cancelled' && empty.canFinish };
-  const [participants, submissions, scores, overall] = await Promise.all([
+  const closed = now >= review.closesAt;
+  const [participants, submissions, voters, scores, overall] = await Promise.all([
     db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id)),
     db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId))),
+    // Организатор видит только факт ответа (оценил или пропустил), но не сами оценки.
+    manage && !closed ? db.select({ userId: reviewSubmissions.userId }).from(reviewSubmissions).where(eq(reviewSubmissions.eventId, ev.id)) : Promise.resolve([]),
     now >= review.closesAt ? db.all<{ userId: number; score: number | null }>(sql`
       SELECT recipient_id AS userId, CASE WHEN count(*) >= ${MIN_REVIEW_VOTES} THEN round(avg(score), 1) ELSE NULL END AS score
       FROM player_votes WHERE event_id = ${ev.id} GROUP BY recipient_id`) : Promise.resolve([]),
@@ -149,10 +152,12 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
   const own = submissions[0];
   const eligible = participants.some(p => p.userId === userId);
   const scoreMap = new Map(scores.map(s => [s.userId, s.score]));
+  const voted = new Set(voters.map(v => v.userId));
+  const progress = manage && !closed;
   return { state: now >= review.closesAt ? 'closed' : !eligible ? 'ineligible' : own ? own.skipped ? 'skipped' : 'submitted' : 'open',
-    canFinish: false, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
+    canFinish: false, canClose: progress, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
     gameScore: overall[0]?.score ?? null,
-    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null }]),
+    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null, ...(progress ? { voted: voted.has(p.userId) } : {}) }]),
     ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null };
 }
 
@@ -172,7 +177,11 @@ export async function submitReview(d: Deps, ev: EventRow, userId: number, input:
   const normalized: ReviewInput = { scores: [...input.scores].sort((a, b) => a.userId - b.userId), gameScore: input.gameScore, skipped: input.skipped };
   const payload = JSON.stringify(normalized);
   const [existing] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
-  if (existing) return existing.payloadJson === payload ? 'ok' : 'conflict';
+  if (existing) {
+    if (existing.payloadJson !== payload) return 'conflict';
+    await closeReview(d, ev.id, true);
+    return 'ok';
+  }
   const [review] = await d.db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
   if (!review || ev.status === 'cancelled' || d.now >= review.closesAt) return 'closed';
   const participants = await d.db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id));
@@ -186,5 +195,23 @@ export async function submitReview(d: Deps, ev: EventRow, userId: number, input:
     WHERE r.event_id = ${ev.id} AND r.closes_at > ${d.now} AND e.status <> 'cancelled'
     ON CONFLICT(event_id, user_id) DO NOTHING`);
   const [saved] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
-  return saved ? saved.payloadJson === payload ? 'ok' : 'conflict' : 'closed';
+  if (!saved) return 'closed';
+  if (saved.payloadJson !== payload) return 'conflict';
+  await closeReview(d, ev.id, true);
+  return 'ok';
+}
+
+/**
+ * Досрочно закрывает опрос: срок переносится на «сейчас», и всё, что ждёт `closes_at` (итоги, рейтинг,
+ * пост в ленте, напоминания), срабатывает как при обычном окончании. `onlyComplete` — только если
+ * ответили (оценили или пропустили) все участники с аккаунтом. Возвращает, закрыт ли опрос после вызова.
+ */
+export async function closeReview(d: Deps, eventId: number, onlyComplete = false): Promise<boolean> {
+  const complete = onlyComplete ? sql`AND NOT EXISTS (
+    SELECT 1 FROM match_participants p LEFT JOIN review_submissions s ON s.event_id = p.event_id AND s.user_id = p.user_id
+    WHERE p.event_id = ${eventId} AND p.user_id IS NOT NULL AND s.user_id IS NULL)` : sql``;
+  await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
+    WHERE event_id = ${eventId} AND closes_at > ${d.now} ${complete}`);
+  const [review] = await d.db.select({ closesAt: matchReviews.closesAt }).from(matchReviews).where(eq(matchReviews.eventId, eventId));
+  return !!review && review.closesAt <= d.now;
 }

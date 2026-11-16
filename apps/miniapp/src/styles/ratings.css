@@ -83,6 +83,13 @@
 .review-entry-players { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
 .review-entry-players > .avatar + .avatar { margin-left: -10px; }
 .review-entry-players > span:last-child { margin-left: 6px; }
+.review-progress-card { display: flex; flex-direction: column; gap: 10px; }
+.review-progress-card h2 { font-size: 18px; font-weight: 550; letter-spacing: -.025em; }
+.review-progress-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.review-progress-list > li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; font-size: 14px; }
+.review-progress-list > li > span:nth-child(2) { overflow-wrap: anywhere; }
+.review-progress-list > li > span:last-child { font-size: 13px; }
+.review-voted { color: var(--accent-ink, inherit); font-weight: 550; }
 .review-rater-footer { display: flex; flex-direction: column; gap: 8px; }
 .review-step-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .review-step-actions > button { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-size: 13px; padding-inline: 0; }

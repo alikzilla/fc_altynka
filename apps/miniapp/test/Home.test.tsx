@@ -120,6 +120,23 @@ test('a match played yesterday leads Home with the player result, payment and su
   vi.useRealTimers();
 });
 
+test('yesterday\'s result shares the carousel with the upcoming match', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  vi.setSystemTime(new Date('2026-11-08T09:00:00Z'));
+  const finished: EventSummaryDto = { ...ev, id: 9, date: '2026-11-07', status: 'billing', my: 'main', protocolVersion: 1, startedAt: 1, completedAt: 2,
+    myResult: { teamIndex: 1, teamCount: 3, teamRank: 1, colors: ['red', 'blue', 'yellow'], games: 6, goals: 2, assists: 0, assistsTracked: false, wins: 4, draws: 1, losses: 1 } };
+  const next: EventSummaryDto = { ...ev, id: 10, date: '2026-11-14' };
+  (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/notifications' ? { tasks: [] } : { active: [finished, next], past: [] }));
+  renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+  const carousel = await screen.findByRole('region', { name: 'Ближайшие матчи' });
+  expect(within(carousel).getByRole('article', { name: 'Синие — первое место' })).toBeInTheDocument();
+  expect(carousel.children).toHaveLength(2);
+  expect(carousel.lastElementChild).toHaveClass('result-card');
+  expect(screen.getByText('1 из 2')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Ближайший матч');
+  vi.useRealTimers();
+});
+
 test('list rows show the personal signup status', async () => {
   const later: EventSummaryDto = { ...ev, id: 6, date: '2026-11-14', my: 'main' };
   const third: EventSummaryDto = { ...ev, id: 7, date: '2026-11-21', my: null, mainCount: 4 };
