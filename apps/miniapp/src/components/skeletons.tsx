@@ -191,7 +191,7 @@ function GameHistorySkeleton() {
     <div className="player-meeting-heading"><h2>Сыгранные матчи</h2></div>
     <div className="player-meeting-rows">{times(3).map(index => <div className="player-meeting-row" key={index}>
       <span className="player-meeting-when"><strong><Sk w={pick(['7em', '6em', '7.5em'], index)} /></strong><span className="player-meeting-dots sk-dots">{times([3, 4, 2][index]).map(dot => <i key={dot} />)}</span></span>
-      <span className="player-meeting-goals"><Sk w="3.4em" /></span>
+      <span className="player-meeting-figures"><Sk w="3.4em" /></span>
       <Icon name="back" className="chevron-right" />
     </div>)}</div>
   </section>;
