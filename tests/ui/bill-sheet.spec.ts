@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567' };

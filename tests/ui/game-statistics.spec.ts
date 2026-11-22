@@ -1,4 +1,4 @@
-import { test,expect,type Page,type Locator } from '@playwright/test';
+import { test,expect,type Page,type Locator } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir,writeFile } from 'node:fs/promises';
 import { gameStatisticsWorld } from './game-statistics-fixture';

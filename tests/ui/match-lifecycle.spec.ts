@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 test('signup remains available before scheduling, then closes and unlocks billing at server kickoff', async ({ page }) => {
   const kickoff = Date.parse('2026-11-08T15:00:00Z');

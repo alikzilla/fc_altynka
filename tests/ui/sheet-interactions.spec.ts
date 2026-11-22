@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect, type Page, type CDPSession } from '@playwright/test';
+import { test, expect, type Page, type CDPSession } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openCreateMatch } from './menu';
 

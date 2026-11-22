@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { openCreateMatch } from './menu';

@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 // Synthetic data: tests never connect to the bot, D1, or a real group.

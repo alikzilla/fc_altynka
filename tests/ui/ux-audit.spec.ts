@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 // Synthetic data only: the UX audit screens (result card, payment mark, leaving the roster, settings sheet).

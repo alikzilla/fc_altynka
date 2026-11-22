@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 const member = { id: 1, seq: 1, userId: 2, name: 'Айдос Нуспеков', invitedByUserId: null, guestOfName: null, level: 5 };

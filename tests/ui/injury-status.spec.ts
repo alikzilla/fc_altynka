@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 // Synthetic data only: no bot, D1 or real group.

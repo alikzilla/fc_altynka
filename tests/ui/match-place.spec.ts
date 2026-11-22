@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 const me = { userId: 2, displayName: 'Игрок', kaspiPhone: null, communities: [{ id: 1, title: 'Команда', role: 'player' }] };

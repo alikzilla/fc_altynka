@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 // Скелет повторяет загруженный экран: каждая карточка стоит там же и той же высоты, поэтому

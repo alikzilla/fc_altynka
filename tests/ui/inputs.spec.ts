@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from '@playwright/test';
+import { test, expect } from './fixtures';
 
 const me = { userId: 1, displayName: 'Организатор', role: 'admin', kaspiPhone: '+77071234567', profileCompleted: true, community: { id: 1, title: 'Очень длинное название футбольной группы '.repeat(3) } };
 const main = [{ id: 1, seq: 1, userId: 1, name: 'Организатор', level: 5, guestOfName: null, invitedByUserId: null }, { id: 2, seq: 2, userId: null, name: 'ДругСОченьДлиннымИменем', level: 5, guestOfName: 'Организатор', invitedByUserId: 1 }];

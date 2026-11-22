@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 const saturday = { id: 1, title: 'Футбол по субботам' };

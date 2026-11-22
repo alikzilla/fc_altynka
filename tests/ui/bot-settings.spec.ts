@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 for (const width of [320, 390]) test(`notification preferences preserve initial setup draft and fit ${width}px`, async ({ page }) => {

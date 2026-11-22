@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 for (const width of [280, 390]) for (const role of ['player', 'organizer']) test(`profile card keeps photo left, football row below, and direct settings: ${role} ${width}px`, async ({ page }) => {

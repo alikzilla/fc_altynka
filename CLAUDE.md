@@ -55,6 +55,7 @@ Three workspace packages:
 - Worker tests run inside the Workers runtime via `@cloudflare/vitest-pool-workers` (`cloudflare:test` env, real D1 + DO bindings, test-only vars in `vitest.config.ts`).
 - Mini app tests use happy-dom + Testing Library; the shared render helper is `test/render.tsx`.
 - Playwright runs against `vite preview` of the production build on port 4173 with mocked API fixtures (`tests/ui/*-fixture.ts`). Several specs also run as dedicated mobile-WebKit projects (see `playwright.config.ts`).
+- Specs import `test`/`expect` from `tests/ui/fixtures.ts`, not `@playwright/test`: it fails any test during which the page or a sheet can scroll sideways. A block that scrolls sideways on purpose goes in its `HORIZONTAL_SCROLLERS`. `horizontal-scroll.spec.ts` walks every screen and sheet at 320px with spaceless long names.
 
 ## Deployment conventions
 

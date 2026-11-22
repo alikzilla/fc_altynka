@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 // Telegram on a recent iPhone in full screen: the status bar and Dynamic Island (safe area), then a row with
 // Telegram's own «Закрыть» and «⋯» buttons (content safe area). The app must keep its content below both.

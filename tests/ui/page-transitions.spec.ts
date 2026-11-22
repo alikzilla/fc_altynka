@@ -1,5 +1,5 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './fixtures';
 
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
 
