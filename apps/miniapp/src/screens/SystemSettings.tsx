@@ -3,7 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { BOT_USERNAME } from '../lib/bot';
-import { openTelegramLink, requestWriteAccess } from '../lib/tg';
+import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
+import { useHomeScreen } from '../hooks/useHomeScreen';
+import { Icon } from '../components/Icon';
 import { applyTheme, getTheme } from '../lib/theme';
 import { useToast } from '../components/ui';
 
@@ -21,6 +23,15 @@ export function SystemSettings() {
   const saving = useRef(false);
   useEffect(() => setNotifications(me.notifications), [me.notifications]);
   useEffect(() => { if (me.theme) setTheme(me.theme); }, [me.theme]);
+  const [fullscreen, setFullscreen] = useState(fullscreenPreferred);
+  const homeScreen = useHomeScreen();
+  const homeRequested = useRef(false);
+  useEffect(() => {
+    if (homeScreen !== 'added' || !homeRequested.current) return;
+    homeRequested.current = false;
+    haptic('success');
+    toast('Иконка ФК Алтынка на главном экране');
+  }, [homeScreen, toast]);
   const enabled = notifications?.enabled ?? false;
   const available = notifications?.available ?? false;
 
@@ -85,6 +96,21 @@ export function SystemSettings() {
           <span className="system-switch-control" aria-hidden="true" />
         </label>
       </div>
+      {canFullscreen() && <div className="system-setting-item">
+        <label className="system-switch-row">
+          <span className="system-switch-copy"><b>Во весь экран</b><small id="fullscreen-switch-description">{fullscreen ? 'Приложение занимает весь экран' : 'С верхней панелью Telegram'}</small></span>
+          <input className="system-switch-input" type="checkbox" role="switch" aria-label="Во весь экран" aria-describedby="fullscreen-switch-description" checked={fullscreen} onChange={e => { setFullscreen(e.target.checked); setFullscreenPreferred(e.target.checked); }} />
+          <span className="system-switch-control" aria-hidden="true" />
+        </label>
+      </div>}
+      {homeScreen && homeScreen !== 'unsupported' && <div className="system-setting-item">
+        {homeScreen === 'added'
+          ? <div className="system-action-row"><span className="system-switch-copy"><b>Иконка на главном экране</b><small>Уже добавлена: ФК Алтынка открывается прямо с экрана телефона</small></span><Icon name="check" className="system-action-done" /></div>
+          : <button type="button" className="system-action-row" aria-describedby="home-screen-description" onClick={() => { homeRequested.current = true; haptic('light'); addToHomeScreen(); }}>
+              <span className="system-switch-copy"><b>Иконка на главном экране</b><small id="home-screen-description">Открывай ФК Алтынка с экрана телефона, как приложение</small></span>
+              <span className="system-action-label">Добавить</span>
+            </button>}
+      </div>}
     </div>
   </section>;
 }

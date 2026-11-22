@@ -70,3 +70,17 @@ test('reduced motion changes screens at once', async ({ page }) => {
   await expect(page).toHaveURL(/\/event\/3/);
   expect(await kinds(page)).toEqual([]);
 });
+
+test('match tabs slide toward the chosen tab while the page and its action stand still', async ({ page }) => {
+  await page.goto('/event/3?tab=list');
+  await expect(page.getByRole('tab', { name: 'Оплата' })).toBeVisible();
+  await page.getByRole('tab', { name: 'Оплата' }).click();
+  await expect(page).toHaveURL(/tab=bill/);
+  await settled(page);
+  await page.getByRole('tab', { name: 'Участники' }).click();
+  await expect(page).toHaveURL(/tab=list/);
+  await settled(page);
+  expect(await kinds(page)).toEqual(['tab-forward', 'tab-back']);
+  // The view transition was not skipped: every captured name was unique.
+  await expect(page.getByRole('tabpanel')).toBeVisible();
+});

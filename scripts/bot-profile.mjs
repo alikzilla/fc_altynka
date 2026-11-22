@@ -12,9 +12,9 @@ const privateCommands = [
 // Public defaults match apps/worker/wrangler.jsonc; credentials files need not repeat them.
 export function botProfileConfig({ BOT_USERNAME = 'fc_altynka_bot', MINIAPP_SHORT_NAME = 'fc_altynka_app' } = {}) {
   return [
-    { method: 'setMyName', payload: { name: 'FC Altynka' } },
-    { method: 'setMyShortDescription', payload: { short_description: 'Матчи FC Altynka: запись, составы и оплата поля.' } },
-    { method: 'setMyDescription', payload: { description: 'Здесь организуем футбол FC Altynka.\n\nЗаписывайся на матчи, следи за составами и отмечай оплату поля. Общие объявления — в группе команды. Личные уведомления можно подключить после запуска.\n\nНажми «Начать», чтобы открыть меню.' } },
+    { method: 'setMyName', payload: { name: 'ФК Алтынка' } },
+    { method: 'setMyShortDescription', payload: { short_description: 'Матчи ФК Алтынка: запись, составы и оплата поля.' } },
+    { method: 'setMyDescription', payload: { description: 'Здесь организуем футбол ФК Алтынка.\n\nЗаписывайся на матчи, следи за составами и отмечай оплату поля. Общие объявления — в группе команды. Личные уведомления можно подключить после запуска.\n\nНажми «Начать», чтобы открыть меню.' } },
     { method: 'setMyCommands', payload: { scope: { type: 'all_private_chats' }, commands: privateCommands } },
     { method: 'setMyCommands', payload: { scope: { type: 'all_group_chats' }, commands: privateCommands.filter(c => ['matches', 'help'].includes(c.command)) } },
     { method: 'setChatMenuButton', payload: { menu_button: { type: 'web_app', text: 'Открыть', web_app: { url: `https://t.me/${BOT_USERNAME}/${MINIAPP_SHORT_NAME}` } } } },

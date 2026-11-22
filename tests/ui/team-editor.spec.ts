@@ -31,6 +31,10 @@ test('tap swap, toast undo, kit colours, publish, coin start and active recolor 
   await page.getByRole('button',{name:'Начать матч',exact:true}).click();
   const start=page.getByRole('dialog',{name:'Начинаем матч'});
   await expect(start.getByText('Кто начинает с мячом?')).toBeVisible();
+  // «ФК АЛТЫНКА • 2026 •» runs round the whole rim: the lettering fills the circle without a gap.
+  // Measured length leaves out the spacing after the last letter, so «fills» means at least 97 % of the rim.
+  await expect.poll(()=>page.locator('.coin-ring text').evaluate(t=>(t as SVGTextElement).getComputedTextLength()/(document.getElementById('coin-ring-path') as unknown as SVGPathElement).getTotalLength())).toBeGreaterThan(.97);
+  await expect(page.locator('.coin-ring text')).toHaveText('ФК АЛТЫНКА • 2026 • ФК АЛТЫНКА • 2026 • ');
   await start.getByRole('button',{name:'Подбросить монету',exact:true}).click();
   await expect(start.getByText(/^С мячом начинают /)).toBeVisible();
   await page.screenshot({path:'artifacts/team-editor/coin-dark-390.png'});

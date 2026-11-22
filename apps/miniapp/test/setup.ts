@@ -4,8 +4,9 @@ import { afterEach } from 'vitest';
 
 import { notifyManager } from '@tanstack/react-query';
 import { queryClient } from '../src/lib/queryClient';
+import { resetConnectionForTests } from '../src/lib/connection';
 
-afterEach(() => { cleanup(); queryClient.clear(); });
+afterEach(() => { cleanup(); queryClient.clear(); resetConnectionForTests(); });
 
 // JSDOM has no top layer; real focus containment/backdrop are verified in Playwright.
 HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };

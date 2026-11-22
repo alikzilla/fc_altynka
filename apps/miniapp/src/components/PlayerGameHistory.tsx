@@ -6,17 +6,21 @@ import { Icon } from './Icon';
 import { RatingHistory } from './PlayerRating';
 
 const goalsText = (n: number) => `${n} ${plural(n, 'гол', 'гола', 'голов')}`;
+const scoreText = (score: number) => score.toLocaleString('ru-RU', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function MeetingRow({ meeting, showGroup, onOpen }: { meeting: PlayerMeetingStatistics; showGroup: boolean; onOpen: () => void }) {
   const date = formatDateRu(meeting.date);
   return <button type="button" className="player-meeting-row" onClick={onOpen}
-    aria-label={`${date}: ${goalsText(meeting.goals)}, победы ${meeting.wins}, ничьи ${meeting.draws}, поражения ${meeting.losses}${showGroup ? ` · ${meeting.community.title}` : ''}`}>
+    aria-label={`${date}: ${goalsText(meeting.goals)}${meeting.score !== null ? `, оценка ${scoreText(meeting.score)}` : ''}, победы ${meeting.wins}, ничьи ${meeting.draws}, поражения ${meeting.losses}${showGroup ? ` · ${meeting.community.title}` : ''}`}>
     <span className="player-meeting-when">
       <strong>{date}</strong>
       <span className="player-meeting-dots" aria-hidden="true">{[...meeting.results].sort((a, b) => a.sequence - b.sequence).map(game => <i key={game.id} data-outcome={game.outcome}/>)}</span>
       {showGroup && <GroupTag community={meeting.community}/>}
     </span>
-    <span className="player-meeting-goals"><b>{meeting.goals}</b> {plural(meeting.goals, 'гол', 'гола', 'голов')}</span>
+    <span className="player-meeting-figures" aria-hidden="true">
+      <span className="player-meeting-figure"><b>{meeting.goals}</b><Icon name="ball"/></span>
+      {meeting.score !== null && <span className="player-meeting-figure"><b>{scoreText(meeting.score)}</b><Icon name="star"/></span>}
+    </span>
     <Icon name="back" className="chevron-right"/>
   </button>;
 }

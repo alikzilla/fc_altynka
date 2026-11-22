@@ -14,7 +14,8 @@ export function EdgeBackGesture({ onBack, disabled = false }: { onBack: (() => v
 
   useEffect(() => {
     const cue = indicator.current;
-    const scope = cue?.parentElement;
+    // The cue sits in a clipping layer over the screen or sheet; the gesture's scope is what the layer covers.
+    const scope = cue?.parentElement?.parentElement;
     if (!cue || !scope || !onBack || disabled) return;
     let drag: Drag | null = null;
     const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
@@ -105,5 +106,7 @@ export function EdgeBackGesture({ onBack, disabled = false }: { onBack: (() => v
     };
   }, [onBack, disabled]);
 
-  return onBack ? <div ref={indicator} className="edge-back-cue" aria-hidden="true"><Icon name="back" /></div> : null;
+  // The cue starts half beyond the edge it was pulled from. The layer clips it there, so a pull from the right
+  // edge cannot widen the page into a horizontal scroll.
+  return onBack ? <div className="edge-back-layer" aria-hidden="true"><div ref={indicator} className="edge-back-cue"><Icon name="back" /></div></div> : null;
 }

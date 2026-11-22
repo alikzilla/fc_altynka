@@ -38,7 +38,7 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light'] as const) 
     await page.setViewportSize({ width, height: 844 });
     await mockApp(page, theme);
     await page.goto('/');
-    const card = page.getByRole('article', { name: 'Синие — первое место' });
+    const card = page.getByRole('article', { name: 'Итог матча: первое место' });
     await expect(card).toBeVisible();
     await expect(card.getByRole('link', { name: /Оплатить 2\s500/ })).toHaveAttribute('href', '/event/9?tab=bill');
     await expect(card.getByRole('link', { name: /Оценить матч/ })).toBeVisible();

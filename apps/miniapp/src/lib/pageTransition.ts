@@ -28,11 +28,41 @@ export function consumeScrollTarget(path: string): number {
 }
 
 type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+type TransitionKind = NavKind | 'tab-forward' | 'tab-back';
 let running = 0;
 
 /**
+ * Runs `update` inside a view transition styled by `kind` (styles/transitions.css). `beforeCapture` runs only
+ * when there is a transition, after the update and before the new state is captured. Without support or with
+ * reduced motion the update simply happens.
+ */
+function transition(kind: TransitionKind, update: () => void, beforeCapture?: () => void): void {
+  const doc = document as TransitionDocument;
+  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  if (!doc.startViewTransition || reduced || document.visibilityState !== 'visible') { update(); return; }
+  const root = document.documentElement;
+  const id = ++running;
+  root.dataset.nav = kind;
+  const done = () => { if (running === id) delete root.dataset.nav; };
+  try {
+    doc.startViewTransition(() => {
+      flushSync(update);
+      beforeCapture?.();
+    }).finished.then(done, done);
+  } catch {
+    done();
+    update();
+  }
+}
+
+/** Switches a tab inside a screen: only the tab panel slides, toward the side of the tab that was chosen. */
+export function slideTab(direction: 'forward' | 'back', update: () => void): void {
+  transition(direction === 'forward' ? 'tab-forward' : 'tab-back', update);
+}
+
+/**
  * Wraps every in-app navigation: remembers the scroll of the screen being left, restores it on Back and,
- * where the browser supports view transitions, animates the screen change (styles/transitions.css).
+ * where the browser supports view transitions, animates the screen change.
  */
 export const aroundNav: AroundNavHandler = (navigate, to, options) => {
   const from = window.location.pathname;
@@ -43,23 +73,6 @@ export const aroundNav: AroundNavHandler = (navigate, to, options) => {
   scrollByPath.set(from, window.scrollY);
   const top = kind === 'back' ? scrollByPath.get(target) ?? 0 : 0;
   pending = top ? { path: target, top } : null;
-
-  const doc = document as TransitionDocument;
-  const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-  if (!doc.startViewTransition || reduced || document.visibilityState !== 'visible') { navigate(to, options); return; }
-
-  const root = document.documentElement;
-  const id = ++running;
-  root.dataset.nav = kind;
-  const done = () => { if (running === id) delete root.dataset.nav; };
-  try {
-    doc.startViewTransition(() => {
-      flushSync(() => navigate(to, options));
-      // The new screen is captured right after this callback, so it must already stand at its final scroll.
-      window.scrollTo(0, top);
-    }).finished.then(done, done);
-  } catch {
-    done();
-    navigate(to, options);
-  }
+  // The new screen is captured right after the update, so it must already stand at its final scroll.
+  transition(kind, () => navigate(to, options), () => window.scrollTo(0, top));
 };

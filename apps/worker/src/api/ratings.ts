@@ -7,7 +7,7 @@ import type { Db } from '../db/client';
 import { memberships, skillAssessments } from '../db/schema';
 import { activeMemberships } from '../domain/members';
 import { canManage, getEvent } from '../domain/events';
-import { finishMatch, matchReview, playerProfile, playerRatings, submitReview } from '../domain/ratings';
+import { closeReview, finishMatch, matchReview, playerProfile, playerRatings, submitReview } from '../domain/ratings';
 import { leaderboard } from '../domain/leaderboard';
 import { body, idParam } from './validate';
 
@@ -79,4 +79,11 @@ ratingsApi.post('/events/:id/review', body(reviewBody), async c => {
   const result = await submitReview(c.get('deps'), ev, c.get('user').id, c.req.valid('json'));
   if (result !== 'ok') return c.json({ error: result }, result === 'invalid' ? 400 : result === 'forbidden' ? 403 : 409);
   return c.json(await matchReview(c.get('deps').db, ev, c.get('user').id, canManage(c.get('role')), c.get('deps').now));
+});
+ratingsApi.post('/events/:id/review/close', requireRole('organizer'), async c => {
+  const id = idParam(c.req.param('id'));
+  const ev = id === null ? null : await getEvent(c.get('deps').db, id);
+  if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
+  if (ev.status === 'cancelled' || !await closeReview(c.get('deps'), ev.id)) return c.json({ error: 'closed' }, 409);
+  return c.json(await matchReview(c.get('deps').db, ev, c.get('user').id, true, c.get('deps').now));
 });

@@ -7,6 +7,7 @@ import { aroundNav } from './lib/pageTransition';
 import { queryClient } from './lib/queryClient';
 import { initializeTheme } from './lib/theme';
 import { trackInputMode } from './lib/inputMode';
+import { trackPrefetch } from './lib/prefetch';
 import '@fontsource-variable/onest';
 import './styles/app.css';
 import './styles/themes.css';
@@ -18,6 +19,7 @@ import './styles/transitions.css';
 
 initializeTheme();
 trackInputMode();
+trackPrefetch();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

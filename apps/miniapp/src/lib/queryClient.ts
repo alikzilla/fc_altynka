@@ -3,6 +3,8 @@ import { QueryClient } from '@tanstack/react-query';
 // Keep the monotonic receipt time with cached match snapshots, including list entries.
 const receivedAt = new WeakMap<object, number>();
 export const resourceReceivedAt = (data: object) => receivedAt.get(data);
+/** Carries a receipt time over to a locally patched copy of a snapshot. */
+export const keepReceivedAt = (from: object, to: object) => { const at = receivedAt.get(from); if (at !== undefined) receivedAt.set(to, at); };
 
 function rememberReceipt(data: unknown, elapsed: number) {
   if (!data || typeof data !== 'object') return;

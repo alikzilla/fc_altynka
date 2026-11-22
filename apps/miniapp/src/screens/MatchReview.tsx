@@ -50,6 +50,16 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
       else setFailure('Не получилось отправить. Оценки сохранены на экране — попробуй ещё раз.');
     } finally { locked.current = false; setBusy(false); }
   }
+  async function close() {
+    if (locked.current) return;
+    locked.current = true; setBusy(true); setFailure(null);
+    try { const result = await api.send<MatchReviewDto>('POST', `/api/events/${eventId}/review/close`); setSaved(result); replace(result); }
+    catch (err) {
+      if (err instanceof ApiError && err.status === 409) reload();
+      else setFailure('Не получилось закрыть опрос. Попробуй ещё раз.');
+    } finally { locked.current = false; setBusy(false); }
+  }
+  const answered = review?.participants.filter(p => p.voted).length ?? 0;
   return <Screen title="Оценка матча" back={`/event/${eventId}`}>
     {loading && !review && <ReviewSkeleton />}{error && <ErrorNote text="Не получилось загрузить опрос" retry={reload} />}
     {review && (review.state === 'open' ? <>
@@ -69,8 +79,16 @@ export function MatchReview({ eventId: givenId }: { eventId?: number }) {
         onGameScore={setGameScore} onClose={() => setRatingOpen(false)} onSubmit={() => send()} />}
 
       <ConfirmButton className="btn-text" label="Пропустить опрос" confirmLabel="Пропустить без оценок?" disabled={busy} onConfirm={() => send(true)} />
-    </> : review.state === 'submitted' || review.state === 'skipped' ? <section className="card material-blue review-done"><h2>{review.state === 'submitted' ? 'Спасибо, оценки отправлены' : 'Опрос пропущен'}</h2><p className="muted">{review.state === 'submitted' ? 'Твоё имя рядом с оценками никто не увидит. Средние появятся, когда голосование закончится и наберётся минимум три оценки на игрока.' : 'Средние появятся, когда голосование закончится и наберётся минимум три оценки на игрока.'}</p>{review.closesAt && <p className="muted">Голосование до {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt)} · Алматы</p>}<Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>
+    </> : review.state === 'submitted' || review.state === 'skipped' ? <section className="card material-blue review-done"><h2>{review.state === 'submitted' ? 'Спасибо, оценки отправлены' : 'Опрос пропущен'}</h2><p className="muted">{review.state === 'submitted' ? 'Твоё имя рядом с оценками никто не увидит. Средние появятся, когда ответят все участники или закончится голосование, и наберётся минимум три оценки на игрока.' : 'Средние появятся, когда ответят все участники или закончится голосование, и наберётся минимум три оценки на игрока.'}</p>{review.closesAt && <p className="muted">Голосование до {new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Almaty' }).format(review.closesAt)} · Алматы</p>}<Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>
       : review.state === 'closed' ? <>{review.awards && <MatchAwards awards={review.awards} />}<section className="rating-history"><h2>Оценки за матч</h2><p className="muted">Показаны средние при наличии минимум трёх оценок. Авторы и отдельные голоса скрыты.</p><ul className="card list">{review.participants.map(person => <li key={person.userId}><Link className="rating-history-row" href={`/players/${person.userId}`}><span>{person.name}</span><span className={person.score === null ? 'muted rating-insufficient' : 'rating-small'}>{person.score === null ? 'Недостаточно оценок' : formatRating(person.score)}</span></Link></li>)}</ul><div className="card"><h3>Матч в целом</h3><p>{review.gameScore === null ? 'Недостаточно оценок' : `${formatRating(review.gameScore)} / 10`}</p></div></section></>
       : <section className="card"><h2>{review.state === 'ineligible' ? 'Опрос для участников матча' : review.state === 'legacy' ? 'Для этого матча опрос недоступен' : 'Ждём завершения матча'}</h2><p className="muted">Оценки доступны после подтверждения организатором фактических участников матча.</p><Link className="btn wide" href={`/event/${eventId}`}>К матчу</Link></section>)}
+    {review?.canClose && review.state !== 'closed' && <section className="card review-progress-card" aria-labelledby="review-progress-title">
+      <h2 id="review-progress-title">Кто ответил</h2>
+      <p className="muted">Ответили {answered} из {review.participants.length}. Видно только тебе как организатору; сами оценки скрыты. Когда ответят все, итоги откроются сразу.</p>
+      <ul className="review-progress-list">{review.participants.map(person => <li key={person.userId}><Avatar name={person.name} photoUrl={person.photoUrl} /><span>{person.name}</span><span className={person.voted ? 'review-voted' : 'muted'}>{person.voted ? 'Ответил' : 'Ждём'}</span></li>)}</ul>
+      <p className="muted">Опрос можно закрыть раньше срока. Итоги откроются сразу, а те, кто не успел, оценить уже не смогут. Отменить закрытие нельзя.</p>
+      {failure && review.state !== 'open' && <p className="field-error" role="alert">{failure}</p>}
+      <ConfirmButton className="btn wide" label="Закрыть опрос" confirmLabel="Закрыть и показать итоги?" disabled={busy} onConfirm={close} />
+    </section>}
   </Screen>;
 }

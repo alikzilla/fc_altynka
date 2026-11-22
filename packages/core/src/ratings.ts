@@ -74,7 +74,10 @@ export interface MatchReviewSummaryDto {
 }
 export interface MatchReviewDto extends MatchReviewSummaryDto {
   serverNow: number;
-  participants: { userId: number; name: string; photoUrl?: string | null; score: number | null }[];
+  /** Организатор может закрыть открытый опрос досрочно; тогда у участников заполнено `voted`. */
+  canClose?: boolean;
+  /** `voted` — ответил ли участник (оценил или пропустил); приходит только организатору, пока опрос открыт. */
+  participants: { userId: number; name: string; photoUrl?: string | null; score: number | null; voted?: boolean }[];
   ownSubmission: ReviewInput | null;
   /** Победители после закрытия голосования; null до закрытия и когда ни одна награда не присуждена. */
   awards: MatchAwardsDto | null;

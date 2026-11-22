@@ -160,7 +160,7 @@ function PlayerSportsSkeleton() {
         <div className="player-social"><span className="player-role sk-fill sk-round" /><span className="player-telegram"><Sk w="6.5em" /></span></div>
       </div>
       <span className="rating-badge">
-        <span className="rating-emblem" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="23" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
+        <span className="rating-emblem sk-pulse" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="23" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
         <small className="rating-caption"><Sk w="4em" /></small>
       </span>
     </div>
@@ -176,7 +176,7 @@ function AchievementsSkeleton() {
   return <section className="card material-graphite achievements-card">
     <div className="achievements-heading"><h2>Достижения</h2><span className="achievements-all"><Sk w="3em" /></span></div>
     <div className="achievement-pinned">
-      <span className="achievement-medal sk-pulse" data-size="lg" data-tier="locked" />
+      <span className="achievement-medal sk-fill" data-size="lg" data-tier="locked" />
       <span className="achievement-pinned-copy">
         <small><Sk w="34%" /></small>
         <strong><Sk w="62%" /></strong>
@@ -192,7 +192,7 @@ function GameHistorySkeleton() {
     <div className="player-meeting-heading"><h2>Сыгранные матчи</h2></div>
     <div className="player-meeting-rows">{times(3).map(index => <div className="player-meeting-row" key={index}>
       <span className="player-meeting-when"><strong><Sk w={pick(['7em', '6em', '7.5em'], index)} /></strong><span className="player-meeting-dots sk-dots">{times([3, 4, 2][index]).map(dot => <i key={dot} />)}</span></span>
-      <span className="player-meeting-goals"><Sk w="3.4em" /></span>
+      <span className="player-meeting-figures"><Sk w="3.4em" /></span>
       <Icon name="back" className="chevron-right" />
     </div>)}</div>
   </section>;

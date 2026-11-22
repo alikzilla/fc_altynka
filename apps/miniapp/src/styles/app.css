@@ -67,7 +67,8 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
    Surface gradients and inset light are explicitly approved Airofit references. */
 .screen { width: 100%; max-width: 440px; min-height: 100svh; margin: 0 auto; padding: calc(28px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) calc(148px + var(--safe-bottom)) calc(20px + var(--safe-left)); display: flex; flex-direction: column; gap: 20px; }
 .screen { position: relative; }
-.edge-back-cue { position: absolute; z-index: 20; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }
+.edge-back-layer { position: absolute; inset: 0; z-index: 20; overflow: hidden; pointer-events: none; }
+.edge-back-cue { position: absolute; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }
 .edge-back-cue[data-active] { opacity: 1; }
 .edge-back-cue[data-ready] { background: var(--accent); color: var(--on-accent); }
 .edge-back-cue[data-active] { will-change: transform; }
@@ -152,6 +153,16 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .system-switch-input:checked + .system-switch-control { background: var(--accent); }
 .system-switch-input:checked + .system-switch-control::after { background: var(--on-accent); transform: translateX(20px); }
 .system-switch-input:focus-visible + .system-switch-control { outline: 3px solid var(--accent); outline-offset: 4px; }
+/* Full screen in Telegram: content scrolls under the status bar and Telegram's floating buttons. A band of the
+   page colour sits behind the status bar and fades out across the button row, so scrolled content never runs
+   into the clock or the buttons. Outside full screen both insets are zero and the band has no height. */
+body::before { content: ''; position: fixed; inset: 0 0 auto; z-index: 4; height: calc(var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); background: linear-gradient(var(--bg) 0 var(--safe-top), color-mix(in srgb, var(--bg) 80%, transparent) calc(var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px) * .6), transparent); pointer-events: none; }
+/* An action in the settings list: the same row as a switch, with a text action where the switch would be. */
+.system-action-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 80px; padding: 14px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+button.system-action-row { cursor: pointer; }
+.system-action-label { flex-shrink: 0; color: var(--accent); font-size: 14px; font-weight: 550; }
+.system-action-done { flex-shrink: 0; width: 22px; height: 22px; color: #86c8a2; }
+:root[data-theme='light'] .system-action-done { color: #34714e; }
 .system-switch-input:disabled + .system-switch-control { opacity: .5; }
 .system-setting-recovery { padding-bottom: 12px; }
 .profile-settings-list { display: flex; flex-direction: column; gap: 0; padding: 4px 18px; }
@@ -205,6 +216,21 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .chip-btn.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); }
 /* Toasts belong at the safe top, clear of the contextual action and navigation. */
 .toast { position: fixed; top: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); bottom: auto; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); z-index: 30; width: auto; max-width: 400px; max-height: calc(50dvh - var(--safe-top)); overflow-y: auto; margin: 0 auto; border: 0; background: #e3dced; color: #221c2c; padding: 14px 18px; border-radius: 24px; font-size: 14px; font-weight: 500; }
+/* Connection notice: the safe-top position of toasts. While it is shown the screen and toasts step below it
+   (OfflineNotice measures it into --connection-height), so the title and Back stay reachable. */
+.connection-notice { position: fixed; inset: calc(12px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) auto calc(20px + var(--safe-left)); z-index: 31; width: auto; max-width: 400px; margin: 0 auto; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border: 1px solid var(--line); border-radius: 22px; background: var(--card); color: var(--text); box-shadow: 0 6px 16px #0006; overflow: visible; animation: connection-in 220ms var(--ease-out) both; }
+.connection-notice svg { width: 20px; height: 20px; color: var(--hint); }
+.connection-back svg { color: #86c8a2; }
+:root[data-theme='light'] .connection-back svg { color: #34714e; }
+:root[data-theme='light'] .connection-notice { box-shadow: 0 4px 14px #44324f1f; }
+.connection-copy { display: flex; flex-direction: column; min-width: 0; line-height: 1.35; }
+.connection-copy b { font-size: 14px; font-weight: 600; }
+.connection-copy small { font-size: 12px; color: var(--hint); }
+:root[data-offline] .toast { top: calc(22px + var(--connection-height, 58px) + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); }
+.screen { transition: padding-top 220ms var(--ease-out); }
+:root[data-offline] .screen { padding-top: calc(28px + var(--connection-height, 58px) + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)); }
+@keyframes connection-in { from { opacity: 0; transform: translate3d(0, -8px, 0); } }
+@media (max-width: 359px) { .connection-notice { left: calc(16px + var(--safe-left)); right: calc(16px + var(--safe-right)); } }
 .nav-shell { position: fixed; left: calc(12px + var(--safe-left)); right: calc(12px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); z-index: 5; display: flex; justify-content: center; pointer-events: none; }
 .nav { display: grid; grid-template-columns: 1fr 1fr 58px 1fr 1fr; align-items: center; width: 100%; max-width: 416px; height: 82px; padding: 8px 5px; border-radius: 32px; background: radial-gradient(ellipse 110% 100% at 22% -40%, #7773bc 0%, #3b3e78 50%, transparent 100%), radial-gradient(ellipse 45% 100% at 100% 140%, #444d91 0%, transparent 100%), #10142f; box-shadow: var(--rim), inset 0 -2px 6px #8d90d34d, 0 6px 16px #0006; pointer-events: auto; } /* taste-skill-ignore: user-approved Airofit dock */
 .nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 58px; color: #bec0da; font-size: 12px; transition: transform 140ms var(--ease-out); }
@@ -222,6 +248,7 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .match-carousel { position: relative; display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; padding: 3px 5px 7px; margin: -3px -5px -7px; border-radius: 37px; }
 .match-carousel::-webkit-scrollbar { display: none; }
 .match-card { flex: 0 0 calc(100% - 18px); scroll-snap-align: start; scroll-margin-left: 5px; border-radius: 37px; padding: 21px; gap: 0; }
+.match-carousel > .result-card { flex: 0 0 calc(100% - 18px); scroll-snap-align: start; scroll-margin-left: 5px; }
 .match-carousel.single .match-card { flex-basis: 100%; }
 /* Upcoming and result cards share one reading order: quiet date, one big answer, one line, two tags. */
 .match-day { margin: 0; font-size: 14px; line-height: 1.35; font-weight: 450; letter-spacing: 0; color: var(--plum-ink-strong); }
@@ -426,11 +453,7 @@ button.team-heading { border: 0; background: none; padding: 0; min-height: 44px;
 
 /* Result card: the post-match state of the plum card. */
 .result-card { border-radius: 37px; padding: 21px; gap: 0; }
-.result-card-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
 .result-card-date::first-letter { text-transform: uppercase; }
-.result-card-team { display: inline-flex; align-items: center; color: #fbf4fc; font-weight: 550; }
-.result-card-team::before { content: '·'; margin-right: 8px; color: var(--plum-ink); font-weight: 450; }
-.result-card-team .team-dot { width: 10px; height: 10px; margin-right: 6px; box-shadow: 0 0 0 2px #ffffff26; }
 .result-card-actions { display: grid; gap: 10px; margin-top: 18px; }
 .result-card-link { justify-self: start; display: inline-flex; align-items: center; gap: 6px; padding-inline: 0; color: #f3e6f6; }
 

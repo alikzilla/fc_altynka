@@ -104,16 +104,102 @@ test('changing participation opens an explicit exit without leaving on the first
   await waitFor(() => expect(requests).toContain('POST /api/events/7/leave'));
 });
 
-test('participation request stays locked when changing tabs', async () => {
+test('with a free spot «Иду» shows the place at once and sends one request across tab changes', async () => {
   delayJoin = true;
   open();
   await userEvent.click(await screen.findByRole('button', { name: 'Иду' }));
+  const card = screen.getByRole('region', { name: 'Матч и твоё участие' });
+  // The answer is shown before the server replies.
+  expect(within(card).getByText('Ты в основе')).toBeVisible();
+  expect(screen.queryByRole('button', { name: 'Иду' })).not.toBeInTheDocument();
   await userEvent.click(screen.getByRole('tab', { name: 'Составы' }));
-  expect(screen.getByRole('button', { name: 'Записываем…' })).toBeDisabled();
+  await userEvent.click(screen.getByRole('tab', { name: 'Участники' }));
+  expect(await screen.findByText('Айдос Нуспеков')).toBeVisible();
   expect(requests).toEqual(['POST /api/events/7/join']);
   await act(async () => finishJoin?.());
   expect(await within(screen.getByRole('region', { name: 'Матч и твоё участие' })).findByText('Ты в основе')).toBeVisible();
-  expect(screen.queryByRole('button', { name: 'Иду' })).not.toBeInTheDocument();
+  expect(requests).toEqual(['POST /api/events/7/join']);
+});
+
+test('a failed instant signup returns the button and says so', async () => {
+  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/me') return Response.json(me);
+    if (path === '/api/notifications') return Response.json({ tasks: [] });
+    if (path === '/api/events/7') return Response.json(ev);
+    if (init?.method) { requests.push(`${init.method} ${path}`); throw new TypeError('offline'); }
+    throw new Error(`Unexpected ${path}`);
+  }));
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Иду' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Не получилось записаться');
+  const card = screen.getByRole('region', { name: 'Матч и твоё участие' });
+  expect(within(card).getByText('Ты пока не записан')).toBeVisible();
+  expect(screen.getAllByRole('button', { name: 'Иду' }).length).toBeGreaterThan(0);
+});
+
+test('a full main roster waits for the server before naming the reserve place', async () => {
+  delayJoin = true; ev.limit = 1; ev.mainCount = 1; ev.main = [{ ...signup, id: 5, userId: 9, name: 'Другой' }];
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Встать в резерв' }));
+  expect(screen.getAllByRole('button', { name: 'Записываем…' })[0]).toBeDisabled();
+  expect(within(screen.getByRole('region', { name: 'Матч и твоё участие' })).getByText('Ты пока не записан')).toBeVisible();
+  await act(async () => finishJoin?.());
+});
+
+test('«Позвать в матч» opens the Telegram share sheet with a link to this match', async () => {
+  const opened = vi.spyOn(window, 'open').mockReturnValue(null);
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Позвать в матч' }));
+  const url = new URL(String(opened.mock.calls[0][0]));
+  expect(url.origin + url.pathname).toBe('https://t.me/share/url');
+  expect(url.searchParams.get('url')).toBe('https://t.me/fc_altynka_bot/fc_altynka_app?startapp=e7');
+  expect(url.searchParams.get('text')).toBe('Матч 8 ноября · воскресенье · 20:00–22:00 · Arena Football · Абая, 150\nЗаписано 0 из 15, есть места.');
+  opened.mockRestore();
+});
+
+test('a finished match has nothing to invite to', async () => {
+  ev.status = 'closed';
+  open();
+  await screen.findByRole('region', { name: 'Матч и твоё участие' });
+  expect(screen.queryByRole('button', { name: 'Позвать в матч' })).not.toBeInTheDocument();
+});
+
+test('switching tabs slides the panel toward the chosen tab and keeps the address in sync', async () => {
+  const kinds: string[] = [];
+  const observer = new MutationObserver(() => { const kind = document.documentElement.dataset.nav; if (kind) kinds.push(kind); });
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-nav'] });
+  const finished: Promise<void>[] = [];
+  Object.assign(document, { startViewTransition: (update: () => void) => { update(); const done = Promise.resolve(); finished.push(done); return { finished: done }; } });
+  try {
+    const { loc } = open('list');
+    await userEvent.click(await screen.findByRole('tab', { name: 'Оплата' }));
+    expect(loc.history?.at(-1)).toBe('/event/7?tab=bill');
+    await userEvent.click(screen.getByRole('tab', { name: 'Составы' }));
+    expect(loc.history?.at(-1)).toBe('/event/7?tab=teams');
+    await act(async () => { await Promise.all(finished); });
+    expect(kinds).toEqual(['tab-forward', 'tab-back']);
+    expect(document.documentElement.dataset.nav).toBeUndefined();
+  } finally {
+    observer.disconnect();
+    delete (document as { startViewTransition?: unknown }).startViewTransition;
+  }
+});
+
+test('tapping the place copies the venue map link', async () => {
+  ev.placeMapUrl = 'https://go.2gis.com/arena';
+  const writeText = vi.fn(async () => {});
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Arena Football · Абая, 150, скопировать ссылку на 2ГИС' }));
+  expect(writeText).toHaveBeenCalledWith('https://go.2gis.com/arena');
+  expect(await screen.findByText('Ссылка на 2ГИС скопирована')).toBeInTheDocument();
+});
+
+test('a place without a saved link stays plain text', async () => {
+  open();
+  const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
+  expect(within(card).getByText('Arena Football · Абая, 150')).toBeVisible();
+  expect(within(card).queryByRole('button', { name: /скопировать ссылку/ })).not.toBeInTheDocument();
 });
 
 test('organizer scheduling has priority over own signup', async () => {

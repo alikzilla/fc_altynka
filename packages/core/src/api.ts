@@ -130,6 +130,8 @@ export interface EventDetailDto extends EventSummaryDto {
   bill: BillDto | null;
   /** The viewer's role in this event's group. */
   viewerRole: Role;
+  /** Map link (2GIS or another map) of the group's venue named like `place`; null for a venue without a link or a hand-typed place. */
+  placeMapUrl?: string | null;
 }
 
 export interface MemberDto {

@@ -2,9 +2,9 @@ import { useState, type ReactNode, type SVGProps } from 'react';
 
 const paths = {
   smile: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14.2a4 4 0 0 0 7 0M9 9.6h.01M15 9.6h.01" /></>,
+  star: <path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8L12 3.5Z" />,
   flame: <path d="M13 3c1 5-4 5-2 9-2-1-3-3-3-5-3 3-5 7-3 11a8 8 0 0 0 14-1c2-5-2-10-6-14Z" />,
   trophy: <path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4" />,
-  star: <path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 16.9l-5.4 2.9 1.1-6.1-4.5-4.3 6.1-.8L12 3Z" />,
   medal: <><path d="M8 3 5 9m11-6 3 6M9 3h6l2 5H7l2-5Z" /><circle cx="12" cy="15" r="6" /><path d="m12 12.5.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3.9-1.8Z" /></>,
   target: <><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="m12 12 8-8m-3 0h3v3"/></>,
   shield: <><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z"/><path d="m8 12 3 3 5-6"/></>,
@@ -27,10 +27,12 @@ const paths = {
   chart: <path d="M5 20v-8m7 8V4m7 16v-5" />,
   pin: <><path d="M19 10c0 5-7 11-7 11S5 15 5 10a7 7 0 0 1 14 0Z" /><circle cx="12" cy="10" r="2" /></>,
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  offline: <path d="M2 8.8a15.5 15.5 0 0 1 4.6-2.9M10.5 5a15.5 15.5 0 0 1 11.5 3.8M5.3 12.4a10.5 10.5 0 0 1 3.9-2.2M15 10.5a10.5 10.5 0 0 1 3.7 1.9M8.6 15.9a5.5 5.5 0 0 1 6.8 0M12 19.5h.01M3 3l18 18" />,
   check: <path d="m5 12 4 4L19 6" />,
   alert: <><path d="m10.3 4-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3l-8-14a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4m0 3v.1" /></>,
   receipt: <><path d="M5 3h14v18l-3-2-4 2-4-2-3 2V3Z" /><path d="M9 8h6m-6 4h6" /></>,
   close: <path d="m6 6 12 12M6 18 18 6" />,
+  share: <path d="M12 15V3m-4 4 4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7" />,
   more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
   copy: <><rect x="8" y="8" width="12" height="13" rx="3" /><path d="M16 8V6a3 3 0 0 0-3-3H6a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h2" /></>,
 } satisfies Record<string, ReactNode>;
