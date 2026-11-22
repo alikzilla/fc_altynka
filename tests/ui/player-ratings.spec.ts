@@ -252,7 +252,7 @@ test('review waits for Next after release, preserves a closed draft and permits 
   await page.screenshot({ path: 'artifacts/ratings/game-rating-dark-390.png' });
   await sheet.getByRole('button', { name: 'Отправить оценки', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
-  expect(submissions).toEqual([{ scores: [{ userId: 2, score: 8 }], gameScore: null, skipped: false }]);
+  expect(submissions).toEqual([{ scores: [{ userId: 2, score: 8 }], gameScore: null, skipped: false, awardsSkipped: true }]);
 });
 
 test('cancelled rating drag does not advance, and reduced motion keeps the same flow', async ({ page }) => {
