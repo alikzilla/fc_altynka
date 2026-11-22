@@ -22,15 +22,19 @@ async function skipAwards(sheet: Locator, from = 0) {
   }
 }
 
-async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; closed?: boolean; open?: boolean } = {}) {
+async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; closed?: boolean; open?: boolean; stats?: boolean; late?: boolean } = {}) {
   let assessed = !options.fresh;
-  let finished = !!options.open;
-  let submitted = false;
+  let awardsSent = false;
+  let finished = !!options.open || !!options.late;
+  let submitted = !!options.late;
   let skipped = false;
   let savedSkills = skills;
   const now = Date.now();
   const review = () => ({ state: options.closed ? 'closed' : !finished ? 'pending' : submitted ? skipped ? 'skipped' : 'submitted' : 'open', canFinish: !finished && !options.closed, completedAt: finished || options.closed ? now : null, closesAt: options.closed ? now - 1000 : now + 72 * 3600000, serverNow: now, gameScore: options.closed ? 8.1 : null,
-    participants: people.map(p => ({ userId: p.userId, name: p.displayName, score: options.closed && p.userId !== 3 ? 7.5 : null })), ownSubmission: null,
+    participants: people.map(p => ({ userId: p.userId, name: p.displayName, score: options.closed && p.userId !== 3 ? 7.5 : null,
+      ...(options.stats ? { stats: { games: 6, goals: p.userId === 2 ? 3 : 0, assists: p.userId === 2 ? 2 : p.userId === 3 ? 1 : 0, wins: 4, draws: 1, losses: 1, assistsTracked: true } } : {}) })),
+    ...(options.late ? { canAddAwards: !awardsSent } : {}),
+    ownSubmission: options.late ? { scores: [{ userId: 2, score: 8 }, { userId: 3, score: 6 }], gameScore: 8, skipped: false } : null,
     awards: options.closed ? { mvp: { winners: [{ userId: 2, name: 'Арман', photoUrl: null }], votes: 2 }, forward: null, midfielder: null,
       defender: { winners: [{ userId: 2, name: 'Арман', photoUrl: null }, { userId: 3, name: 'Руслан', photoUrl: null }], votes: 2 }, goalkeeper: null } : null });
   const me = () => ({ userId: 1, displayName: 'Данияр', role: 'organizer', kaspiPhone: '+77071234567', profileCompleted: true, playingPosition: 'midfielder', dominantFoot: 'right', theme: options.theme ?? 'dark', rating: assessed ? { ...rating, selfAssessment: savedSkills } : { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, community: { id: 1, title: 'FC Altynka' } });
@@ -50,6 +54,7 @@ async function mockApp(page: Page, options: { theme?: string; fresh?: boolean; c
       body = { ...person, rating: person.userId === 1 ? me().rating : person.rating, history: [{ eventId: 1, date: '2026-11-04', place: 'Шанырак', score: 7.5 }, { eventId: 2, date: '2026-11-01', place: null, score: null }] };
     } else if (path === '/api/notifications') body = { tasks: assessed ? finished && !submitted ? [{ kind: 'review', id: 'review:1', eventId: 1, date: '2026-11-05', place: 'Шанырак', closesAt: now + 72 * 3600000 }] : [] : [{ kind: 'skills', id: 'skills' }] };
     else if (path.endsWith('/finish')) { finished = true; body = review(); }
+    else if (path.endsWith('/review/awards')) { awardsSent = true; body = review(); }
     else if (path.endsWith('/review')) {
       if (method === 'POST') { submitted = true; skipped = route.request().postDataJSON().skipped; }
       body = review();
@@ -358,4 +363,48 @@ test('voting deadline closes an open sheet without sending its draft', async ({ 
   await expect(page.getByRole('heading', { name: 'Оценки за матч', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(writes).toBe(0);
+});
+
+for (const theme of ['dark', 'light']) test(`late award steps show match stats and fit 360px ${theme}`, async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await mockApp(page, { theme, late: true, stats: true });
+  await page.goto('/event/1/review');
+  await expect(page.getByRole('heading', { name: 'Выбери лучших игроков матча', exact: true })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/ratings/late-awards-card-${theme}-360.png`, fullPage: true });
+  await page.getByRole('button', { name: 'Выбрать лучших', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Лучшие игроки матча' });
+  await expect(sheet.getByRole('heading', { name: 'MVP матча', exact: true })).toBeVisible();
+  await expect(sheet.getByRole('radio', { name: /Арман/ }).locator('xpath=ancestor::label')).toContainText('3 гола · 2 паса');
+  await expect(sheet.getByRole('radio', { name: /Руслан/ }).locator('xpath=ancestor::label')).toContainText('1 пас');
+  await sheet.getByRole('radio', { name: /Арман/ }).check();
+  await sheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+  expect(await sheet.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/ratings/late-awards-step-${theme}-360.png` });
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  await sheet.getByRole('button', { name: 'Далее', exact: true }).click();
+  await skipAwards(sheet, 1);
+  await expect(sheet.getByRole('heading', { name: 'Твой выбор', exact: true })).toBeVisible();
+  await sheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+  await page.screenshot({ path: `artifacts/ratings/late-awards-summary-${theme}-360.png` });
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+  const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/review/awards'));
+  await sheet.getByRole('button', { name: 'Отправить награды', exact: true }).click();
+  expect((await sent).postDataJSON()).toEqual({ awards: { mvp: 2 } });
+  await expect(page.getByRole('heading', { name: 'Спасибо, оценки отправлены', exact: true })).toBeVisible();
+});
+
+for (const theme of ['dark', 'light']) test(`the rating step shows goals and passes at 360px ${theme}`, async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 780 });
+  await mockApp(page, { theme, open: true, stats: true });
+  await page.goto('/event/1/review');
+  await page.getByRole('button', { name: 'Оценить', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Оценка матча' });
+  const tiles = sheet.getByRole('list', { name: 'За этот матч' });
+  await expect(tiles).toContainText('3 гола');
+  await expect(tiles).toContainText('2 паса');
+  await sheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
+  expect(await sheet.evaluate(el => el.scrollWidth <= el.clientWidth)).toBe(true);
+  await page.screenshot({ path: `artifacts/ratings/rating-stats-${theme}-360.png` });
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 });

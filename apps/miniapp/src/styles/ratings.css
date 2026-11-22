@@ -139,3 +139,19 @@
 .match-award-votes { font-size: 12px; color: var(--hint); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .match-award-none { grid-column: 2 / -1; font-size: 14px; color: var(--hint); }
 @media (prefers-reduced-motion: reduce) { .award-option { transition: none; } }
+
+/* Результативность игрока за матч в шаге оценки и в выборе награды. */
+.review-stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin: 0; padding: 0; list-style: none; }
+.review-stats > li { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 0; min-height: 58px; padding: 8px 4px; border-radius: 14px; background: color-mix(in srgb, currentColor 9%, transparent); text-align: center; }
+.review-stats > .review-stat-goals { background: color-mix(in srgb, currentColor 16%, transparent); }
+.review-stats strong { font-size: 21px; line-height: 1.1; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.review-stats span:not(.sr-only) { font-size: 11px; line-height: 1.2; opacity: .78; overflow-wrap: anywhere; }
+.award-option-name small.award-option-stats { display: block; margin-top: 2px; font-size: 12px; font-weight: 450; opacity: .78; }
+.review-award-summary { display: grid; margin: 0; padding: 0; list-style: none; }
+.review-award-summary li { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; min-height: 44px; padding: 11px 0; border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+.review-award-summary li:first-child { border-top: 0; }
+.review-award-summary li > span:first-child { font-size: 13px; opacity: .78; }
+.review-award-summary li > span:last-child { min-width: 0; font-size: 16px; font-weight: 550; text-align: end; overflow-wrap: anywhere; }
+.review-late-awards { gap: 10px; }
+.review-late-awards h2 { font-size: 18px; line-height: 1.3; font-weight: 550; letter-spacing: -.025em; }
+.review-award-summary li > span.muted { font-size: 14px; font-weight: 450; }

@@ -86,7 +86,7 @@ test('five award steps follow the players, show the ratings just given and are s
     { scores: [{ userId: 12, score: 8 }, { userId: 13, score: 9 }], gameScore: null, skipped: false, awards: { mvp: 13 } });
 });
 
-test('skipping an award clears the pick, and a poll without picks sends no awards field', async () => {
+test('skipping an award clears the pick, and a poll without picks says the award step was skipped', async () => {
   const dialog = await openRater(trioReview);
   await rate(dialog, 'Арман', 8); await rate(dialog, 'Ерлан', 9);
   await userEvent.click(await within(dialog).findByRole('radio', { name: /Арман/ }));
@@ -96,7 +96,7 @@ test('skipping an award clears the pick, and a poll without picks sends no award
   expect(await within(dialog).findByRole('radio', { name: /Арман/ })).not.toBeChecked();
   await skipAwards(dialog);
   await userEvent.click(await within(dialog).findByRole('button', { name: 'Отправить оценки' }));
-  expect((api.send as Mock).mock.calls[0][2]).toEqual({ scores: [{ userId: 12, score: 8 }, { userId: 13, score: 9 }], gameScore: null, skipped: false });
+  expect((api.send as Mock).mock.calls[0][2]).toEqual({ scores: [{ userId: 12, score: 8 }, { userId: 13, score: 9 }], gameScore: null, skipped: false, awardsSkipped: true });
 });
 
 test('an unrated candidate shows a dash, and awards alone cannot be submitted', async () => {
@@ -176,7 +176,7 @@ test('review opens a sequential sheet, allows skipping a player and submits the 
   fireEvent.change(within(dialog).getByRole('slider'), { target: { value: '8' } });
   expect(api.send).not.toHaveBeenCalled();
   await userEvent.click(screen.getByRole('button', { name: 'Отправить оценки' }));
-  expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/review', { scores: [], gameScore: 8, skipped: false });
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/review', { scores: [], gameScore: 8, skipped: false, awardsSkipped: true });
   expect(await screen.findByText('Спасибо, оценки отправлены')).toBeInTheDocument();
 });
 
@@ -297,4 +297,54 @@ test('slider commits only a primary pointer release, not cancellation or keyboar
   fireEvent.pointerDown(slider, { pointerId: 2, isPrimary: true, button: 0 });
   fireEvent.pointerUp(slider, { pointerId: 2 });
   expect(commit).toHaveBeenCalledOnce();
+});
+
+const stats = (goals: number, assists: number) => ({ games: 6, goals, assists, wins: 4, draws: 1, losses: 1, assistsTracked: true });
+
+test('the rating step and the award list show what the player did in the match', async () => {
+  const review: MatchReviewDto = { ...trioReview, participants: trioReview.participants.map(p => ({ ...p, ...(p.userId === 12 ? { stats: stats(3, 2) } : p.userId === 13 ? { stats: stats(0, 0) } : {}) })) };
+  const dialog = await openRater(review);
+  const tiles = within(dialog).getByRole('list', { name: 'За этот матч' });
+  expect(tiles).toHaveTextContent('3 гола');
+  expect(tiles).toHaveTextContent('2 паса');
+  expect(tiles).toHaveTextContent('6 игр');
+  expect(tiles).toHaveTextContent('4 победы, 1 ничья, 1 поражение');
+  await rate(dialog, 'Арман', 8); await rate(dialog, 'Ерлан', 9);
+  expect((await within(dialog).findByRole('radio', { name: /Арман/ })).closest('label')).toHaveTextContent('3 гола · 2 паса');
+  expect(within(dialog).getByRole('radio', { name: /Ерлан/ }).closest('label')).toHaveTextContent('без голов и пасов');
+});
+
+test('an answer sent without awards offers the award steps alone and sends them separately', async () => {
+  const submitted: MatchReviewDto = { ...trioReview, state: 'submitted', canAddAwards: true,
+    participants: trioReview.participants.map(p => p.userId === 12 ? { ...p, stats: stats(2, 1) } : p),
+    ownSubmission: { scores: [{ userId: 12, score: 7 }], gameScore: 8, skipped: false } };
+  (api.get as Mock).mockResolvedValue(submitted);
+  (api.send as Mock).mockResolvedValue({ ...submitted, canAddAwards: false, ownSubmission: { ...submitted.ownSubmission!, awards: { mvp: 12 } } });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  expect(await screen.findByRole('heading', { name: 'Выбери лучших игроков матча' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Выбрать лучших' }));
+  const dialog = screen.getByRole('dialog', { name: 'Лучшие игроки матча' });
+  expect(within(dialog).getByRole('heading', { name: 'MVP матча' })).toBeInTheDocument();
+  expect(within(dialog).getByText('1 из 6')).toBeInTheDocument();
+  expect(within(dialog).getByRole('radio', { name: /Арман/ }).closest('label')).toHaveTextContent('твоя оценка 7');
+  await userEvent.click(within(dialog).getByRole('radio', { name: /Арман/ }));
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
+  await skipAwards(dialog, 1);
+  expect(await within(dialog).findByRole('heading', { name: 'Твой выбор' })).toBeInTheDocument();
+  expect(within(dialog).getByText('MVP матча').closest('li')).toHaveTextContent('Арман');
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Отправить награды' }));
+  expect(api.send).toHaveBeenCalledExactlyOnceWith('POST', '/api/events/8/review/awards', { awards: { mvp: 12 } });
+  expect(await screen.findByText('Спасибо, оценки отправлены')).toBeInTheDocument();
+});
+
+test('the late award steps can be sent without picks', async () => {
+  const submitted: MatchReviewDto = { ...trioReview, state: 'submitted', canAddAwards: true, ownSubmission: { scores: [{ userId: 12, score: 7 }], gameScore: null, skipped: false } };
+  (api.get as Mock).mockResolvedValue(submitted);
+  (api.send as Mock).mockResolvedValue({ ...submitted, canAddAwards: false });
+  renderWithApp(<MatchReview eventId={8} />, { me: player });
+  await userEvent.click(await screen.findByRole('button', { name: 'Выбрать лучших' }));
+  const dialog = screen.getByRole('dialog');
+  await skipAwards(dialog);
+  await userEvent.click(await within(dialog).findByRole('button', { name: 'Отправить без наград' }));
+  expect(api.send).toHaveBeenCalledExactlyOnceWith('POST', '/api/events/8/review/awards', { skipped: true });
 });
