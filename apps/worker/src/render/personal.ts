@@ -59,6 +59,19 @@ export function personalReviewInvitation(env: LinkEnv, view: EventView, closesAt
   };
 }
 
+/** Одно напоминание тем, кто не ответил через пару часов после приглашения. */
+export function personalReviewReminder(env: LinkEnv, view: EventView, closesAt: number): Rendered {
+  const deadline = new Intl.DateTimeFormat('ru-RU', {
+    timeZone: 'Asia/Almaty', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit',
+  }).format(closesAt);
+  return {
+    html: [...teamTitle(view), `<b>Опрос ждёт тебя · ${formatDateRu(view.date)}</b>`,
+      'Оцени игроков, выбери MVP и лучших по позициям. Рядом с каждым видно, сколько он забил и отдал пасов. Анонимно и займёт пару минут.',
+      `Ответить можно до ${deadline} по времени Алматы.`].join('\n'),
+    keyboard: { inline_keyboard: [[{ text: 'Пройти опрос', url: miniAppLink(env, `r${view.id}`) }]] },
+  };
+}
+
 export interface MyPlace { inMain: boolean; position: number }
 
 /** Место самого человека в очереди; гости не считаются. */

@@ -165,6 +165,36 @@ test('finish invites actual unsubmitted account participants once, with direct r
   expect(invites()[0].keyboard?.inline_keyboard[0][0]).toMatchObject({ text: 'Оценить игру', url: expect.stringContaining(`startapp=r${w.ev}`) });
   await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
   expect(invites()).toHaveLength(1);
+  expect(await w.alarm()).toBe(futureTime('07:00:00',1));
+});
+
+test('two hours after the invitation a participant who has not answered gets one reminder', async () => {
+  const w = await world();
+  await w.finish();
+  now = (await w.alarm())!; await w.flush();
+  const reminders = () => w.personal().filter(m => m.html.includes('Опрос ждёт тебя'));
+  expect(reminders()).toHaveLength(0);
+  expect(await w.alarm()).toBe(now + 2 * HOUR);
+  now += 2 * HOUR; await w.flush();
+  expect(reminders()).toHaveLength(1);
+  expect(reminders()[0].html).toContain('выбери MVP');
+  expect(reminders()[0].keyboard?.inline_keyboard[0][0]).toMatchObject({ text: 'Пройти опрос', url: expect.stringContaining(`startapp=r${w.ev}`) });
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(reminders()).toHaveLength(1);
+  expect(await w.alarm()).toBeNull();
+});
+
+test.each(['answered', 'closed', 'undelivered'] as const)('no review reminder when %s', async reason => {
+  const w = await world();
+  await w.finish();
+  now = (await w.alarm())!;
+  if (reason === 'undelivered') tg.failNextWith = new TgForbidden('blocked');
+  await w.flush();
+  if (reason === 'answered') await submitReview(w.d, (await getEvent(db(), w.ev))!, w.payer.id, { scores: [], gameScore: null, skipped: true });
+  if (reason === 'closed') await env.DB.prepare('UPDATE match_reviews SET closes_at = ? WHERE event_id = ?').bind(now + 1, w.ev).run();
+  now += 2 * HOUR;
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.personal().filter(m => m.html.includes('Опрос ждёт тебя'))).toHaveLength(0);
   expect(await w.alarm()).toBeNull();
 });
 

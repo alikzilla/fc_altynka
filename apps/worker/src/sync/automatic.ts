@@ -9,7 +9,7 @@ import { playerGameStatistics } from '../domain/playerStatistics';
 import { getCommunity } from '../domain/members';
 import type { Env } from '../env';
 import type { Rendered } from '../render/eventMessage';
-import { personalMatchReminder, personalPayment, personalResult, personalReviewInvitation } from '../render/personal';
+import { personalMatchReminder, personalPayment, personalResult, personalReviewInvitation, personalReviewReminder } from '../render/personal';
 import { TgRateLimited, type TgClient } from '../telegram/client';
 import { nextDeliveryTime } from './automaticTime';
 import { loadEventView } from './parts';
@@ -19,6 +19,8 @@ const MATCH_LEAD_MS = 2 * 3600_000;
 const MAX_PAYMENT_REMINDERS = 3;
 /** Личные итоги уходят сразу после завершения встречи; позже они уже не новость. */
 const RESULT_WINDOW_MS = 12 * 3600_000;
+/** Через столько после доставленного приглашения не ответившим уходит одно напоминание об опросе. */
+export const REVIEW_REMINDER_DELAY_MS = 2 * 3600_000;
 interface AutomaticState { count: number; done: boolean; nextAt: number; }
 interface Task { key: string; tgId: number; at: number; rendered: Rendered; payment: boolean; }
 const stateKey = (key: string) => `auto:state:${key}`;
@@ -108,10 +110,18 @@ export class AutomaticNotifications {
           .innerJoin(users, eq(users.id, matchParticipants.userId))
           .leftJoin(reviewSubmissions, and(eq(reviewSubmissions.eventId, matchParticipants.eventId), eq(reviewSubmissions.userId, matchParticipants.userId)))
           .where(and(eq(matchParticipants.eventId, eventId), isNull(reviewSubmissions.userId)));
-        for (const participant of participants) await append({
-          key: `review:${review.closesAt}:${participant.tgId}`, tgId: participant.tgId, at,
-          rendered: personalReviewInvitation(this.env, view, review.closesAt), payment: false,
-        });
+        for (const participant of participants) {
+          const inviteKey = `review:${review.closesAt}:${participant.tgId}`;
+          await append({ key: inviteKey, tgId: participant.tgId, at, rendered: personalReviewInvitation(this.env, view, review.closesAt), payment: false });
+          // Напоминаем только тем, до кого приглашение дошло; отсчёт от его отправки, тихие часы как у приглашения.
+          const invited = await this.storage.get<AutomaticState>(stateKey(inviteKey));
+          if (!invited?.count) continue;
+          const remindAt = nextDeliveryTime(Math.max(now, invited.nextAt - REMINDER_GAP_MS + REVIEW_REMINDER_DELAY_MS));
+          if (remindAt < review.closesAt) await append({
+            key: `review-reminder:${review.closesAt}:${participant.tgId}`, tgId: participant.tgId, at: remindAt,
+            rendered: personalReviewReminder(this.env, view, review.closesAt), payment: false,
+          });
+        }
       }
     }
     return tasks;
