@@ -268,3 +268,63 @@ test('a failed payment mark stays next to the button instead of vanishing', asyn
   await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
   expect(await within(screen.getByRole('region', { name: 'Твоя оплата' })).findByRole('alert')).toHaveTextContent('Не получилось отметить оплату');
 });
+
+test('organizer mark shows at once and is taken back with a notice when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
+  const box = screen.getByRole('checkbox', { name: 'Игрок перевёл' });
+  await userEvent.click(box);
+  expect(box).toBeChecked();
+  expect(screen.getByText('Оплату отметили 2 из 2')).toBeInTheDocument();
+  await act(async () => reject(new Error('offline')));
+  expect(box).not.toBeChecked();
+  expect(screen.getByText('Оплату отметили 1 из 2')).toBeInTheDocument();
+  expect(await screen.findByText('Не получилось отметить оплату: Игрок. Попробуй ещё раз.')).toBeInTheDocument();
+});
+
+test('an accepted mark stays until the refreshed bill arrives', async () => {
+  (api.send as Mock).mockResolvedValue({ kind: 'ok' });
+  let refresh!: (value: EventDetailDto) => void;
+  function RefreshableBill() {
+    const [event, setEvent] = useState(evWith(2, bill));
+    refresh = setEvent;
+    return <Bill ev={event} reload={() => {}} />;
+  }
+  renderWithApp(<RefreshableBill />, { me: organizer });
+  const box = screen.getByRole('checkbox', { name: 'Игрок перевёл' });
+  await userEvent.click(box);
+  await act(async () => {});
+  expect(box).toBeChecked();
+  // Someone else took the mark off meanwhile: the fresh bill from the server is the truth.
+  act(() => refresh(evWith(2, { ...bill, lines: [...bill.lines] })));
+  expect(box).not.toBeChecked();
+});
+
+test('marks on one line reach the server in the order they were tapped', async () => {
+  let resolve!: (value: unknown) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise(ok => { resolve = ok; })).mockResolvedValue({ kind: 'ok' });
+  renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
+  const box = screen.getByRole('checkbox', { name: 'Игрок перевёл' });
+  await userEvent.click(box);
+  await userEvent.click(box);
+  expect(box).not.toBeChecked();
+  expect(api.send).toHaveBeenCalledTimes(1);
+  await act(async () => resolve({ kind: 'ok' }));
+  expect(api.send).toHaveBeenCalledTimes(2);
+  expect(api.send).toHaveBeenLastCalledWith('POST', '/api/bill-lines/31', { paid: false });
+});
+
+test('player mark switches the card at once and returns the button when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Я перевёл' }));
+  const card = screen.getByRole('region', { name: 'Твоя оплата' });
+  expect(within(card).getByText('Ты отметил оплату')).toBeInTheDocument();
+  expect(within(card).queryByRole('button', { name: 'Я перевёл' })).not.toBeInTheDocument();
+  await act(async () => reject(new Error('offline')));
+  expect(within(card).getByText('К оплате')).toBeInTheDocument();
+  expect(within(card).getByRole('button', { name: 'Я перевёл' })).toBeEnabled();
+  expect(within(card).getByRole('alert')).toHaveTextContent('Не получилось отметить оплату');
+});

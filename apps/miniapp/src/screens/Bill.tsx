@@ -1,4 +1,4 @@
-import { computeBill, formatDateRu, formatKzPhone, formatTenge, type BillDto, type EventDetailDto, type Extra, type SignupDto } from '@altynka/core';
+import { computeBill, formatDateRu, formatKzPhone, formatTenge, type BillDto, type BillLineDto, type EventDetailDto, type Extra, type SignupDto } from '@altynka/core';
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
@@ -11,6 +11,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { ReminderDelivery } from './ReminderDelivery';
 import { KaspiPay } from '../components/KaspiPay';
 import { PaymentMark, useReturnFromKaspi } from '../components/PaymentMark';
+import { useOptimisticLines, type OptimisticMark } from '../lib/optimisticLines';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
@@ -177,7 +178,9 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   );
 }
 
-function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
+type Mark = (lineId: number, paid: boolean) => OptimisticMark;
+
+function MyPayment({ bill, reload, mark }: { bill: BillDto; reload: () => void; mark: Mark }) {
   const me = useMe();
   const kaspi = useReturnFromKaspi();
   const line = bill.lines.find(l => l.userId === me.userId);
@@ -187,21 +190,30 @@ function MyPayment({ bill, reload }: { bill: BillDto; reload: () => void }) {
   return <section className="card material-coral pay" aria-label="Твоя оплата">
     <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
     <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} onTransfer={kaspi.onTransfer} />
-    {!closed && line.state !== 'paid' && <PaymentMark billId={bill.id} returnedFromKaspi={kaspi.returned} canUndo onChanged={reload} />}
+    {!closed && <PaymentMark billId={bill.id} returnedFromKaspi={kaspi.returned} canUndo onChanged={reload} optimistic={paid => mark(line.id, paid)} marked={line.state === 'paid'} />}
   </section>;
 }
 
-function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; reload: () => void }) {
+function Lines({ bill, editable, reload, mark }: { bill: BillDto; editable: boolean; reload: () => void; mark: Mark }) {
   const toast = useToast();
-  const toggle = async (id: number, paid: boolean) => {
-    try {
-      await api.send('POST', `/api/bill-lines/${id}`, { paid });
-      haptic('success');
-    } catch {
-      haptic('error');
-      toast('Не получилось обновить отметку оплаты. Попробуй ещё раз.', { tone: 'error' });
-    }
-    reload();
+  // Marks on one line reach the server in the order they were tapped, even when the network is slow.
+  const queue = useRef(new Map<number, Promise<unknown>>());
+  const toggle = (line: BillLineDto, paid: boolean) => {
+    const shown = mark(line.id, paid);
+    haptic('success');
+    const send = async () => {
+      try {
+        await api.send('POST', `/api/bill-lines/${line.id}`, { paid });
+        shown.settle();
+      } catch {
+        shown.rollback();
+        haptic('error');
+        toast(paid ? `Не получилось отметить оплату: ${line.name}. Попробуй ещё раз.` : `Не получилось снять отметку: ${line.name}. Попробуй ещё раз.`, { tone: 'error' });
+      }
+      reload();
+    };
+    const next = (queue.current.get(line.id) ?? Promise.resolve()).then(send);
+    queue.current.set(line.id, next);
   };
   return (
     <ul className="card list">
@@ -213,7 +225,7 @@ function Lines({ bill, editable, reload }: { bill: BillDto; editable: boolean; r
           </span>
           <span className="muted">{l.state === 'underpaid' ? `доплатить ${formatTenge(l.due)}` : formatTenge(l.amount)}</span>
           {editable && l.userId !== bill.receiver.userId && (
-            <input type="checkbox" aria-label={`${l.name} перевёл`} checked={l.state === 'paid'} onChange={e => toggle(l.id, e.target.checked)} />
+            <input type="checkbox" aria-label={`${l.name} перевёл`} checked={l.state === 'paid'} onChange={e => toggle(l, e.target.checked)} />
           )}
         </li>
       ))}
@@ -226,7 +238,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const toast = useToast();
   const [editing, setEditing] = useState(false);
   const manage = canManageEvent(ev);
-  const bill = ev.bill;
+  const { bill, mark } = useOptimisticLines(ev.bill);
   const canBill = manage && (ev.protocolVersion === 1 ? ev.startedAt != null && ev.status !== 'cancelled' && bill?.status !== 'closed' : ev.status === 'playing' && !!ev.startTime && !!ev.durationHours || !!bill && (ev.status === 'billing' || ev.status === 'scheduled'));
   if (!bill && ev.status === 'collecting') return <div className="empty-state"><h2>{manage ? 'Сначала назначь матч' : 'Матч ещё не назначен'}</h2><p className="muted">Счёт станет доступен после назначения времени и длительности матча.</p>{manage && !actionBlocked && <MatchAction><Link className="btn primary wide" href={`/event/${ev.id}/schedule`}>Назначить матч</Link></MatchAction>}</div>;
   if (!bill) {
@@ -249,7 +261,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   };
   return (
     <>
-      <MyPayment bill={bill} reload={reload} />
+      <MyPayment bill={bill} reload={reload} mark={mark} />
       <section className="card material-graphite bill-summary">
         <h2>Общие расходы</h2>
         <dl><div><dt>Аренда поля</dt><dd>{formatTenge(bill.fieldAmount)}</dd></div>{bill.extras.map((extra, i) => <div key={i}><dt>{extra.label}</dt><dd>{formatTenge(extra.amount)}</dd></div>)}<div className="bill-total"><dt>Итого</dt><dd>{formatTenge(bill.total)}</dd></div></dl>
@@ -260,7 +272,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
       </section>
       <section><div className="section-heading"><h2>Участники расчёта</h2></div>
         {canMark && <p className="muted bill-mark-hint">{bill.status === 'closed' ? 'Отметил по ошибке? Сними галочку — счёт откроется снова.' : 'Кто-то перевёл, но не отметил? Поставь галочку сам.'}</p>}
-        <Lines bill={bill} editable={canMark} reload={reload} /></section>
+        <Lines bill={bill} editable={canMark} reload={reload} mark={mark} /></section>
       {manage && bill.status === 'open' && (
         <>
           <ConfirmButton className="btn wide" label="Напомнить должникам" confirmLabel="Отправить личные напоминания?" onConfirm={() => post(`/api/bills/${bill.id}/remind`, 'Напоминания поставлены в очередь')} />
