@@ -1,5 +1,5 @@
 import type { EventDetailDto } from '@altynka/core';
-import { screen, within } from '@testing-library/react';
+import { cleanup, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { api } from '../src/lib/api';
 import { GameResultSheet } from '../src/screens/GameResultSheet';
@@ -28,7 +28,7 @@ test('first 0:0 needs sulifa; winning result and scorers are saved together',asy
   await userEvent.click(screen.getByRole('button',{name:'Гол 1 команды Красные: выбрать автора'})); await userEvent.click(screen.getByRole('button',{name:'Али'}));
   await userEvent.click(save);
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[2,0],scorers:[{signupId:1,goals:1}],expectedRevision:1}));
-  expect(readGameDraft(7,1)).toBeNull();
+  expect(readGameDraft(7,1,null)).toBeNull();
 });
 
 test('multiple guest goals and missing author remain editable after reopening',async()=>{
@@ -115,4 +115,37 @@ test('after the scorer is chosen a pass can be picked from teammates and is save
   await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
   expect(api.send).toHaveBeenCalledWith('POST','/api/events/7/games/results',expect.objectContaining({score:[1,1],scorers:[{signupId:1,goals:1}],assists:[{scorerSignupId:1,assistSignupId:4,goals:1}]}));
   expect(screen.getByText('Автора и пас можно указать позже')).toBeVisible();
+});
+
+const played=makeProtocol({revision:3,currentPair:[1,2],restingTeamIndex:0,games:[
+  {id:'g1',sequence:1,pair:[0,1],score:[2,0],scorers:[],firstRestTeamIndex:null,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1},
+  {id:'g2',sequence:2,pair:[0,2],score:[1,0],scorers:[],firstRestTeamIndex:null,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1},
+]});
+const sheet=(game:typeof played.games[number]|null)=>renderWithApp(<GameResultSheet ev={ev} protocol={played} game={game} onClose={()=>{}} onSaved={vi.fn()} reload={()=>{}}/>,{me:organizer});
+
+test('opening the new result and closing it does not hijack editing an earlier game',async()=>{
+  sheet(null).unmount();
+  sheet(played.games[0]);
+  expect(screen.queryByText(/Данные матча изменились/)).toBeNull();
+  expect(screen.getByLabelText('Голы команды Красные')).toHaveTextContent('2');
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Синие'}));
+  await userEvent.click(screen.getByRole('button',{name:'Сохранить результат'}));
+  expect(api.send).toHaveBeenCalledWith('PATCH','/api/events/7/games/results/g1',expect.objectContaining({score:[2,1]}));
+});
+
+test('an unsaved edit of one game and a new result are kept apart',async()=>{
+  const first=sheet(played.games[0]);
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Синие'}));
+  first.unmount();
+  const fresh=sheet(null);
+  expect(screen.queryByText(/Данные матча изменились/)).toBeNull();
+  expect(screen.getByLabelText('Голы команды Синие')).toHaveTextContent('0');
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Жёлтые'}));
+  fresh.unmount();
+  sheet(played.games[1]);
+  expect(screen.queryByText(/Данные матча изменились/)).toBeNull();
+  expect(screen.getByLabelText('Голы команды Красные')).toHaveTextContent('1');
+  cleanup();
+  sheet(played.games[0]);
+  expect(screen.getByLabelText('Голы команды Синие')).toHaveTextContent('1');
 });

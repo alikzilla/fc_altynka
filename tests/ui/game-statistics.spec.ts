@@ -45,6 +45,25 @@ test('latest three games lead to complete history, with nested editing and focus
   await sheet.getByRole('button',{name:'Закрыть',exact:true}).click();await expect(trigger).toBeFocused();
 });
 
+test('a started new result does not replace an earlier game opened for editing, even twice in a row',async({page})=>{
+  await page.setViewportSize({width:390,height:844});
+  const world=gameStatisticsWorld({started:true});
+  world.add({score:[1,0],scorers:[]});world.add({score:[0,2],scorers:[]});
+  await world.attach(page);await page.goto('/event/7?tab=games');
+  await page.getByRole('button',{name:'Внести результат',exact:true}).click();
+  const fresh=page.getByRole('dialog',{name:'Результат игры',exact:true});
+  await fresh.locator('.game-score-side').first().getByRole('button',{name:/Добавить гол команды/}).click();
+  await fresh.getByRole('button',{name:'Закрыть',exact:true}).click();await expect(fresh).toHaveCount(0);
+  for(const target of [1,2]){
+    await page.getByRole('button',{name:'Изменить результат игры 1',exact:true}).click();
+    const editor=page.getByRole('dialog',{name:'Результат игры 1',exact:true});
+    await expect(editor.getByText(/Данные матча изменились/)).toHaveCount(0);
+    await expect(editor.getByLabel('Голы команды Красные',{exact:true})).toHaveText(String(target));
+    await setScore(editor,'Красные',target+1);await editor.getByRole('button',{name:'Сохранить результат',exact:true}).click();
+    await expect(editor).toHaveCount(0);expect(world.games[0].score).toEqual([target+1,0]);
+  }
+});
+
 test('rapid taps, per-goal authors and unknown card order survive reload without numeric width shifts',async({page})=>{
   await page.emulateMedia({reducedMotion:'reduce'});
   await page.setViewportSize({width:390,height:844});const world=gameStatisticsWorld({started:true});world.add({score:[1,0],scorers:[]});await world.attach(page);

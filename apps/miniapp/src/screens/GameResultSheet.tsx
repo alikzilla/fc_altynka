@@ -17,7 +17,8 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
       input:{score:game?.score ?? [0,0],scorers:game?.scorers ?? [],...(game?.sequence===1 && protocol.games.length===1 && game.firstRestTeamIndex!==null ? {firstRestTeamIndex:game.firstRestTeamIndex} : {})},
     };
   }
-  const [draft,setDraft] = useState<GameResultDraft>(()=>readGameDraft(ev.id,me.userId) ?? fresh());
+  const [restored] = useState(()=>readGameDraft(ev.id,me.userId,game?.id ?? null));
+  const [draft,setDraft] = useState<GameResultDraft>(()=>restored ?? fresh());
   const [busy,setBusy] = useState(false);
   const [error,setError] = useState<string|null>(null);
   const [conflict,setConflict] = useState(false);
@@ -29,10 +30,13 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const goalButtons=useRef(new Map<string,HTMLButtonElement>());
   const locked = useRef(false);
   const saved = useRef(false);
-  useEffect(()=>{if(!saved.current) writeGameDraft(ev.id,me.userId,draft);},[ev.id,me.userId,draft]);
+  // Only a draft the organizer has touched is kept: merely opening and closing the sheet leaves nothing behind.
+  const dirty = useRef(restored !== null);
+  useEffect(()=>{if(!saved.current && dirty.current) writeGameDraft(ev.id,me.userId,draft);},[ev.id,me.userId,draft]);
   useEffect(()=>{if(activeGoal || activePass) picker.current?.querySelector<HTMLButtonElement>('button')?.focus();},[activeGoal,activePass]);
   const targetPair = game?.pair ?? protocol.currentPair;
   const stale = conflict || draft.gameId !== (game?.id ?? null) || draft.revision !== protocol.revision || !targetPair || draft.pair.some((n,i)=>n!==targetPair[i]);
+  const sameTarget = draft.gameId === (game?.id ?? null) && !!targetPair && draft.pair.every((n,i)=>n===targetPair[i]);
   const editable = !busy && !stale && !draft.submitted;
   const runs=draft.goalRuns ?? goalRunsFromInput(draft.input,draft.pair,protocol.roster);
   const first = game ? game.sequence===1 : protocol.games.length===0;
@@ -42,11 +46,11 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
 
   function change(input: GameResultInput) {
     if (!editable) return;
-    setError(null); setDraft(current=>({...current,input}));
+    dirty.current=true; setError(null); setDraft(current=>({...current,input}));
   }
   function updateGoals(update:(current:GoalRuns)=>GoalRuns) {
     if(!editable) return;
-    setError(null);
+    dirty.current=true; setError(null);
     setDraft(current=>{
       const goalRuns=update(current.goalRuns ?? goalRunsFromInput(current.input,current.pair,protocol.roster));
       return {...current,goalRuns,input:inputFromGoalRuns(current.input,goalRuns)};
@@ -67,7 +71,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   }
   async function save() {
     if (locked.current || !draft.submitted && (stale || !valid)) return;
-    locked.current=true; setBusy(true); setError(null);
+    locked.current=true; dirty.current=true; setBusy(true); setError(null);
     const input:GameResultInput = {...draft.input};
     if (!draft.submitted && !sulifa) delete input.firstRestTeamIndex;
     const sent = {...draft,input,submitted:true};
@@ -75,7 +79,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
     try {
       const path=sent.gameId ? `/api/events/${ev.id}/games/results/${encodeURIComponent(sent.gameId)}` : `/api/events/${ev.id}/games/results`;
       await api.send(sent.gameId?'PATCH':'POST',path,{requestId:sent.requestId,expectedRevision:sent.revision,...sent.input});
-      saved.current=true; clearGameDraft(ev.id,me.userId); onSaved();
+      saved.current=true; clearGameDraft(ev.id,me.userId,sent.gameId); onSaved();
     } catch (failure) {
       if (failure instanceof ApiError && failure.status>=400 && failure.status<500) {
         setDraft(current=>({...current,submitted:false,requestId:crypto.randomUUID()}));
@@ -94,7 +98,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const assigned=totals[0]+totals[1];
   const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора и пас можно указать позже</p></>;
   return <ActionSheet title={game?`Результат игры ${game.sequence}`:'Результат игры'} onClose={onClose} busy={busy} footer={footer} className="game-result-sheet">
-    {stale && <div className="game-draft-notice"><p>Данные матча изменились. Сохранён черновик другой игры: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
+    {stale && <div className="game-draft-notice"><p>Данные матча изменились. {sameTarget?'Черновик этой игры остался от прежних данных':'Сохранён черновик другой игры'}: {teamAppearance(draft.pair[0], ev.teams?.colors).name} {draft.input.score.join(':')} {teamAppearance(draft.pair[1], ev.teams?.colors).name}.</p>{targetPair && <button className="btn wide" disabled={busy} onClick={()=>{clearGameDraft(ev.id,me.userId,draft.gameId);dirty.current=false;setDraft(fresh());setConflict(false);setError(null);}}>Начать новую запись</button>}</div>}
     <fieldset className="game-score-fields" aria-label="Счёт матча" disabled={!editable}>
       {draft.pair.map((team,side)=><Fragment key={team}>{side===1 && <span className="game-score-colon" aria-hidden="true">:</span>}<div className="game-score-side"><GameTeamName colors={ev.teams?.colors} index={team}/><div className={`game-score-buttons ${draft.input.score[side]>99?'game-score-long':''}`}><button type="button" aria-label={`Убрать гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || !draft.input.score[side]} onClick={()=>score(side,-1)}>−</button><output aria-label={`Голы команды ${teamAppearance(team, ev.teams?.colors).name}`} aria-live="polite" title={String(draft.input.score[side])}>{draft.input.score[side]}</output><button type="button" aria-label={`Добавить гол команды ${teamAppearance(team, ev.teams?.colors).name}`} disabled={!editable || draft.input.score[side]===Number.MAX_SAFE_INTEGER} onClick={()=>score(side,1)}>+</button></div></div></Fragment>)}
     </fieldset>

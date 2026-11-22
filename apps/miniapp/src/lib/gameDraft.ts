@@ -7,11 +7,20 @@ export interface GameResultDraft {
   goalRuns?: GoalRuns;
 }
 const key = (eventId: number, userId: number) => `altynka:game-draft:v1:${userId}:${eventId}`;
+/** Each game has its own draft slot (`new` for the next result), so a draft of one game never opens in place of another. */
+const draftKey = (eventId: number, userId: number, gameId: string | null) => `${key(eventId,userId)}:${gameId === null ? 'new' : `game:${gameId}`}`;
 const integer = (n: unknown): n is number => typeof n === 'number' && Number.isSafeInteger(n) && n >= 0;
 
-export function readGameDraft(eventId: number, userId: number): GameResultDraft | null {
+export function readGameDraft(eventId: number, userId: number, gameId: string | null): GameResultDraft | null {
+  const draft = parseDraft(draftKey(eventId,userId,gameId));
+  if (draft) return draft.gameId === gameId ? draft : null;
+  // Before per-game slots one shared slot held the draft; it still counts for the game it belongs to.
+  const legacy = parseDraft(key(eventId,userId));
+  return legacy?.gameId === gameId ? legacy : null;
+}
+function parseDraft(storageKey: string): GameResultDraft | null {
   try {
-    const value = JSON.parse(localStorage.getItem(key(eventId,userId)) ?? 'null');
+    const value = JSON.parse(localStorage.getItem(storageKey) ?? 'null');
     if (!value || value.version !== 1 || !Array.isArray(value.pair) || value.pair.length !== 2 || !value.pair.every((n:unknown)=>integer(n)&&n<3) || value.pair[0] === value.pair[1]) return null;
     if (!integer(value.revision) || typeof value.requestId !== 'string' || !value.requestId.length || value.requestId.length > 100 || typeof value.submitted !== 'boolean') return null;
     if (value.gameId !== null && (typeof value.gameId !== 'string' || !value.gameId.length || value.gameId.length > 100)) return null;
@@ -26,10 +35,13 @@ export function readGameDraft(eventId: number, userId: number): GameResultDraft 
   } catch { return null; }
 }
 export function writeGameDraft(eventId: number, userId: number, draft: GameResultDraft): void {
-  try { localStorage.setItem(key(eventId,userId),JSON.stringify(draft)); } catch { /* Storage may be unavailable in a WebView. */ }
+  try { localStorage.setItem(draftKey(eventId,userId,draft.gameId),JSON.stringify(draft)); } catch { /* Storage may be unavailable in a WebView. */ }
 }
-export function clearGameDraft(eventId: number, userId: number): void {
-  try { localStorage.removeItem(key(eventId,userId)); } catch { /* Saving the result does not depend on local storage. */ }
+export function clearGameDraft(eventId: number, userId: number, gameId: string | null): void {
+  try {
+    localStorage.removeItem(draftKey(eventId,userId,gameId));
+    if (parseDraft(key(eventId,userId))?.gameId === gameId) localStorage.removeItem(key(eventId,userId));
+  } catch { /* Saving the result does not depend on local storage. */ }
 }
 
 export interface GameFinishDraft { version:1; requestId:string; expectedRevision:number; participantSignupIds:number[] }
