@@ -4,6 +4,8 @@ import { Avatar, Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
 import { api } from '../lib/api';
 import { isOpen } from '../lib/labels';
+import { patchResource } from '../lib/resource';
+import { withoutSignup } from '../lib/roster';
 import { canManageEvent, useMe } from '../state/me';
 import { PlayerProfileSheet } from './PlayerProfile';
 import { AddGuestSheet } from './AddGuest';
@@ -22,8 +24,11 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   async function remove(s: SignupDto) {
     if (locked.current || !canRemove(s)) return;
     locked.current = true; setBusy(true);
+    // The row leaves at once and the first reservist moves up; a refused request puts the list back.
+    const undo = await patchResource<EventDetailDto>(`/api/events/${ev.id}`, current => withoutSignup(current, x => x.id === s.id, me.userId));
+    if (undo) setSelected(null);
     try { await api.send('DELETE', `/api/signups/${s.id}`); toast(`${s.name} убран из списка`); setSelected(null); }
-    catch { toast('Не получилось убрать игрока. Попробуй ещё раз.', { tone: 'error' }); }
+    catch { undo?.(); toast(`Не получилось убрать игрока ${s.name}. Попробуй ещё раз.`, { tone: 'error' }); }
     finally { locked.current = false; setBusy(false); reload(); }
   }
   const row = (s: SignupDto, i: number) => <li key={s.id} className={`person ${s.userId === me.userId ? 'me' : ''}`}>

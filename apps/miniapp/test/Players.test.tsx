@@ -1,5 +1,5 @@
 import { type MemberDto, type PlayerSummaryDto } from '@altynka/core';
-import { screen } from '@testing-library/react';
+import { act, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api, ApiError } from '../src/lib/api';
@@ -108,4 +108,16 @@ test('the list and the profile sheet show the Telegram photo when there is one',
   const sheet = await screen.findByRole('dialog', { name: 'Профиль игрока' });
   await screen.findByRole('heading', { name: 'Арман', level: 2 });
   expect(sheet.querySelector('.avatar-large img')).toHaveAttribute('src', 'https://t.me/i/userpic/arman.jpg');
+});
+
+test('role and injury switch at the tap and switch back when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  renderWithApp(<Players />, { me: admin });
+  await userEvent.click(await screen.findByRole('button', { name: 'Управление: Арман' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Отметить травму' }));
+  expect(screen.getByRole('button', { name: 'Снять травму' })).toHaveAttribute('aria-pressed', 'true');
+  await act(async () => reject(new Error('offline')));
+  expect(screen.getByRole('button', { name: 'Отметить травму' })).toHaveAttribute('aria-pressed', 'false');
+  expect(await screen.findByText('Не получилось сохранить. Попробуй ещё раз.')).toBeInTheDocument();
 });

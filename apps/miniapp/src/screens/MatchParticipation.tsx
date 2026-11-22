@@ -3,6 +3,7 @@ import { useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { api, ApiError } from '../lib/api';
 import { patchResource } from '../lib/resource';
+import { withoutSignup } from '../lib/roster';
 import { isOpen, STATUS_LABEL } from '../lib/labels';
 import { haptic } from '../lib/tg';
 import { canManageEvent, useMe } from '../state/me';
@@ -34,13 +35,15 @@ export function MatchParticipation({ ev, reload, suppressAction = false }: { ev:
   async function change(join: boolean) {
     if (locked.current || !open) return;
     locked.current = true; setBusy(true); setFailure(null);
-    // With a free spot in the main roster the answer is known in advance: show it at once, undo it if the request fails.
-    const instant = join && !ev.my && ev.mainCount < ev.limit;
-    const undo = instant ? await patchResource<EventDetailDto>(`/api/events/${ev.id}`, current => current.my || current.mainCount >= current.limit ? current : {
+    // The answer is known in advance when joining with a free spot in the main roster and when leaving
+    // (the first reservist moves up): show it at once, undo it if the request fails.
+    // A full roster waits for the server: a recent leaver may get the old place back.
+    const instant = join ? !ev.my && ev.mainCount < ev.limit : !!ev.my;
+    const undo = !instant ? null : join ? await patchResource<EventDetailDto>(`/api/events/${ev.id}`, current => current.my || current.mainCount >= current.limit ? current : {
       ...current, my: 'main', mainCount: current.mainCount + 1,
       main: [...current.main, { id: -1, seq: Math.max(0, ...current.main.map(s => s.seq), ...current.reserve.map(s => s.seq)) + 1, name: me.displayName, userId: me.userId, photoUrl: me.telegram?.photoUrl ?? null, guestOfName: null, invitedByUserId: null }],
-    }) : null;
-    if (undo) haptic('success');
+    }) : await patchResource<EventDetailDto>(`/api/events/${ev.id}`, current => current.my ? withoutSignup(current, s => s.userId === me.userId, me.userId) : current);
+    if (undo) { haptic('success'); setEditing(false); }
     try {
       const r = await api.send<JoinResult>('POST', `/api/events/${ev.id}/${join ? 'join' : 'leave'}`);
       if (!undo) haptic('success');
@@ -49,6 +52,8 @@ export function MatchParticipation({ ev, reload, suppressAction = false }: { ev:
       setEditing(false);
     } catch (e) {
       undo?.();
+      // A refused leave reopens the sheet: the error stands next to the exit button, ready for another try.
+      if (undo && !join) setEditing(true);
       haptic('error');
       setFailure({ join, text: e instanceof ApiError && e.status === 409 ? 'Запись уже закрыта. Обнови страницу матча.' : join ? 'Не получилось записаться. Проверь интернет и попробуй ещё раз.' : 'Не получилось выйти из списка. Проверь интернет и попробуй ещё раз.' });
     } finally { locked.current = false; setBusy(false); reload(); }

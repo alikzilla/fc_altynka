@@ -1,7 +1,8 @@
 import { formatRating, playingPositionLabel, type MemberDto, type PlayersDto, type PlayerSummaryDto } from '@altynka/core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { api, ApiError } from '../lib/api';
+import { haptic } from '../lib/tg';
 import { showGroups, useMe } from '../state/me';
 import { EmptyState, ErrorNote, Screen, useReveal, useToast } from '../components/ui';
 import { PlayersSkeleton } from '../components/skeletons';
@@ -13,17 +14,26 @@ import { PlayerProfileSheet } from './PlayerProfile';
 function MemberEditor({ member, communityId, onSaved }: { member: MemberDto; communityId: number; onSaved: () => void }) {
   const [name, setName] = useState(member.displayName);
   const [busy, setBusy] = useState(false);
+  // Role and injury switch at the tap and wait here for the refreshed member; a name waits for the server (it may be taken).
+  const [shown, setShown] = useState<{ role?: 'organizer' | 'player'; injured?: boolean }>({});
+  useEffect(() => setShown({}), [member]);
+  const role = shown.role ?? member.role, injured = shown.injured ?? member.injured;
   const toast = useToast();
   async function patch(body: { displayName?: string; role?: 'organizer' | 'player'; injured?: boolean }) {
     if (busy) return;
+    const instant = body.displayName === undefined;
+    if (instant) { setShown(current => ({ ...current, ...body })); haptic('light'); }
     setBusy(true);
     try { await api.send('PATCH', `/api/members/${member.userId}?communityId=${communityId}`, body); onSaved(); }
-    catch (err) { toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить. Попробуй ещё раз.', { tone: 'error' }); }
+    catch (err) {
+      if (instant) setShown({});
+      toast(err instanceof ApiError && err.code === 'name_taken' ? 'Это имя уже занято' : 'Не получилось сохранить. Попробуй ещё раз.', { tone: 'error' });
+    }
     finally { setBusy(false); }
   }
-  return <div className="editor form">
-    {member.role !== 'admin' && <button className="btn wide" disabled={busy} onClick={() => patch({ role: member.role === 'organizer' ? 'player' : 'organizer' })}>{member.role === 'organizer' ? 'Сделать игроком' : 'Сделать организатором'}</button>}
-    <button className="btn wide" disabled={busy} aria-pressed={member.injured} onClick={() => patch({ injured: !member.injured })}>{member.injured ? 'Снять травму' : 'Отметить травму'}</button>
+  return <div className="editor form" aria-busy={busy}>
+    {role !== 'admin' && <button className="btn wide" disabled={busy} onClick={() => patch({ role: role === 'organizer' ? 'player' : 'organizer' })}>{role === 'organizer' ? 'Сделать игроком' : 'Сделать организатором'}</button>}
+    <button className="btn wide" disabled={busy} aria-pressed={injured} onClick={() => patch({ injured: !injured })}>{injured ? 'Снять травму' : 'Отметить травму'}</button>
     <label>Имя в списках<input maxLength={24} value={name} disabled={busy} onChange={e => setName(e.target.value)} /></label>
     <button className="btn wide" disabled={busy || !name.trim() || name.trim() === member.displayName} onClick={() => patch({ displayName: name.trim() })}>Имя</button>
   </div>;

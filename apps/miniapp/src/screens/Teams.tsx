@@ -62,12 +62,16 @@ function PublishedTeams({ ev, reload }: Props) {
   async function saveColors(next: TeamColor[]) {
     if (locked.current || !canColor) return;
     locked.current = true; setBusy(true); setError(null);
+    // The kits change and the sheet closes at the tap; a refused request restores both and explains why.
+    const sheet = colorSheet, before = override;
+    setOverride(next); setColorSheet(null); haptic('success');
     try {
-      await api.send('PATCH', `/api/events/${ev.id}/teams/colors`, { colors: next, expectedRevision: colorSheet?.revision ?? ev.teams?.colorsRevision ?? 0 });
+      await api.send('PATCH', `/api/events/${ev.id}/teams/colors`, { colors: next, expectedRevision: sheet?.revision ?? ev.teams?.colorsRevision ?? 0 });
       if (!mounted.current) return;
-      setOverride(next); setColorSheet(null); toast('Цвета команд обновлены'); haptic('success'); reload();
+      toast('Цвета команд обновлены'); reload();
     } catch (failure) {
       if (!mounted.current) return;
+      haptic('error'); setOverride(before); setColorSheet(sheet);
       setError(failure instanceof ApiError && failure.status === 409 ? 'Данные матча изменились. Закрой шторку, проверь цвета и попробуй ещё раз.' : 'Не получилось сохранить цвета. Попробуй ещё раз.');
       if (failure instanceof ApiError && failure.status === 409) reload();
     } finally { locked.current = false; if (mounted.current) setBusy(false); }

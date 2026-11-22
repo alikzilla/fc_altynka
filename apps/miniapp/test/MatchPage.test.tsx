@@ -264,3 +264,59 @@ test('organizer in another group gets no organizer controls when viewerRole is p
   expect(screen.queryByRole('button', { name: 'Действия матча' })).toBeNull();
   expect(screen.queryByRole('link', { name: 'Назначить матч' })).toBeNull();
 });
+
+function holdWrites() {
+  const pending: { path: string; fail: () => void }[] = [];
+  vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
+    if (path === '/api/me') return Response.json(me);
+    if (path === '/api/notifications') return Response.json({ tasks: [] });
+    if (path === '/api/events/7') return Response.json(ev);
+    if (init?.method) {
+      requests.push(`${init.method} ${path}`);
+      return new Promise<Response>((_, reject) => pending.push({ path, fail: () => reject(new TypeError('offline')) }));
+    }
+    throw new Error(`Unexpected ${path}`);
+  }));
+  return pending;
+}
+
+test('leaving shows at once, moves the first reservist up and comes back when the server refuses', async () => {
+  const pending = holdWrites();
+  const other = { ...signup, id: 2, seq: 2, userId: 9, name: 'Ерлан' };
+  ev.limit = 2; ev.my = 'main'; ev.main = [signup, other]; ev.mainCount = 2; ev.reserve = [{ ...signup, id: 3, seq: 3, userId: 10, name: 'Резервист' }]; ev.reserveCount = 1;
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Изменить' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Твоё участие' })).getByRole('button', { name: 'Не иду, выйти из списка' }));
+  const card = screen.getByRole('region', { name: 'Матч и твоё участие' });
+  await waitFor(() => expect(within(card).getByText('Ты пока не записан')).toBeVisible());
+  expect(screen.queryByRole('dialog', { name: 'Твоё участие' })).not.toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Основа/ })).toHaveTextContent('2/2');
+  expect(screen.queryByRole('heading', { name: /Резерв/ })).toBeNull();
+  await waitFor(() => expect(pending).toHaveLength(1));
+  await act(async () => pending[0].fail());
+  const sheet = await screen.findByRole('dialog', { name: 'Твоё участие' });
+  expect(within(sheet).getByRole('alert')).toHaveTextContent('Не получилось выйти из списка');
+  expect(within(sheet).getByRole('button', { name: 'Не иду, выйти из списка' })).toBeEnabled();
+  expect(within(card).getByText('Ты в основе')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Резерв/ })).toHaveTextContent('1');
+});
+
+test('an organizer removal takes the row away at once and puts it back when the server refuses', async () => {
+  const pending = holdWrites();
+  me.communities[0].role = 'organizer'; ev.viewerRole = 'organizer'; ev.status = 'collecting'; ev.startTime = null; ev.durationHours = null;
+  ev.limit = 1; ev.main = [{ ...signup, id: 2, seq: 2, userId: 9, name: 'Ерлан' }]; ev.mainCount = 1; ev.reserve = [{ ...signup, id: 3, seq: 3, userId: 10, name: 'Резервист' }]; ev.reserveCount = 1;
+  open();
+  await userEvent.click(await screen.findByRole('button', { name: 'Действия: Ерлан' }));
+  const sheet = within(screen.getByRole('dialog', { name: 'Ерлан' }));
+  await userEvent.click(sheet.getByRole('button', { name: 'Убрать из списка' }));
+  await userEvent.click(sheet.getByRole('button', { name: 'Точно убрать?' }));
+  await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Ерлан' })).not.toBeInTheDocument());
+  expect(screen.queryByText('Ерлан')).toBeNull();
+  expect(screen.queryByRole('heading', { name: /Резерв/ })).toBeNull();
+  await waitFor(() => expect(pending).toHaveLength(1));
+  expect(pending[0].path).toBe('/api/signups/2');
+  await act(async () => pending[0].fail());
+  expect(await screen.findByText('Не получилось убрать игрока Ерлан. Попробуй ещё раз.')).toBeInTheDocument();
+  expect(screen.getByText('Ерлан')).toBeInTheDocument();
+  expect(screen.getByRole('heading', { name: /Резерв/ })).toBeInTheDocument();
+});

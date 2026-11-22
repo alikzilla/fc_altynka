@@ -83,7 +83,12 @@ export function PlayerAchievements({ statistics, pinned, onPin, className = '' }
   const [justPinned, setJustPinned] = useState<AchievementId | null>(null);
   useEffect(() => setJustPinned(null), [pinned]);
   const pinnedId = justPinned ?? (isAchievementId(pinned) ? pinned : null);
-  const pin = onPin && (async (id: AchievementId) => { await onPin(id); setJustPinned(id); });
+  // The pin shows at the tap; a refused request brings back the previous one and the sheet says so.
+  const pin = onPin && (async (id: AchievementId) => {
+    const before = justPinned;
+    setJustPinned(id);
+    try { await onPin(id); } catch (error) { setJustPinned(before); throw error; }
+  });
   const pinnedRow = rows.find(row => row.id === pinnedId) ?? null;
   const [listOpen, setListOpen] = useState(false);
   const [openId, setOpenId] = useState<AchievementId | null>(null);

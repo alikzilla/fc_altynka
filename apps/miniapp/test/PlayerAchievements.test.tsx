@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { aggregatePlayerStatistics, type PlayerStatistics } from '@altynka/core';
 import { PlayerAchievements } from '../src/components/PlayerAchievements';
@@ -84,4 +84,16 @@ test('the list carries the MVP and position ladders', async () => {
   expect(list).toHaveTextContent('Уровней открыто: 3 из 49');
   expect(list).toHaveTextContent('MVP');
   expect(list).toHaveTextContent('Лучший на позиции');
+});
+test('a pin shows at the tap and the previous one returns when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  const onPin = vi.fn(() => new Promise<void>((_, fail) => { reject = fail; }));
+  renderWithApp(<PlayerAchievements statistics={stats({ goals: 64, wins: 12 })} pinned="scorer" onPin={onPin}/>, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: 'Все достижения' }));
+  await userEvent.click(within(screen.getByRole('dialog', { name: 'Достижения' })).getByRole('button', { name: /Победитель/ }));
+  await userEvent.click(screen.getByRole('button', { name: 'Закрепить в профиле' }));
+  expect(screen.getByRole('button', { name: 'Закреплено в профиле ✓' })).toBeDisabled();
+  await act(async () => reject(new Error('offline')));
+  expect(screen.getByRole('button', { name: 'Закрепить в профиле' })).toBeEnabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('Не получилось закрепить');
 });

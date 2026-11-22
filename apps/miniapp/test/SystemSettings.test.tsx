@@ -77,3 +77,17 @@ test('an icon added earlier shows as added; unsupported clients and the browser 
   expect(screen.queryByText('Иконка на главном экране')).not.toBeInTheDocument();
   expect(screen.queryByRole('switch', { name: 'Во весь экран' })).not.toBeInTheDocument();
 });
+
+test('the notifications switch moves at the tap and moves back when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  vi.stubGlobal('fetch', vi.fn(() => new Promise((_, fail) => { reject = fail; })));
+  renderWithApp(<SystemSettings />, { me: { ...player, notifications: { enabled: true, available: true } } });
+  const toggle = screen.getByRole('switch', { name: 'Уведомления' });
+  await userEvent.click(toggle);
+  expect(toggle).not.toBeChecked();
+  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  await act(async () => reject(new TypeError('offline')));
+  expect(toggle).toBeChecked();
+  expect(await screen.findByText('Не получилось изменить уведомления. Попробуй ещё раз.')).toBeInTheDocument();
+  vi.unstubAllGlobals();
+});

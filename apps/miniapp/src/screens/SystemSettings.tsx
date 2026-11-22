@@ -43,17 +43,22 @@ export function SystemSettings() {
   async function changeNotifications(nextEnabled: boolean) {
     if (saving.current) return;
     saving.current = true; setBusy(true);
+    const previous = notifications;
     try {
       if (nextEnabled && !available) {
         const granted = await requestWriteAccess();
         if (granted === null) return botSettings();
         if (!granted) return toast('Разрешение не получено. Настройки не изменились.');
       }
+      // Permission is settled: the switch moves now, and a refused request moves it back.
+      if (previous) setNotifications({ ...previous, enabled: nextEnabled });
+      haptic('light');
       const updated = await api.send<MeDto>('PATCH', '/api/me', { notificationsEnabled: nextEnabled });
       if (updated?.userId === me.userId) updateMe(current => ({ ...current, notifications: updated.notifications }));
       if (updated.notifications) setNotifications(updated.notifications);
       reloadMe();
     } catch (err) {
+      setNotifications(previous);
       if (err instanceof ApiError && err.code === 'write_access_required') botSettings();
       else toast('Не получилось изменить уведомления. Попробуй ещё раз.', { tone: 'error' });
     } finally { saving.current = false; setBusy(false); }

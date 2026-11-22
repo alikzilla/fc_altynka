@@ -3,7 +3,7 @@ import { useId, useRef, useState } from 'react';
 import { useResource } from '../hooks/useResource';
 import { api, ApiError } from '../lib/api';
 import { openLink } from '../lib/tg';
-import { findVenue, mapLinkLabel, venueRate, venuesPath } from '../lib/venues';
+import { findVenue, mapLinkLabel, venueRate, venuesPath, withoutVenue, withVenueBack } from '../lib/venues';
 import { ActionSheet } from './ActionSheet';
 import { Icon } from './Icon';
 import { ErrorNote } from './ui';
@@ -31,13 +31,15 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
   const pending = findVenue(venues, picked) ?? venues?.[0];
 
   async function remove(venue: VenueDto) {
-    setBusy(true); setFailure(null);
+    setFailure(null);
+    const index = venues?.findIndex(v => v.id === venue.id) ?? -1;
+    replace(dto => withoutVenue(dto, venue.id)); setRemoving(null);
     try {
-      replace(await api.send<VenuesDto>('DELETE', `/api/venues/${venue.id}`));
-      setRemoving(null);
+      await api.send<VenuesDto>('DELETE', `/api/venues/${venue.id}`);
     } catch {
-      setFailure('Не получилось удалить площадку. Попробуй ещё раз.');
-    } finally { setBusy(false); }
+      replace(dto => withVenueBack(dto, venue, index));
+      setFailure(`Не получилось удалить площадку ${venue.name}. Попробуй ещё раз.`);
+    }
   }
 
   if (adding) return <ActionSheet title="Новая площадка" className="venue-sheet" onClose={() => setAdding(false)} busy={busy}

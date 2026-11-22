@@ -1,5 +1,5 @@
 import type { VenueDto } from '@altynka/core';
-import { screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
@@ -75,4 +75,17 @@ test('without a group the page explains how to connect one', async () => {
   renderWithApp(<Venues />, { me: noGroups });
   expect(screen.getByRole('heading', { name: 'Площадок пока нет' })).toBeInTheDocument();
   expect(api.get).not.toHaveBeenCalled();
+});
+
+test('a removed venue leaves at once and returns to its place when the server refuses', async () => {
+  let reject!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  renderWithApp(<Venues />, { me: organizer });
+  await userEvent.click(await screen.findByRole('button', { name: 'Удалить площадку Манеж Арена' }));
+  await userEvent.click(within(screen.getByRole('group', { name: 'Удалить площадку Манеж Арена?' })).getByRole('button', { name: 'Удалить' }));
+  await waitFor(() => expect(screen.queryByRole('heading', { name: 'Манеж Арена' })).toBeNull());
+  expect(api.send).toHaveBeenCalledWith('DELETE', '/api/venues/1');
+  await act(async () => reject(new Error('offline')));
+  expect(await screen.findByText('Не получилось удалить площадку Манеж Арена. Попробуй ещё раз.')).toBeInTheDocument();
+  expect(screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['Манеж Арена', 'Школа Аксай']);
 });

@@ -312,3 +312,18 @@ test('a kit fixed from the start sheet saves at once and keeps the coin availabl
   expect(within(dialog).getByRole('button',{name:'Изменить цвет: Зелёные'})).toBeVisible();
   expect(within(dialog).getByRole('button',{name:'Подбросить монету'})).toBeEnabled();
 });
+
+test('a kit color changes at the tap and comes back with the sheet when the server refuses', async () => {
+  const started: EventDetailDto = { ...ev, status: 'playing', protocolVersion: 1, gameProtocol: makeProtocol(), teams: { teamCount: 2, teams: [[1,2,3,4,5],[6,7,8,9,10]], colors: ['red','blue'], colorsRevision: 2, publishedAt: 1, stale: false } };
+  let reject!: (error: Error) => void;
+  (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+  renderWithApp(<Teams ev={started} reload={() => {}} />, { me: organizer });
+  await userEvent.click(screen.getByRole('button', { name: 'Изменить цвет: Красные' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Зелёный' }));
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(screen.getByRole('group', { name: 'Зелёные' })).toBeInTheDocument();
+  await act(async () => reject(new Error('offline')));
+  expect(screen.getByRole('group', { name: 'Красные' })).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: 'Зелёные' })).toBeNull();
+  expect(within(screen.getByRole('dialog')).getByRole('alert')).toHaveTextContent('Не получилось сохранить цвета');
+});

@@ -70,7 +70,6 @@ export function NewsFeed() {
   // Posts whose reaction row the person unfolded themselves; those animate, loaded rows do not.
   const [unfolded, setUnfolded] = useState<ReadonlySet<number>>(new Set());
   const [menu, setMenu] = useState<FeedPostDto | null>(null);
-  const [busy, setBusy] = useState(false);
   const [profileId, setProfileId] = useState<number | null>(null);
   const toast = useToast();
   const reveal = useReveal(loading && !data);
@@ -89,12 +88,17 @@ export function NewsFeed() {
       .catch(() => { reload(); toast('Не получилось сохранить реакцию'); });
   }
   const isAdmin = (post: FeedPostDto) => me.communities.some(c => c.id === post.community.id && c.role === 'admin');
+  // The post leaves at once; a refused removal puts it back where it stood.
   function remove(post: FeedPostDto) {
-    setBusy(true);
+    const index = posts.findIndex(p => p.id === post.id);
+    replace(feed => ({ ...feed, posts: feed.posts.filter(p => p.id !== post.id) }));
+    setMenu(null);
     api.send('DELETE', `/api/feed/${post.id}`)
-      .then(() => { replace(feed => ({ ...feed, posts: feed.posts.filter(p => p.id !== post.id) })); toast('Пост удалён'); })
-      .catch(() => toast('Не получилось удалить пост'))
-      .finally(() => { setBusy(false); setMenu(null); });
+      .then(() => toast('Пост удалён'))
+      .catch(() => {
+        replace(feed => feed.posts.some(p => p.id === post.id) ? feed : { ...feed, posts: [...feed.posts.slice(0, Math.max(0, index)), post, ...feed.posts.slice(Math.max(0, index))] });
+        toast('Не получилось удалить пост. Попробуй ещё раз.', { tone: 'error' });
+      });
   }
   return <section className={`home-section ${reveal}`} aria-labelledby="home-feed">
     <div className="section-heading"><h2 id="home-feed">Лента</h2></div>
@@ -138,8 +142,8 @@ export function NewsFeed() {
     </ul>
     {!all && posts.length > PREVIEW && <button type="button" className="btn-text feed-more" onClick={() => setAll(true)}>Показать ещё</button>}
     {profileId !== null && <PlayerProfileSheet key={profileId} userId={profileId} onClose={() => setProfileId(null)} />}
-    {menu && <ActionSheet title="Пост в ленте" description={menu.text} onClose={() => setMenu(null)} busy={busy}>
-      <ConfirmButton className="sheet-action danger-text" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" disabled={busy} onConfirm={() => remove(menu)} />
+    {menu && <ActionSheet title="Пост в ленте" description={menu.text} onClose={() => setMenu(null)}>
+      <ConfirmButton className="sheet-action danger-text" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" onConfirm={() => remove(menu)} />
     </ActionSheet>}
   </section>;
 }

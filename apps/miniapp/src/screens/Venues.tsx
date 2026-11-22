@@ -9,7 +9,7 @@ import { EmptyState, ErrorNote, Screen, useReveal, useToast } from '../component
 import { VenueForm, VenueMapLink } from '../components/VenuePicker';
 import { useResource } from '../hooks/useResource';
 import { api } from '../lib/api';
-import { venueRate, venuesPath } from '../lib/venues';
+import { venueRate, venuesPath, withoutVenue, withVenueBack } from '../lib/venues';
 import { showGroups, useMe } from '../state/me';
 
 /** Площадки одной группы. Добавляет, правит и удаляет организатор этой группы; остальные только смотрят. */
@@ -25,10 +25,10 @@ function GroupVenues({ community, titled }: { community: MyCommunityDto; titled:
   const headingId = `venues-group-${community.id}`;
 
   async function remove(venue: VenueDto) {
-    setBusy(true);
-    try { replace(await api.send<VenuesDto>('DELETE', `/api/venues/${venue.id}`)); setRemoving(null); }
-    catch { toast('Не получилось удалить площадку. Попробуй ещё раз.', { tone: 'error' }); }
-    finally { setBusy(false); }
+    const index = data?.venues.findIndex(v => v.id === venue.id) ?? -1;
+    replace(dto => withoutVenue(dto, venue.id)); setRemoving(null);
+    try { await api.send<VenuesDto>('DELETE', `/api/venues/${venue.id}`); toast('Площадка удалена'); }
+    catch { replace(dto => withVenueBack(dto, venue, index)); toast(`Не получилось удалить площадку ${venue.name}. Попробуй ещё раз.`, { tone: 'error' }); }
   }
 
   return <section className="venues-group" aria-labelledby={titled ? headingId : undefined} aria-label={titled ? undefined : 'Площадки'}>

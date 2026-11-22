@@ -1,5 +1,5 @@
 import type { EventsListDto, EventSummaryDto } from '@altynka/core';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
 import { Home } from '../src/screens/Home';
@@ -258,6 +258,23 @@ describe('лента', () => {
     expect(api.send).toHaveBeenCalledWith('DELETE', '/api/feed/1');
     await waitFor(() => expect(screen.queryByRole('link', { name: /Красные выиграли матч/ })).toBeNull());
     expect(screen.getByRole('link', { name: /Матч в цифрах/ })).toBeInTheDocument();
+  });
+
+  test('a removed post leaves at once and returns to its place when the server refuses', async () => {
+    withFeed([post(1, { text: 'Красные выиграли матч.' }), post(2, { text: 'Матч в цифрах: 2 игры.' })]);
+    let reject!: (error: Error) => void;
+    (api.send as Mock).mockImplementationOnce(() => new Promise((_, fail) => { reject = fail; }));
+    const admin = { ...player, communities: player.communities.map(c => ({ ...c, role: 'admin' as const })) };
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: admin });
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Действия с постом' }))[0]);
+    const sheet = within(await screen.findByRole('dialog'));
+    await userEvent.click(sheet.getByRole('button', { name: 'Удалить пост' }));
+    await userEvent.click(sheet.getByRole('button', { name: /Точно удалить/ }));
+    await waitFor(() => expect(screen.queryByRole('link', { name: /Красные выиграли матч/ })).toBeNull());
+    await act(async () => reject(new Error('offline')));
+    expect(await screen.findByText('Не получилось удалить пост. Попробуй ещё раз.')).toBeInTheDocument();
+    const links = await screen.findAllByRole('link', { name: /Красные выиграли матч|Матч в цифрах/ });
+    expect(links.map(l => l.textContent)).toEqual([expect.stringContaining('Красные выиграли'), expect.stringContaining('Матч в цифрах')]);
   });
 
   test.each([[[]], [undefined]])('no section without posts (%o)', async posts => {
