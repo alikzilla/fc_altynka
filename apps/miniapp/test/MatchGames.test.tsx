@@ -91,3 +91,22 @@ describe('redesigned games tab',()=>{
     expect(screen.getByRole('region',{name:'Текущая игра'})).toHaveTextContent('С мячом начинают Синие');
   });
 });
+
+test('the leaders card switches between scorers and assistants',async()=>{
+  const roster=[{signupId:1,userId:1,name:'Али',teamIndex:0},{signupId:4,userId:4,name:'Дамир',teamIndex:0},{signupId:2,userId:2,name:'Бека',teamIndex:1},{signupId:3,userId:null,name:'Ерпа',teamIndex:2}];
+  const games=[{id:'g1',sequence:1,pair:[0,1] as [number,number],score:[2,0] as [number,number],scorers:[{signupId:1,goals:2}],assists:[{scorerSignupId:1,assistSignupId:4,goals:2}],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}];
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({roster,games,canRecord:false,canEdit:false,canFinish:false})}} reload={()=>{}}/>,{me:player});
+  const card=screen.getByRole('region',{name:'Бомбардиры'});
+  expect(within(card).getByRole('button',{name:'Голы'})).toHaveAttribute('aria-pressed','true');
+  expect(within(card).getByRole('listitem')).toHaveTextContent(/Али.*2/);
+  await userEvent.click(within(card).getByRole('button',{name:'Пасы'}));
+  const assists=screen.getByRole('region',{name:'Ассистенты'});
+  expect(within(assists).getByRole('button',{name:'Пасы'})).toHaveAttribute('aria-pressed','true');
+  expect(within(assists).getAllByRole('listitem')).toHaveLength(1);
+  expect(within(assists).getByRole('listitem')).toHaveTextContent(/Дамир.*2/);
+});
+test('assistants explain when no pass is marked yet',async()=>{
+  renderWithApp(<MatchGames ev={ev} reload={()=>{}}/>,{me:player});
+  await userEvent.click(screen.getByRole('button',{name:'Пасы'}));
+  expect(screen.getByText('Пасы пока не указаны.')).toBeVisible();
+});

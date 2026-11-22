@@ -1,5 +1,5 @@
-import { plural, teamAppearance, type EventDetailDto, type GameProtocolDto, type GameResult } from '@altynka/core';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { calculateAssists, plural, teamAppearance, type EventDetailDto, type GameProtocolDto, type GameResult } from '@altynka/core';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
 import { GameTeamName } from '../components/GameTeamName';
@@ -47,6 +47,20 @@ function GameResults({games,protocol,ev,onEdit}:{games:readonly GameResult[];pro
       <div className="game-goal-columns">{game.pair.map(team=>{const lines=goalLines(protocol,game,team,ev);return <ul key={team} aria-label={`Голы: ${teamAppearance(team, ev.teams?.colors).name}`}>{lines.length?lines.map((line,i)=><li key={i}>{line.author}{line.pass && <small> ({line.pass})</small>}</li>):<li className="game-goal-none">—</li>}</ul>;})}</div>
     </li>;
   })}</ol>;
+}
+
+/** Match leaders: goals by default, passes on demand; ties share a place. */
+function GameLeaders({protocol,ev}:{protocol:GameProtocolDto;ev:EventDetailDto}) {
+  const [board,setBoard]=useState<'goals'|'assists'>('goals');
+  const assists=useMemo(()=>calculateAssists(protocol.roster,protocol.games),[protocol.roster,protocol.games]);
+  const rows=board==='goals'?protocol.scorers.map(p=>({...p,value:p.goals})):assists.map(p=>({...p,value:p.assists}));
+  return <section className="card material-graphite game-bombardiers" aria-labelledby="game-scorers-heading">
+    <div className="game-leaders-heading"><h2 id="game-scorers-heading">{board==='goals'?'Бомбардиры':'Ассистенты'}</h2>
+      <div className="tabs game-leaders-switch" role="group" aria-label="Показатель">{([['goals','Голы'],['assists','Пасы']] as const).map(([key,text])=><button type="button" key={key} className={board===key?'on':''} aria-pressed={board===key} onClick={()=>setBoard(key)}>{text}</button>)}</div>
+    </div>
+    {rows.length?<ol className="game-scorers-list">{rows.map(p=><li key={p.signupId}><span className={`game-medal ${p.rank===1?'gold':''}`}>{p.rank}</span><span className="game-scorer-identity">{gamePlayerName(p,protocol.roster,ev.main)}<small className={`muted team-${teamAppearance(p.teamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>{teamAppearance(p.teamIndex, ev.teams?.colors).name}{p.userId===null?' · гость':''}</small></span><b>{p.value}</b></li>)}</ol>
+      :<p className="muted">{board==='goals'?'Авторы голов пока не указаны.':'Пасы пока не указаны.'}</p>}
+  </section>;
 }
 
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
@@ -117,7 +131,7 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       {protocol.games.length?<GameResults games={protocol.games.slice(-3).reverse()} protocol={protocol} ev={ev} onEdit={setResult}/>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
     </section>
 
-    <section className="card material-graphite game-bombardiers" aria-labelledby="game-scorers-heading"><h2 id="game-scorers-heading">Бомбардиры</h2>{protocol.scorers.length?<ol className="game-scorers-list">{protocol.scorers.map(p=><li key={p.signupId}><span className={`game-medal ${p.rank===1?'gold':''}`}>{p.rank}</span><span className="game-scorer-identity">{gamePlayerName(p,protocol.roster,ev.main)}<small className={`muted team-${teamAppearance(p.teamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>{teamAppearance(p.teamIndex, ev.teams?.colors).name}{p.userId===null?' · гость':''}</small></span><b>{p.goals}</b></li>)}</ol>:<p className="muted">Авторы голов пока не указаны.</p>}</section>
+    <GameLeaders protocol={protocol} ev={ev}/>
 
     {history && <ActionSheet title="Все игры" onClose={()=>setHistory(false)} className="game-history-sheet"><p className="game-history-intro">Сыграно {protocol.games.length} · сначала последние</p><GameResults games={[...protocol.games].reverse()} protocol={protocol} ev={ev} onEdit={setResult}/></ActionSheet>}
     {result!==undefined && <GameResultSheet ev={ev} protocol={protocol} game={result} onClose={()=>setResult(undefined)} onSaved={()=>{setResult(undefined);reload();}} reload={reload}/>}

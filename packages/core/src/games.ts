@@ -26,6 +26,7 @@ export interface TeamStanding {
   goalsFor: number; goalsAgainst: number; goalDifference: number; points: number;
 }
 export interface ScorerTotal extends GameRosterPlayer { rank: number; goals: number }
+export interface AssistTotal extends GameRosterPlayer { rank: number; assists: number }
 export interface GameProtocolDto {
   state: 'legacy' | 'not_started' | 'playing' | 'completed'; revision: number;
   startedAt: number | null; completedAt: number | null; teamCount: TeamCount | null;
@@ -78,11 +79,23 @@ export function calculateStandings(count: TeamCount, games: readonly GameResult[
   return rows;
 }
 
+/** Roster players with a positive total, best first; equal totals share a place. */
+function rankTotals(roster: readonly GameRosterPlayer[], totals: ReadonlyMap<number, number>): (GameRosterPlayer & { rank: number; total: number })[] {
+  const rows = roster.filter(p => totals.has(p.signupId)).map(p => ({ ...p, total: totals.get(p.signupId)!, rank: 1 }));
+  rows.sort((a, b) => b.total - a.total || a.name.localeCompare(b.name, 'ru') || a.signupId - b.signupId);
+  rows.forEach((row, i) => { row.rank = i > 0 && rows[i - 1].total === row.total ? rows[i - 1].rank : i + 1; });
+  return rows;
+}
+
 export function calculateScorers(roster: readonly GameRosterPlayer[], games: readonly GameResult[]): ScorerTotal[] {
   const totals = new Map<number, number>();
   for (const game of games) for (const scorer of game.scorers) totals.set(scorer.signupId, (totals.get(scorer.signupId) ?? 0) + scorer.goals);
-  const rows = roster.filter(p => totals.has(p.signupId)).map(p => ({ ...p, goals: totals.get(p.signupId)!, rank: 1 }));
-  rows.sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name, 'ru') || a.signupId - b.signupId);
-  rows.forEach((row, i) => { row.rank = i > 0 && rows[i - 1].goals === row.goals ? rows[i - 1].rank : i + 1; });
-  return rows;
+  return rankTotals(roster, totals).map(({ total, ...row }) => ({ ...row, goals: total }));
+}
+
+/** Players by passes that led to a goal over all games of the match. */
+export function calculateAssists(roster: readonly GameRosterPlayer[], games: readonly GameResult[]): AssistTotal[] {
+  const totals = new Map<number, number>();
+  for (const game of games) for (const pass of game.assists ?? []) totals.set(pass.assistSignupId, (totals.get(pass.assistSignupId) ?? 0) + pass.goals);
+  return rankTotals(roster, totals).map(({ total, ...row }) => ({ ...row, assists: total }));
 }

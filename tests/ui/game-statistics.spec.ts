@@ -188,6 +188,10 @@ for(const theme of ['dark','light'] as const)for(const width of [320,390])test(`
   const pairBox=await page.locator('.game-versus').boundingBox();const actionBox=await page.getByRole('button',{name:'Внести результат',exact:true}).boundingBox();
   expect(pairBox!.y+pairBox!.height).toBeLessThan(actionBox!.y);
   const restBox=await page.locator('.game-rest').boundingBox();expect(restBox!.y+restBox!.height+8).toBeLessThan(actionBox!.y);
+  const leaders=page.getByRole('region',{name:'Бомбардиры'});await leaders.getByRole('button',{name:'Пасы',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Ассистенты'})).toBeVisible();await noOverflow(page);
+  const heading=await page.locator('.game-leaders-heading h2').evaluate(n=>n.getBoundingClientRect().height);expect(heading).toBeLessThan(30);
+  await page.getByRole('button',{name:'Голы',exact:true}).click();
   await mkdir('artifacts/games',{recursive:true});await page.screenshot({path:`artifacts/games/protocol-${theme}-${width}.png`,fullPage:true});
   if(width===390){
     expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);

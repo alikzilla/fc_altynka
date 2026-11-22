@@ -1,4 +1,4 @@
-import { calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, nextGamePair, resolveFirstRest, type GamePair, type GameResult } from '../src';
+import { calculateAssists, calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, nextGamePair, resolveFirstRest, type GamePair, type GameResult } from '../src';
 
 const game = (pair: GamePair, score: readonly [number, number], firstRestTeamIndex: number | null = null): GameResult => ({
   id: 'game', sequence: 1, pair, score, scorers: [], firstRestTeamIndex,
@@ -59,6 +59,19 @@ test('scorers use signup identity, count multiple goals, keep guests distinct an
   expect(rows.map(r => [r.signupId, r.goals])).toEqual([[10, 2], [11, 1]]);
   expect(rows[0].userId).toBeNull();
   expect(calculateScorers([], [])).toEqual([]);
+});
+
+test('assists add up across games and ties share a place', () => {
+  const roster = [
+    { signupId: 1, userId: 1, name: 'Али', teamIndex: 0 }, { signupId: 2, userId: 2, name: 'Бека', teamIndex: 0 },
+    { signupId: 3, userId: null, name: 'Ерпа', teamIndex: 1 }, { signupId: 4, userId: 4, name: 'Дамир', teamIndex: 1 },
+  ];
+  const a = game([0, 1], [3, 1]); a.scorers = [{ signupId: 1, goals: 3 }, { signupId: 4, goals: 1 }];
+  a.assists = [{ scorerSignupId: 1, assistSignupId: 2, goals: 2 }, { scorerSignupId: 4, assistSignupId: 3, goals: 1 }];
+  const b = game([0, 1], [0, 1]); b.scorers = [{ signupId: 3, goals: 1 }]; b.assists = [{ scorerSignupId: 3, assistSignupId: 4, goals: 1 }];
+  const c = game([0, 1], [1, 0]); c.scorers = [{ signupId: 2, goals: 1 }];
+  expect(calculateAssists(roster, [a, b, c]).map(r => [r.name, r.assists, r.rank])).toEqual([['Бека', 2, 1], ['Дамир', 1, 2], ['Ерпа', 1, 2]]);
+  expect(calculateAssists(roster, [c])).toEqual([]);
 });
 
 test('kickoff for two teams is a fair 0/1 draw',()=>{
