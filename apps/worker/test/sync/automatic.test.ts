@@ -184,7 +184,7 @@ test('two hours after the invitation a participant who has not answered gets one
   expect(await w.alarm()).toBeNull();
 });
 
-test.each(['answered', 'closed', 'undelivered'] as const)('no review reminder when %s', async reason => {
+test.each(['answered', 'closed', 'undelivered', 'stale'] as const)('no review reminder when %s', async reason => {
   const w = await world();
   await w.finish();
   now = (await w.alarm())!;
@@ -192,7 +192,7 @@ test.each(['answered', 'closed', 'undelivered'] as const)('no review reminder wh
   await w.flush();
   if (reason === 'answered') await submitReview(w.d, (await getEvent(db(), w.ev))!, w.payer.id, { scores: [], gameScore: null, skipped: true });
   if (reason === 'closed') await env.DB.prepare('UPDATE match_reviews SET closes_at = ? WHERE event_id = ?').bind(now + 1, w.ev).run();
-  now += 2 * HOUR;
+  now += reason === 'stale' ? 3 * HOUR + 1 : 2 * HOUR;
   await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
   expect(w.personal().filter(m => m.html.includes('Опрос ждёт тебя'))).toHaveLength(0);
   expect(await w.alarm()).toBeNull();

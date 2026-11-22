@@ -21,6 +21,8 @@ const MAX_PAYMENT_REMINDERS = 3;
 const RESULT_WINDOW_MS = 12 * 3600_000;
 /** Через столько после доставленного приглашения не ответившим уходит одно напоминание об опросе. */
 export const REVIEW_REMINDER_DELAY_MS = 2 * 3600_000;
+/** Напоминание, опоздавшее больше чем на час (объект долго не просыпался), уже не отправляется. */
+const REVIEW_REMINDER_STALE_MS = 3600_000;
 interface AutomaticState { count: number; done: boolean; nextAt: number; }
 interface Task { key: string; tgId: number; at: number; rendered: Rendered; payment: boolean; }
 const stateKey = (key: string) => `auto:state:${key}`;
@@ -116,8 +118,8 @@ export class AutomaticNotifications {
           // Напоминаем только тем, до кого приглашение дошло; отсчёт от его отправки, тихие часы как у приглашения.
           const invited = await this.storage.get<AutomaticState>(stateKey(inviteKey));
           if (!invited?.count) continue;
-          const remindAt = nextDeliveryTime(Math.max(now, invited.nextAt - REMINDER_GAP_MS + REVIEW_REMINDER_DELAY_MS));
-          if (remindAt < review.closesAt) await append({
+          const remindAt = nextDeliveryTime(invited.nextAt - REMINDER_GAP_MS + REVIEW_REMINDER_DELAY_MS);
+          if (remindAt < review.closesAt && now <= remindAt + REVIEW_REMINDER_STALE_MS) await append({
             key: `review-reminder:${review.closesAt}:${participant.tgId}`, tgId: participant.tgId, at: remindAt,
             rendered: personalReviewReminder(this.env, view, review.closesAt), payment: false,
           });
