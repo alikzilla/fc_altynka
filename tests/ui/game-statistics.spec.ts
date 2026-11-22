@@ -19,7 +19,11 @@ async function result(page:Page,score:[number,number],rest?:string){
   await dialog.getByRole('button',{name:'Сохранить результат',exact:true}).click();
   await expect(dialog).toHaveCount(0);
 }
-async function noOverflow(page:Page){expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);}
+async function noOverflow(page:Page){
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+  // An open sheet scrolls on its own: its content must not scroll sideways either.
+  expect(await page.evaluate(()=>[...document.querySelectorAll<HTMLElement>('dialog[open] .sheet-content')].filter(c=>c.scrollWidth>c.clientWidth).length)).toBe(0);
+}
 
 test('latest three games lead to complete history, with nested editing and focus restoration',async({page})=>{
   await page.setViewportSize({width:390,height:844});
