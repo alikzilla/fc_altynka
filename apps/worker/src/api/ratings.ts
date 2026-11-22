@@ -7,7 +7,7 @@ import type { Db } from '../db/client';
 import { memberships, skillAssessments } from '../db/schema';
 import { activeMemberships } from '../domain/members';
 import { canManage, getEvent } from '../domain/events';
-import { closeReview, finishMatch, matchReview, playerProfile, playerRatings, submitReview } from '../domain/ratings';
+import { closeReview, finishMatch, matchReview, playerProfile, playerRatings, submitReview, submitReviewAwards } from '../domain/ratings';
 import { leaderboard } from '../domain/leaderboard';
 import { body, idParam } from './validate';
 
@@ -16,7 +16,7 @@ const score = z.number().int().min(1).max(10);
 const skillsBody = z.object({ teamwork: score, dribbling: score, technique: score, shooting: score, stamina: score, physical: score, passing: score, defending: score }).strict();
 const pick = z.number().int().positive().optional();
 const awardPicks = z.object({ mvp: pick, forward: pick, midfielder: pick, defender: pick, goalkeeper: pick }).strict();
-const reviewBody = z.object({ scores: z.array(z.object({ userId: z.number().int().positive(), score }).strict()).max(100), gameScore: score.nullable(), skipped: z.boolean(), awards: awardPicks.optional() }).strict()
+const reviewBody = z.object({ scores: z.array(z.object({ userId: z.number().int().positive(), score }).strict()).max(100), gameScore: score.nullable(), skipped: z.boolean(), awards: awardPicks.optional(), awardsSkipped: z.literal(true).optional() }).strict()
   .refine(v => v.skipped ? v.scores.length === 0 && v.gameScore === null && !Object.keys(v.awards ?? {}).length : v.scores.length > 0 || v.gameScore !== null);
 
 const myRating = async (db: Db, userId: number, now: number) => (await playerRatings(db, [userId], now)).get(userId)!.rating;
@@ -78,6 +78,15 @@ ratingsApi.post('/events/:id/review', body(reviewBody), async c => {
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
   const result = await submitReview(c.get('deps'), ev, c.get('user').id, c.req.valid('json'));
   if (result !== 'ok') return c.json({ error: result }, result === 'invalid' ? 400 : result === 'forbidden' ? 403 : 409);
+  return c.json(await matchReview(c.get('deps').db, ev, c.get('user').id, canManage(c.get('role')), c.get('deps').now));
+});
+// Награды к ответу, отправленному без них (например, пока прод работал без шага наград).
+ratingsApi.post('/events/:id/review/awards', body(z.object({ awards: awardPicks.optional(), skipped: z.literal(true).optional() }).strict()), async c => {
+  const id = idParam(c.req.param('id'));
+  const ev = id === null ? null : await getEvent(c.get('deps').db, id);
+  if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
+  const result = await submitReviewAwards(c.get('deps'), ev, c.get('user').id, c.req.valid('json'));
+  if (result !== 'ok') return c.json({ error: result }, result === 'invalid' ? 400 : 409);
   return c.json(await matchReview(c.get('deps').db, ev, c.get('user').id, canManage(c.get('role')), c.get('deps').now));
 });
 ratingsApi.post('/events/:id/review/close', requireRole('organizer'), async c => {

@@ -64,7 +64,13 @@ export interface ReviewInput {
   skipped: boolean;
   /** Нет поля — награды не выбраны; так же шлёт мини-апп до появления наград. */
   awards?: AwardPicks;
+  /** Участник прошёл шаг наград, ничего не выбрав. Без `awards` и без этого поля награды ещё можно добавить. */
+  awardsSkipped?: true;
 }
+/** Поздний выбор наград к уже отправленному ответу: либо выбор, либо `skipped`. */
+export interface ReviewAwardsInput { awards?: AwardPicks; skipped?: boolean }
+/** Что игрок сделал за матч по записанным играм; показывается в опросе рядом с оценкой. */
+export interface ReviewPlayerStats { games: number; goals: number; assists: number; wins: number; draws: number; losses: number; assistsTracked: boolean }
 export interface MatchReviewSummaryDto {
   state: 'legacy' | 'pending' | 'open' | 'submitted' | 'skipped' | 'ineligible' | 'closed';
   canFinish: boolean;
@@ -76,8 +82,13 @@ export interface MatchReviewDto extends MatchReviewSummaryDto {
   serverNow: number;
   /** Организатор может закрыть открытый опрос досрочно; тогда у участников заполнено `voted`. */
   canClose?: boolean;
-  /** `voted` — ответил ли участник (оценил или пропустил); приходит только организатору, пока опрос открыт. */
-  participants: { userId: number; name: string; photoUrl?: string | null; score: number | null; voted?: boolean }[];
+  /** Ответ отправлен без шага наград (оценки до появления наград), и опрос ещё открыт: награды можно выбрать отдельно. */
+  canAddAwards?: boolean;
+  /**
+   * `voted` — ответил ли участник (оценил или пропустил); `awardsPending` — оценил, но ещё не прошёл шаг наград.
+   * Оба приходят только организатору, пока опрос открыт. `stats` — результативность по записанным играм.
+   */
+  participants: { userId: number; name: string; photoUrl?: string | null; score: number | null; voted?: boolean; awardsPending?: boolean; stats?: ReviewPlayerStats }[];
   ownSubmission: ReviewInput | null;
   /** Победители после закрытия голосования; null до закрытия и когда ни одна награда не присуждена. */
   awards: MatchAwardsDto | null;

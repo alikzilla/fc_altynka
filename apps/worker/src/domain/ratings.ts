@@ -1,7 +1,7 @@
 import {
   AWARDS, calculatePlayerRating, matchStartsAt, MIN_REVIEW_VOTES, normalizeAwardPicks, REVIEW_WINDOW_MS,
-  selfAssessmentRating, SKILLS, type MatchAwardsDto, type MatchReviewDto, type PlayerProfileDto,
-  type PlayerSummaryDto, type RatedMatch, type ReviewInput, type SkillAnswers,
+  selfAssessmentRating, SKILLS, summarizePlayerProtocol, type AwardPicks, type MatchAwardsDto, type MatchReviewDto, type PlayerProfileDto,
+  type PlayerSummaryDto, type RatedMatch, type ReviewAwardsInput, type ReviewInput, type ReviewPlayerStats, type SkillAnswers,
 } from '@altynka/core';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
@@ -141,7 +141,7 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id)),
     db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId))),
     // Организатор видит только факт ответа (оценил или пропустил), но не сами оценки.
-    manage && !closed ? db.select({ userId: reviewSubmissions.userId }).from(reviewSubmissions).where(eq(reviewSubmissions.eventId, ev.id)) : Promise.resolve([]),
+    manage && !closed ? db.select({ userId: reviewSubmissions.userId, skipped: reviewSubmissions.skipped, payloadJson: reviewSubmissions.payloadJson }).from(reviewSubmissions).where(eq(reviewSubmissions.eventId, ev.id)) : Promise.resolve([]),
     now >= review.closesAt ? db.all<{ userId: number; score: number | null }>(sql`
       SELECT recipient_id AS userId, CASE WHEN count(*) >= ${MIN_REVIEW_VOTES} THEN round(avg(score), 1) ELSE NULL END AS score
       FROM player_votes WHERE event_id = ${ev.id} GROUP BY recipient_id`) : Promise.resolve([]),
@@ -160,12 +160,20 @@ export async function matchReview(db: Db, ev: EventRow, userId: number, manage: 
     const result = results[key];
     return [key, result && { votes: result.votes, winners: result.winners.map(userId => ({ userId, name: nameOf.get(userId) ?? 'Игрок', photoUrl: people.get(userId)?.photoUrl ?? null })) }];
   })) as MatchAwardsDto : null;
-  const voted = new Set(voters.map(v => v.userId));
+  const voted = new Map(voters.map(v => [v.userId, passedAwardStep(v)]));
   const progress = manage && !closed;
+  const state = parseGameState(ev);
+  const statsOf = (userId: number): ReviewPlayerStats | undefined => {
+    if (!state?.games.length || !state.roster.some(p => p.userId === userId)) return undefined;
+    const { results: _results, ...stats } = summarizePlayerProtocol(state, userId);
+    return stats;
+  };
   return { state: now >= review.closesAt ? 'closed' : !eligible ? 'ineligible' : own ? own.skipped ? 'skipped' : 'submitted' : 'open',
-    canFinish: false, canClose: progress, completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
+    canFinish: false, canClose: progress, canAddAwards: !closed && eligible && !!own && !passedAwardStep(own), completedAt: review.completedAt, closesAt: review.closesAt, serverNow: now,
     gameScore: overall[0]?.score ?? null,
-    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null, ...(progress ? { voted: voted.has(p.userId) } : {}) }]),
+    participants: participants.flatMap(p => p.userId === null ? [] : [{ userId: p.userId, name: p.name, photoUrl: people.get(p.userId)?.photoUrl ?? null, score: scoreMap.get(p.userId) ?? null,
+      ...(progress ? { voted: voted.has(p.userId), ...(voted.get(p.userId) === false ? { awardsPending: true } : {}) } : {}),
+      ...(statsOf(p.userId) ? { stats: statsOf(p.userId) } : {}) }]),
     ownSubmission: own ? JSON.parse(own.payloadJson) as ReviewInput : null, awards };
 }
 
@@ -184,7 +192,8 @@ export async function ensureGameReview(d: Deps, eventId: number): Promise<void> 
 export async function submitReview(d: Deps, ev: EventRow, userId: number, input: ReviewInput): Promise<'ok' | 'invalid' | 'closed' | 'conflict' | 'forbidden'> {
   // `awards` is written only when something was picked, so a poll without awards keeps its pre-awards payload.
   const picks = normalizeAwardPicks(input.awards);
-  const normalized: ReviewInput = { scores: [...input.scores].sort((a, b) => a.userId - b.userId), gameScore: input.gameScore, skipped: input.skipped, ...(picks ? { awards: picks } : {}) };
+  const normalized: ReviewInput = { scores: [...input.scores].sort((a, b) => a.userId - b.userId), gameScore: input.gameScore, skipped: input.skipped,
+    ...(picks ? { awards: picks } : input.awardsSkipped && !input.skipped ? { awardsSkipped: true as const } : {}) };
   const payload = JSON.stringify(normalized);
   const [existing] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
   if (existing) {
@@ -218,11 +227,63 @@ export async function submitReview(d: Deps, ev: EventRow, userId: number, input:
  * ответили (оценили или пропустили) все участники с аккаунтом. Возвращает, закрыт ли опрос после вызова.
  */
 export async function closeReview(d: Deps, eventId: number, onlyComplete = false): Promise<boolean> {
+  // Ответившим считается тот, кто пропустил опрос или прошёл шаг наград (выбрал или пропустил награды).
   const complete = onlyComplete ? sql`AND NOT EXISTS (
     SELECT 1 FROM match_participants p LEFT JOIN review_submissions s ON s.event_id = p.event_id AND s.user_id = p.user_id
-    WHERE p.event_id = ${eventId} AND p.user_id IS NOT NULL AND s.user_id IS NULL)` : sql``;
+    WHERE p.event_id = ${eventId} AND p.user_id IS NOT NULL AND (s.user_id IS NULL OR NOT (s.skipped = 1
+      OR json_type(s.payload_json, '$.awards') IS NOT NULL OR json_type(s.payload_json, '$.awardsSkipped') IS NOT NULL)))` : sql``;
   await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
     WHERE event_id = ${eventId} AND closes_at > ${d.now} ${complete}`);
   const [review] = await d.db.select({ closesAt: matchReviews.closesAt }).from(matchReviews).where(eq(matchReviews.eventId, eventId));
   return !!review && review.closesAt <= d.now;
+}
+
+/** Пропуск опроса или пройденный шаг наград: после этого ответ полный и награды больше не предлагаются. */
+function passedAwardStep(row: { skipped: boolean | number; payloadJson: string }): boolean {
+  if (row.skipped) return true;
+  const payload = JSON.parse(row.payloadJson) as ReviewInput;
+  return payload.awards !== undefined || payload.awardsSkipped === true;
+}
+
+/**
+ * Награды к ответу, отправленному без шага наград: один раз, пока опрос открыт. Оценки не меняются;
+ * в сохранённый ответ дописывается `awards` или `awardsSkipped`, и в том же пакете появляются строки
+ * `award_votes`. Повтор того же выбора — 'ok', другой — 'conflict'.
+ */
+export async function submitReviewAwards(d: Deps, ev: EventRow, userId: number, input: ReviewAwardsInput): Promise<'ok' | 'invalid' | 'closed' | 'conflict'> {
+  const picks = normalizeAwardPicks(input.awards);
+  if (!picks === !input.skipped) return 'invalid';
+  const [review] = await d.db.select().from(matchReviews).where(eq(matchReviews.eventId, ev.id));
+  if (!review || ev.status === 'cancelled' || d.now >= review.closesAt) return 'closed';
+  const [own] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
+  if (!own || own.skipped) return 'conflict';
+  const current = JSON.parse(own.payloadJson) as ReviewInput;
+  const addition: Pick<ReviewInput, 'awards' | 'awardsSkipped'> = picks ? { awards: picks } : { awardsSkipped: true };
+  const next = JSON.stringify({ scores: current.scores, gameScore: current.gameScore, skipped: current.skipped, ...addition });
+  if (passedAwardStep(own)) {
+    if (own.payloadJson !== next) return 'conflict';
+    await writeAwardVotes(d, ev.id, userId, next);
+    return 'ok';
+  }
+  const participants = await d.db.select().from(matchParticipants).where(eq(matchParticipants.eventId, ev.id));
+  const ids = new Set(participants.flatMap(p => p.userId === null ? [] : [p.userId]));
+  if (Object.values(picks ?? {} as AwardPicks).some(id => id === userId || !ids.has(id))) return 'invalid';
+  // Only the untouched answer of an open poll is extended; a concurrent different pick loses the race.
+  await d.db.run(sql`UPDATE review_submissions SET payload_json = ${next}
+    WHERE event_id = ${ev.id} AND user_id = ${userId} AND payload_json = ${own.payloadJson}
+      AND EXISTS (SELECT 1 FROM match_reviews r JOIN events e ON e.id = r.event_id
+        WHERE r.event_id = ${ev.id} AND r.closes_at > ${d.now} AND e.status <> 'cancelled')`);
+  const [saved] = await d.db.select().from(reviewSubmissions).where(and(eq(reviewSubmissions.eventId, ev.id), eq(reviewSubmissions.userId, userId)));
+  if (saved?.payloadJson !== next) return saved && passedAwardStep(saved) ? 'conflict' : 'closed';
+  await writeAwardVotes(d, ev.id, userId, next);
+  await closeReview(d, ev.id, true);
+  return 'ok';
+}
+
+/** Голоса наград выводятся из сохранённого ответа; повторный вызов ничего не дублирует. */
+async function writeAwardVotes(d: Deps, eventId: number, userId: number, payload: string): Promise<void> {
+  await d.db.run(sql`INSERT INTO award_votes(event_id, author_id, award, recipient_id)
+    SELECT s.event_id, s.user_id, j.key, j.value FROM review_submissions s, json_each(s.payload_json, '$.awards') j
+    WHERE s.event_id = ${eventId} AND s.user_id = ${userId} AND s.payload_json = ${payload}
+    ON CONFLICT DO NOTHING`);
 }

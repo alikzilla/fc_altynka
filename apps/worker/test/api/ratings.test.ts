@@ -127,7 +127,7 @@ test('results open as soon as every participant has answered, a skip counts as a
   await request('/api/me/skills', w.player, skills, 'PUT');
   await request(`/api/events/${eventId}/finish`, w.org, { participantSignupIds: roster.slice(0, 4).map(s => s.id) });
   const path = `/api/events/${eventId}/review`;
-  const body = { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: 9, skipped: false };
+  const body = { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: 9, skipped: false, awardsSkipped: true };
   const partners = extra.slice(0, 2).map(u => ({ id: u.tgId, first_name: u.firstName }));
   for (const as of [w.org, ...partners]) expect((await request(path, as, body)).status).toBe(200);
   expect((await (await request(path)).json() as MatchReviewDto).state).toBe('open');
@@ -297,4 +297,24 @@ test('review accepts a body without awards (old mini app) and with picks, reject
   const own = await picked.json() as MatchReviewDto;
   expect(own.ownSubmission?.awards).toEqual({ mvp: w.playerUserId });
   expect(own.awards).toBeNull();
+});
+
+test('late awards: an answer without the award step adds picks through /review/awards', async () => {
+  const { eventId, roster, extra } = await playedMatch();
+  await request(`/api/events/${eventId}/finish`, w.org, { participantSignupIds: roster.map(s => s.id) });
+  const path = `/api/events/${eventId}/review`;
+  const partner = { id: extra[0].tgId, first_name: 'Партнёр' };
+  expect((await request(`${path}/awards`, partner, { awards: { mvp: w.playerUserId } })).status).toBe(409);
+  const sent = await (await request(path, partner, { scores: [{ userId: w.playerUserId, score: 8 }], gameScore: null, skipped: false })).json() as MatchReviewDto;
+  expect(sent).toMatchObject({ state: 'submitted', canAddAwards: true });
+  expect((await request(`${path}/awards`, partner, { awards: { captain: w.playerUserId } })).status).toBe(400);
+  expect((await request(`${path}/awards`, partner, { awards: { mvp: w.playerUserId }, skipped: true })).status).toBe(400);
+  expect((await request(`${path}/awards`, partner, { awards: { mvp: extra[0].id } })).status).toBe(400);
+  const added = await request(`${path}/awards`, partner, { awards: { mvp: w.playerUserId } });
+  expect(added.status).toBe(200);
+  expect(await added.json()).toMatchObject({ canAddAwards: false, ownSubmission: { awards: { mvp: w.playerUserId } } });
+  expect((await request(`${path}/awards`, partner, { awards: { mvp: w.orgUserId } })).status).toBe(409);
+  const org = await (await request(path, w.org)).json() as MatchReviewDto;
+  expect(org.participants.find(p => p.userId === extra[0].id)).toMatchObject({ voted: true });
+  expect(org.participants.find(p => p.userId === extra[0].id)?.awardsPending).toBeUndefined();
 });
