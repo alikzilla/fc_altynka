@@ -1,6 +1,6 @@
 import { ACHIEVEMENT_TIER_LABEL, playerAchievements } from './achievements';
 import type { CommunityDto } from './api';
-import { AWARDS, AWARD_LABEL, type AwardKey } from './awards';
+import { AWARDS, type AwardKey } from './awards';
 import { CEREMONY_TITLES, ceremonyLines, type CeremonyCard, type CeremonyCardDto, type CeremonyWinner } from './ceremony';
 import { plural } from './format';
 import { calculateStandings, type GameResult, type GameRosterPlayer, type GameState } from './games';
@@ -479,28 +479,6 @@ export function composeTopRatedPost(v: { eventId: number; date: string; winners:
     `Игроки не смогли выбрать одного: ${A} и ${B}, по ${s} за матч ${d}.`,
     `Лучших двое: ${A} и ${B} получили одинаковую оценку за матч ${d}, ${s}.`,
   ] });
-}
-
-/**
- * The awards of a match once anonymous voting has closed: one post naming every prize that was given.
- * The label comes before the name, so names stay in the nominative; prizes nobody won are not mentioned.
- */
-export function composeAwardsPost(v: { eventId: number; date: string; winners: Record<AwardKey, readonly { userId: number; name: string }[]>; recent?: RecentVariants }): FeedDraft | null {
-  const given = AWARDS.filter(award => v.winners[award].length);
-  if (!given.length) return null;
-  const d = formatDayMonthRu(v.date);
-  const prizes = given.map(award => `${AWARD_LABEL[award]}: ${list(v.winners[award].map(w => w.name))}`).join('. ');
-  return draft(new Voice(String(v.eventId), v.recent), {
-    kind: 'awards', slot: 'awards', score: 0, userId: v.winners.mvp.length === 1 ? v.winners.mvp[0].userId : null,
-    highlights: [...new Set(given.flatMap(award => v.winners[award].map(w => w.name)))],
-    lines: [
-      `Голосование за матч ${d} закрыто. ${prizes}.`,
-      `Награды матча ${d}. ${prizes}.`,
-      `Игроки называют лучших в матче ${d}. ${prizes}.`,
-      `Итоги голосования за матч ${d}. ${prizes}.`,
-      `Лучшие в матче ${d} по выбору партнёров. ${prizes}.`,
-    ],
-  });
 }
 
 const CARD_OFFSET: Record<AwardKey, number> = { mvp: 100, forward: 200, midfielder: 300, defender: 400, goalkeeper: 500 };

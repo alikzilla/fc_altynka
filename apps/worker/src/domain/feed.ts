@@ -1,6 +1,6 @@
 import {
-  composeAwardsPost, composeMatchFeed, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_AWARD_VOTES, MIN_REVIEW_VOTES, registrationOpen,
-  splitQueue, type AwardKey, type CommunityDto, type FeedDraft, type FeedDto, type FeedKind, type FeedReaction, type FeedReactionsDto, type FeedUpcomingKind, type GameState, type RecentVariants,
+  AWARDS, composeCeremonyPost, composeMatchFeed, summarizePlayerProtocol, composeTopRatedPost, composeUpcomingPost, FEED_MATCH_KINDS, FEED_REACTIONS, FEED_UPCOMING_KINDS, MIN_AWARD_VOTES, MIN_REVIEW_VOTES, registrationOpen,
+  splitQueue, type CeremonyCard, type CeremonyCardDto, type CeremonyStats, type CeremonyWinner, type CommunityDto, type FeedDraft, type FeedDto, type FeedKind, type FeedReaction, type FeedReactionsDto, type FeedUpcomingKind, type GameState, type MatchAwardResults, type RecentVariants,
 } from '@altynka/core';
 import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
@@ -33,6 +33,7 @@ async function recentVariants(db: Db, communityId: number, exceptEventId: number
 const row = (ev: EventRow, draft: FeedDraft, position: number, createdAt: number) => ({
   communityId: ev.communityId, eventId: ev.id, kind: draft.kind, slot: draft.slot, variant: draft.variant, position,
   text: draft.text, highlightsJson: JSON.stringify(draft.highlights), userId: draft.userId, teamColor: draft.teamColor, createdAt,
+  payloadJson: draft.payload ? JSON.stringify(draft.payload) : null,
 });
 
 /**
@@ -113,11 +114,33 @@ export async function awardsToPublish(d: Deps, communityIds: number[]): Promise<
     WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)}) AND e.status <> 'cancelled'
       AND r.closes_at <= ${d.now} AND r.closes_at > ${d.now - VOTES_WINDOW_MS}
       AND EXISTS (SELECT 1 FROM award_votes a WHERE a.event_id = e.id GROUP BY a.award, a.recipient_id HAVING count(*) >= ${MIN_AWARD_VOTES})
-      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind = 'awards')
+      AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id AND f.kind IN ('awards', 'ceremony'))
     ORDER BY e.id`);
 }
 
-/** One post per match with the prizes players voted for; written on the same read as the best-rated post. */
+/**
+ * Every winner of a closed vote with what the ceremony and the congratulation tell about them: the name the
+ * match roster knows, the winner's own vote count and the numbers of the recorded games, if there are any.
+ */
+export async function ceremonyWinners(d: Deps, eventId: number, result: MatchAwardResults): Promise<CeremonyWinner[]> {
+  const ev = await event(d.db, eventId);
+  if (!ev) return [];
+  const names = new Map((await d.db.select({ userId: matchParticipants.userId, name: matchParticipants.name }).from(matchParticipants)
+    .where(eq(matchParticipants.eventId, eventId))).flatMap(p => p.userId === null ? [] : [[p.userId, p.name] as const]));
+  const state = ev.protocolVersion === 1 && ev.gameStateJson ? JSON.parse(ev.gameStateJson) as GameState : null;
+  const statsOf = (userId: number): CeremonyStats | null => {
+    if (!state?.games.length) return null;
+    const s = summarizePlayerProtocol(state, userId);
+    return s.games ? { goals: s.goals, assists: s.assistsTracked ? s.assists : null, games: s.games, wins: s.wins } : null;
+  };
+  return AWARDS.flatMap(award => {
+    const prize = result[award];
+    return (prize?.winners ?? []).map(userId => ({ award, userId, name: names.get(userId) ?? 'Игрок', votes: prize!.votes,
+      stats: statsOf(userId), sharedWith: prize!.winners.filter(id => id !== userId) }));
+  });
+}
+
+/** One ceremony per match with every prize players voted for; written on the same read as the best-rated post. */
 async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
   const closed = await awardsToPublish(d, communityIds);
   if (!closed.length) return;
@@ -126,12 +149,9 @@ async function publishAwards(d: Deps, communityIds: number[]): Promise<void> {
     const ev = await event(d.db, eventId);
     const result = results.get(eventId);
     if (!ev || !result) continue;
-    const names = new Map((await d.db.select({ userId: matchParticipants.userId, name: matchParticipants.name }).from(matchParticipants)
-      .where(eq(matchParticipants.eventId, eventId))).flatMap(p => p.userId === null ? [] : [[p.userId, p.name] as const]));
-    const named = (award: AwardKey) => (result[award]?.winners ?? []).map(userId => ({ userId, name: names.get(userId) ?? 'Игрок' }));
-    const winners = { mvp: named('mvp'), forward: named('forward'), midfielder: named('midfielder'), defender: named('defender'), goalkeeper: named('goalkeeper') };
-    const draft = composeAwardsPost({ eventId, date: ev.date, winners, recent: await recentVariants(d.db, ev.communityId, eventId) });
-    if (draft) await d.db.insert(feedPosts).values(row(ev, draft, winners.mvp.length ? AWARDS_WITH_MVP : AWARDS_ONLY, closesAt)).onConflictDoNothing();
+    const winners = await ceremonyWinners(d, eventId, result);
+    const draft = composeCeremonyPost({ eventId, date: ev.date, winners, recent: await recentVariants(d.db, ev.communityId, eventId) });
+    if (draft) await d.db.insert(feedPosts).values(row(ev, draft, winners.some(w => w.award === 'mvp') ? AWARDS_WITH_MVP : AWARDS_ONLY, closesAt)).onConflictDoNothing();
   }
 }
 
@@ -151,7 +171,7 @@ export async function publishClosedVotes(d: Deps, communityIds: number[]): Promi
     WHERE e.community_id IN (${sql.join(communityIds.map(id => sql`${id}`), sql`, `)}) AND e.status <> 'cancelled'
       AND r.closes_at <= ${d.now} AND r.closes_at > ${d.now - VOTES_WINDOW_MS}
       AND NOT EXISTS (SELECT 1 FROM feed_posts f WHERE f.event_id = e.id
-        AND (f.kind = 'top_rated' OR (f.kind = 'awards' AND f.position = ${AWARDS_WITH_MVP})))
+        AND (f.kind = 'top_rated' OR (f.kind IN ('awards', 'ceremony') AND f.position = ${AWARDS_WITH_MVP})))
     GROUP BY e.id, v.recipient_id HAVING count(*) >= ${MIN_REVIEW_VOTES}
     ORDER BY e.id, score DESC, p.name`);
   const byEvent = new Map<number, typeof rows>();
@@ -245,7 +265,8 @@ export async function listFeed(d: Deps, communities: readonly CommunityDto[], vi
     .where(and(inArray(feedPosts.communityId, ids), ne(events.status, 'cancelled'),
       sql`NOT EXISTS (SELECT 1 FROM feed_hidden h WHERE h.event_id = ${feedPosts.eventId} AND h.slot = ${feedPosts.slot})`))
     .orderBy(sql`${feedPosts.createdAt} DESC, ${feedPosts.eventId} DESC, ${feedPosts.position}, ${feedPosts.id}`).limit(FEED_PAGE);
-  const playerIds = [...new Set(rows.flatMap(r => r.post.userId === null ? [] : [r.post.userId]))];
+  const cards = new Map(rows.flatMap(r => r.post.payloadJson ? [[r.post.id, JSON.parse(r.post.payloadJson) as CeremonyCard[]] as const] : []));
+  const playerIds = [...new Set([...rows.flatMap(r => r.post.userId === null ? [] : [r.post.userId]), ...[...cards.values()].flat().map(c => c.userId)])];
   const [reactions, people] = await Promise.all([
     reactionsOf(d.db, [...new Set(rows.map(r => r.post.eventId))], viewerId),
     playerIds.length ? d.db.select({ id: users.id, name: users.displayName, photoUrl: users.photoUrl }).from(users).where(inArray(users.id, playerIds)) : [],
@@ -259,6 +280,10 @@ export async function listFeed(d: Deps, communities: readonly CommunityDto[], vi
       community: { id: post.communityId, title: titles.get(post.communityId) ?? '' },
       userId: post.userId, teamColor: post.teamColor,
       player: player ? { userId: player.id, name: player.name, photoUrl: player.photoUrl } : null,
+      ...(cards.has(post.id) ? { ceremony: cards.get(post.id)!.map((card): CeremonyCardDto => {
+        const person = players.get(card.userId);
+        return { ...card, name: person?.name ?? 'Игрок', photoUrl: person?.photoUrl ?? null };
+      }) } : {}),
       ...(reactions.get(`${post.eventId}:${post.slot}`) ?? noReactions()),
     };
   }) };

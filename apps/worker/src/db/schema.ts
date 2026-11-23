@@ -220,6 +220,8 @@ export const feedPosts = sqliteTable('feed_posts', {
   userId: integer('user_id').references(() => users.id),
   teamColor: text('team_color').$type<import('@altynka/core').TeamColor>(),
   createdAt: integer('created_at').notNull(),
+  /** Карточки поста «Церемония» (`CeremonyCard[]`); у остальных постов null. */
+  payloadJson: text('payload_json'),
 }, t => [uniqueIndex('feed_posts_event_slot').on(t.eventId, t.slot), index('feed_posts_community_time').on(t.communityId, t.createdAt)]);
 
 export const feedReactions = sqliteTable('feed_reactions', {
