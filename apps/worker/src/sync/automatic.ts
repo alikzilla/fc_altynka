@@ -27,6 +27,8 @@ export const REVIEW_REMINDER_DELAY_MS = 2 * 3600_000;
 const REVIEW_REMINDER_STALE_MS = 3600_000;
 /** Поздравление с наградой, опоздавшее больше чем на сутки после закрытия опроса, уже не отправляется. */
 const AWARD_WINDOW_MS = 24 * 3600_000;
+/** Поздравления появились 23 ноября 2026: опросы, закрытые раньше, их не получают, даже если объект проснётся. */
+export const CONGRATULATIONS_FROM = Date.UTC(2026, 10, 23, 19, 0);
 interface AutomaticState { count: number; done: boolean; nextAt: number; }
 /** `rendered: null` — только будильник: объект просыпается к этому времени и пересчитывает задачи. */
 interface Task { key: string; tgId: number; at: number; rendered: Rendered | null; payment: boolean; }
@@ -135,7 +137,7 @@ export class AutomaticNotifications {
       const [review] = await this.db.select().from(matchReviews).where(eq(matchReviews.eventId, eventId));
       // До закрытия победителей не считаем: только просыпаемся к закрытию.
       if (review && now < review.closesAt) tasks.push({ key: `award-wake:${review.closesAt}`, tgId: 0, at: review.closesAt, rendered: null, payment: false });
-      else if (review && now < review.closesAt + AWARD_WINDOW_MS) {
+      else if (review && review.closesAt >= CONGRATULATIONS_FROM && now < review.closesAt + AWARD_WINDOW_MS) {
         const result = (await awardsByEvent(this.db, [eventId])).get(eventId);
         const winners = result ? await ceremonyWinners({ db: this.db, now, sync: { request: async () => {} } }, eventId, result) : [];
         const ids = [...new Set(winners.map(w => w.userId))];

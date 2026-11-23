@@ -6,6 +6,8 @@ import { closeBill, markPaid, upsertBill } from '../../src/domain/bills';
 import { addGuest, cancelEvent, createEvent, getEvent, joinEvent, leaveEvent, loadQueue, scheduleEvent } from '../../src/domain/events';
 import { finishMatch, submitReview } from '../../src/domain/ratings';
 import { __setTgClientForTests, TgForbidden, TgRateLimited } from '../../src/telegram/client';
+import { CONGRATULATIONS_FROM } from '../../src/sync/automatic';
+import { nextDeliveryTime } from '../../src/sync/automaticTime';
 import { FakeSync } from '../fakes/fakeSync';
 import { FakeTg } from '../fakes/fakeTg';
 import { setMemberProfile, localUser, db, seedCommunity, seedUser } from '../helpers';
@@ -279,6 +281,16 @@ test('a late first wake after a daytime close still waits for delivery hours', a
   expect(await w.alarm()).toBe(futureTime('05:00:00', 4));
   now = (await w.alarm())!; await w.flush();
   expect(w.congrats()).toHaveLength(1);
+});
+
+test('a vote that closed before the release gets no congratulation', async () => {
+  const w = await awardWorld();
+  // Опрос закрылся до выпуска поздравлений; объект просыпается в часы доставки в пределах суток.
+  await env.DB.prepare('UPDATE match_reviews SET completed_at = ?, closes_at = ? WHERE event_id = ?').bind(CONGRATULATIONS_FROM - 73 * HOUR, CONGRATULATIONS_FROM - HOUR, w.ev).run();
+  now = CONGRATULATIONS_FROM + 2 * HOUR;
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  now = nextDeliveryTime(now) + HOUR; await w.flush();
+  expect(w.congrats()).toHaveLength(0);
 });
 
 test.each(['disabled', 'unavailable', 'stale'] as const)('no congratulation when %s, and none in the group', async reason => {
