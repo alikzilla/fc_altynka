@@ -15,6 +15,7 @@ import './styles/match.css';
 import './styles/ratings.css';
 import './styles/venues.css';
 import './styles/statistics.css';
+import './styles/ceremony.css';
 import './styles/transitions.css';
 
 initializeTheme();
