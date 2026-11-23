@@ -1,12 +1,5 @@
-import type { EventSync } from './sync/EventSync';
-
-export interface Env {
-  DB: D1Database;
-  ASSETS: Fetcher;
-  EVENT_SYNC: DurableObjectNamespace<EventSync>;
-  BOT_TOKEN: string;
-  WEBHOOK_SECRET: string;
-  BOT_USERNAME: string;
-  MINIAPP_SHORT_NAME: string;
-  ADMIN_TG_ID: string;
-}
+/**
+ * Bindings come from wrangler.jsonc through `pnpm --filter @altynka/worker types` (worker-configuration.d.ts);
+ * `pnpm typecheck` fails when that file is stale.
+ */
+export type Env = Cloudflare.Env;

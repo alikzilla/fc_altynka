@@ -30,7 +30,7 @@ async function fixture(phase: 'scheduled' | 'playing' | 'finished' | 'legacy') {
   const bill = await upsertBill(w.d, w.eventId, {
     receiverUserId: w.actorId, receiverKaspiPhone: '+77071234567',
     fieldAmount: 12000, extras: [], participantSignupIds: w.ids,
-  });
+  }, w.actorId);
   expect(bill.kind).toBe('ok');
   if (phase === 'finished') {
     const finished = await finishGameSession(w.d, w.eventId, w.actorId,

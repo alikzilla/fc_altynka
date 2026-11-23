@@ -57,7 +57,21 @@ function watchOverflow(allowed: string) {
   (window as unknown as { __checkOverflow: () => void }).__checkOverflow = safe;
 }
 
-export const test = base.extend<{ noHorizontalScroll: void }>({
+type CspViolation = { directive: string; blocked: string; where: string };
+
+export const test = base.extend<{ noHorizontalScroll: void; noCspViolations: void }>({
+  // vite preview serves the production CSP from public/_headers: anything the policy blocks in a test is blocked in Telegram too.
+  noCspViolations: [async ({ page }, use) => {
+    const violations: CspViolation[] = [];
+    await page.exposeFunction('__reportCsp', (v: CspViolation) => { violations.push(v); });
+    await page.addInitScript(() => {
+      addEventListener('securitypolicyviolation', e => {
+        void (window as unknown as { __reportCsp?: (v: CspViolation) => Promise<void> }).__reportCsp?.({ directive: e.effectiveDirective, blocked: e.blockedURI, where: location.pathname });
+      });
+    });
+    await use();
+    expect(violations, 'CSP из public/_headers заблокировал ресурс').toEqual([]);
+  }, { auto: true }],
   noHorizontalScroll: [async ({ page }, use) => {
     const overflow: Overflow[] = [];
     // Reports leave the page at once, so a later navigation does not lose them.

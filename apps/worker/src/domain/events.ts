@@ -1,5 +1,5 @@
 import { guardRosterMutation } from './rosterGuard';
-import { demotedIds, limitFor, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type MatchLimit, type QueueSplit, type Role } from '@altynka/core';
+import { demotedIds, limitFor, MAX_GUESTS_PER_PLAYER, promotedIds, splitQueue, canRestore, matchStartsAt, registrationOpen, type MatchLimit, type QueueSplit, type Role } from '@altynka/core';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { communities, events, memberships, signups, teamAssignments, type EventRow, type SignupRow } from '../db/schema';
@@ -68,10 +68,13 @@ async function insertSignup(
 }
 
 /**
- * Гость встаёт в очередь, только если у пригласившего нет активного гостя с тем же именем.
- * Проверка — в том же запросе, поэтому двойное нажатие не запишет двоих.
+ * Гость встаёт в очередь, только если у пригласившего нет активного гостя с тем же именем и не исчерпан лимит
+ * (`maxGuests`, без него — без ограничения). Проверки — в том же запросе, поэтому двойное нажатие не обойдёт их.
  */
-async function insertGuest(db: Db, v: { eventId: number; invitedBy: number; name: string; now: number }): Promise<number | null> {
+async function insertGuest(db: Db, v: { eventId: number; invitedBy: number; name: string; now: number; maxGuests?: number }): Promise<number | null> {
+  const limit = v.maxGuests === undefined ? sql`` : sql`AND (
+      SELECT count(*) FROM signups
+      WHERE event_id = ${v.eventId} AND user_id IS NULL AND invited_by = ${v.invitedBy} AND left_at IS NULL) < ${v.maxGuests}`;
   const rows = await db.all<{ id: number }>(sql`
     INSERT INTO signups (event_id, user_id, guest_name, invited_by, seq, manual, created_at)
     SELECT ${v.eventId}, NULL, ${v.name}, ${v.invitedBy}, next, 0, ${v.now}
@@ -79,9 +82,16 @@ async function insertGuest(db: Db, v: { eventId: number; invitedBy: number; name
     WHERE NOT EXISTS (
       SELECT 1 FROM signups
       WHERE event_id = ${v.eventId} AND user_id IS NULL AND invited_by = ${v.invitedBy}
-        AND guest_name = ${v.name} AND left_at IS NULL)
+        AND guest_name = ${v.name} AND left_at IS NULL) ${limit}
     RETURNING id`);
   return rows[0]?.id ?? null;
+}
+
+/** Активные гости, которых привёл человек. */
+async function guestsOf(db: Db, eventId: number, invitedBy: number): Promise<string[]> {
+  return (await db.select({ name: signups.guestName }).from(signups)
+    .where(and(eq(signups.eventId, eventId), isNull(signups.userId), eq(signups.invitedBy, invitedBy), isNull(signups.leftAt))))
+    .map(r => r.name ?? '');
 }
 
 /** drizzle оборачивает ошибку D1, поэтому смотрим всю цепочку cause. */
@@ -173,16 +183,17 @@ async function addGuestUnsafe(
   eventId: number,
   invitedBy: number,
   name: string,
+  o: { unlimited?: boolean } = {},
 ): Promise<
-  { kind: 'main' | 'reserve'; position: number; signupId: number } | { kind: 'duplicate' } | { kind: 'closed' } | { kind: 'not_found' }
+  { kind: 'main' | 'reserve'; position: number; signupId: number } | { kind: 'duplicate' } | { kind: 'guest_limit' } | { kind: 'closed' } | { kind: 'not_found' }
 > {
   const ev = await getEvent(d.db, eventId);
   if (!ev) return { kind: 'not_found' };
   if (!await eventMember(d.db, ev.communityId, invitedBy)) return { kind: 'not_found' };
   if (isClosed(ev, d.now)) return { kind: 'closed' };
   const before = await loadQueue(d.db, eventId);
-  const signupId = await insertGuest(d.db, { eventId, invitedBy, name, now: d.now });
-  if (signupId === null) return { kind: 'duplicate' };
+  const signupId = await insertGuest(d.db, { eventId, invitedBy, name, now: d.now, maxGuests: o.unlimited ? undefined : MAX_GUESTS_PER_PLAYER });
+  if (signupId === null) return (await guestsOf(d.db, eventId, invitedBy)).includes(name) ? { kind: 'duplicate' } : { kind: 'guest_limit' };
   const after = await loadQueue(d.db, eventId);
   await syncEvent(d, eventId, movesNotices(before, after));
   const p = placeOf(after, signupId);

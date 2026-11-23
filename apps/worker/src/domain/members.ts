@@ -59,7 +59,9 @@ export async function nameTaken(db: Db, name: string, userId: number): Promise<b
 /** Создаёт пользователя или обновляет данные Telegram; отображаемое имя задаётся только при создании. */
 export async function upsertTgUser(db: Db, u: TgWebAppUser, now: number): Promise<UserRow> {
   const tg = { firstName: u.first_name, lastName: u.last_name ?? null, username: u.username ?? null };
-  const [known] = await db.select({ id: users.id }).from(users).where(eq(users.tgId, u.id));
+  const [known] = await db.select().from(users).where(eq(users.tgId, u.id));
+  // Every API request lands here: write only when Telegram reports a change.
+  if (known && known.firstName === tg.firstName && known.lastName === tg.lastName && known.username === tg.username) return known;
   if (known) return (await db.update(users).set(tg).where(eq(users.id, known.id)).returning())[0];
   const [row] = await db
     .insert(users)
@@ -103,10 +105,29 @@ export function effectiveRole(env: Pick<Env, 'ADMIN_TG_ID'>, user: UserRow, m: M
   return m?.role ?? 'player';
 }
 
-/** Always check current Telegram membership; admin privileges are never inferred from a global ID. */
-export async function confirmedMembership(db: Db, tg: TgClient, community: CommunityRow, user: UserRow, now: number, legacyOwnerId?: string): Promise<MembershipRow | null> {
+/** How long a Telegram confirmation is trusted for reads: leaving or a role change resets it via `chat_member`. */
+export const MEMBERSHIP_CACHE_MS = 5 * 60_000;
+
+/**
+ * Check current Telegram membership; admin privileges are never inferred from a global ID.
+ * `cacheMs` trusts a recent confirmation instead of asking Telegram again (reads only).
+ * When Telegram cannot answer (429, network, 5xx), the stored active membership decides, as in GET /me;
+ * without one the error propagates.
+ */
+export async function confirmedMembership(db: Db, tg: TgClient, community: CommunityRow, user: UserRow, now: number, legacyOwnerId?: string, o: { cacheMs?: number } = {}): Promise<MembershipRow | null> {
   if (!community.active) return null;
-  const status = await tg.memberStatus(community.tgChatId, user.tgId);
+  const [stored] = await db.select().from(memberships)
+    .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));
+  const trusted = stored?.active && !stored.legacy ? stored : null;
+  if (trusted && o.cacheMs !== undefined && trusted.checkedAt > 0 && now - trusted.checkedAt < o.cacheMs) return trusted;
+  let status: Awaited<ReturnType<TgClient['memberStatus']>>;
+  try {
+    status = await tg.memberStatus(community.tgChatId, user.tgId);
+  } catch (e) {
+    if (!trusted) throw e;
+    console.warn(JSON.stringify({ event: 'membership_check_failed', communityId: community.id, error: String(e) }));
+    return trusted;
+  }
   if (status === 'left') {
     await db.update(memberships).set({ active: false, telegramAdmin: false, checkedAt: 0, legacy: false })
       .where(and(eq(memberships.communityId, community.id), eq(memberships.userId, user.id)));

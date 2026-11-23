@@ -4,7 +4,7 @@ import type { Context, MiddlewareHandler } from 'hono';
 import type { CommunityRow, UserRow } from '../db/schema';
 import { users } from '../db/schema';
 import type { Deps } from '../domain/events';
-import { confirmedMembership, effectiveRole, getCommunity, upsertTgUser } from '../domain/members';
+import { confirmedMembership, effectiveRole, getCommunity, MEMBERSHIP_CACHE_MS, upsertTgUser } from '../domain/members';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
 import { verifyInitData } from './initData';
@@ -34,6 +34,13 @@ export function identityMiddleware(makeDeps: (env: Env) => Deps): MiddlewareHand
     const deps = makeDeps(c.env);
     const tgUser = raw ? await verifyInitData(raw, c.env.BOT_TOKEN, Math.floor(deps.now / 1000)) : null;
     if (!tgUser) return c.json({ error: 'unauthorized' }, 401);
+    // Anyone with Telegram can open the app and get signed initData: limit per person before any write or Telegram call.
+    // Changes are limited harder, since each one asks Telegram about membership.
+    const key = `tg:${tgUser.id}`;
+    const write = c.req.method !== 'GET' && c.req.method !== 'HEAD';
+    if (!(await c.env.API_LIMITER.limit({ key })).success || write && !(await c.env.WRITE_LIMITER.limit({ key })).success) {
+      return c.json({ error: 'rate_limited' }, 429);
+    }
     const user = await upsertTgUser(deps.db, tgUser, deps.now);
     if (tgUser.allows_write_to_pm === true && !user.pmAvailable) {
       await deps.db.update(users).set({ pmAvailable: true }).where(eq(users.id, user.id));
@@ -72,7 +79,10 @@ export function scopeCommunity(
     const user = c.get('user');
     const id = await resolve(c);
     const community = id === null ? null : await getCommunity(db, id);
-    const m = community ? await confirmedMembership(db, makeTgClient(c.env), community, user, now, c.env.ADMIN_TG_ID) : null;
+    // Opening a screen sends several reads at once: they share one recent confirmation. Changes always ask Telegram.
+    const read = c.req.method === 'GET' || c.req.method === 'HEAD';
+    const m = community ? await confirmedMembership(db, makeTgClient(c.env), community, user, now, c.env.ADMIN_TG_ID,
+      read ? { cacheMs: MEMBERSHIP_CACHE_MS } : {}) : null;
     if (community && m) c.set('role', effectiveRole(c.env, user, m));
     else if (community && debtor && (await debtor(c))) {
       c.set('role', 'player');

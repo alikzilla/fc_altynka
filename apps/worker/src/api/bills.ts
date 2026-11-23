@@ -35,7 +35,7 @@ billsApi.put('/events/:id/bill', requireRole('organizer'), body(billBody), async
   if (!ev || ev.communityId !== c.get('community').id) return c.json({ error: 'not_found' }, 404);
   const r = await upsertBill(c.get('deps'), ev.id, c.req.valid('json'), c.get('user').id);
   if (r.kind === 'ok') return c.json(await billDto(c.get('deps').db, r.billId));
-  if (r.kind === 'receiver_phone_locked') return c.json({ error: r.kind }, 409);
+  if (r.kind === 'receiver_phone_locked' || r.kind === 'receiver_no_phone') return c.json({ error: r.kind }, 409);
   if (r.kind === 'no_kaspi' || r.kind === 'bad_phone' || r.kind === 'invalid') return c.json({ error: r.kind }, 400);
   return c.json({ error: r.kind }, statusFor(r.kind));
 });

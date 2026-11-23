@@ -21,6 +21,11 @@ export default defineConfig(async () => {
             BOT_USERNAME: 'fc_altynka_bot',
             MINIAPP_SHORT_NAME: 'app',
           },
+          // Suites send many requests as one person; the 429 path is tested with a stub limiter (test/api/limits.test.ts).
+          ratelimits: {
+            API_LIMITER: { namespace_id: '1001', simple: { limit: 1_000_000, period: 60 } },
+            WRITE_LIMITER: { namespace_id: '1002', simple: { limit: 1_000_000, period: 60 } },
+          },
         },
       }),
     ],

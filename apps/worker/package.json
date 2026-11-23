@@ -6,8 +6,9 @@
   "scripts": {
     "dev": "wrangler dev",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "typecheck": "wrangler types --include-runtime=false --strict-vars=false --check && tsc --noEmit",
+    "db:generate": "drizzle-kit generate",
+    "types": "wrangler types --include-runtime=false --strict-vars=false"
   },
   "dependencies": {
     "@altynka/core": "workspace:*",

@@ -21,7 +21,7 @@ beforeEach(async () => {
   await d.db.update(events).set({ protocolVersion: 0 }).where(eq(events.id, id));
 });
 const schedule = () => scheduleEvent(d, id, { startTime: '20:00', durationHours: 2, place: 'Arena' });
-const makeBill = async () => upsertBill(d, id, { receiverUserId: org, receiverKaspiPhone: '+77071234567', fieldAmount: 4000, extras: [], participantSignupIds: (await loadQueue(d.db, id)).main.map(s => s.id) });
+const makeBill = async () => upsertBill(d, id, { receiverUserId: org, receiverKaspiPhone: '+77071234567', fieldAmount: 4000, extras: [], participantSignupIds: (await loadQueue(d.db, id)).main.map(s => s.id) }, org);
 
 test('signup before scheduling is allowed; every queue mutation is frozen exactly at kickoff', async () => {
   expect((await joinEvent(d, id, org)).kind).toBe('main');

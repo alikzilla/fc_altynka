@@ -42,3 +42,12 @@ test('a guest already on the list is reported by name', async () => {
   await userEvent.click(screen.getByRole('button', { name: 'Записать' }));
   expect(await screen.findByText('Ержан уже в списке')).toBeInTheDocument();
 });
+
+test('the guest limit is explained instead of a closed signup', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'guest_limit'));
+  renderSheet();
+  await userEvent.type(screen.getByLabelText('Имя друга'), 'Ержан');
+  await userEvent.click(screen.getByRole('button', { name: 'Записать' }));
+  expect(await screen.findByText('Можно привести не больше 3 друзей на матч')).toBeInTheDocument();
+  expect(screen.queryByText('Запись уже закрыта')).not.toBeInTheDocument();
+});

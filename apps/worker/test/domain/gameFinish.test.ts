@@ -13,9 +13,9 @@ test('billing before manual start is rejected, closed payment does not finish sp
   const w=await gameFixture(2);
   const billInput={receiverUserId:w.actorId,receiverKaspiPhone:'+77071234567',fieldAmount:12000,extras:[],participantSignupIds:w.ids};
   w.d.now+=7200_000;
-  expect((await upsertBill(w.d,w.eventId,billInput)).kind).toBe('not_started');
+  expect((await upsertBill(w.d,w.eventId,billInput,w.actorId)).kind).toBe('not_started');
   await startGameSession(w.d,w.eventId,w.actorId,{requestId:'start',expectedRevision:0});
-  const bill=await upsertBill(w.d,w.eventId,billInput); if(bill.kind!=='ok') throw new Error(bill.kind);
+  const bill=await upsertBill(w.d,w.eventId,billInput,w.actorId); if(bill.kind!=='ok') throw new Error(bill.kind);
   const beforeClose=(await getEvent(w.d.db,w.eventId))!;
   await closeBill(w.d,bill.billId);
   const staleFinish=await commitGameCommand(w.d,beforeClose,{requestId:'stale-finish',expectedRevision:1},{fingerprint:'finish',state:parseGameState(beforeClose)!,startedAt:beforeClose.startedAt,completedAt:w.d.now,status:'billing'});
@@ -52,7 +52,7 @@ test('played protocol cannot finish with nobody, open bill stays open after spor
   const w=await gameFixture(2); await startGameSession(w.d,w.eventId,w.actorId,{requestId:'start',expectedRevision:0});
   await recordGameResult(w.d,w.eventId,w.actorId,{requestId:'record',expectedRevision:1},{score:[0,0],scorers:[]});
   expect((await finishGameSession(w.d,w.eventId,w.actorId,{requestId:'invalid',expectedRevision:2},[])).kind).toBe('invalid');
-  expect((await upsertBill(w.d,w.eventId,{receiverUserId:w.actorId,receiverKaspiPhone:'+77071234567',fieldAmount:12000,extras:[],participantSignupIds:w.ids})).kind).toBe('ok');
+  expect((await upsertBill(w.d,w.eventId,{receiverUserId:w.actorId,receiverKaspiPhone:'+77071234567',fieldAmount:12000,extras:[],participantSignupIds:w.ids},w.actorId)).kind).toBe('ok');
   expect((await finishGameSession(w.d,w.eventId,w.actorId,{requestId:'finish',expectedRevision:2},w.ids)).kind).toBe('ok');
   expect((await getEvent(w.d.db,w.eventId))?.status).toBe('billing');
 });

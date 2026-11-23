@@ -1,0 +1,8 @@
+# Workers Static Assets apply these to every page and asset; `vite preview` (Playwright) applies the same block.
+# telegram.org: the WebApp script. img https: player photos come from Telegram's CDNs.
+# No frame-ancestors: Telegram Web embeds the app in a frame, and without signed initData from Telegram the app shows nothing.
+/*
+  Content-Security-Policy: default-src 'self'; script-src 'self' https://telegram.org; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()

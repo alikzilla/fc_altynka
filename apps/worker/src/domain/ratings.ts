@@ -114,9 +114,12 @@ export async function finishMatch(d: Deps, ev: EventRow, organizerId: number, pa
   }
   if (!canFinishMatch(ev, d.now)) return 'closed';
   if (!ids.length || new Set(ids).size !== ids.length) return 'invalid';
-  const rows = await d.db.select({ signup: signups, name: users.displayName }).from(signups)
+  const wanted = new Set(ids);
+  const rows = (await d.db.select({ signup: signups, name: users.displayName }).from(signups)
     .leftJoin(users, eq(users.id, signups.userId))
-    .where(and(eq(signups.eventId, ev.id), isNull(signups.leftAt), inArray(signups.id, ids)));
+    .where(and(eq(signups.eventId, ev.id), isNull(signups.leftAt))))
+    // Filtered here, not with IN (...): up to 100 ids plus the event id would exceed D1's 100 bound parameters.
+    .filter(r => wanted.has(r.signup.id));
   if (rows.length !== ids.length) return 'invalid';
   const roster = rows.map(({ signup: s, name }) => ({ signupId: s.id, userId: s.userId, name: name ?? s.guestName ?? 'Гость' })).sort((a, b) => a.signupId - b.signupId);
   // The roster trigger runs within this INSERT, so a retry cannot partially overwrite participants.

@@ -19,13 +19,6 @@ function hexToBytes(h: string): Uint8Array | null {
   return Uint8Array.from(h.match(/../g)!.map(x => parseInt(x, 16)));
 }
 
-function timingSafeEqual(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i] ^ b[i];
-  return diff === 0;
-}
-
 /**
  * Проверка подписи initData мини-аппа по документации Telegram:
  * secret = HMAC_SHA256("WebAppData", botToken); hash = HMAC_SHA256(secret, data_check_string).
@@ -47,7 +40,8 @@ export async function verifyInitData(
     .join('\n');
   const secret = await hmac(enc.encode('WebAppData'), botToken);
   const expected = new Uint8Array(await hmac(secret, dcs));
-  if (!timingSafeEqual(expected, given)) return null;
+  // Both are 32-byte HMAC-SHA256 values (hexToBytes accepts exactly 64 hex chars), so lengths always match.
+  if (!crypto.subtle.timingSafeEqual(expected, given)) return null;
   const authDate = Number(params.get('auth_date'));
   if (!Number.isFinite(authDate) || nowSec - authDate > maxAgeSec) return null;
   try {
