@@ -1,15 +1,17 @@
-import { aggregatePlayerStatistics, matchStartsAt, playerAchievements, summarizePlayerProtocol } from '@altynka/core';
+import { AWARDS, aggregatePlayerStatistics, awardProgress, matchStartsAt, playerAchievements, summarizePlayerProtocol } from '@altynka/core';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { matchParticipants, matchReviews, reviewSubmissions, users } from '../db/schema';
+import { awardsByEvent, playerAwardCounts } from '../domain/awards';
 import { billDto, getBillByEvent } from '../domain/bills';
+import { ceremonyWinners } from '../domain/feed';
 import { getEvent } from '../domain/events';
 import { parseGameState } from '../domain/gameStore';
 import { playerGameStatistics } from '../domain/playerStatistics';
 import { getCommunity } from '../domain/members';
 import type { Env } from '../env';
 import type { Rendered } from '../render/eventMessage';
-import { personalMatchReminder, personalPayment, personalResult, personalReviewInvitation, personalReviewReminder } from '../render/personal';
+import { personalAwards, personalMatchReminder, personalPayment, personalResult, personalReviewInvitation, personalReviewReminder } from '../render/personal';
 import { TgRateLimited, type TgClient } from '../telegram/client';
 import { nextDeliveryTime } from './automaticTime';
 import { loadEventView } from './parts';
@@ -23,8 +25,11 @@ const RESULT_WINDOW_MS = 12 * 3600_000;
 export const REVIEW_REMINDER_DELAY_MS = 2 * 3600_000;
 /** Напоминание, опоздавшее больше чем на час (объект долго не просыпался), уже не отправляется. */
 const REVIEW_REMINDER_STALE_MS = 3600_000;
+/** Поздравление с наградой, опоздавшее больше чем на сутки после закрытия опроса, уже не отправляется. */
+const AWARD_WINDOW_MS = 24 * 3600_000;
 interface AutomaticState { count: number; done: boolean; nextAt: number; }
-interface Task { key: string; tgId: number; at: number; rendered: Rendered; payment: boolean; }
+/** `rendered: null` — только будильник: объект просыпается к этому времени и пересчитывает задачи. */
+interface Task { key: string; tgId: number; at: number; rendered: Rendered | null; payment: boolean; }
 const stateKey = (key: string) => `auto:state:${key}`;
 
 /** Schedules are durable; candidates and message contents always come from current D1 data. */
@@ -126,6 +131,36 @@ export class AutomaticNotifications {
         }
       }
     }
+    if (await this.storage.get<boolean>('auto:reviewArmed')) {
+      const [review] = await this.db.select().from(matchReviews).where(eq(matchReviews.eventId, eventId));
+      // До закрытия победителей не считаем: только просыпаемся к закрытию.
+      if (review && now < review.closesAt) tasks.push({ key: `award-wake:${review.closesAt}`, tgId: 0, at: review.closesAt, rendered: null, payment: false });
+      else if (review && now < review.closesAt + AWARD_WINDOW_MS) {
+        const result = (await awardsByEvent(this.db, [eventId])).get(eventId);
+        const winners = result ? await ceremonyWinners({ db: this.db, now, sync: { request: async () => {} } }, eventId, result) : [];
+        const ids = [...new Set(winners.map(w => w.userId))];
+        const people = ids.length ? await this.db.select({ id: users.id, tgId: users.tgId }).from(users).where(inArray(users.id, ids)) : [];
+        const at = nextDeliveryTime(review.closesAt);
+        for (const person of people) {
+          const key = `award:${review.closesAt}:${person.tgId}`;
+          if (at > review.closesAt + AWARD_WINDOW_MS || (await this.storage.get<AutomaticState>(stateKey(key)))?.done) continue;
+          const mine = winners.filter(w => w.userId === person.id);
+          const names = new Map(winners.map(w => [w.userId, w.name]));
+          const counts = await playerAwardCounts(this.db, person.id, person.id, now);
+          const position = AWARDS.filter(a => a !== 'mvp');
+          const wonMvp = mine.filter(w => w.award === 'mvp').length, wonPosition = mine.length - wonMvp;
+          await append({ key, tgId: person.tgId, at, payment: false, rendered: personalAwards(this.env, view, {
+            seed: `${eventId}:${person.tgId}`,
+            awards: mine.map(w => ({ award: w.award, votes: w.votes, sharedWith: w.sharedWith.map(id => names.get(id) ?? 'Игрок') })),
+            stats: mine[0].stats,
+            progress: [
+              ...(wonMvp ? [{ ladder: 'mvp' as const, ...awardProgress('mvp', counts.mvp, wonMvp) }] : []),
+              ...(wonPosition ? [{ ladder: 'position-best' as const, ...awardProgress('position-best', position.reduce((sum, a) => sum + counts[a], 0), wonPosition) }] : []),
+            ],
+          }) });
+        }
+      }
+    }
     return tasks;
   }
 
@@ -135,7 +170,7 @@ export class AutomaticNotifications {
       if (candidate.at > Date.now()) continue;
       // A previous recipient's Telegram request may have allowed payments, leaves or submissions.
       const task = (await this.tasks(eventId)).find(current => current.key === candidate.key);
-      if (!task || task.at > Date.now()) continue;
+      if (!task?.rendered || task.at > Date.now()) continue;
       const key = task.payment ? `pm:reminder:${task.tgId}` : `pm:auto:${task.key}`;
       const result = await delivery.automatic(task.tgId, key, task.rendered);
       if (result !== null) {

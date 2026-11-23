@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { communities, events, memberships, reviewSubmissions } from '../../src/db/schema';
 import { playerAwardCounts } from '../../src/domain/awards';
 import { playerGameStatistics } from '../../src/domain/playerStatistics';
-import { matchReview, submitReview } from '../../src/domain/ratings';
+import { closeReview, matchReview, submitReview } from '../../src/domain/ratings';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 import { HOUR, NOW, reviewedMatch, vote } from './awardsFixture';
@@ -143,5 +143,24 @@ describe('award totals of a player', () => {
   it('profile statistics carry award totals even without recorded games', async () => {
     const w = await season();
     expect((await playerGameStatistics(db(), w.b.id, w.b.id, NOW)).statistics).toMatchObject({ meetings: 0, mvps: 2, positionAwards: 1 });
+  });
+});
+
+describe('closing a vote early', () => {
+  it('wakes the match sync once, so the congratulation is not left waiting for the original deadline', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);
+    const d = deps();
+    expect(await closeReview(d, ev.id)).toBe(true);
+    expect(d.sync.calls).toEqual([{ eventId: ev.id, req: { parts: [], review: true } }]);
+    expect(await closeReview(d, ev.id)).toBe(true);
+    expect(d.sync.calls).toHaveLength(1);
+  });
+  it('an incomplete vote that stays open wakes nothing', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);
+    const d = deps();
+    expect(await closeReview(d, ev.id, true)).toBe(false);
+    expect(d.sync.calls).toEqual([]);
   });
 });

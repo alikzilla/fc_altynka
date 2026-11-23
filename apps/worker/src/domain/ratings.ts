@@ -232,8 +232,10 @@ export async function closeReview(d: Deps, eventId: number, onlyComplete = false
     SELECT 1 FROM match_participants p LEFT JOIN review_submissions s ON s.event_id = p.event_id AND s.user_id = p.user_id
     WHERE p.event_id = ${eventId} AND p.user_id IS NOT NULL AND (s.user_id IS NULL OR NOT (s.skipped = 1
       OR json_type(s.payload_json, '$.awards') IS NOT NULL OR json_type(s.payload_json, '$.awardsSkipped') IS NOT NULL)))` : sql``;
-  await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
+  const closed = await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
     WHERE event_id = ${eventId} AND closes_at > ${d.now} ${complete}`);
+  // Поздравления с наградами ждут закрытия в объекте матча: будим его, а не ждём прежнего срока.
+  if (closed.meta.changes) await d.sync.request(eventId, { parts: [], review: true });
   const [review] = await d.db.select({ closesAt: matchReviews.closesAt }).from(matchReviews).where(eq(matchReviews.eventId, eventId));
   return !!review && review.closesAt <= d.now;
 }
