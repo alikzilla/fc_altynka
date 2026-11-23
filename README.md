@@ -309,7 +309,8 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
 
 - **Лимиты запросов** — привязки Rate Limiting в `wrangler.jsonc`, ключ — Telegram ID (`tg:<id>`): `API_LIMITER` —
   300 запросов в минуту на человека, `WRITE_LIMITER` — 60 изменений в минуту (каждое спрашивает Telegram о членстве).
-  Сверх лимита — `429 rate_limited` до любой записи в базу. Тело запроса — не больше 64 КБ (`413 too_large`).
+  Сверх лимита — `429 rate_limited` до любой записи в базу. Тело запроса — не больше 64 КБ (`413 too_large`; если Cloudflare передал тело без `Content-Length`, лимит
+  срабатывает при чтении, а неподписанный запрос получает 401, не читая тело).
 - **Проверка членства.** Изменения всегда спрашивают Telegram. Чтения (`GET`) доверяют подтверждению не старше
   5 минут (`MEMBERSHIP_CACHE_MS`); выход из группы и смена прав приходят апдейтом `chat_member` и сбрасывают его сразу.
   Если Telegram не отвечает (429, сеть), решает сохранённое активное членство, как в `GET /me`; без него — `503
@@ -325,8 +326,11 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
 - **Заголовки статики** — `apps/miniapp/public/_headers`: CSP, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
   `vite preview` отдаёт те же заголовки, а Playwright падает на любом нарушении CSP, так что новый внешний ресурс
   нужно добавить в политику.
-- **Наблюдаемость** — логи и трейсы Workers включены в `wrangler.jsonc` (`observability`); Worker размещается рядом с
-  D1 (`placement: smart`).
+- **Наблюдаемость** — логи и трейсы Workers включены в `wrangler.jsonc` (`observability`).
+- **Размещение** — Worker выполняется во Франкфурте (`placement: { mode: "targeted", region: "aws:eu-central-1" }`),
+  рядом с D1 (EEUR) и Bot API Telegram, а не в Алматы, куда приходят запросы игроков: так страница матча с
+  десятками обращений к базе открывается вдвое быстрее. Smart Placement здесь не срабатывает — почти весь трафик
+  из одного места. Замеры: `docs/security-hardening-deployment.md`.
 
 ## Деплой (сначала — в тестовой группе)
 

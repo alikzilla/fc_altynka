@@ -7,8 +7,10 @@
 		"nodejs_compat"
 	],
 	"triggers": { "crons": ["*/5 * * * *"] },
-	// D1 lives in EEUR and one API request makes several sequential queries: run the Worker next to it.
-	"placement": { "mode": "smart" },
+	// D1 lives in EEUR and one API request makes many sequential queries: run the Worker next to it, not next to
+	// the players in Almaty. Smart Placement never moved it (almost all traffic comes from one location), so the
+	// region is explicit; Frankfurt is also next to Telegram's Bot API. See docs/security-hardening-deployment.md.
+	"placement": { "mode": "targeted", "region": "aws:eu-central-1" },
 	"observability": {
 		"enabled": true,
 		"logs": { "enabled": true, "head_sampling_rate": 1 },

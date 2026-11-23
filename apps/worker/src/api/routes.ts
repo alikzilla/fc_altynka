@@ -78,7 +78,8 @@ const ownBillPayment = async (c: C) => {
 export const MAX_BODY_BYTES = 64 * 1024;
 
 export const api = new Hono<AppEnv>();
-// Before signature checks: an oversized body is rejected without being read.
+// Refused by Content-Length when it is sent, otherwise as soon as more than the limit is read. Cloudflare may deliver
+// a body without Content-Length; then an unsigned request gets 401 before its body is read at all.
 api.use('*', bodyLimit({ maxSize: MAX_BODY_BYTES, onError: c => c.json({ error: 'too_large' }, 413) }));
 api.use('*', identityMiddleware(env => depsFactory(env)));
 // Person-scoped routes (/me, /events list, /matches, /feed, /notifications, /players, /statistics) need no group.
