@@ -33,7 +33,9 @@ const winsWord = (n: number) => `${n} ${plural(n, 'победа', 'победы'
 export function ceremonyLines(award: AwardKey, v: { name: string; date: string; votes: number; stats: CeremonyStats | null }): readonly string[] {
   const A = v.name, d = dayMonth(v.date), s = v.stats;
   const goals = s?.goals ?? 0, assists = s?.assists ?? 0, wins = s?.wins ?? 0;
-  const both = assists > 0 ? `${goalsWord(goals)} и ${passesWord(assists)}` : goalsWord(goals);
+  // Только ненулевые цифры: «3 паса», а не «0 голов и 3 паса».
+  const numbers = [...(goals > 0 ? [goalsWord(goals)] : []), ...(assists > 0 ? [passesWord(assists)] : [])];
+  const both = numbers.join(' и '), listed = numbers.join(', ');
   switch (award) {
     case 'mvp': return [
       `${A} — MVP матча ${d}. Партнёры отдали голоса, и спорить тут не о чем.`,
@@ -44,7 +46,7 @@ export function ceremonyLines(award: AwardKey, v: { name: string; date: string; 
       `Новый обладатель короны: ${A}. Она остаётся у хозяина до следующего MVP.`,
       ...(s && goals + assists >= 3 ? [
         `${both} за вечер. ${A} делает матч ${d} своим и забирает MVP.`,
-        `Цифры и голоса совпали: ${both} и звание MVP. Это ${A}.`,
+        `Цифры и голоса совпали: ${listed} и звание MVP. Это ${A}.`,
       ] : []),
     ];
     case 'forward': return [

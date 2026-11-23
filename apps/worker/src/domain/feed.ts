@@ -253,6 +253,16 @@ export async function hideFeedPost(d: Deps, postId: number, userId: number, memb
   return 'ok';
 }
 
+/** D1 allows 100 bound parameters per query; ceremony cards can name more people than that. */
+const PEOPLE_CHUNK = 90;
+async function peopleByIds(db: Db, ids: number[]): Promise<{ id: number; name: string; photoUrl: string | null }[]> {
+  const out: { id: number; name: string; photoUrl: string | null }[] = [];
+  for (let i = 0; i < ids.length; i += PEOPLE_CHUNK) {
+    out.push(...await db.select({ id: users.id, name: users.displayName, photoUrl: users.photoUrl }).from(users).where(inArray(users.id, ids.slice(i, i + PEOPLE_CHUNK))));
+  }
+  return out;
+}
+
 /** Latest posts of all the person's groups, newest first; inside one match the winner leads. */
 export async function listFeed(d: Deps, communities: readonly CommunityDto[], viewerId: number): Promise<FeedDto> {
   if (!communities.length) return { posts: [] };
@@ -269,7 +279,7 @@ export async function listFeed(d: Deps, communities: readonly CommunityDto[], vi
   const playerIds = [...new Set([...rows.flatMap(r => r.post.userId === null ? [] : [r.post.userId]), ...[...cards.values()].flat().map(c => c.userId)])];
   const [reactions, people] = await Promise.all([
     reactionsOf(d.db, [...new Set(rows.map(r => r.post.eventId))], viewerId),
-    playerIds.length ? d.db.select({ id: users.id, name: users.displayName, photoUrl: users.photoUrl }).from(users).where(inArray(users.id, playerIds)) : [],
+    peopleByIds(d.db, playerIds),
   ]);
   const players = new Map(people.map(p => [p.id, p]));
   return { posts: rows.map(({ post, date }) => {

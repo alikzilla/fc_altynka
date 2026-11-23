@@ -140,7 +140,8 @@ export class AutomaticNotifications {
         const winners = result ? await ceremonyWinners({ db: this.db, now, sync: { request: async () => {} } }, eventId, result) : [];
         const ids = [...new Set(winners.map(w => w.userId))];
         const people = ids.length ? await this.db.select({ id: users.id, tgId: users.tgId }).from(users).where(inArray(users.id, ids)) : [];
-        const at = nextDeliveryTime(review.closesAt);
+        // От «сейчас», а не от закрытия: объект, проснувшийся поздно вечером, всё равно ждёт 10:00.
+        const at = nextDeliveryTime(Math.max(review.closesAt, now));
         for (const person of people) {
           const key = `award:${review.closesAt}:${person.tgId}`;
           if (at > review.closesAt + AWARD_WINDOW_MS || (await this.storage.get<AutomaticState>(stateKey(key)))?.done) continue;

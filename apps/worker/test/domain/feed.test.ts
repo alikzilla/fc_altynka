@@ -265,3 +265,15 @@ test('a failure while publishing awards does not take the best-rated post with i
   try { expect(await kinds(w)).toContain('top_rated'); }
   finally { await env.DB.prepare('ALTER TABLE award_votes_away RENAME TO award_votes').run(); quiet.mockRestore(); }
 });
+
+test('a feed whose ceremonies name more than a hundred people still loads', async () => {
+  const w = await gameFixture(2);
+  const winners = [];
+  for (let i = 0; i < 110; i++) winners.push(await seedUser(`Победитель ${i}`, { communityId: w.community.id }));
+  const cards = winners.map(u => ({ award: 'mvp', userId: u.id, title: 'Человек матча', text: 'Текст.', votes: 2, stats: null, sharedWith: [] }));
+  await w.d.db.insert(feedPosts).values({ communityId: w.community.id, eventId: w.eventId, kind: 'ceremony', slot: 'ceremony', variant: 0, position: 0,
+    text: 'Церемония.', createdAt: w.d.now, payloadJson: JSON.stringify(cards) });
+  const post = (await feed(w)).find(p => p.kind === 'ceremony')!;
+  expect(post.ceremony).toHaveLength(110);
+  expect(post.ceremony![109].name).toBe('Победитель 109');
+});

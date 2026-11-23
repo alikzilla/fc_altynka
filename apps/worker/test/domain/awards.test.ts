@@ -156,6 +156,16 @@ describe('closing a vote early', () => {
     expect(await closeReview(d, ev.id)).toBe(true);
     expect(d.sync.calls).toHaveLength(1);
   });
+  it('a failed wake neither fails the saved answer nor keeps the vote open', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id]);
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const d = { ...deps(), sync: { request: async () => { throw new Error('do down'); } } };
+    try {
+      expect(await closeReview(d, ev.id)).toBe(true);
+      expect(quiet).toHaveBeenCalled();
+    } finally { quiet.mockRestore(); }
+  });
   it('an incomplete vote that stays open wakes nothing', async () => {
     const w = await trio();
     const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);

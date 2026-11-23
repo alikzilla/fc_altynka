@@ -238,7 +238,11 @@ export async function closeReview(d: Deps, eventId: number, onlyComplete = false
   const closed = await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
     WHERE event_id = ${eventId} AND closes_at > ${d.now} ${complete}`);
   // Поздравления с наградами ждут закрытия в объекте матча: будим его, а не ждём прежнего срока.
-  if (closed.meta.changes) await d.sync.request(eventId, { parts: [], review: true });
+  // Сбой пробуждения не должен превращать уже сохранённый ответ в ошибку: опрос всё равно закрыт.
+  if (closed.meta.changes) {
+    try { await d.sync.request(eventId, { parts: [], review: true }); }
+    catch (e) { console.error(JSON.stringify({ event: 'review_close_wake', eventId, error: String(e) })); }
+  }
   const [review] = await d.db.select({ closesAt: matchReviews.closesAt }).from(matchReviews).where(eq(matchReviews.eventId, eventId));
   return !!review && review.closesAt <= d.now;
 }

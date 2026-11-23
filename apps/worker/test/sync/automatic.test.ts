@@ -269,6 +269,18 @@ test('an early close at night congratulates at 10:00 Almaty', async () => {
   expect(w.congrats()).toHaveLength(1);
 });
 
+test('a late first wake after a daytime close still waits for delivery hours', async () => {
+  const w = await awardWorld();
+  // Опрос закрылся днём (15:00 по Алматы), а объект впервые проснулся только в 23:30.
+  await env.DB.prepare('UPDATE match_reviews SET closes_at = ? WHERE event_id = ?').bind(futureTime('10:00:00', 3), w.ev).run();
+  now = futureTime('18:30:00', 3);
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(await w.alarm()).toBe(futureTime('05:00:00', 4));
+  now = (await w.alarm())!; await w.flush();
+  expect(w.congrats()).toHaveLength(1);
+});
+
 test.each(['disabled', 'unavailable', 'stale'] as const)('no congratulation when %s, and none in the group', async reason => {
   const w = await awardWorld();
   if (reason === 'disabled') await setMemberProfile(w.payer.id, { notificationsEnabled: false });

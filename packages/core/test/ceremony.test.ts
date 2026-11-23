@@ -74,3 +74,12 @@ test('award progress: new tier, next target, top of the ladder', () => {
   expect(awardProgress('mvp', 4, 1)).toEqual({ total: 4, raised: null, nextTier: 'silver', remaining: 1 });
   expect(awardProgress('position-best', 100, 1)).toMatchObject({ raised: 'legend', nextTier: null, remaining: null });
 });
+
+test('MVP number lines never say «0 голов» and never chain two «и»', () => {
+  const passesOnly = ceremonyLines('mvp', { name: 'А', date: '2026-11-14', votes: 3, stats: stats(0, 3) });
+  expect(passesOnly.some(l => l.includes('3 паса за вечер'))).toBe(true);
+  expect(passesOnly.join(' ')).not.toContain('0 голов');
+  const both = ceremonyLines('mvp', { name: 'А', date: '2026-11-14', votes: 3, stats: stats(2, 1) });
+  expect(both).toContain('Цифры и голоса совпали: 2 гола, 1 пас и звание MVP. Это А.');
+  expect(both.join(' ')).not.toContain('гола и 1 пас и звание');
+});
