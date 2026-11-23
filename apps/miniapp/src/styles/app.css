@@ -122,12 +122,17 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .you { font-size: 12px; color: var(--accent-ink); background: var(--accent-soft); padding: 2px 5px; border-radius: 4px; margin-left: 5px; }
 .avatar { width: 36px; height: 36px; border-radius: 50%; background: #393443; color: #ede5f7; display: inline-flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 550; flex-shrink: 0; overflow: hidden; box-shadow: var(--rim); }
 .avatar img { width: 100%; height: 100%; object-fit: cover; }
-.avatar-injured { position: relative; overflow: visible; }
-.avatar-injured img { border-radius: 50%; }
+.avatar-injured, .avatar-crowned { position: relative; overflow: visible; }
+.avatar-injured img, .avatar-crowned img { border-radius: 50%; }
 /* Травма: белый круг с красным крестом в левом верхнем углу; кольцо цвета фона отделяет его от аватара. */
 .avatar-injury { position: absolute; top: -3px; left: -3px; width: 48%; aspect-ratio: 1; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--bg); display: flex; align-items: center; justify-content: center; }
 .avatar-injury svg { width: 66%; height: 66%; fill: #e5322d; }
 .avatar-large .avatar-injury { top: -5px; left: -5px; width: 40%; box-shadow: 0 0 0 3px var(--bg); }
+/* Корона действующего MVP: золотой значок в правом верхнем углу (травма — в левом). */
+.avatar-crown { position: absolute; top: -4px; right: -4px; display: grid; place-items: center; width: 46%; aspect-ratio: 1; border-radius: 50%; background: linear-gradient(160deg, #fff0a8, #d2a43a 55%, #8b6519); color: #3a2a06; box-shadow: 0 0 0 2px var(--bg); }
+.avatar-crown svg { width: 68%; height: 68%; fill: currentColor; stroke: currentColor; stroke-width: 1.2; stroke-linejoin: round; }
+.avatar-large .avatar-crown { top: -3px; right: -3px; width: 34%; box-shadow: 0 0 0 3px var(--bg); }
+.player-crown-chip { align-self: flex-start; margin-top: 6px; padding: 3px 10px; border-radius: 99px; background: linear-gradient(160deg, #f6e3a1, #c9a54a); color: #2b2208; font-size: 12px; font-weight: 600; }
 .avatar-large { width: 84px; height: 84px; font-size: 25px; background: radial-gradient(ellipse at 25% 0%, #777096, transparent 80%), #272135; } /* taste-skill-ignore */
 .profile-card { gap: 18px; }
 .profile-card-top { display: grid; grid-template-columns: 72px minmax(0, 1fr); align-items: start; gap: 18px; }

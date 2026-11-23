@@ -69,7 +69,7 @@ export function Profile({ settings, availability }: { settings?: string; availab
   return (
     <Screen title="Профиль">
       <PlayerSportsCard name={telegramName || me.displayName} username={me.telegram?.username} photoUrl={me.telegram?.photoUrl}
-        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} statisticsPending={statisticsPending} editPositionHref="/profile/settings/football" injured={sportingProfile.data?.injured}/>
+        role={roleLine(me)} playingPosition={me.playingPosition} dominantFoot={me.dominantFoot} rating={me.rating} statistics={sportingProfile.data?.statistics} statisticsPending={statisticsPending} editPositionHref="/profile/settings/football" injured={sportingProfile.data?.injured} reigningMvp={sportingProfile.data?.reigningMvp}/>
       {me.rating && !me.rating.selfAssessment && <Link className="btn primary wide" href="/profile/skills">Оценить свои навыки</Link>}
       {sportingProfile.error && <ErrorNote text="Не получилось загрузить статистику" retry={sportingProfile.reload}/>}
       {statisticsPending && <ProfileStatisticsSkeleton />}

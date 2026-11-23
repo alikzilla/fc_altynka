@@ -44,10 +44,11 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
 }
 
 /** `injured` adds the red cross on white in the top-left corner; screen readers hear «травма». */
-export function Avatar({ name, large = false, photoUrl, injured = false }: { name: string; large?: boolean; photoUrl?: string | null; injured?: boolean }) {
+export function Avatar({ name, large = false, photoUrl, injured = false, crowned = false }: { name: string; large?: boolean; photoUrl?: string | null; injured?: boolean; crowned?: boolean }) {
   const [failed, setFailed] = useState<string | null>(null);
   const source = photoUrl?.startsWith('https://') && photoUrl !== failed ? photoUrl : null;
-  const avatar = <span className={`avatar${large ? ' avatar-large' : ''}${injured ? ' avatar-injured' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}
-    {injured && <span className="avatar-injury" data-testid="injury-badge"><svg viewBox="0 0 12 12"><path d="M4.5 1.5h3v3h3v3h-3v3h-3v-3h-3v-3h3z" /></svg></span>}</span>;
-  return injured ? <>{avatar}<span className="sr-only">Травма</span></> : avatar;
+  const avatar = <span className={`avatar${large ? ' avatar-large' : ''}${injured ? ' avatar-injured' : ''}${crowned ? ' avatar-crowned' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}
+    {injured && <span className="avatar-injury" data-testid="injury-badge"><svg viewBox="0 0 12 12"><path d="M4.5 1.5h3v3h3v3h-3v3h-3v-3h-3v-3h3z" /></svg></span>}
+    {crowned && <span className="avatar-crown" data-testid="crown-badge"><svg viewBox="0 0 24 24">{paths.crown}</svg></span>}</span>;
+  return injured || crowned ? <>{avatar}{injured && <span className="sr-only">Травма</span>}{crowned && <span className="sr-only">Действующий MVP</span>}</> : avatar;
 }

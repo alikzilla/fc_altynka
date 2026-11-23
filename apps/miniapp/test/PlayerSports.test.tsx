@@ -106,3 +106,12 @@ test('awards are not invented while statistics load',()=>{
   expect(value!.textContent).not.toBe('0');
   expect(container.querySelectorAll('.player-awards div')).toHaveLength(1);
 });
+test('the profile of the reigning MVP shows the crown and the chip',()=>{
+  const {container,unmount}=renderWithApp(<PlayerSportsCard {...props} reigningMvp/>,{me:player});
+  expect(container.querySelector('[data-testid="crown-badge"]')).not.toBeNull();
+  expect(container.querySelector('.player-crown-chip')).toHaveTextContent('Действующий MVP');
+  unmount();
+  const plain=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
+  expect(plain.container.querySelector('[data-testid="crown-badge"]')).toBeNull();
+  expect(plain.container.querySelector('.player-crown-chip')).toBeNull();
+});
