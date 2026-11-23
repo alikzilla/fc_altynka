@@ -90,7 +90,7 @@ for (const theme of ['dark', 'light'] as const) {
 
 const card = (award: string, userId: number, name: string, title: string, text: string, patch: object = {}) =>
   ({ award, userId, name, photoUrl: null, title, text, votes: 3, stats: { goals: 2, assists: 1, games: 5, wins: 3 }, sharedWith: [], ...patch });
-const ceremony = post(20, 'ceremony', 'Награды матча 7 ноября вручены. MVP\u00a0— Айкын.', { highlights: ['Айкын'], userId: 12, player: { userId: 12, name: 'Айкын', photoUrl: 'https://t.me/i/userpic/320/aikyn.jpg' }, ceremony: [
+const ceremony = post(20, 'ceremony', 'Награды матча 7 ноября вручены. MVP\u00a0— Айкын.', { highlights: ['Айкын'], ceremony: [
   card('mvp', 12, 'Айкын', 'Главный герой вечера', 'Цифры и голоса совпали: 2 гола, 1 пас и звание MVP. Это Айкын.', { photoUrl: 'https://t.me/i/userpic/320/aikyn.jpg', votes: 6 }),
   card('forward', 13, 'Данияр С.', 'Гроза ворот', 'Острие атаки матча 7 ноября: Данияр С.'),
   card('midfielder', 14, 'Ерлан', 'Дирижёр', 'Голы забивают другие, а матч строит Ерлан.', { stats: null }),
