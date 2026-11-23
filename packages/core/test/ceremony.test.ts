@@ -9,10 +9,10 @@ const w = (award: AwardKey, p: { userId: number; name: string }, extra: Partial<
   ({ award, userId: p.userId, name: p.name, votes: 4, stats: null, sharedWith: [], ...extra });
 const nameOf = (userId: number) => [A, B, C].find(p => p.userId === userId)!.name;
 
-test('one card per winner in AWARDS order, signed by a single MVP', () => {
+test('one card per winner in AWARDS order, posted by the match, not by the MVP', () => {
   for (let eventId = 1; eventId <= 20; eventId++) {
     const post = composeCeremonyPost({ eventId, date: '2026-11-14', winners: [w('defender', C), w('mvp', A, { votes: 6 }), w('forward', B)] })!;
-    expect(post).toMatchObject({ kind: 'ceremony', slot: 'ceremony', userId: 1 });
+    expect(post).toMatchObject({ kind: 'ceremony', slot: 'ceremony', userId: null });
     expect(post.payload!.map(c => [c.award, c.userId])).toEqual([['mvp', 1], ['forward', 2], ['defender', 3]]);
     expect(post.payload![0].votes).toBe(6);
     expect(post.payload!.every(c => c.text.includes(nameOf(c.userId)))).toBe(true);

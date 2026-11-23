@@ -170,7 +170,8 @@ test('the ceremony is posted once after voting closes and replaces the best-rate
   expect(await kinds(w)).not.toContain('ceremony');
   w.d.now += 73 * 3_600_000;
   const post = (await feed(w))[0];
-  expect(post).toMatchObject({ kind: 'ceremony', userId: w.people[0].id });
+  // The ceremony is posted by the match: the MVP is one of its heroes, not the author.
+  expect(post).toMatchObject({ kind: 'ceremony', userId: null, player: null });
   expect(post.ceremony!.map(c => [c.award, c.userId, c.votes])).toEqual([['mvp', w.people[0].id, 3], ['goalkeeper', w.people[4].id, 3]]);
   expect(post.ceremony![0]).toMatchObject({ name: 'Игрок 0', photoUrl: null, stats: { goals: 3, games: 2, wins: 2, assists: 0 }, sharedWith: [] });
   expect(post.ceremony![0].text).toContain('Игрок 0');
@@ -178,6 +179,9 @@ test('the ceremony is posted once after voting closes and replaces the best-rate
   expect(after.filter(k => k === 'ceremony')).toHaveLength(1);
   expect(after).not.toContain('top_rated');
   expect(after).not.toContain('awards');
+  // A ceremony stored earlier with the MVP as author is still shown as the match's post.
+  await w.d.db.update(feedPosts).set({ userId: w.people[0].id }).where(eq(feedPosts.id, post.id));
+  expect((await feed(w)).find(p => p.id === post.id)).toMatchObject({ userId: null, player: null });
 });
 
 test('without an MVP the best-rated post still appears next to the ceremony', async () => {

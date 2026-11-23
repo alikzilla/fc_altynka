@@ -197,8 +197,7 @@ describe('лента', () => {
     award: 'mvp', userId: 12, name: 'Алихан', photoUrl: null, title: 'Главный герой вечера', text: 'Алихан забирает главный приз вечера.',
     votes: 6, stats: { goals: 3, assists: 2, games: 5, wins: 4 }, sharedWith: [], ...patch,
   });
-  const ceremony = post(9, { kind: 'ceremony', text: 'Награды матча 1 ноября вручены. MVP — Алихан.', highlights: ['Алихан'], userId: 12,
-    player: { userId: 12, name: 'Алихан', photoUrl: null }, ceremony: [
+  const ceremony = post(9, { kind: 'ceremony', text: 'Награды матча 1 ноября вручены. MVP — Алихан.', highlights: ['Алихан'], ceremony: [
       card({}),
       card({ award: 'forward', userId: 12, title: 'Гроза ворот', text: 'Острие атаки матча: Алихан.', votes: 3 }),
       card({ award: 'defender', userId: 13, name: 'Ерлан', title: 'Стена', text: 'Ерлан — стена.', votes: 2, stats: { goals: 0, assists: null, games: 5, wins: 2 }, sharedWith: [14] }),
@@ -220,7 +219,8 @@ describe('лента', () => {
     expect(within(sharer).getByText('Награда на двоих · Ерлан и Санжар')).toBeInTheDocument();
     expect(within(sharer).getByText('0 голов · 2 победы из 5')).toBeInTheDocument();
     expect(within(within(cards).getByRole('group', { name: '4 из 4' })).queryByText(/побед/)).toBeNull();
-    // The post line still leads to the match.
+    // The post line still leads to the match, and the match is its author.
+    expect(within(screen.getByRole('link', { name: /Награды матча 1 ноября вручены/ })).getByText('Церемония')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Награды матча 1 ноября вручены/ })).toHaveAttribute('href', '/event/7');
     expect(screen.getByText('1 из 4')).toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Следующая награда' }));
