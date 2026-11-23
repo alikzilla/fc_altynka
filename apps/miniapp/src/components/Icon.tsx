@@ -4,6 +4,7 @@ const paths = {
   smile: <><circle cx="12" cy="12" r="9" /><path d="M8.5 14.2a4 4 0 0 0 7 0M9 9.6h.01M15 9.6h.01" /></>,
   star: <path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8L12 3.5Z" />,
   flame: <path d="M13 3c1 5-4 5-2 9-2-1-3-3-3-5-3 3-5 7-3 11a8 8 0 0 0 14-1c2-5-2-10-6-14Z" />,
+  crown: <path d="M3.5 8.5 7.5 12 12 5l4.5 7 4-3.5-1.8 10H5.3L3.5 8.5Z" />,
   trophy: <path d="M8 3h8v6a4 4 0 0 1-8 0V3Zm4 10v7m-4 1h8M8 5H4v3a4 4 0 0 0 4 4m8-7h4v3a4 4 0 0 1-4 4" />,
   medal: <><path d="M8 3 5 9m11-6 3 6M9 3h6l2 5H7l2-5Z" /><circle cx="12" cy="15" r="6" /><path d="m12 12.5.9 1.8 2 .3-1.5 1.4.4 2-1.8-1-1.8 1 .4-2-1.5-1.4 2-.3.9-1.8Z" /></>,
   target: <><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="m12 12 8-8m-3 0h3v3"/></>,
@@ -43,10 +44,11 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
 }
 
 /** `injured` adds the red cross on white in the top-left corner; screen readers hear «травма». */
-export function Avatar({ name, large = false, photoUrl, injured = false }: { name: string; large?: boolean; photoUrl?: string | null; injured?: boolean }) {
+export function Avatar({ name, large = false, photoUrl, injured = false, crowned = false }: { name: string; large?: boolean; photoUrl?: string | null; injured?: boolean; crowned?: boolean }) {
   const [failed, setFailed] = useState<string | null>(null);
   const source = photoUrl?.startsWith('https://') && photoUrl !== failed ? photoUrl : null;
-  const avatar = <span className={`avatar${large ? ' avatar-large' : ''}${injured ? ' avatar-injured' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}
-    {injured && <span className="avatar-injury" data-testid="injury-badge"><svg viewBox="0 0 12 12"><path d="M4.5 1.5h3v3h3v3h-3v3h-3v-3h-3v-3h3z" /></svg></span>}</span>;
-  return injured ? <>{avatar}<span className="sr-only">Травма</span></> : avatar;
+  const avatar = <span className={`avatar${large ? ' avatar-large' : ''}${injured ? ' avatar-injured' : ''}${crowned ? ' avatar-crowned' : ''}`} aria-hidden="true">{source ? <img src={source} alt="" referrerPolicy="no-referrer" onError={() => setFailed(source)} /> : name.trim().split(/\s+/).slice(0, 2).map(x => x[0]).join('').toLocaleUpperCase('ru')}
+    {injured && <span className="avatar-injury" data-testid="injury-badge"><svg viewBox="0 0 12 12"><path d="M4.5 1.5h3v3h3v3h-3v3h-3v-3h-3v-3h3z" /></svg></span>}
+    {crowned && <span className="avatar-crown" data-testid="crown-badge"><svg viewBox="0 0 24 24">{paths.crown}</svg></span>}</span>;
+  return injured || crowned ? <>{avatar}{injured && <span className="sr-only">Травма</span>}{crowned && <span className="sr-only">Действующий MVP</span>}</> : avatar;
 }

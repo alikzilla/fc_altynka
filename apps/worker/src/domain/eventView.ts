@@ -1,5 +1,6 @@
 import { matchPhase, myMatchResult, splitQueue, teamColorsFor, type GameState, type CommunityDto, type EventDetailDto, type EventsListDto, type EventSummaryDto, type MatchArchiveDto, type QueueSplit, type Role, type SignupDto } from '@altynka/core';
 import { and, asc, desc, eq, getTableColumns, inArray, isNull, lt, or } from 'drizzle-orm';
+import { reigningMvps } from './awards';
 import type { Db } from '../db/client';
 import { events, memberships, signups, venues, type EventRow, type SignupRow } from '../db/schema';
 import { usersById } from '../sync/parts';
@@ -132,6 +133,7 @@ export async function eventDetail(
   const playerIds = all.flatMap(s => s.userId === null ? [] : [s.userId]);
   const injured = new Set(playerIds.length ? (await db.select({ userId: memberships.userId }).from(memberships).where(and(
     eq(memberships.communityId, ev.communityId), eq(memberships.injured, true), inArray(memberships.userId, playerIds)))).map(r => r.userId) : []);
+  const crowned = new Set(playerIds.length ? (await reigningMvps(db, [ev.communityId], now)).get(ev.communityId) ?? [] : []);
   const levels = new Map<number, number>();
   if (showLevels) {
     const ratings = await playerRatings(db, all.flatMap(s => s.userId === null ? [] : [s.userId]), now, byId);
@@ -150,6 +152,7 @@ export async function eventDetail(
     if (showLevels) base.level = s.userId !== null ? (levels.get(s.userId) ?? 5) : (s.guestLevel ?? 5);
     if (showLevels && s.userId !== null) base.kaspiPhone = byId.get(s.userId)?.kaspiPhone ?? null;
     if (s.userId !== null && injured.has(s.userId)) base.injured = true;
+    if (s.userId !== null && crowned.has(s.userId)) base.reigningMvp = true;
     return base;
   };
   // A match keeps the venue's name, not the venue: the link is looked up in the group's current catalogue.

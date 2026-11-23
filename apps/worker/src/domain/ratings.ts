@@ -12,7 +12,7 @@ import { getEvent } from './events';
 import { parseGameState } from './gameStore';
 import { usersById } from '../sync/parts';
 import { playerGameStatistics } from './playerStatistics';
-import { awardsByEvent } from './awards';
+import { awardsByEvent, reigningMvps } from './awards';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
@@ -84,13 +84,16 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   const [games, details, roles] = await Promise.all([
     playerGameStatistics(db, userId, viewerId, now),
     db.select({ username: users.username, pinnedAchievement: users.pinnedAchievement }).from(users).where(eq(users.id,userId)),
-    db.all<{role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
-      SELECT m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
+    db.all<{communityId:number;role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
+      SELECT m.community_id AS communityId,m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
       WHERE m.user_id=${userId} AND m.active=1 AND c.active=1 ${userId===viewerId?sql``:sql`AND EXISTS (
         SELECT 1 FROM memberships mine WHERE mine.community_id=m.community_id AND mine.user_id=${viewerId} AND mine.active=1)`}`),
   ]);
   const role = roles.some(r=>r.telegramAdmin) ? 'admin' : roles.some(r=>r.role==='organizer') ? 'organizer' : 'player';
-  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured) };
+  // Корона, как и травма, видна, если она есть хотя бы в одной из групп, которые видит смотрящий.
+  const crowns = await reigningMvps(db, roles.map(r=>r.communityId), now);
+  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured),
+    reigningMvp: [...crowns.values()].some(ids=>ids.includes(userId)) };
 }
 
 export function canFinishMatch(ev: EventRow, now: number): boolean {
@@ -232,8 +235,14 @@ export async function closeReview(d: Deps, eventId: number, onlyComplete = false
     SELECT 1 FROM match_participants p LEFT JOIN review_submissions s ON s.event_id = p.event_id AND s.user_id = p.user_id
     WHERE p.event_id = ${eventId} AND p.user_id IS NOT NULL AND (s.user_id IS NULL OR NOT (s.skipped = 1
       OR json_type(s.payload_json, '$.awards') IS NOT NULL OR json_type(s.payload_json, '$.awardsSkipped') IS NOT NULL)))` : sql``;
-  await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
+  const closed = await d.db.run(sql`UPDATE match_reviews SET closes_at = max(${d.now}, completed_at + 1)
     WHERE event_id = ${eventId} AND closes_at > ${d.now} ${complete}`);
+  // Поздравления с наградами ждут закрытия в объекте матча: будим его, а не ждём прежнего срока.
+  // Сбой пробуждения не должен превращать уже сохранённый ответ в ошибку: опрос всё равно закрыт.
+  if (closed.meta.changes) {
+    try { await d.sync.request(eventId, { parts: [], review: true }); }
+    catch (e) { console.error(JSON.stringify({ event: 'review_close_wake', eventId, error: String(e) })); }
+  }
   const [review] = await d.db.select({ closesAt: matchReviews.closesAt }).from(matchReviews).where(eq(matchReviews.eventId, eventId));
   return !!review && review.closesAt <= d.now;
 }

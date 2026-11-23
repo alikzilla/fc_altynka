@@ -159,7 +159,7 @@ test('a match finished before the feed existed gets its stories on the next read
   expect((await feed(w)).map(p => p.id)).toEqual(ids);
 });
 
-test('awards are announced once after voting closes and replace the best-rated post when an MVP exists', async () => {
+test('the ceremony is posted once after voting closes and replaces the best-rated post when an MVP exists', async () => {
   const w = await gameFixture(2);
   await play(w);
   const ev = (await getEvent(w.d.db, w.eventId))!;
@@ -167,18 +167,20 @@ test('awards are announced once after voting closes and replace the best-rated p
     const scores = [{ userId: w.people[0].id, score: 9 }, { userId: w.people[4].id, score: 6 }];
     expect(await submitReview(w.d, ev, voter.id, { scores, gameScore: 8, skipped: false, awards: { mvp: w.people[0].id, goalkeeper: w.people[4].id } })).toBe('ok');
   }
-  expect(await kinds(w)).not.toContain('awards');
+  expect(await kinds(w)).not.toContain('ceremony');
   w.d.now += 73 * 3_600_000;
   const post = (await feed(w))[0];
-  expect(post).toMatchObject({ kind: 'awards', userId: w.people[0].id });
-  expect(post.text).toContain('MVP матча: Игрок 0');
-  expect(post.text).toContain('вратарь: Игрок 4');
+  expect(post).toMatchObject({ kind: 'ceremony', userId: w.people[0].id });
+  expect(post.ceremony!.map(c => [c.award, c.userId, c.votes])).toEqual([['mvp', w.people[0].id, 3], ['goalkeeper', w.people[4].id, 3]]);
+  expect(post.ceremony![0]).toMatchObject({ name: 'Игрок 0', photoUrl: null, stats: { goals: 3, games: 2, wins: 2, assists: 0 }, sharedWith: [] });
+  expect(post.ceremony![0].text).toContain('Игрок 0');
   const after = await kinds(w);
-  expect(after.filter(k => k === 'awards')).toHaveLength(1);
+  expect(after.filter(k => k === 'ceremony')).toHaveLength(1);
   expect(after).not.toContain('top_rated');
+  expect(after).not.toContain('awards');
 });
 
-test('without an MVP the best-rated post still appears next to the awards post', async () => {
+test('without an MVP the best-rated post still appears next to the ceremony', async () => {
   const w = await gameFixture(2);
   await play(w);
   const ev = (await getEvent(w.d.db, w.eventId))!;
@@ -188,8 +190,8 @@ test('without an MVP the best-rated post still appears next to the awards post',
   w.d.now += 73 * 3_600_000;
   const after = await kinds(w);
   expect(after).toContain('top_rated');
-  expect(after).toContain('awards');
-  expect((await feed(w)).find(p => p.kind === 'awards')).toMatchObject({ userId: null });
+  expect(after).toContain('ceremony');
+  expect((await feed(w)).find(p => p.kind === 'ceremony')).toMatchObject({ userId: null });
 });
 
 test('a match where no award reached two votes is not picked up for publishing again', async () => {
@@ -202,7 +204,7 @@ test('a match where no award reached two votes is not picked up for publishing a
   }
   w.d.now += 73 * 3_600_000;
   expect(await awardsToPublish(w.d, [w.community.id])).toEqual([]);
-  expect(await kinds(w)).not.toContain('awards');
+  expect(await kinds(w)).not.toContain('ceremony');
   expect(await kinds(w)).toContain('top_rated');
 });
 
@@ -215,8 +217,39 @@ test('a match with a winner is picked up once and leaves the queue after its pos
   }
   w.d.now += 73 * 3_600_000;
   expect((await awardsToPublish(w.d, [w.community.id])).map(r => r.eventId)).toEqual([w.eventId]);
-  expect(await kinds(w)).toContain('awards');
+  expect(await kinds(w)).toContain('ceremony');
   expect(await awardsToPublish(w.d, [w.community.id])).toEqual([]);
+});
+
+test('a match that already has an old awards post never gets a ceremony', async () => {
+  const w = await gameFixture(2);
+  await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 4)) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false, awards: { mvp: w.people[0].id } });
+  }
+  await w.d.db.insert(feedPosts).values({ communityId: w.community.id, eventId: w.eventId, kind: 'awards', slot: 'awards', variant: 0, position: 0, text: 'MVP матча: Игрок 0.', createdAt: w.d.now });
+  w.d.now += 73 * 3_600_000;
+  expect(await awardsToPublish(w.d, [w.community.id])).toEqual([]);
+  const after = await kinds(w);
+  expect(after).not.toContain('ceremony');
+  expect(after).not.toContain('top_rated');
+});
+
+test('the ceremony survives a correction of the match result unchanged', async () => {
+  const w = await gameFixture(2);
+  const gameId = await play(w);
+  const ev = (await getEvent(w.d.db, w.eventId))!;
+  for (const voter of w.people.slice(1, 3)) {
+    await submitReview(w.d, ev, voter.id, { scores: [{ userId: w.people[0].id, score: 9 }], gameScore: 8, skipped: false, awards: { mvp: w.people[0].id } });
+  }
+  w.d.now += 73 * 3_600_000;
+  const before = (await feed(w)).find(p => p.kind === 'ceremony')!;
+  const revision = (await getEvent(w.d.db, w.eventId))!.gameRevision;
+  expect((await editGameResult(w.d, w.eventId, gameId, w.actorId, { requestId: 'fix', expectedRevision: revision }, { score: [0, 4], scorers: [{ signupId: w.ids[3], goals: 4 }] })).kind).toBe('ok');
+  const after = (await feed(w)).find(p => p.kind === 'ceremony')!;
+  expect(after.id).toBe(before.id);
+  expect(after.ceremony).toEqual(before.ceremony);
 });
 
 test('a failure while publishing awards does not take the best-rated post with it', async () => {
@@ -231,4 +264,16 @@ test('a failure while publishing awards does not take the best-rated post with i
   await env.DB.prepare('ALTER TABLE award_votes RENAME TO award_votes_away').run();
   try { expect(await kinds(w)).toContain('top_rated'); }
   finally { await env.DB.prepare('ALTER TABLE award_votes_away RENAME TO award_votes').run(); quiet.mockRestore(); }
+});
+
+test('a feed whose ceremonies name more than a hundred people still loads', async () => {
+  const w = await gameFixture(2);
+  const winners = [];
+  for (let i = 0; i < 110; i++) winners.push(await seedUser(`Победитель ${i}`, { communityId: w.community.id }));
+  const cards = winners.map(u => ({ award: 'mvp', userId: u.id, title: 'Человек матча', text: 'Текст.', votes: 2, stats: null, sharedWith: [] }));
+  await w.d.db.insert(feedPosts).values({ communityId: w.community.id, eventId: w.eventId, kind: 'ceremony', slot: 'ceremony', variant: 0, position: 0,
+    text: 'Церемония.', createdAt: w.d.now, payloadJson: JSON.stringify(cards) });
+  const post = (await feed(w)).find(p => p.kind === 'ceremony')!;
+  expect(post.ceremony).toHaveLength(110);
+  expect(post.ceremony![109].name).toBe('Победитель 109');
 });

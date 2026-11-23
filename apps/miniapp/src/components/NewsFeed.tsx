@@ -7,6 +7,7 @@ import { GroupTag } from './GroupTag';
 import { PlayerProfileSheet } from '../screens/PlayerProfile';
 import { useMe } from '../state/me';
 import { ActionSheet } from './ActionSheet';
+import { CeremonyCards } from './CeremonyPost';
 import { Avatar, Icon } from './Icon';
 import { HomeFeedSkeleton } from './skeletons';
 import { ConfirmButton, useReveal, useToast } from './ui';
@@ -15,7 +16,7 @@ const PREVIEW = 5;
 type IconName = Parameters<typeof Icon>[0]['name'];
 const ICON: Record<FeedKind, IconName> = {
   winner: 'trophy', hero: 'flame', hat_trick: 'ball', scorer: 'ball', assistant: 'target', duo: 'people', blowout: 'flame', goal_fest: 'ball',
-  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy', awards: 'star',
+  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy', awards: 'star', ceremony: 'trophy',
   signup_open: 'calendar', scheduled: 'clock', squad_full: 'people', teams_ready: 'shirt',
 };
 
@@ -23,14 +24,14 @@ const ICON: Record<FeedKind, IconName> = {
 const LABEL: Record<FeedKind, string> = {
   winner: 'Итог матча', hero: 'Герой матча', hat_trick: 'Хет-трик', scorer: 'Бомбардир', assistant: 'Ассистент', duo: 'Связка',
   blowout: 'Крупный счёт', goal_fest: 'Голевая игра', streak: 'Серия побед', summary: 'Матч в цифрах', achievement: 'Достижение',
-  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков', awards: 'Награды матча',
+  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков', awards: 'Награды матча', ceremony: 'Церемония',
   signup_open: 'Запись открыта', scheduled: 'Время и поле', squad_full: 'Состав собран', teams_ready: 'Составы',
 };
 
 /** Team news opens the teams tab, a finished match its games. A post about a player opens that player's profile in place. */
 function target(post: FeedPostDto): string {
   if (post.kind === 'teams_ready') return `/event/${post.eventId}?tab=teams`;
-  if (post.kind === 'signup_open' || post.kind === 'scheduled' || post.kind === 'squad_full' || post.kind === 'top_rated' || post.kind === 'awards') return `/event/${post.eventId}`;
+  if (post.kind === 'signup_open' || post.kind === 'scheduled' || post.kind === 'squad_full' || post.kind === 'top_rated' || post.kind === 'awards' || post.kind === 'ceremony') return `/event/${post.eventId}`;
   return `/event/${post.eventId}?tab=games`;
 }
 
@@ -114,13 +115,16 @@ export function NewsFeed() {
             <span className="feed-text">{emphasise(post.text, post.highlights ?? [])}</span>
         </>;
         const admin = isAdmin(post);
+        // A ceremony is about several people: its line leads to the match, each card to its winner.
+        const cards = post.kind === 'ceremony' && Array.isArray(post.ceremony) && post.ceremony.length ? post.ceremony : null;
         const empty = FEED_REACTIONS.every(r => !(post.reactions?.[r] > 0)) && !post.myReaction;
         const open = !empty || unfolded.has(post.id);
         return <li key={post.id} className={`card material-graphite feed-post${admin ? ' has-menu' : ''}`}>
           {/* The profile opens as a sheet over Home: the player directory page is not everybody's to visit. */}
-          {post.userId !== null
+          {post.userId !== null && !cards
             ? <button type="button" className="feed-open" onClick={() => setProfileId(post.userId)}>{content}</button>
             : <Link className="feed-open" href={target(post)}>{content}</Link>}
+          {cards && <CeremonyCards cards={cards} onOpen={setProfileId} />}
           {admin && <button type="button" className="player-menu-button feed-menu" aria-label="Действия с постом" onClick={() => setMenu(post)}><Icon name="more" /></button>}
           <div className={`feed-reactions${unfolded.has(post.id) ? ' unfolding' : ''}`} role="group" aria-label="Реакции">
             {open ? FEED_REACTIONS.map(reaction => {

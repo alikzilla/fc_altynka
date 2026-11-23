@@ -193,6 +193,57 @@ describe('лента', () => {
     vi.useRealTimers();
   });
 
+  const card = (patch: Partial<import('@altynka/core').CeremonyCardDto>): import('@altynka/core').CeremonyCardDto => ({
+    award: 'mvp', userId: 12, name: 'Алихан', photoUrl: null, title: 'Главный герой вечера', text: 'Алихан забирает главный приз вечера.',
+    votes: 6, stats: { goals: 3, assists: 2, games: 5, wins: 4 }, sharedWith: [], ...patch,
+  });
+  const ceremony = post(9, { kind: 'ceremony', text: 'Награды матча 1 ноября вручены. MVP — Алихан.', highlights: ['Алихан'], userId: 12,
+    player: { userId: 12, name: 'Алихан', photoUrl: null }, ceremony: [
+      card({}),
+      card({ award: 'forward', userId: 12, title: 'Гроза ворот', text: 'Острие атаки матча: Алихан.', votes: 3 }),
+      card({ award: 'defender', userId: 13, name: 'Ерлан', title: 'Стена', text: 'Ерлан — стена.', votes: 2, stats: { goals: 0, assists: null, games: 5, wins: 2 }, sharedWith: [14] }),
+      card({ award: 'defender', userId: 14, name: 'Санжар', title: 'Надёжный тыл', text: 'Санжар — надёжный тыл.', votes: 2, stats: null, sharedWith: [13] }),
+    ] });
+
+  test('a ceremony post shows one card per winner and pages through them', async () => {
+    withFeed([ceremony]);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const cards = await screen.findByRole('region', { name: 'Награды матча' });
+    expect(within(cards).getAllByRole('group')).toHaveLength(4);
+    const first = within(cards).getByRole('group', { name: '1 из 4' });
+    expect(within(first).getByText('MVP матча')).toBeInTheDocument();
+    expect(within(first).getByText('Главный герой вечера')).toBeInTheDocument();
+    expect(within(first).getByText('6 голосов')).toBeInTheDocument();
+    expect(within(first).getByText('3 гола · 2 паса · 4 победы из 5')).toBeInTheDocument();
+    expect(within(first).getByText('2 награды за вечер')).toBeInTheDocument();
+    const sharer = within(cards).getByRole('group', { name: '3 из 4' });
+    expect(within(sharer).getByText('Награда на двоих · Ерлан и Санжар')).toBeInTheDocument();
+    expect(within(sharer).getByText('0 голов · 2 победы из 5')).toBeInTheDocument();
+    expect(within(within(cards).getByRole('group', { name: '4 из 4' })).queryByText(/побед/)).toBeNull();
+    // The post line still leads to the match.
+    expect(screen.getByRole('link', { name: /Награды матча 1 ноября вручены/ })).toHaveAttribute('href', '/event/7');
+    expect(screen.getByText('1 из 4')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Следующая награда' }));
+    expect(await screen.findByText('2 из 4')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Предыдущая награда' })).toBeEnabled();
+  });
+
+  test('a ceremony card opens the winner profile', async () => {
+    withFeed([ceremony]);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    const cards = await screen.findByRole('region', { name: 'Награды матча' });
+    await userEvent.click(within(within(cards).getByRole('group', { name: '3 из 4' })).getByRole('button'));
+    expect(await screen.findByRole('dialog', { name: 'Профиль игрока' })).toBeInTheDocument();
+    expect(api.get).toHaveBeenCalledWith('/api/players/13', expect.anything());
+  });
+
+  test('an old awards post still renders as plain text', async () => {
+    withFeed([post(4, { kind: 'awards', text: 'Награды матча 1 ноября. MVP матча: Алихан.' })]);
+    renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: player });
+    expect(await screen.findByRole('link', { name: /MVP матча: Алихан/ })).toHaveAttribute('href', '/event/7');
+    expect(screen.queryByRole('region', { name: 'Награды матча' })).toBeNull();
+  });
+
   test('five posts first, the rest on request; group tags for a person with several groups', async () => {
     withFeed(Array.from({ length: 8 }, (_, i) => post(i + 1)));
     renderWithApp(<NotificationsProvider><Home /></NotificationsProvider>, { me: twoGroups });

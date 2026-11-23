@@ -55,6 +55,16 @@ test('an injured player shows the red cross on the avatar; others do not', async
   expect(screen.queryByRole('button', { name: /Отметить травму/ })).toBeNull();
 });
 
+test('the reigning MVP wears a crown; others do not', async () => {
+  role = 'player';
+  (api.get as Mock).mockResolvedValue({ groups: [{ community: { id: 1, title: 'FC Altynka' }, role: 'player', players: [{ ...players[0], reigningMvp: true }, players[1]] }] });
+  renderWithApp(<Players />, { me: player });
+  const crowned = (await screen.findByText('Арман')).closest('li')!;
+  expect(crowned.querySelector('[data-testid="crown-badge"]')).not.toBeNull();
+  expect(crowned).toHaveTextContent('Действующий MVP');
+  expect(screen.getByText('Орг').closest('li')!.querySelector('[data-testid="crown-badge"]')).toBeNull();
+});
+
 test('admin sees «Снять травму» for an injured member', async () => {
   (api.get as Mock).mockImplementation((path: string) => Promise.resolve(path === '/api/members?communityId=1' ? [{ ...members[0], injured: true }, members[1]] : { groups: [{ community: { id: 1, title: 'FC Altynka' }, role, players }] }));
   renderWithApp(<Players />, { me: admin });

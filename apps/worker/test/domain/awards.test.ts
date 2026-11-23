@@ -2,9 +2,9 @@ import type { ReviewInput } from '@altynka/core';
 import { env } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { communities, events, memberships, reviewSubmissions } from '../../src/db/schema';
-import { playerAwardCounts } from '../../src/domain/awards';
+import { playerAwardCounts, reigningMvps } from '../../src/domain/awards';
 import { playerGameStatistics } from '../../src/domain/playerStatistics';
-import { matchReview, submitReview } from '../../src/domain/ratings';
+import { closeReview, matchReview, submitReview } from '../../src/domain/ratings';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 import { HOUR, NOW, reviewedMatch, vote } from './awardsFixture';
@@ -143,5 +143,79 @@ describe('award totals of a player', () => {
   it('profile statistics carry award totals even without recorded games', async () => {
     const w = await season();
     expect((await playerGameStatistics(db(), w.b.id, w.b.id, NOW)).statistics).toMatchObject({ meetings: 0, mvps: 2, positionAwards: 1 });
+  });
+});
+
+describe('closing a vote early', () => {
+  it('wakes the match sync once, so the congratulation is not left waiting for the original deadline', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);
+    const d = deps();
+    expect(await closeReview(d, ev.id)).toBe(true);
+    expect(d.sync.calls).toEqual([{ eventId: ev.id, req: { parts: [], review: true } }]);
+    expect(await closeReview(d, ev.id)).toBe(true);
+    expect(d.sync.calls).toHaveLength(1);
+  });
+  it('a failed wake neither fails the saved answer nor keeps the vote open', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id]);
+    const quiet = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const d = { ...deps(), sync: { request: async () => { throw new Error('do down'); } } };
+    try {
+      expect(await closeReview(d, ev.id)).toBe(true);
+      expect(quiet).toHaveBeenCalled();
+    } finally { quiet.mockRestore(); }
+  });
+  it('an incomplete vote that stays open wakes nothing', async () => {
+    const w = await trio();
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id]);
+    const d = deps();
+    expect(await closeReview(d, ev.id, true)).toBe(false);
+    expect(d.sync.calls).toEqual([]);
+  });
+});
+
+describe('reigning MVP', () => {
+  const closedMatch = async (w: Awaited<ReturnType<typeof trio>>, closesAt: number) =>
+    reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id], { closesAt, names: w.names });
+  it('the crown belongs to the MVP of the latest closed match and passes on', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+    const second = await closedMatch(w, NOW - HOUR);
+    await vote(second.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(second.id, w.d.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.b.id]);
+  });
+  it('a later match without an MVP leaves the crown where it was', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    const second = await closedMatch(w, NOW - HOUR);
+    await vote(second.id, w.a.id, { [w.b.id]: 8 }, { defender: w.b.id }); await vote(second.id, w.d.id, { [w.b.id]: 8 }, { defender: w.b.id, mvp: w.a.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+  });
+  it('an open vote and a cancelled match do not move the crown', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    const open = await closedMatch(w, NOW + HOUR);
+    await vote(open.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(open.id, w.d.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    const cancelled = await closedMatch(w, NOW - HOUR);
+    await vote(cancelled.id, w.a.id, { [w.d.id]: 8 }, { mvp: w.d.id }); await vote(cancelled.id, w.b.id, { [w.d.id]: 8 }, { mvp: w.d.id });
+    await db().update(events).set({ status: 'cancelled' }).where(eq(events.id, cancelled.id));
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+  });
+  it('a shared MVP crowns both; a group without awards has no entry', async () => {
+    const w = await trio();
+    const [other] = await db().insert(communities).values({ tgChatId: -100777, title: 'Другая' }).returning();
+    const [e, f] = await Promise.all(['Четвёртый', 'Пятый'].map(n => seedUser(n, { communityId: w.c.id })));
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id, e.id, f.id], { closesAt: NOW - HOUR });
+    // По два голоса и одинаковая средняя: награду делят двое.
+    await vote(ev.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(ev.id, e.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    await vote(ev.id, f.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(ev.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    const crowns = await reigningMvps(db(), [w.c.id, other.id], NOW);
+    expect(crowns.get(w.c.id)).toEqual([w.a.id, w.b.id].sort((x, y) => x - y));
+    expect(crowns.has(other.id)).toBe(false);
   });
 });

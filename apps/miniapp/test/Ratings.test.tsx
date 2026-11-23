@@ -141,18 +141,30 @@ test('with nobody else to pick there are no award steps', async () => {
   expect(within(dialog).getByText('1 из 1')).toBeInTheDocument();
 });
 
-test('a closed match lists winners, shared winners and awards nobody won', async () => {
+test('closed match: the MVP in a gold hero card, positions as four tiles', async () => {
   const who = (userId: number, name: string) => ({ userId, name, photoUrl: null });
   (api.get as Mock).mockResolvedValue({ ...openReview, state: 'closed', closesAt: 2, awards: {
     mvp: { winners: [who(12, 'Арман')], votes: 6 }, forward: null, midfielder: { winners: [who(12, 'Арман'), who(13, 'Ерлан')], votes: 2 },
     defender: { winners: [who(13, 'Ерлан'), who(14, 'Санжар'), who(15, 'Тимур')], votes: 3 }, goalkeeper: null } });
+  const { container } = renderWithApp(<MatchReview eventId={8} />, { me: player });
+  const block = (await screen.findByRole('heading', { name: 'Награды матча' })).closest('section')!;
+  const hero = block.querySelector('.match-award-hero')!;
+  expect(hero.textContent).toContain('MVP матча');
+  expect(hero.textContent).toContain('Арман');
+  expect(hero.textContent).toContain('6 голосов');
+  expect(within(hero as HTMLElement).getByRole('link', { name: 'Арман' })).toHaveAttribute('href', '/players/12');
+  const tiles = [...container.querySelectorAll('.match-award-tile')];
+  expect(tiles.map(tile => tile.textContent)).toEqual([
+    'НападающийНедостаточно голосов', 'ПолузащитникАрман и Ерлан2 голоса', 'ЗащитникЕрлан, Санжар и Тимур3 голоса', 'ВратарьНедостаточно голосов']);
+  expect(within(tiles[2] as HTMLElement).getByRole('link', { name: 'Санжар' })).toHaveAttribute('href', '/players/14');
+});
+
+test('without an MVP the hero card says so', async () => {
+  (api.get as Mock).mockResolvedValue({ ...openReview, state: 'closed', closesAt: 2, awards: {
+    mvp: null, forward: { winners: [{ userId: 12, name: 'Арман', photoUrl: null }], votes: 2 }, midfielder: null, defender: null, goalkeeper: null } });
   renderWithApp(<MatchReview eventId={8} />, { me: player });
   const block = (await screen.findByRole('heading', { name: 'Награды матча' })).closest('section')!;
-  const rows = within(block).getAllByRole('listitem');
-  expect(rows.map(row => row.textContent)).toEqual([
-    'MVP матчаАрман6 голосов', 'НападающийНедостаточно голосов', 'ПолузащитникАрман и Ерлан2 голоса',
-    'ЗащитникЕрлан, Санжар и Тимур3 голоса', 'ВратарьНедостаточно голосов']);
-  expect(within(rows[0]).getByRole('link', { name: 'Арман' })).toHaveAttribute('href', '/players/12');
+  expect(block.querySelector('.match-award-hero')!.textContent).toBe('MVP матчаНедостаточно голосов');
 });
 
 test('a closed match without awards shows no awards block', async () => {

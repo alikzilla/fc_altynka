@@ -181,7 +181,7 @@ test('two hours after the invitation a participant who has not answered gets one
   expect(reminders()[0].keyboard?.inline_keyboard[0][0]).toMatchObject({ text: 'Пройти опрос', url: expect.stringContaining(`startapp=r${w.ev}`) });
   await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
   expect(reminders()).toHaveLength(1);
-  expect(await w.alarm()).toBeNull();
+  expect(await w.alarm()).toBe(futureTime('17:00:00', 3)); // остаётся только будильник к закрытию опроса
 });
 
 test.each(['answered', 'closed', 'undelivered', 'stale'] as const)('no review reminder when %s', async reason => {
@@ -195,7 +195,8 @@ test.each(['answered', 'closed', 'undelivered', 'stale'] as const)('no review re
   now += reason === 'stale' ? 3 * HOUR + 1 : 2 * HOUR;
   await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
   expect(w.personal().filter(m => m.html.includes('Опрос ждёт тебя'))).toHaveLength(0);
-  expect(await w.alarm()).toBeNull();
+  // Пока опрос открыт, остаётся только будильник к его закрытию (поздравления с наградами).
+  expect(await w.alarm()).toBe(reason === 'closed' ? null : futureTime('17:00:00', 3));
 });
 
 test.each(['submitted', 'skipped', 'expired', 'disabled', 'not_member'] as const)('review invitation skips %s and has no group fallback', async reason => {
@@ -209,7 +210,85 @@ test.each(['submitted', 'skipped', 'expired', 'disabled', 'not_member'] as const
   await w.flush();
   expect(w.personal()).toHaveLength(0);
   expect(tg.sent.some(m => m.chatId < 0 && m.html.includes('Оцени игру'))).toBe(false);
+  // Пока опрос открыт, остаётся только будильник к его закрытию (поздравления с наградами).
+  expect(await w.alarm()).toBe(reason === 'expired' ? null : futureTime('17:00:00', 3));
+});
+
+/** Ерлан и организатор отдают голоса MVP Тимуру: награда присуждена, когда опрос закрывается. */
+async function awardWorld() {
+  const w = await world();
+  const erlan = await seedUser('Ерлан', { tgId: 502, communityId: w.community.id });
+  await setMemberProfile(erlan.id, { notificationsEnabled: true, pmAvailable: true });
+  tg.members.add(502);
+  await joinEvent(w.d, w.ev, erlan.id);
+  await w.finish();
+  const ev = (await getEvent(db(), w.ev))!;
+  for (const voter of [w.org.id, erlan.id]) {
+    expect(await submitReview(w.d, ev, voter, { scores: [], gameScore: 7, skipped: false, awards: { mvp: w.payer.id } })).toBe('ok');
+  }
+  const closesAt = futureTime('17:00:00', 3); // 72 часа после завершения, 22:00 по Алматы: тихие часы
+  const congrats = () => w.personal().filter(m => m.html.includes('MVP матча — это ты'));
+  return { ...w, erlan, closesAt, congrats };
+}
+
+test('award winners are congratulated once after voting closes, in delivery hours', async () => {
+  const w = await awardWorld();
+  now = w.closesAt;
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(await w.alarm()).toBe(futureTime('05:00:00', 4));
+  now = (await w.alarm())!; await w.flush();
+  expect(w.congrats()).toHaveLength(1);
+  expect(w.congrats()[0].html).toContain('За тебя проголосовали 2 партнёра.');
+  expect(w.congrats()[0].html).toContain('Новый уровень: «MVP», дерево.');
+  expect(w.congrats()[0].keyboard?.inline_keyboard[0][0]).toMatchObject({ text: 'Посмотреть награды', url: expect.stringContaining(`startapp=e${w.ev}`) });
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(1);
+  expect(tg.sent.filter(m => m.chatId === 502 && m.html.includes('это ты'))).toHaveLength(0);
   expect(await w.alarm()).toBeNull();
+});
+
+test('nothing is computed or sent before voting closes', async () => {
+  const w = await awardWorld();
+  now = w.closesAt - 1;
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(await w.alarm()).toBe(w.closesAt);
+});
+
+test('an early close at night congratulates at 10:00 Almaty', async () => {
+  const w = await awardWorld();
+  // Тимур отвечает последним, чуть позже: опрос закрывается сразу, ночью.
+  now += 60_000;
+  expect(await submitReview(w.d, (await getEvent(db(), w.ev))!, w.payer.id, { scores: [], gameScore: null, skipped: true })).toBe('ok');
+  expect(w.d.sync.calls.at(-1)!.req).toEqual({ parts: [], review: true });
+  await w.stub.request(w.ev, w.d.sync.calls.at(-1)!.req); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(await w.alarm()).toBe(futureTime('05:00:00', 1));
+  now = (await w.alarm())!; await w.flush();
+  expect(w.congrats()).toHaveLength(1);
+});
+
+test('a late first wake after a daytime close still waits for delivery hours', async () => {
+  const w = await awardWorld();
+  // Опрос закрылся днём (15:00 по Алматы), а объект впервые проснулся только в 23:30.
+  await env.DB.prepare('UPDATE match_reviews SET closes_at = ? WHERE event_id = ?').bind(futureTime('10:00:00', 3), w.ev).run();
+  now = futureTime('18:30:00', 3);
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(await w.alarm()).toBe(futureTime('05:00:00', 4));
+  now = (await w.alarm())!; await w.flush();
+  expect(w.congrats()).toHaveLength(1);
+});
+
+test.each(['disabled', 'unavailable', 'stale'] as const)('no congratulation when %s, and none in the group', async reason => {
+  const w = await awardWorld();
+  if (reason === 'disabled') await setMemberProfile(w.payer.id, { notificationsEnabled: false });
+  if (reason === 'unavailable') await setMemberProfile(w.payer.id, { pmAvailable: false });
+  now = reason === 'stale' ? w.closesAt + 25 * HOUR : futureTime('05:00:00', 4);
+  await w.stub.request(w.ev, { parts: [], review: true }); await w.flush();
+  expect(w.congrats()).toHaveLength(0);
+  expect(tg.sent.some(m => m.chatId < 0 && m.html.includes('это ты'))).toBe(false);
 });
 
 test('automatic 429 persists retry_after and does not spend a successful payment attempt', async () => {

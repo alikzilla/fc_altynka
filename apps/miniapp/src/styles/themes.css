@@ -158,3 +158,9 @@
 :root[data-theme='light'] .team-card-player + .team-card-player::before { background:#0000001a; }
 :root[data-theme='light'] .team-kit-chip, :root[data-theme='light'] .team-color-option, :root[data-theme='light'] .team-level-option, :root[data-theme='light'] .start-kit { background:#0000000a; }
 :root[data-theme='light'] .tone-1 { color:#6b6873; } :root[data-theme='light'] .tone-2 { color:#2f7a48; } :root[data-theme='light'] .tone-4 { color:#86690c; } :root[data-theme='light'] .tone-8 { color:#a2581b; } :root[data-theme='light'] .tone-10 { color:#a83232; }
+
+/* Церемония: в светлой теме позиции темнее, чтобы подпись и кольцо читались на светлом графите; золото остаётся тёмным материалом. */
+:root[data-theme='light'] .ceremony-card[data-award=forward] { --award-ink: #b2462a; }
+:root[data-theme='light'] .ceremony-card[data-award=midfielder] { --award-ink: #1f6aa3; }
+:root[data-theme='light'] .ceremony-card[data-award=defender] { --award-ink: #2d7a3c; }
+:root[data-theme='light'] .ceremony-card[data-award=goalkeeper] { --award-ink: #6a3fb8; }

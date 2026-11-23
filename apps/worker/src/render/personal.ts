@@ -1,4 +1,4 @@
-import { ACHIEVEMENT_TIER_LABEL, escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type BillDto, type BillLineDto, type PlayerAchievement, type PlayerProtocolSummary } from '@altynka/core';
+import { ACHIEVEMENT_TIER_LABEL, ACHIEVEMENT_TIER_TO, AWARD_LABEL, escapeHtml, formatDateRu, formatKzPhone, formatTenge, plural, type BillDto, type BillLineDto, type AchievementTier, type AwardKey, type CeremonyStats, type PlayerAchievement, type PlayerProtocolSummary } from '@altynka/core';
 import { miniAppLink, type LinkEnv } from '../telegram/links';
 import { timeRange, type EventView, type PersonView, type Rendered } from './eventMessage';
 import { teamBlocks } from './teamsMessage';
@@ -170,6 +170,61 @@ export function personalResult(env: LinkEnv, view: EventView, summary: Omit<Play
     ].join('\n'),
     keyboard: { inline_keyboard: [[{ text: 'Итоги матча', url: miniAppLink(env, `e${view.id}`) }, { text: 'Мои достижения', url: miniAppLink(env, 'settings') }]] },
   };
+}
+
+const AWARD_HEADLINE: Record<AwardKey, string> = {
+  mvp: 'MVP матча — это ты', forward: 'Лучший нападающий матча — ты', midfielder: 'Лучший полузащитник матча — ты',
+  defender: 'Лучший защитник матча — ты', goalkeeper: 'Лучший вратарь матча — ты',
+};
+const AWARD_OPENING: Record<AwardKey, readonly string[]> = {
+  mvp: ['Партнёры назвали тебя лучшим игроком матча. Корона твоя до следующего MVP.', 'Главная награда вечера достаётся тебе. Заслуженно.',
+    'Лучший игрок матча по голосам тех, кто был рядом на поле, — это ты.'],
+  forward: ['Самый опасный у чужих ворот, по мнению партнёров, — ты.', 'Вратари соперников, кажется, уже в курсе.'],
+  midfielder: ['Центр поля в этот вечер был твоим.', 'Партнёры отметили, как ты ведёшь игру.'],
+  defender: ['Через тебя в этот вечер было не пройти.', 'Самый надёжный тыл вечера — твой.'],
+  goalkeeper: ['Спасибо надёжным рукам: партнёры это заметили.', 'Последний рубеж держался благодаря тебе.'],
+};
+const COUNTED = ['', '', 'Две', 'Три', 'Четыре', 'Пять'];
+const SHARED = ['', '', 'на двоих', 'на троих', 'на четверых', 'на пятерых'];
+const LADDER: Record<'mvp' | 'position-best', { title: string; of: string }> = {
+  mvp: { title: 'MVP', of: 'MVP' }, 'position-best': { title: 'Лучший на позиции', of: 'на позиции' },
+};
+
+function seedHash(text: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return h >>> 0;
+}
+
+/** Поздравление победителю наград матча: одно сообщение на матч, даже если наград несколько. */
+export function personalAwards(env: LinkEnv, view: EventView, v: {
+  seed: string;
+  awards: { award: AwardKey; votes: number; sharedWith: string[] }[];
+  stats: CeremonyStats | null;
+  progress: { ladder: 'mvp' | 'position-best'; total: number; raised: AchievementTier | null; nextTier: AchievementTier | null; remaining: number | null }[];
+}): Rendered {
+  const [main] = v.awards;
+  const votes = (n: number) => `${n} ${plural(n, 'голос', 'голоса', 'голосов')}`;
+  const title = v.awards.length > 1 ? `${COUNTED[v.awards.length] ?? v.awards.length} наград${v.awards.length > 4 ? '' : 'ы'} за матч` : AWARD_HEADLINE[main.award];
+  const openings = AWARD_OPENING[main.award];
+  const lines: string[] = [...teamTitle(view), `<b>🏆 ${title} · ${formatDateRu(view.date)}</b>`, openings[seedHash(v.seed) % openings.length]];
+  if (v.awards.length > 1) lines.push(...v.awards.map(a => `${AWARD_LABEL[a.award]} — ${votes(a.votes)}`));
+  else lines.push(`За тебя проголосовали ${main.votes} ${plural(main.votes, 'партнёр', 'партнёра', 'партнёров')}.`);
+  for (const a of v.awards) if (a.sharedWith.length) {
+    const names = ['ты', ...a.sharedWith.map(escapeHtml)];
+    lines.push(`Награда ${SHARED[names.length] ?? `на ${names.length}`}: ${names.slice(0, -1).join(', ')} и ${names[names.length - 1]}.`);
+  }
+  if (v.stats) {
+    const s = v.stats;
+    const parts = [`${s.goals} ${plural(s.goals, 'гол', 'гола', 'голов')}`, ...(s.assists ? [`${s.assists} ${plural(s.assists, 'пас', 'паса', 'пасов')}`] : []),
+      `${s.wins} ${plural(s.wins, 'победа', 'победы', 'побед')} в ${s.games} ${plural(s.games, 'игре', 'играх', 'играх')}`];
+    lines.push(`За матч: ${parts.join(', ')}.`);
+  }
+  const progress = v.progress.map(p => p.raised
+    ? `Новый уровень: «${LADDER[p.ladder].title}», ${ACHIEVEMENT_TIER_LABEL[p.raised].toLowerCase()}.`
+    : `Это твоя ${p.total}-я награда ${LADDER[p.ladder].of}.${p.nextTier && p.remaining ? ` ${ACHIEVEMENT_TIER_TO[p.nextTier]} — ещё ${p.remaining}.` : ''}`);
+  if (progress.length) lines.push('', ...progress);
+  return { html: lines.join('\n'), keyboard: { inline_keyboard: [[{ text: 'Посмотреть награды', url: miniAppLink(env, `e${view.id}`) }]] } };
 }
 
 function teamTitle(view: EventView): string[] {

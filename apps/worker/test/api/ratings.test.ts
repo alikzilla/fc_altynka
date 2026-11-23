@@ -1,7 +1,8 @@
-import { REVIEW_WINDOW_MS, type MatchReviewDto, type PlayerProfileDto, type PlayersDto, type SkillAnswers } from '@altynka/core';
+import { REVIEW_WINDOW_MS, type EventDetailDto, type MatchReviewDto, type PlayerProfileDto, type PlayersDto, type SkillAnswers } from '@altynka/core';
 import { eq } from 'drizzle-orm';
 import { communities, events, signups, users } from '../../src/db/schema';
-import { createEvent } from '../../src/domain/events';
+import { createEvent, joinEvent } from '../../src/domain/events';
+import { reviewedMatch, vote } from '../domain/awardsFixture';
 import { apiRequest, db, seedUser } from '../helpers';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 
@@ -317,4 +318,21 @@ test('late awards: an answer without the award step adds picks through /review/a
   const org = await (await request(path, w.org)).json() as MatchReviewDto;
   expect(org.participants.find(p => p.userId === extra[0].id)).toMatchObject({ voted: true });
   expect(org.participants.find(p => p.userId === extra[0].id)?.awardsPending).toBeUndefined();
+});
+
+test('the reigning MVP is flagged in the players list, the profile and a match lineup', async () => {
+  const extra = await Promise.all([10, 11].map(tgId => seedUser(`Партнёр ${tgId}`, { tgId, communityId: w.communityId })));
+  const ev = await reviewedMatch(w.communityId, [w.playerUserId, w.orgUserId, ...extra.map(u => u.id)], { closesAt: w.clock.now - 3600000 });
+  for (const voter of extra) await vote(ev.id, voter.id, { [w.playerUserId]: 8 }, { mvp: w.playerUserId });
+  const list = await (await request('/api/players')).json() as PlayersDto;
+  const players = list.groups[0].players;
+  expect(players.find(p => p.userId === w.playerUserId)?.reigningMvp).toBe(true);
+  expect(players.find(p => p.userId === w.orgUserId)?.reigningMvp).toBe(false);
+  expect(await (await request(`/api/players/${w.playerUserId}`, w.org)).json()).toMatchObject({ reigningMvp: true });
+  expect(await (await request(`/api/players/${w.orgUserId}`)).json()).toMatchObject({ reigningMvp: false });
+  const next = await createEvent({ db: db(), now: w.clock.now, sync: w.sync }, { communityId: w.communityId, date: '2026-11-12', comment: null, createdBy: w.orgUserId });
+  await joinEvent({ db: db(), now: w.clock.now, sync: w.sync }, next, w.playerUserId);
+  await joinEvent({ db: db(), now: w.clock.now, sync: w.sync }, next, w.orgUserId);
+  const detail = await (await request(`/api/events/${next}`)).json() as EventDetailDto;
+  expect(detail.main.map(s => [s.userId, s.reigningMvp ?? false])).toEqual([[w.playerUserId, true], [w.orgUserId, false]]);
 });

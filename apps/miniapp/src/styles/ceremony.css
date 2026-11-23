@@ -1,0 +1,31 @@
+/*
+ * Церемония награждения: карусель карточек победителей внутри поста ленты. Каждая номинация занимает
+ * всю ширину поста (по краям текста), все одной высоты; листаются свайпом или стрелками. MVP — непрозрачное золото, как первое место подиума «Статистики»;
+ * позиции — графит с кольцом и подписью в цвете награды. Награда всегда подписана словами.
+ */
+.ceremony { display: flex; flex-direction: column; gap: 6px; margin-inline: -18px; min-width: 0; }
+.ceremony-cards { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-inline: 18px; padding: 2px 18px 4px; scrollbar-width: none; overscroll-behavior-x: contain; }
+.ceremony-cards::-webkit-scrollbar { display: none; }
+.ceremony-card { --award-ink: var(--accent); flex: 0 0 100%; min-width: 0; scroll-snap-align: start; scroll-snap-stop: always; border-radius: 22px; background: color-mix(in srgb, var(--text) 7%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--award-ink) 28%, transparent); }
+.ceremony-card[data-award=forward] { --award-ink: #ff9b7d; }
+.ceremony-card[data-award=midfielder] { --award-ink: #8fcfff; }
+.ceremony-card[data-award=defender] { --award-ink: #94dea0; }
+.ceremony-card[data-award=goalkeeper] { --award-ink: #c9a8ff; }
+.ceremony-card[data-award=mvp] { --award-ink: #f6e3a1; color: #fbf7ef; background: radial-gradient(ellipse 110% 40% at 45% -8%, #e9c257 0%, #8b6519 55%, transparent 100%), radial-gradient(ellipse 60% 45% at 100% 112%, #a37a22 0%, transparent 100%), #231a07; box-shadow: var(--rim), inset 0 -2px 9px #d2a43a66, inset 1px 0 7px #d2a43a40; }
+.ceremony-open { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 100%; height: 100%; min-width: 0; padding: 16px 16px 18px; border: 0; background: none; color: inherit; font: inherit; text-align: center; cursor: pointer; border-radius: inherit; transition: transform 140ms var(--ease-out); }
+.ceremony-open:active { transform: scale(.98); }
+.ceremony-open:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.ceremony-award { display: inline-flex; align-items: center; gap: 5px; color: var(--award-ink); font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; }
+.ceremony-award svg { width: 15px; height: 15px; fill: currentColor; stroke-width: 1.4; }
+.ceremony-face { margin: 6px 0 2px; }
+.ceremony-face .avatar-large { width: 72px; height: 72px; font-size: 22px; box-shadow: 0 0 0 3px var(--award-ink), 0 0 0 6px color-mix(in srgb, var(--award-ink) 22%, transparent); }
+.ceremony-card[data-award=mvp] .avatar-large { background: #ffffff1a; color: #fbf7ef; }
+.ceremony-name { max-width: 100%; font-size: 19px; font-weight: 600; letter-spacing: -.02em; overflow-wrap: anywhere; }
+.ceremony-title { color: var(--award-ink); font-size: 13px; font-weight: 550; }
+.ceremony-text { margin-top: 4px; font-size: 15px; line-height: 1.4; text-wrap: pretty; overflow-wrap: anywhere; }
+.ceremony-stats { font-size: 13px; color: var(--hint); font-variant-numeric: tabular-nums; }
+.ceremony-card[data-award=mvp] .ceremony-stats { color: #eadfc4; }
+.ceremony-chips { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: auto; padding-top: 6px; max-width: 100%; }
+.ceremony-chip { padding: 4px 10px; border-radius: 99px; background: color-mix(in srgb, var(--award-ink) 16%, transparent); font-size: 12px; font-weight: 550; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.ceremony-controls { margin: -2px 0 -6px; }
+@media (prefers-reduced-motion: reduce) { .ceremony-open { transition: none; } .ceremony-cards { scroll-behavior: auto; } }

@@ -87,3 +87,50 @@ for (const theme of ['dark', 'light'] as const) {
     await page.screenshot({ path: `artifacts/ui/feed-${theme}.png`, fullPage: true });
   });
 }
+
+const card = (award: string, userId: number, name: string, title: string, text: string, patch: object = {}) =>
+  ({ award, userId, name, photoUrl: null, title, text, votes: 3, stats: { goals: 2, assists: 1, games: 5, wins: 3 }, sharedWith: [], ...patch });
+const ceremony = post(20, 'ceremony', 'Награды матча 7 ноября вручены. MVP\u00a0— Айкын.', { highlights: ['Айкын'], userId: 12, player: { userId: 12, name: 'Айкын', photoUrl: 'https://t.me/i/userpic/320/aikyn.jpg' }, ceremony: [
+  card('mvp', 12, 'Айкын', 'Главный герой вечера', 'Цифры и голоса совпали: 2 гола, 1 пас и звание MVP. Это Айкын.', { photoUrl: 'https://t.me/i/userpic/320/aikyn.jpg', votes: 6 }),
+  card('forward', 13, 'Данияр С.', 'Гроза ворот', 'Острие атаки матча 7 ноября: Данияр С.'),
+  card('midfielder', 14, 'Ерлан', 'Дирижёр', 'Голы забивают другие, а матч строит Ерлан.', { stats: null }),
+  card('defender', 15, 'Тимур', 'Стена', 'Тимур — стена, о которую разбиваются атаки.', { sharedWith: [16] }),
+  card('defender', 16, 'Марат', 'Надёжный тыл', 'Нападающие соперников ищут обход, а там снова Марат.', { sharedWith: [15] }),
+  card('goalkeeper', 17, 'Алишер', 'Последний рубеж', 'Последний рубеж держится. Лучший вратарь матча 7 ноября: Алишер.'),
+] });
+
+for (const theme of ['dark', 'light'] as const) {
+  test(`ceremony post in the ${theme} theme`, async ({ page }) => {
+    await page.clock.setFixedTime(new Date('2026-11-09T09:00:00Z'));
+    await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
+    await page.route('https://t.me/**', route => route.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 80 80"><rect width="80" height="80" fill="#6d8fb5"/><circle cx="40" cy="30" r="15" fill="#f1d3b8"/><path d="M10 80c0-20 13-30 30-30s30 10 30 30z" fill="#2b3a55"/></svg>' }));
+    await teamApiRoute(page, async route => {
+      const path = new URL(route.request().url()).pathname;
+      await route.fulfill({ json: path === '/api/me' ? { userId: 1, displayName: 'Алихан', kaspiPhone: null, theme, communities: [{ ...community, role: 'player' }] }
+        : path === '/api/events' ? { active: [event], past: [] } : path === '/api/notifications' ? { tasks: [] } : path === '/api/feed' ? { posts: [ceremony, ...posts.slice(1, 3)] } : /^\/api\/players\/\d+$/.test(path) ? profile : event });
+    });
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/');
+    const cards = page.getByRole('region', { name: 'Награды матча' });
+    await expect(cards.getByRole('group')).toHaveCount(6);
+    await expect(cards.getByRole('group', { name: '1 из 6' })).toContainText('Главный герой вечера');
+    await expect(page.getByText('1 из 6', { exact: true })).toBeVisible();
+    // Каждая номинация занимает всю ширину поста (по краям текста) и все одной высоты.
+    const text = await page.locator('li', { has: cards }).locator('.feed-text').boundingBox();
+    const boxes = await cards.locator('.ceremony-card').evaluateAll(els => els.map(el => { const r = el.getBoundingClientRect(); return { w: r.width, h: r.height }; }));
+    for (const box of boxes) {
+      expect(Math.abs(box.w - text!.width)).toBeLessThanOrEqual(1);
+      expect(Math.abs(box.h - boxes[0].h)).toBeLessThanOrEqual(1);
+    }
+    await page.locator('li', { has: cards }).scrollIntoViewIfNeeded();
+    await page.screenshot({ path: `artifacts/ui/ceremony-mvp-${theme}.png` });
+    await page.getByRole('button', { name: 'Следующая награда' }).click();
+    await expect(page.getByText('2 из 6', { exact: true })).toBeVisible();
+    await expect(cards.getByRole('group', { name: '4 из 6' })).toContainText('Награда на двоих · Тимур и Марат');
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    await page.screenshot({ path: `artifacts/ui/ceremony-${theme}.png` });
+    await cards.getByRole('group', { name: '3 из 6' }).getByRole('button').click();
+    await expect(page.getByRole('dialog', { name: 'Профиль игрока' })).toBeVisible();
+  });
+}

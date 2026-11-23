@@ -10,7 +10,7 @@ const skills = { teamwork: 7, dribbling: 6, technique: 7, shooting: 5, stamina: 
 const rating = { value: 6.7, initial: 6.5, selfAssessment: skills, matchesCount: 4 };
 const people = [
   { userId: 1, displayName: 'Данияр', playingPosition: 'midfielder', dominantFoot: 'right', rating },
-  { userId: 2, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { ...rating, value: 7.2 } },
+  { userId: 2, displayName: 'Арман', playingPosition: 'defender', dominantFoot: 'left', rating: { ...rating, value: 7.2 }, reigningMvp: true },
   { userId: 3, displayName: 'Руслан', playingPosition: 'forward', dominantFoot: 'both', rating: { ...rating, value: 6.3 } },
 ];
 
@@ -179,7 +179,9 @@ test('closed results display aggregate scores and insufficient data without vote
   await page.goto('/event/1/review');
   await expect(page.getByText('Недостаточно оценок', { exact: true })).toBeVisible();
   const awards = page.getByRole('region', { name: 'Награды матча' });
-  await expect(awards.getByRole('listitem')).toHaveText(['MVP матчаАрман2 голоса', 'НападающийНедостаточно голосов', 'ПолузащитникНедостаточно голосов', 'ЗащитникАрман и Руслан2 голоса', 'ВратарьНедостаточно голосов']);
+  await expect(awards.locator('.match-award-hero')).toContainText('MVP матча');
+  await expect(awards.locator('.match-award-hero')).toContainText('Арман2 голоса');
+  await expect(awards.getByRole('listitem')).toHaveText(['НападающийНедостаточно голосов', 'ПолузащитникНедостаточно голосов', 'ЗащитникАрман и Руслан2 голоса', 'ВратарьНедостаточно голосов']);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await expect(page.getByRole('button', { name: 'Отправить оценки', exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);

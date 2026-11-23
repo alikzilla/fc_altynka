@@ -69,6 +69,10 @@ async function longWorld(page: Page, role: 'admin' | 'player') {
       post(1, 'winner', `${LONG} не оставили шансов: 99 побед из 99.`, { teamColor: 'red' }),
       post(2, 'hero', `${LONG} — герой матча: 99 голов и 99 передач.`, { userId: 2, player: { userId: 2, name: name(2), photoUrl: null } }),
       post(3, 'summary', `Матч в цифрах: 999 игр, 9999 голов, ${LONG}.`),
+      post(5, 'ceremony', `Награды матча вручены. MVP — ${name(2)}.`, { userId: 2, player: { userId: 2, name: name(2), photoUrl: null }, ceremony: [
+        { award: 'mvp', userId: 2, name: name(2), photoUrl: null, title: 'Главный герой вечера', text: `${name(2)} забирает главный приз вечера. 999 голосов, и все заслуженные.`, votes: 999, stats: { goals: 999, assists: 999, games: 999, wins: 999 }, sharedWith: [3] },
+        { award: 'mvp', userId: 3, name: name(3), photoUrl: null, title: 'Человек матча', text: `Лучший игрок вечера: ${name(3)}.`, votes: 999, stats: null, sharedWith: [2] },
+      ] }),
     ] });
     if (path === '/api/players') return json({ groups: [{ community: group, role, players: [1, 2, 3, 4].map(player) }, { community: other, role: 'player', players: [1, 5].map(player) }] });
     if (/^\/api\/players\/\d+$/.test(path)) return json(profile(Number(path.split('/').at(-1))));

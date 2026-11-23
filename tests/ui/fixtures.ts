@@ -6,7 +6,7 @@ export * from '@playwright/test';
  * Blocks that scroll sideways on purpose: the match carousel, the availability strip, the game table
  * and the statistics tabs. Anything else that scrolls sideways is a layout bug.
  */
-export const HORIZONTAL_SCROLLERS = ['.match-carousel', '.availability-strip', '.game-table-scroll', '.stat-groups', '.stat-boards'];
+export const HORIZONTAL_SCROLLERS = ['.match-carousel', '.ceremony-cards', '.availability-strip', '.game-table-scroll', '.stat-groups', '.stat-boards'];
 
 type Overflow = { where: string; scrollWidth: number; clientWidth: number; viewport: number; culprits: string[] };
 
