@@ -15,7 +15,7 @@ const PREVIEW = 5;
 type IconName = Parameters<typeof Icon>[0]['name'];
 const ICON: Record<FeedKind, IconName> = {
   winner: 'trophy', hero: 'flame', hat_trick: 'ball', scorer: 'ball', assistant: 'target', duo: 'people', blowout: 'flame', goal_fest: 'ball',
-  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy', awards: 'star',
+  streak: 'flame', summary: 'ball', achievement: 'shield', debut: 'user', scoring_run: 'ball', winning_run: 'trophy', top_rated: 'trophy', awards: 'star', ceremony: 'trophy',
   signup_open: 'calendar', scheduled: 'clock', squad_full: 'people', teams_ready: 'shirt',
 };
 
@@ -23,7 +23,7 @@ const ICON: Record<FeedKind, IconName> = {
 const LABEL: Record<FeedKind, string> = {
   winner: 'Итог матча', hero: 'Герой матча', hat_trick: 'Хет-трик', scorer: 'Бомбардир', assistant: 'Ассистент', duo: 'Связка',
   blowout: 'Крупный счёт', goal_fest: 'Голевая игра', streak: 'Серия побед', summary: 'Матч в цифрах', achievement: 'Достижение',
-  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков', awards: 'Награды матча',
+  debut: 'Дебют', scoring_run: 'Голевая серия', winning_run: 'Победная серия', top_rated: 'Выбор игроков', awards: 'Награды матча', ceremony: 'Церемония',
   signup_open: 'Запись открыта', scheduled: 'Время и поле', squad_full: 'Состав собран', teams_ready: 'Составы',
 };
 

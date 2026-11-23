@@ -1,6 +1,7 @@
 import { ACHIEVEMENT_TIER_LABEL, playerAchievements } from './achievements';
 import type { CommunityDto } from './api';
 import { AWARDS, AWARD_LABEL, type AwardKey } from './awards';
+import { CEREMONY_TITLES, ceremonyLines, type CeremonyCard, type CeremonyCardDto, type CeremonyWinner } from './ceremony';
 import { plural } from './format';
 import { calculateStandings, type GameResult, type GameRosterPlayer, type GameState } from './games';
 import { aggregatePlayerStatistics, summarizePlayerProtocol, type PlayerProtocolSummary } from './playerStatistics';
@@ -11,7 +12,7 @@ export const FEED_MATCH_KINDS = ['winner', 'hero', 'hat_trick', 'scorer', 'assis
   'achievement', 'debut', 'scoring_run', 'winning_run'] as const;
 /** News about a match that is still ahead; they leave the feed once the match is played or cancelled. */
 export const FEED_UPCOMING_KINDS = ['signup_open', 'scheduled', 'squad_full', 'teams_ready'] as const;
-export const FEED_KINDS = [...FEED_MATCH_KINDS, 'top_rated', 'awards', ...FEED_UPCOMING_KINDS] as const;
+export const FEED_KINDS = [...FEED_MATCH_KINDS, 'top_rated', 'awards', 'ceremony', ...FEED_UPCOMING_KINDS] as const;
 export type FeedKind = typeof FEED_KINDS[number];
 export type FeedUpcomingKind = typeof FEED_UPCOMING_KINDS[number];
 
@@ -30,6 +31,8 @@ export interface FeedPostDto extends FeedReactionsDto {
   userId: number | null; teamColor: TeamColor | null;
   /** The player the post is about, shown as its author line; null for team and match news. */
   player: { userId: number; name: string; photoUrl: string | null } | null;
+  /** Карточки победителей у поста «Церемония». */
+  ceremony?: CeremonyCardDto[];
 }
 export interface FeedDto { posts: FeedPostDto[] }
 
@@ -37,6 +40,8 @@ export interface FeedDto { posts: FeedPostDto[] }
 export interface FeedDraft {
   kind: FeedKind; slot: string; variant: number; text: string; highlights: string[];
   userId: number | null; teamColor: TeamColor | null;
+  /** Карточки поста «Церемония»; хранятся в `payload_json`. */
+  payload?: CeremonyCard[];
 }
 /** Phrasings recently used in the group, newest first, so the next post of that kind sounds different. */
 export type RecentVariants = Partial<Record<FeedKind, readonly number[]>>;
@@ -496,6 +501,39 @@ export function composeAwardsPost(v: { eventId: number; date: string; winners: R
       `Лучшие в матче ${d} по выбору партнёров. ${prizes}.`,
     ],
   });
+}
+
+const CARD_OFFSET: Record<AwardKey, number> = { mvp: 100, forward: 200, midfielder: 300, defender: 400, goalkeeper: 500 };
+
+/**
+ * The award ceremony of a match once voting has closed: one post, one card per winner of every prize.
+ * Phrasings go through one Voice with an offset per award, so two cards of the same post never repeat.
+ */
+export function composeCeremonyPost(v: { eventId: number; date: string; winners: readonly CeremonyWinner[]; recent?: RecentVariants }): FeedDraft | null {
+  if (!v.winners.length) return null;
+  const voice = new Voice(String(v.eventId), v.recent);
+  const winners = [...v.winners].sort((a, b) => AWARDS.indexOf(a.award) - AWARDS.indexOf(b.award) || a.userId - b.userId);
+  const mvps = winners.filter(w => w.award === 'mvp');
+  const d = formatDayMonthRu(v.date);
+  const lines = mvps.length === 1 ? [
+    `Награды матча ${d} вручены. MVP — ${mvps[0].name}.`,
+    `Голосование закрыто, у матча ${d} есть свои герои.`,
+    `Церемония награждения матча ${d}. Листай карточки.`,
+    `Партнёры выбрали лучших в матче ${d}.`,
+  ] : [
+    `Голосование закрыто, у матча ${d} есть свои герои.`,
+    `Церемония награждения матча ${d}. Листай карточки.`,
+    `Партнёры выбрали лучших в матче ${d}.`,
+  ];
+  const { variant, text } = voice.say('ceremony', 'ceremony', mvps.length === 1 ? 0 : 10, lines);
+  const payload: CeremonyCard[] = winners.map(w => ({
+    award: w.award, userId: w.userId,
+    title: voice.say('ceremony', `title:${w.award}:${w.userId}`, CARD_OFFSET[w.award] + 50, CEREMONY_TITLES[w.award]).text,
+    text: voice.say('ceremony', `ceremony:${w.award}:${w.userId}`, CARD_OFFSET[w.award], ceremonyLines(w.award, { name: w.name, date: v.date, votes: w.votes, stats: w.stats })).text,
+    votes: w.votes, stats: w.stats, sharedWith: [...w.sharedWith],
+  }));
+  return { kind: 'ceremony', slot: 'ceremony', variant, text, highlights: [...new Set(winners.map(w => w.name))],
+    userId: mvps.length === 1 ? mvps[0].userId : null, teamColor: null, payload };
 }
 
 export interface UpcomingFeedInput {
