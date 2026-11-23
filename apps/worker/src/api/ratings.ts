@@ -9,6 +9,7 @@ import { activeMemberships } from '../domain/members';
 import { canManage, getEvent } from '../domain/events';
 import { closeReview, finishMatch, matchReview, playerProfile, playerRatings, submitReview, submitReviewAwards } from '../domain/ratings';
 import { leaderboard } from '../domain/leaderboard';
+import { reigningMvps } from '../domain/awards';
 import { body, idParam } from './validate';
 
 export const ratingsApi = new Hono<AppEnv>();
@@ -37,11 +38,11 @@ ratingsApi.get('/players', async c => {
   const groups = await activeMemberships(db, c.env, c.get('user'));
   const rows = groups.length ? await db.select({ communityId: memberships.communityId, userId: memberships.userId, injured: memberships.injured }).from(memberships)
     .where(and(inArray(memberships.communityId, groups.map(g => g.community.id)), eq(memberships.active, true))) : [];
-  const ratings = await playerRatings(db, rows.map(r => r.userId), now);
+  const [ratings, crowns] = await Promise.all([playerRatings(db, rows.map(r => r.userId), now), reigningMvps(db, groups.map(g => g.community.id), now)]);
   return c.json<PlayersDto>({ groups: groups.map(g => ({
     community: { id: g.community.id, title: g.community.title },
     role: g.role,
-    players: rows.filter(r => r.communityId === g.community.id).flatMap(r => { const p = ratings.get(r.userId); return p ? [{ ...p, injured: r.injured }] : []; })
+    players: rows.filter(r => r.communityId === g.community.id).flatMap(r => { const p = ratings.get(r.userId); return p ? [{ ...p, injured: r.injured, reigningMvp: crowns.get(r.communityId)?.includes(r.userId) ?? false }] : []; })
       .sort((a, b) => a.displayName.localeCompare(b.displayName, 'ru')),
   })) });
 });

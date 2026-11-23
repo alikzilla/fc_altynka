@@ -61,6 +61,8 @@ export interface SignupDto {
   kaspiPhone?: string | null;
   /** Игрок отмечен травмированным в группе этого матча. */
   injured?: boolean;
+  /** Действующий MVP группы этого матча. */
+  reigningMvp?: boolean;
 }
 
 export interface EventSummaryDto {

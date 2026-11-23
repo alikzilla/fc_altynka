@@ -71,3 +71,31 @@ export async function communityMvpCounts(db: Db, communityIds: number[], now: nu
   }
   return counts;
 }
+
+/** How many closed matches with MVP votes a group looks back through to find its crown. */
+const CROWN_LOOKBACK = 10;
+
+/**
+ * The reigning MVP of each group: the MVP of the latest closed, not cancelled match where one was awarded.
+ * A later match without an MVP leaves the crown with its holder; a shared MVP crowns everyone who shares it.
+ */
+export async function reigningMvps(db: Db, communityIds: number[], now: number): Promise<Map<number, number[]>> {
+  const crowns = new Map<number, number[]>();
+  const groups = [...new Set(communityIds)];
+  if (!groups.length) return crowns;
+  const rows = await db.all<{ eventId: number; communityId: number }>(sql`
+    SELECT eventId, communityId FROM (
+      SELECT e.id AS eventId, e.community_id AS communityId,
+        row_number() OVER (PARTITION BY e.community_id ORDER BY r.closes_at DESC, e.id DESC) AS place
+      FROM events e JOIN match_reviews r ON r.event_id = e.id
+      WHERE e.community_id IN (${idList(groups)}) AND r.closes_at <= ${now} AND e.status <> 'cancelled'
+        AND EXISTS (SELECT 1 FROM award_votes v WHERE v.event_id = e.id AND v.award = 'mvp')
+    ) WHERE place <= ${CROWN_LOOKBACK} ORDER BY communityId, place`);
+  const results = await awardsByEvent(db, rows.map(r => r.eventId));
+  for (const { eventId, communityId } of rows) {
+    if (crowns.has(communityId)) continue;
+    const winners = results.get(eventId)?.mvp?.winners;
+    if (winners?.length) crowns.set(communityId, winners);
+  }
+  return crowns;
+}

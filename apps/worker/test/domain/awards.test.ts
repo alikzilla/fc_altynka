@@ -2,7 +2,7 @@ import type { ReviewInput } from '@altynka/core';
 import { env } from 'cloudflare:test';
 import { eq } from 'drizzle-orm';
 import { communities, events, memberships, reviewSubmissions } from '../../src/db/schema';
-import { playerAwardCounts } from '../../src/domain/awards';
+import { playerAwardCounts, reigningMvps } from '../../src/domain/awards';
 import { playerGameStatistics } from '../../src/domain/playerStatistics';
 import { closeReview, matchReview, submitReview } from '../../src/domain/ratings';
 import { FakeSync } from '../fakes/fakeSync';
@@ -162,5 +162,50 @@ describe('closing a vote early', () => {
     const d = deps();
     expect(await closeReview(d, ev.id, true)).toBe(false);
     expect(d.sync.calls).toEqual([]);
+  });
+});
+
+describe('reigning MVP', () => {
+  const closedMatch = async (w: Awaited<ReturnType<typeof trio>>, closesAt: number) =>
+    reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id], { closesAt, names: w.names });
+  it('the crown belongs to the MVP of the latest closed match and passes on', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+    const second = await closedMatch(w, NOW - HOUR);
+    await vote(second.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(second.id, w.d.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.b.id]);
+  });
+  it('a later match without an MVP leaves the crown where it was', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    const second = await closedMatch(w, NOW - HOUR);
+    await vote(second.id, w.a.id, { [w.b.id]: 8 }, { defender: w.b.id }); await vote(second.id, w.d.id, { [w.b.id]: 8 }, { defender: w.b.id, mvp: w.a.id });
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+  });
+  it('an open vote and a cancelled match do not move the crown', async () => {
+    const w = await trio();
+    const first = await closedMatch(w, NOW - 10 * HOUR);
+    await vote(first.id, w.b.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(first.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    const open = await closedMatch(w, NOW + HOUR);
+    await vote(open.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(open.id, w.d.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    const cancelled = await closedMatch(w, NOW - HOUR);
+    await vote(cancelled.id, w.a.id, { [w.d.id]: 8 }, { mvp: w.d.id }); await vote(cancelled.id, w.b.id, { [w.d.id]: 8 }, { mvp: w.d.id });
+    await db().update(events).set({ status: 'cancelled' }).where(eq(events.id, cancelled.id));
+    expect((await reigningMvps(db(), [w.c.id], NOW)).get(w.c.id)).toEqual([w.a.id]);
+  });
+  it('a shared MVP crowns both; a group without awards has no entry', async () => {
+    const w = await trio();
+    const [other] = await db().insert(communities).values({ tgChatId: -100777, title: 'Другая' }).returning();
+    const [e, f] = await Promise.all(['Четвёртый', 'Пятый'].map(n => seedUser(n, { communityId: w.c.id })));
+    const ev = await reviewedMatch(w.c.id, [w.a.id, w.b.id, w.d.id, e.id, f.id], { closesAt: NOW - HOUR });
+    // По два голоса и одинаковая средняя: награду делят двое.
+    await vote(ev.id, w.d.id, { [w.a.id]: 8 }, { mvp: w.a.id }); await vote(ev.id, e.id, { [w.a.id]: 8 }, { mvp: w.a.id });
+    await vote(ev.id, f.id, { [w.b.id]: 8 }, { mvp: w.b.id }); await vote(ev.id, w.a.id, { [w.b.id]: 8 }, { mvp: w.b.id });
+    const crowns = await reigningMvps(db(), [w.c.id, other.id], NOW);
+    expect(crowns.get(w.c.id)).toEqual([w.a.id, w.b.id].sort((x, y) => x - y));
+    expect(crowns.has(other.id)).toBe(false);
   });
 });

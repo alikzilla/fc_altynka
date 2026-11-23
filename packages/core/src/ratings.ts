@@ -49,6 +49,8 @@ export interface PlayerSummaryDto {
   rating: PlayerRatingDto;
   /** Травма: в списке игроков — в этой группе, в профиле — хотя бы в одной общей с вами группе. */
   injured?: boolean;
+  /** Действующий MVP (корона): в списке игроков — этой группы, в профиле — хотя бы одной общей с вами группы. */
+  reigningMvp?: boolean;
 }
 export interface PlayerProfileDto extends PlayerSummaryDto {
   telegramUsername: string | null;

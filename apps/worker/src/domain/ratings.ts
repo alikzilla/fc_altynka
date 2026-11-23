@@ -12,7 +12,7 @@ import { getEvent } from './events';
 import { parseGameState } from './gameStore';
 import { usersById } from '../sync/parts';
 import { playerGameStatistics } from './playerStatistics';
-import { awardsByEvent } from './awards';
+import { awardsByEvent, reigningMvps } from './awards';
 
 /** D1 allows 100 bound parameters per query; each query below binds one id list plus a few values. */
 const RATING_CHUNK = 30;
@@ -84,13 +84,16 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   const [games, details, roles] = await Promise.all([
     playerGameStatistics(db, userId, viewerId, now),
     db.select({ username: users.username, pinnedAchievement: users.pinnedAchievement }).from(users).where(eq(users.id,userId)),
-    db.all<{role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
-      SELECT m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
+    db.all<{communityId:number;role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
+      SELECT m.community_id AS communityId,m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
       WHERE m.user_id=${userId} AND m.active=1 AND c.active=1 ${userId===viewerId?sql``:sql`AND EXISTS (
         SELECT 1 FROM memberships mine WHERE mine.community_id=m.community_id AND mine.user_id=${viewerId} AND mine.active=1)`}`),
   ]);
   const role = roles.some(r=>r.telegramAdmin) ? 'admin' : roles.some(r=>r.role==='organizer') ? 'organizer' : 'player';
-  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured) };
+  // Корона, как и травма, видна, если она есть хотя бы в одной из групп, которые видит смотрящий.
+  const crowns = await reigningMvps(db, roles.map(r=>r.communityId), now);
+  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured),
+    reigningMvp: [...crowns.values()].some(ids=>ids.includes(userId)) };
 }
 
 export function canFinishMatch(ev: EventRow, now: number): boolean {
