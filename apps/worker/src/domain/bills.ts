@@ -1,5 +1,5 @@
 import { computeBill, lineStatus, normalizeKzPhone, matchPhase, type BillDto, type Extra, type Role } from '@altynka/core';
-import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '../db/client';
 import { billLines, bills, events, memberships, signups, users, type BillRow, type UserRow } from '../db/schema';
 import { usersById } from '../sync/parts';
@@ -10,6 +10,7 @@ export type UpsertBillResult =
   | { kind: 'no_kaspi' }
   | { kind: 'bad_phone' }
   | { kind: 'receiver_phone_locked' }
+  | { kind: 'receiver_no_phone' }
   | { kind: 'invalid' }
   | { kind: 'not_found' }
   | { kind: 'not_scheduled' }
@@ -62,10 +63,13 @@ export async function upsertBill(
   const [receiver] = await d.db.select().from(users).where(eq(users.id, v.receiverUserId));
   const [receiverMembership] = await d.db.select().from(memberships).where(and(eq(memberships.communityId, ev.communityId), eq(memberships.userId, v.receiverUserId), eq(memberships.active, true)));
   if (!receiver || !receiverMembership || !v.participantSignupIds.length) return { kind: 'invalid' };
-  const parts = await d.db
-    .select()
-    .from(signups)
-    .where(and(eq(signups.eventId, eventId), isNull(signups.leftAt), inArray(signups.id, v.participantSignupIds)));
+  // Someone else can be the receiver only with a number they saved themselves: otherwise the bill would show their
+  // name while the payment buttons lead to whatever number the organizer typed in.
+  if (receiver.id !== actorUserId && !receiver.kaspiPhone) return { kind: 'receiver_no_phone' };
+  // Filtered here, not with IN (...): up to 100 ids plus the event id would exceed D1's 100 bound parameters.
+  const wanted = new Set(v.participantSignupIds);
+  const parts = (await d.db.select().from(signups).where(and(eq(signups.eventId, eventId), isNull(signups.leftAt))))
+    .filter(s => wanted.has(s.id));
   if (parts.length !== new Set(v.participantSignupIds).size) return { kind: 'invalid' };
   let phone = receiver.kaspiPhone;
   let phoneChanged = false;
@@ -73,8 +77,8 @@ export async function upsertBill(
     const submitted = normalizeKzPhone(v.receiverKaspiPhone);
     if (!submitted) return { kind: 'bad_phone' };
     if (submitted !== receiver.kaspiPhone) {
-      // Only the receiver changes an existing number (in their profile or in their own bill).
-      if (receiver.kaspiPhone && receiver.id !== actorUserId) return { kind: 'receiver_phone_locked' };
+      // Only the receiver sets or changes their number (in their profile or in their own bill).
+      if (receiver.id !== actorUserId) return { kind: 'receiver_phone_locked' };
       await d.db.update(users).set({ kaspiPhone: submitted, profileCompletedAt: receiver.profileCompletedAt ?? d.now })
         .where(eq(users.id, receiver.id));
       phone = submitted;

@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm';
 import { Hono, type Context } from 'hono';
+import { bodyLimit } from 'hono/body-limit';
 import { identityMiddleware, scopeCommunity, type AppEnv } from '../auth/middleware';
 import { communitiesApi } from './communities';
 import { getDb } from '../db/client';
@@ -73,7 +74,12 @@ const ownBillPayment = async (c: C) => {
     .where(and(eq(billLines.billId, id), eq(billLines.userId, c.get('user').id)))));
 };
 
+/** The largest real body (a bill or a game protocol with 100 entries) is a few KB. */
+export const MAX_BODY_BYTES = 64 * 1024;
+
 export const api = new Hono<AppEnv>();
+// Before signature checks: an oversized body is rejected without being read.
+api.use('*', bodyLimit({ maxSize: MAX_BODY_BYTES, onError: c => c.json({ error: 'too_large' }, 413) }));
 api.use('*', identityMiddleware(env => depsFactory(env)));
 // Person-scoped routes (/me, /events list, /matches, /feed, /notifications, /players, /statistics) need no group.
 // Object-scoped routes resolve the group from the object; a foreign object looks like a missing one.

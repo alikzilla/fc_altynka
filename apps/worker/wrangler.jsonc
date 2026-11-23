@@ -7,6 +7,18 @@
 		"nodejs_compat"
 	],
 	"triggers": { "crons": ["*/5 * * * *"] },
+	// D1 lives in EEUR and one API request makes several sequential queries: run the Worker next to it.
+	"placement": { "mode": "smart" },
+	"observability": {
+		"enabled": true,
+		"logs": { "enabled": true, "head_sampling_rate": 1 },
+		"traces": { "enabled": true, "head_sampling_rate": 0.1 }
+	},
+	// Per Telegram user (key `tg:<id>`), see auth/middleware.ts. namespace_id is unique within the account.
+	"ratelimits": [
+		{ "name": "API_LIMITER", "namespace_id": "1001", "simple": { "limit": 300, "period": 60 } },
+		{ "name": "WRITE_LIMITER", "namespace_id": "1002", "simple": { "limit": 60, "period": 60 } }
+	],
 	"d1_databases": [
 		{
 			"binding": "DB",
@@ -40,6 +52,8 @@
 			"/tg/*"
 		]
 	},
+	// Set with `wrangler secret put`; listed here so `wrangler types` knows them without a local .dev.vars.
+	"secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET"] },
 	"vars": {
 		"BOT_USERNAME": "fc_altynka_bot",
 		"MINIAPP_SHORT_NAME": "fc_altynka_app",

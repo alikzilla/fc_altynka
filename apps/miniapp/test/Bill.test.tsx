@@ -236,16 +236,26 @@ test('another receiver with a saved phone: number is read-only and not sent', as
   expect((api.send as Mock).mock.calls.at(-1)![2]).toMatchObject({ receiverUserId: ev.main[1].userId, receiverKaspiPhone: undefined });
 });
 
-test('locked receiver phone from the server is explained', async () => {
-  (api.send as Mock).mockRejectedValue(new ApiError(409, 'receiver_phone_locked'));
+test('only the organizer and players with a saved Kaspi number can be picked as the receiver', async () => {
+  const ev = evWith(3);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const options = within(screen.getByLabelText('Кто заплатил за поле')).getAllByRole('option').map(o => o.textContent);
+  expect(options).toEqual(['Игрок1', 'Игрок2']);
+  expect(screen.getByText('Другого получателя можно выбрать, если он сохранил номер Kaspi в своём профиле')).toBeVisible();
+});
+
+test('a receiver who removed their number while the sheet was open is explained', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'receiver_no_phone'));
   const ev = evWith(2);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
   renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
   await userEvent.click(billAction());
   await userEvent.selectOptions(screen.getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
-  await userEvent.type(screen.getByLabelText(/Номер Kaspi получателя/), '87022222222');
   await userEvent.type(screen.getByLabelText('Аренда поля, ₸'), '4000');
   await userEvent.click(billAction());
-  expect(await screen.findByText('Номер получатель меняет в своём профиле')).toBeInTheDocument();
+  expect(await screen.findByText('У получателя нет номера Kaspi в профиле. Выбери другого или себя.')).toBeInTheDocument();
 });
 
 test('after returning from Kaspi the mark becomes a visible button and can be undone from the notification', async () => {

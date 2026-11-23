@@ -1,5 +1,7 @@
 export const DEFAULT_LIMIT = 10 as const;
 export const RESTORE_WINDOW_MS = 120_000;
+/** Сколько друзей игрок может привести на один матч; организатор записывает гостей без ограничения. */
+export const MAX_GUESTS_PER_PLAYER = 3;
 
 export type Duration = 1 | 2;
 

@@ -25,11 +25,14 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   const locked = useRef(false);
   const live = useRef(true);
   useEffect(() => { live.current = true; return () => { live.current = false; }; }, []);
+  // Someone else receives the money only to a number they saved themselves (the server enforces the same rule).
   const people = useMemo(() => {
     const m = new Map<number, string>([[me.userId, me.displayName]]);
-    ev.main.forEach(s => s.userId !== null && m.set(s.userId, s.name));
+    ev.main.forEach(s => s.userId !== null && (s.userId === me.userId || s.kaspiPhone) && m.set(s.userId, s.name));
+    if (initial && !m.has(initial.receiver.userId)) m.set(initial.receiver.userId, initial.receiver.name);
     return [...m];
-  }, [ev.main, me]);
+  }, [ev.main, me, initial]);
+  const withoutPhone = ev.main.some(s => s.userId !== null && s.userId !== me.userId && !s.kaspiPhone);
   const [receiver, setReceiver] = useState(initial?.receiver.userId ?? me.userId);
   // The phone is one per person in every group: someone else's saved number is changed only in their profile.
   const savedPhone = receiver === me.userId ? null
@@ -90,6 +93,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       if (err instanceof ApiError && err.code === 'bad_phone') setPhoneError('Проверь номер');
       else if (err instanceof ApiError && err.code === 'receiver_phone_locked') setPhoneError(PHONE_IN_PROFILE);
       else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError('Нужен номер Kaspi получателя');
+      else if (err instanceof ApiError && err.code === 'receiver_no_phone') setPhoneError('У получателя нет номера Kaspi в профиле. Выбери другого или себя.');
       else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность матча' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала матча' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
     }
     locked.current = false;
@@ -130,6 +134,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
           ))}
         </select>
       </label>
+      {withoutPhone && <p className="muted">Другого получателя можно выбрать, если он сохранил номер Kaspi в своём профиле</p>}
       <label>
         Номер Kaspi получателя
         {savedPhone

@@ -30,10 +30,10 @@ beforeEach(async () => {
   signupIds = (await loadQueue(d.db, ev)).main.map(s => s.id);
 });
 
-const make = (o: Partial<Parameters<typeof upsertBill>[2]> = {}) =>
+const make = (o: Partial<Parameters<typeof upsertBill>[2]> = {}, actor = orgId) =>
   upsertBill(d, ev, {
     receiverUserId: us[0].id, fieldAmount: 20000, extras: [{ label: 'Вода', amount: 1500 }], participantSignupIds: signupIds, ...o,
-  });
+  }, actor);
 const billIdOf = async () => (await d.db.select().from(bills).where(eq(bills.eventId, ev)))[0].id;
 
 test('saving a receiver phone during billing also persists completed profile setup', async () => {
@@ -54,10 +54,19 @@ test('bill splits equally, guest share goes to inviter, receiver is pre-paid', a
   expect(d.sync.calls.at(-1)!.req.parts).toEqual(['bill', 'event']);
 });
 
-test('missing Kaspi phone → no_kaspi; junk → bad_phone; valid phone saved to receiver profile', async () => {
-  expect(await make({ receiverUserId: us[1].id })).toEqual({ kind: 'no_kaspi' });
-  expect(await make({ receiverUserId: us[1].id, receiverKaspiPhone: 'abc' })).toEqual({ kind: 'bad_phone' });
-  expect((await make({ receiverUserId: us[1].id, receiverKaspiPhone: '8 707 000 11 22' })).kind).toBe('ok');
+test('someone else without a saved phone cannot be the receiver, even with a number typed in', async () => {
+  expect(await make({ receiverUserId: us[1].id })).toEqual({ kind: 'receiver_no_phone' });
+  expect(await make({ receiverUserId: us[1].id, receiverKaspiPhone: '8 707 000 11 22' })).toEqual({ kind: 'receiver_no_phone' });
+  expect((await localUser(us[1].id)).kaspiPhone).toBeNull();
+  // A saved number cannot be replaced by someone else either.
+  expect(await make({ receiverKaspiPhone: '8 707 000 11 22' })).toEqual({ kind: 'receiver_phone_locked' });
+});
+
+test('the receiver filling in their own bill: missing phone → no_kaspi; junk → bad_phone; valid phone saved to their profile', async () => {
+  const self = { receiverUserId: us[1].id };
+  expect(await make(self, us[1].id)).toEqual({ kind: 'no_kaspi' });
+  expect(await make({ ...self, receiverKaspiPhone: 'abc' }, us[1].id)).toEqual({ kind: 'bad_phone' });
+  expect((await make({ ...self, receiverKaspiPhone: '8 707 000 11 22' }, us[1].id)).kind).toBe('ok');
   expect((await localUser(us[1].id)).kaspiPhone).toBe('+77070001122');
 });
 

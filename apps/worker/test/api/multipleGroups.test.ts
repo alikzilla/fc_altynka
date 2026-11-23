@@ -268,10 +268,25 @@ test('organizer changing own phone in a bill resyncs open bills in every group',
   expect(w.sync.calls).toContainEqual({ eventId: inB.ev.id, req: { parts: ['bill'] } });
 });
 
-test('receiver without a phone gets one from the bill form', async () => {
+test('an organizer cannot pick a receiver without a saved phone, nor type one in for them', async () => {
+  const inA = await editableBillInA([w.playerUserId, w.orgUserId]);
+  const body = { receiverUserId: w.playerUserId, fieldAmount: 4000, extras: [], participantSignupIds: inA.signupIds };
+  for (const receiverKaspiPhone of [undefined, '87022222222']) {
+    const r = await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body: { ...body, receiverKaspiPhone } });
+    expect(r.status).toBe(409);
+    expect(await r.json()).toEqual({ error: 'receiver_no_phone' });
+  }
+  expect(await phoneOf(w.playerUserId)).toBeNull();
+  // Once the receiver saves the number in their own profile, they can be picked.
+  await db().update(users).set({ kaspiPhone: '+77022222222' }).where(eq(users.id, w.playerUserId));
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body })).status).toBe(200);
+});
+
+test('the receiver who fills in the bill may still enter their own phone there', async () => {
+  await db().update(memberships).set({ role: 'organizer' }).where(and(eq(memberships.communityId, w.communityId), eq(memberships.userId, w.playerUserId)));
   const inA = await editableBillInA([w.playerUserId, w.orgUserId]);
   const body = { receiverUserId: w.playerUserId, receiverKaspiPhone: '87022222222', fieldAmount: 4000, extras: [], participantSignupIds: inA.signupIds };
-  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.org, method: 'PUT', body })).status).toBe(200);
+  expect((await apiRequest(`/api/events/${inA.ev.id}/bill`, { as: w.player, method: 'PUT', body })).status).toBe(200);
   expect(await phoneOf(w.playerUserId)).toBe('+77022222222');
 });
 

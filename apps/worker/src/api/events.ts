@@ -91,8 +91,10 @@ eventsApi.post('/events/:id/leave', async c => {
 eventsApi.post('/events/:id/guests', body(z.object({ name: trimmed(1, 24) })), async c => {
   const id = await ownEvent(c);
   if (id === null) return c.json({ error: 'not_found' }, 404);
-  const r = await addGuest(c.get('deps'), id, c.get('user').id, c.req.valid('json').name);
+  // Organizers sign up guests for people without Telegram, so the per-player limit does not apply to them.
+  const r = await addGuest(c.get('deps'), id, c.get('user').id, c.req.valid('json').name, { unlimited: canManage(c.get('role')) });
   if (r.kind === 'duplicate') return c.json({ error: 'guest_exists' }, 409);
+  if (r.kind === 'guest_limit') return c.json({ error: 'guest_limit' }, 409);
   return c.json(r, statusFor(r.kind));
 });
 

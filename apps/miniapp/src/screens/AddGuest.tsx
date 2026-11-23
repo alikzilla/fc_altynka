@@ -1,4 +1,5 @@
 import { useId, useRef, useState } from 'react';
+import { MAX_GUESTS_PER_PLAYER, plural } from '@altynka/core';
 import { api, ApiError } from '../lib/api';
 import { ActionSheet } from '../components/ActionSheet';
 import { useToast } from '../components/ui';
@@ -23,6 +24,7 @@ export function AddGuestSheet({ eventId, onClose, onAdded }: { eventId: number; 
       onClose();
     } catch (err) {
       if (err instanceof ApiError && err.code === 'guest_exists') toast(`${guest} уже в списке`);
+      else if (err instanceof ApiError && err.code === 'guest_limit') toast(`Можно привести не больше ${MAX_GUESTS_PER_PLAYER} ${plural(MAX_GUESTS_PER_PLAYER, 'друга', 'друзей', 'друзей')} на матч`, { tone: 'error' });
       else toast(err instanceof ApiError && err.status === 409 ? 'Запись уже закрыта' : 'Не получилось добавить друга. Попробуй ещё раз.', { tone: 'error' });
       locked.current = false; setBusy(false);
     }

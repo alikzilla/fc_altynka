@@ -97,3 +97,21 @@ test('group upgraded to a supergroup moves the binding', async () => {
   await t.bot.handleUpdate(migrated(-100500, -100123));
   expect((await getCommunity(db()))!.tgChatId).toBe(-100123);
 });
+
+test('a failing update is logged and dropped, and the tapped button still gets an answer', async () => {
+  const { env } = await import('cloudflare:test');
+  const { createBot } = await import('../../src/bot/bot');
+  const { botInfo } = await import('./helpers');
+  const broken = new Proxy(db(), { get: (t, k) => k === 'select' ? () => { throw new Error('D1 down'); } : Reflect.get(t, k) });
+  const bot = createBot(env, { db: broken, sync: new FakeSync(), now: () => 1 }, botInfo);
+  const answers: unknown[] = [];
+  bot.api.config.use(async (_prev, method, payload) => {
+    if (method === 'answerCallbackQuery') answers.push((payload as { text?: string }).text);
+    return { ok: true, result: true } as never;
+  });
+  const logged = vi.spyOn(console, 'error').mockImplementation(() => {});
+  await expect(bot.handleUpdate(tap(501, `j:${ev}`))).resolves.toBeUndefined();
+  expect(answers).toEqual(['Не получилось. Попробуй ещё раз.']);
+  expect(JSON.parse(logged.mock.calls[0][0] as string)).toMatchObject({ event: 'bot_update_failed', error: 'D1 down' });
+  logged.mockRestore();
+});

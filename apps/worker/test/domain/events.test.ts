@@ -4,6 +4,7 @@ import {
   addGuest, cancelEvent, createEvent, joinEvent, leaveEvent, loadQueue, removeSignup, scheduleEvent,
   type Deps,
 } from '../../src/domain/events';
+import { MAX_GUESTS_PER_PLAYER } from '@altynka/core';
 import { FakeSync } from '../fakes/fakeSync';
 import { db, seedCommunity, seedUser } from '../helpers';
 
@@ -163,4 +164,18 @@ test('the same guest added twice by one inviter is kept once, even on a double t
   expect(both.filter(r => r.kind === 'duplicate')).toHaveLength(1);
   expect(await addGuest(d, ev, other.id, 'Ержан')).toMatchObject({ kind: 'main' });
   expect((await loadQueue(d.db, ev)).main.map(s => s.guestName)).toEqual(['Ержан', 'Асет', 'Ержан']);
+});
+
+test('a player brings at most MAX_GUESTS_PER_PLAYER friends; a removed guest frees the slot; organizers are not limited', async () => {
+  const ev = await seedEvent();
+  const [inviter] = await seedUsers(1);
+  for (let i = 1; i <= MAX_GUESTS_PER_PLAYER; i++) expect(await addGuest(d, ev, inviter.id, `Друг${i}`)).toMatchObject({ kind: 'main' });
+  const calls = d.sync.calls.length;
+  expect(await addGuest(d, ev, inviter.id, 'Лишний')).toEqual({ kind: 'guest_limit' });
+  // Nothing was queued and nobody got a "moved to reserve" message.
+  expect(d.sync.calls).toHaveLength(calls);
+  const first = (await loadQueue(d.db, ev)).main.find(s => s.guestName === 'Друг1')!;
+  expect(await removeSignup(d, first.id, { userId: inviter.id, role: 'player' })).toBe('ok');
+  expect(await addGuest(d, ev, inviter.id, 'Лишний')).toMatchObject({ kind: 'main' });
+  for (let i = 1; i <= MAX_GUESTS_PER_PLAYER + 2; i++) expect((await addGuest(d, ev, organizerId, `Гость${i}`, { unlimited: true })).kind).not.toBe('guest_limit');
 });

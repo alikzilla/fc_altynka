@@ -47,6 +47,17 @@ registerCallback('p', async ({ deps, user, arg }) => {
 
 export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot {
   const bot = new Bot(env.BOT_TOKEN, { botInfo });
+  // Without this the webhook answers 500 and Telegram resends the same update again and again, holding back the
+  // ones behind it. A failed update is logged and dropped; a tapped button still gets an answer.
+  // Registered first, so it wraps every handler below; `bot.catch` would not help: it only covers long polling.
+  bot.use(async (ctx, next) => {
+    try {
+      await next();
+    } catch (error) {
+      console.error(JSON.stringify({ event: 'bot_update_failed', updateId: ctx.update.update_id, error: error instanceof Error ? error.message : String(error) }));
+      if (ctx.callbackQuery) await ctx.answerCallbackQuery({ text: 'Не получилось. Попробуй ещё раз.' }).catch(() => {});
+    }
+  });
   registerPrivateCommands(bot, env, deps);
 
   bot.chatType(['group', 'supergroup']).command('bind', async ctx => {
