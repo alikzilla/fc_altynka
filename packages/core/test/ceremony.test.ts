@@ -26,14 +26,14 @@ test('no MVP: unsigned, and the post text never says «MVP —»', () => {
   for (let eventId = 1; eventId <= 20; eventId++) {
     const post = composeCeremonyPost({ eventId, date: '2026-11-14', winners: [w('goalkeeper', A)] })!;
     expect(post.userId).toBeNull();
-    expect(post.text).not.toContain('MVP —');
+    expect(post.text).not.toMatch(/MVP\s—/);
   }
 });
 
 test('a single MVP may be named in the post text, two MVPs leave it unsigned', () => {
   const texts = new Set<string>();
   for (let eventId = 1; eventId <= 30; eventId++) texts.add(composeCeremonyPost({ eventId, date: '2026-11-14', winners: [w('mvp', A)] })!.text);
-  expect([...texts].some(t => t.includes('MVP — Алихан'))).toBe(true);
+  expect([...texts].some(t => t.includes('MVP\u00a0— Алихан'))).toBe(true);
   expect([...texts].every(t => t.includes('14 ноября'))).toBe(true);
   const shared = composeCeremonyPost({ eventId: 1, date: '2026-11-14', winners: [w('mvp', A, { sharedWith: [2] }), w('mvp', B, { sharedWith: [1] })] })!;
   expect(shared.userId).toBeNull();

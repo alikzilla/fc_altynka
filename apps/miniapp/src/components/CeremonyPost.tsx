@@ -33,7 +33,7 @@ export function CeremonyCards({ cards, onOpen }: { cards: CeremonyCardDto[]; onO
     if (node) track.current?.scrollTo({ left: node.offsetLeft - track.current.offsetLeft, behavior: window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
   }
   return <div className="ceremony">
-    <div className={`ceremony-cards${cards.length === 1 ? ' single' : ''}`} role="region" aria-label="Награды матча" ref={track} onScroll={e => {
+    <div className="ceremony-cards" role="region" aria-label="Награды матча" ref={track} onScroll={e => {
       const el = e.currentTarget, width = (el.firstElementChild as HTMLElement | null)?.offsetWidth ?? el.clientWidth;
       setIndex(Math.max(0, Math.min(cards.length - 1, Math.round(el.scrollLeft / (width + 10)))));
     }}>

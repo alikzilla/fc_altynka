@@ -494,7 +494,8 @@ export function composeCeremonyPost(v: { eventId: number; date: string; winners:
   const mvps = winners.filter(w => w.award === 'mvp');
   const d = formatDayMonthRu(v.date);
   const lines = mvps.length === 1 ? [
-    `Награды матча ${d} вручены. MVP — ${mvps[0].name}.`,
+    // Неразрывный пробел: «MVP» не отрывается от имени при переносе.
+    `Награды матча ${d} вручены. MVP\u00a0— ${mvps[0].name}.`,
     `Голосование закрыто, у матча ${d} есть свои герои.`,
     `Церемония награждения матча ${d}. Листай карточки.`,
     `Партнёры выбрали лучших в матче ${d}.`,
