@@ -86,8 +86,8 @@
 			"secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET"] },
 			"vars": {
 				// Заполняется после создания тестового бота в @BotFather.
-				"BOT_USERNAME": "",
-				"MINIAPP_SHORT_NAME": "",
+				"BOT_USERNAME": "fc_altynka_stage_bot",
+				"MINIAPP_SHORT_NAME": "fc_altynka_stage",
 				"ADMIN_TG_ID": "1008342008",
 				// Сбои staging не будят: алерты выключены.
 				"ALERT_CHAT_ID": ""
