@@ -91,3 +91,12 @@ test('the notifications switch moves at the tap and moves back when the server r
   expect(await screen.findByText('Не получилось изменить уведомления. Попробуй ещё раз.')).toBeInTheDocument();
   vi.unstubAllGlobals();
 });
+
+test('the privacy policy opens from the settings through Telegram', async () => {
+  const { app } = telegram();
+  const openLink = vi.fn();
+  Object.assign(app, { openLink });
+  renderWithApp(<SystemSettings />, { me: player });
+  await userEvent.click(screen.getByRole('button', { name: /Политика конфиденциальности/ }));
+  expect(openLink).toHaveBeenCalledWith(`${location.origin}/privacy.html`);
+});

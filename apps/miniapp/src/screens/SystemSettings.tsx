@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { BOT_USERNAME } from '../lib/bot';
-import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
+import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openLink, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Icon } from '../components/Icon';
 import { applyTheme, getTheme } from '../lib/theme';
@@ -116,6 +116,12 @@ export function SystemSettings() {
               <span className="system-action-label">Добавить</span>
             </button>}
       </div>}
+      <div className="system-setting-item">
+        <button type="button" className="system-action-row" aria-describedby="privacy-description" onClick={() => openLink(`${location.origin}/privacy.html`)}>
+          <span className="system-switch-copy"><b>Политика конфиденциальности</b><small id="privacy-description">Какие данные мы храним, кто их видит и как их удалить</small></span>
+          <span className="system-action-label">Открыть</span>
+        </button>
+      </div>
     </div>
   </section>;
 }
