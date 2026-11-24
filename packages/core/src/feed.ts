@@ -511,8 +511,9 @@ export function composeCeremonyPost(v: { eventId: number; date: string; winners:
     text: voice.say('ceremony', `ceremony:${w.award}:${w.userId}`, CARD_OFFSET[w.award], ceremonyLines(w.award, { name: w.name, date: v.date, votes: w.votes, stats: w.stats })).text,
     votes: w.votes, stats: w.stats, sharedWith: [...w.sharedWith],
   }));
+  // Posted by the match: an MVP signing a post about the other winners reads oddly.
   return { kind: 'ceremony', slot: 'ceremony', variant, text, highlights: [...new Set(winners.map(w => w.name))],
-    userId: mvps.length === 1 ? mvps[0].userId : null, teamColor: null, payload };
+    userId: null, teamColor: null, payload };
 }
 
 export interface UpcomingFeedInput {

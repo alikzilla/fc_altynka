@@ -276,19 +276,22 @@ export async function listFeed(d: Deps, communities: readonly CommunityDto[], vi
       sql`NOT EXISTS (SELECT 1 FROM feed_hidden h WHERE h.event_id = ${feedPosts.eventId} AND h.slot = ${feedPosts.slot})`))
     .orderBy(sql`${feedPosts.createdAt} DESC, ${feedPosts.eventId} DESC, ${feedPosts.position}, ${feedPosts.id}`).limit(FEED_PAGE);
   const cards = new Map(rows.flatMap(r => r.post.payloadJson ? [[r.post.id, JSON.parse(r.post.payloadJson) as CeremonyCard[]] as const] : []));
-  const playerIds = [...new Set([...rows.flatMap(r => r.post.userId === null ? [] : [r.post.userId]), ...[...cards.values()].flat().map(c => c.userId)])];
+  // Ceremonies written before 2026-11-24 stored their MVP as the author; every ceremony is the match's post.
+  const authorOf = (post: typeof feedPosts.$inferSelect) => post.kind === 'ceremony' ? null : post.userId;
+  const playerIds = [...new Set([...rows.flatMap(r => { const id = authorOf(r.post); return id === null ? [] : [id]; }), ...[...cards.values()].flat().map(c => c.userId)])];
   const [reactions, people] = await Promise.all([
     reactionsOf(d.db, [...new Set(rows.map(r => r.post.eventId))], viewerId),
     peopleByIds(d.db, playerIds),
   ]);
   const players = new Map(people.map(p => [p.id, p]));
   return { posts: rows.map(({ post, date }) => {
-    const player = post.userId === null ? undefined : players.get(post.userId);
+    const author = authorOf(post);
+    const player = author === null ? undefined : players.get(author);
     return {
       id: post.id, kind: post.kind, text: post.text, highlights: JSON.parse(post.highlightsJson) as string[],
       createdAt: post.createdAt, eventId: post.eventId, eventDate: date,
       community: { id: post.communityId, title: titles.get(post.communityId) ?? '' },
-      userId: post.userId, teamColor: post.teamColor,
+      userId: author, teamColor: post.teamColor,
       player: player ? { userId: player.id, name: player.name, photoUrl: player.photoUrl } : null,
       ...(cards.has(post.id) ? { ceremony: cards.get(post.id)!.map((card): CeremonyCardDto => {
         const person = players.get(card.userId);
