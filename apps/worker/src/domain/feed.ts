@@ -30,6 +30,14 @@ async function recentVariants(db: Db, communityId: number, exceptEventId: number
   return recent;
 }
 
+/** Люди, удалившие свои данные: о них не пишутся новые посты (см. domain/privacy.ts). */
+async function deletedUsers(db: Db, ids: (number | null)[]): Promise<Set<number>> {
+  const wanted = [...new Set(ids.filter((id): id is number => id !== null))];
+  if (!wanted.length) return new Set();
+  const rows = await db.select({ id: users.id }).from(users).where(and(inArray(users.id, wanted), sql`${users.deletedAt} IS NOT NULL`));
+  return new Set(rows.map(r => r.id));
+}
+
 const row = (ev: EventRow, draft: FeedDraft, position: number, createdAt: number) => ({
   communityId: ev.communityId, eventId: ev.id, kind: draft.kind, slot: draft.slot, variant: draft.variant, position,
   text: draft.text, highlightsJson: JSON.stringify(draft.highlights), userId: draft.userId, teamColor: draft.teamColor, createdAt,
@@ -58,6 +66,8 @@ export async function publishMatchFeed(d: Deps, eventId: number): Promise<void> 
       recent: await recentVariants(d.db, ev.communityId, eventId),
     });
   }
+  const gone = await deletedUsers(d.db, drafts.map(dr => dr.userId));
+  drafts = drafts.filter(dr => dr.userId === null || !gone.has(dr.userId));
   // Pre-match news gives way to the match itself.
   const stale = d.db.delete(feedPosts).where(and(eq(feedPosts.eventId, eventId), inArray(feedPosts.kind, [...FEED_MATCH_KINDS, ...FEED_UPCOMING_KINDS])));
   const staleReactions = d.db.delete(feedReactions).where(and(eq(feedReactions.eventId, eventId), inArray(feedReactions.slot, [...FEED_UPCOMING_KINDS])));
@@ -179,9 +189,12 @@ export async function publishClosedVotes(d: Deps, communityIds: number[]): Promi
   for (const [eventId, scores] of byEvent) {
     const ev = await event(d.db, eventId);
     if (!ev) continue;
-    const best = scores[0].score;
+    const gone = await deletedUsers(d.db, scores.map(s => s.userId));
+    const kept = scores.filter(s => !gone.has(s.userId));
+    if (!kept.length) continue;
+    const best = kept[0].score;
     const draft = composeTopRatedPost({
-      eventId, date: ev.date, score: best, winners: scores.filter(s => s.score === best),
+      eventId, date: ev.date, score: best, winners: kept.filter(s => s.score === best),
       recent: await recentVariants(d.db, ev.communityId, eventId),
     });
     if (draft) await d.db.insert(feedPosts).values(row(ev, draft, 0, scores[0].closesAt)).onConflictDoNothing();

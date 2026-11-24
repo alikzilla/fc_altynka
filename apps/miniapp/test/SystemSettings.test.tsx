@@ -100,3 +100,41 @@ test('the privacy policy opens from the settings through Telegram', async () => 
   await userEvent.click(screen.getByRole('button', { name: /Политика конфиденциальности/ }));
   expect(openLink).toHaveBeenCalledWith(`${location.origin}/privacy.html`);
 });
+
+describe('delete my data', () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const stubDelete = (response: Response) => {
+    const fetchMock = vi.fn(async () => response);
+    vi.stubGlobal('fetch', fetchMock);
+    return fetchMock;
+  };
+
+  test('explains what goes and what stays, deletes after one confirmation and offers to close the app', async () => {
+    const { app } = telegram();
+    const close = vi.fn();
+    Object.assign(app, { close });
+    const fetchMock = stubDelete(Response.json({ deleted: true }));
+    renderWithApp(<SystemSettings />, { me: player });
+    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
+    const sheet = screen.getByRole('dialog', { name: 'Удалить мои данные?' });
+    expect(sheet).toHaveTextContent('Удалённый игрок');
+    expect(sheet).toHaveTextContent('Отменить удаление нельзя');
+    expect(fetchMock).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect([url, init.method, init.body]).toEqual(['/api/me', 'DELETE', JSON.stringify({ confirm: 'delete' })]);
+    expect(await screen.findByRole('dialog', { name: 'Данные удалены' })).toBeVisible();
+    await userEvent.click(screen.getAllByRole('button', { name: 'Закрыть приложение' }).at(-1)!);
+    expect(close).toHaveBeenCalled();
+  });
+
+  test('the receiver of an open bill learns what to do first; nothing is deleted', async () => {
+    telegram();
+    stubDelete(Response.json({ error: 'receiver_open_bill' }, { status: 409 }));
+    renderWithApp(<SystemSettings />, { me: player });
+    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Попроси организатора закрыть счёт');
+    expect(screen.getByRole('dialog', { name: 'Удалить мои данные?' })).toBeVisible();
+  });
+});

@@ -6,6 +6,7 @@ import { BOT_USERNAME } from '../lib/bot';
 import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openLink, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Icon } from '../components/Icon';
+import { DeleteMyDataSheet } from '../components/DeleteMyData';
 import { applyTheme, getTheme } from '../lib/theme';
 import { useToast } from '../components/ui';
 
@@ -20,6 +21,7 @@ export function SystemSettings() {
   const [notifications, setNotifications] = useState(me.notifications);
   const [theme, setTheme] = useState<AppTheme>(me.theme ?? getTheme());
   const [busy, setBusy] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const saving = useRef(false);
   useEffect(() => setNotifications(me.notifications), [me.notifications]);
   useEffect(() => { if (me.theme) setTheme(me.theme); }, [me.theme]);
@@ -122,6 +124,12 @@ export function SystemSettings() {
           <span className="system-action-label">Открыть</span>
         </button>
       </div>
+      <div className="system-setting-item">
+        <button type="button" className="system-action-row" aria-describedby="delete-data-description" onClick={() => setDeleting(true)}>
+          <span className="system-switch-copy"><b className="danger-text">Удалить мои данные</b><small id="delete-data-description">Профиль, номер Kaspi, анкета и настройки. В истории матчей останется «Удалённый игрок»</small></span>
+        </button>
+      </div>
     </div>
+    {deleting && <DeleteMyDataSheet onClose={() => setDeleting(false)} />}
   </section>;
 }

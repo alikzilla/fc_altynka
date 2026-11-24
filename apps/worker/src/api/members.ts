@@ -7,6 +7,7 @@ import type { Db } from '../db/client';
 import { memberships, users, type UserRow } from '../db/schema';
 import { openBillsReceivedBy, resyncReceiverBills } from '../domain/bills';
 import { activeMemberships, confirmedMemberships, effectiveRole, nameTaken, type MyMembership } from '../domain/members';
+import { deleteMyData } from '../domain/privacy';
 import { playerRatings } from '../domain/ratings';
 import type { Env } from '../env';
 import { makeTgClient } from '../telegram/client';
@@ -36,6 +37,13 @@ membersApi.get('/me', async c => {
   const { db, now } = c.get('deps');
   const groups = await confirmedMemberships(db, makeTgClient(c.env), c.env, c.get('user'), now);
   return c.json<MeDto>(await meDto(c, c.get('user'), groups));
+});
+
+/** «Удалить мои данные». Тело `{ confirm: 'delete' }` — чтобы случайный запрос ничего не стёр. */
+membersApi.delete('/me', body(z.object({ confirm: z.literal('delete') })), async c => {
+  const r = await deleteMyData(c.get('deps'), c.get('user').id);
+  if (r.kind === 'receiver_open_bill') return c.json({ error: 'receiver_open_bill' }, 409);
+  return c.json({ deleted: true });
 });
 
 membersApi.patch('/me', body(z.object({ displayName: name.optional(), kaspiPhone: z.string().max(40).nullable().optional(), notificationsEnabled: z.boolean().optional(), profileCompleted: z.literal(true).optional(), playingPosition: z.enum(PLAYING_POSITIONS).nullable().optional(), dominantFoot: z.enum(DOMINANT_FEET).nullable().optional(), theme: z.enum(APP_THEMES).optional(), pinnedAchievement: z.enum(ACHIEVEMENT_IDS).nullable().optional() })), async c => {
