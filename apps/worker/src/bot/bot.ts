@@ -11,6 +11,7 @@ import type { SyncPort } from '../sync/port';
 import { makeTgClient } from '../telegram/client';
 import { registerPrivateCommands } from './private';
 import { joinAnswer, leaveAnswer } from './presentation';
+import { recordIncident } from '../ops/alerts';
 import { miniAppLink } from '../telegram/links';
 import { restoreCommunitySync } from '../domain/reactivate';
 
@@ -54,7 +55,9 @@ export function createBot(env: Env, deps: BotDeps, botInfo?: UserFromGetMe): Bot
     try {
       await next();
     } catch (error) {
-      console.error(JSON.stringify({ event: 'bot_update_failed', updateId: ctx.update.update_id, error: error instanceof Error ? error.message : String(error) }));
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(JSON.stringify({ event: 'bot_update_failed', updateId: ctx.update.update_id, error: message }));
+      await recordIncident(deps.db, 'bot_update_failed', message, deps.now());
       if (ctx.callbackQuery) await ctx.answerCallbackQuery({ text: 'Не получилось. Попробуй ещё раз.' }).catch(() => {});
     }
   });
