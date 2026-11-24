@@ -1,4 +1,4 @@
-import { expect, test, type Page } from './fixtures';
+import { animationsSettled, expect, test, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 
 const saturday = { id: 1, title: 'Футбол по субботам' };
@@ -25,7 +25,11 @@ async function mockApi(page: Page, role: 'organizer' | 'player', theme = 'dark')
   });
   return sent;
 }
-const axe = async (page: Page) => expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+const axe = async (page: Page) => {
+  // The screen fades in (`.reveal`): under load axe could otherwise measure the text mid-fade.
+  await animationsSettled(page);
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
+};
 const fits = async (page: Page) => expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 
 for (const [width, theme] of [[320, 'dark'], [390, 'light']] as const) test(`organizer opens courts from the menu, edits and deletes at ${width}px ${theme}`, async ({ page }) => {
