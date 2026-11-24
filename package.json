@@ -4,7 +4,7 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "test:ui": "pnpm build && playwright test",
-    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs scripts/channel-post.test.mjs",
+    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs scripts/channel-post.test.mjs scripts/backup.test.mjs",
     "test:migrations": "node --test scripts/multiple-groups-migration.test.mjs scripts/game-statistics-migration.test.mjs",
     "test:migrations:games": "node --test scripts/game-statistics-migration.test.mjs",
     "bot:profile": "node scripts/bot-profile.mjs",
@@ -14,7 +14,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "deploy": "pnpm --filter @altynka/miniapp build && pnpm --filter @altynka/worker exec wrangler deploy",
-    "build": "pnpm --filter @altynka/miniapp build"
+    "build": "pnpm --filter @altynka/miniapp build",
+    "backup": "node scripts/backup.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

@@ -17,6 +17,7 @@ pnpm test:ui              # build + Playwright (Chromium + mobile WebKit project
 pnpm test:migrations      # node:test migration checks against in-memory node:sqlite
 pnpm test:connectors      # Telegram MCP connector + bot-profile script tests
 pnpm run deploy           # build mini app + wrangler deploy (use `run`: `pnpm deploy` is a pnpm builtin)
+pnpm backup               # export remote D1 + restorable copy + local restore drill (README «Бэкапы и восстановление»)
 ```
 
 Single test file / single test:
@@ -62,7 +63,7 @@ Three workspace packages:
 ## Deployment conventions
 
 - Migrations that add schema must be applied to remote D1 **before** deploying the Worker that uses them (`wrangler d1 migrations apply fc-altynka --remote`). The README describes the extra ordering constraints for `0009_multiple_groups`.
-- Production releases are recorded as `docs/<feature>-deployment.md`: commit, previous and new Worker version IDs, migration applied, test counts and verification steps. Backups and reports go to the git-ignored `artifacts/deploy/`. Do not create synthetic data in production.
+- Production releases are recorded as `docs/<feature>-deployment.md`: commit, previous and new Worker version IDs, migration applied, test counts and verification steps. Take `pnpm backup` before a release with a migration; backups and reports go to the git-ignored `artifacts/deploy/`. A raw `wrangler d1 export` cannot be loaded back into D1; restore from the `.restore.sql` it writes. Do not create synthetic data in production.
 - Secrets (`BOT_TOKEN`, `WEBHOOK_SECRET`) are wrangler secrets. Locally they live in `.dev.vars` and `apps/worker/.webhook.env`, both git-ignored. `pnpm bot:profile --apply` pushes bot name/description/commands; `pnpm check:telegram` is read-only diagnostics.
 - News channel `@fc_altynka_news`: posts go through `pnpm channel:post` (dry run by default, `--apply` publishes) following the `channel-post` skill in `.claude/skills/`. Publish only after the user approves the exact text.
 
