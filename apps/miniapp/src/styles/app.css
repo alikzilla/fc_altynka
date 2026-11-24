@@ -166,6 +166,10 @@ body::before { content: ''; position: fixed; inset: 0 0 auto; z-index: 4; height
 .system-action-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 80px; padding: 14px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
 button.system-action-row { cursor: pointer; }
 .system-action-label { flex-shrink: 0; color: var(--accent); font-size: 14px; font-weight: 550; }
+.delete-data-copy { display: grid; gap: 12px; font-size: 15px; line-height: 1.5; }
+.delete-data-copy p { margin: 0; }
+.btn.delete-data-confirm { background: var(--danger-surface); color: var(--on-danger-surface); }
+.delete-data-error { margin: 0 0 12px; color: var(--danger); font-size: 14px; line-height: 1.45; }
 .system-action-done { flex-shrink: 0; width: 22px; height: 22px; color: #86c8a2; }
 :root[data-theme='light'] .system-action-done { color: #34714e; }
 .system-switch-input:disabled + .system-switch-control { opacity: .5; }

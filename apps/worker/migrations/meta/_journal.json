@@ -148,6 +148,13 @@
       "when": 1795950000000,
       "tag": "0020_ops_incidents",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1795960000000,
+      "tag": "0021_user_deleted",
+      "breakpoints": true
     }
   ]
 }

@@ -29,6 +29,8 @@ export const users = sqliteTable('users', {
   /** Понедельник, когда бот последний раз просил отметить дни на неделю. */
   availabilityAskedOn: text('availability_asked_on'),
   createdAt: integer('created_at').notNull(),
+  /** Человек удалил свои данные: профиль обезличен, `tg_id = -id`, повторный вход создаёт новый профиль. */
+  deletedAt: integer('deleted_at'),
 });
 
 export const memberships = sqliteTable(

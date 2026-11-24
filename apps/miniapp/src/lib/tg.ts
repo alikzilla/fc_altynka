@@ -22,6 +22,7 @@ interface TgWebApp {
   checkHomeScreenStatus?(callback: (status: HomeScreenStatus) => void): void;
   openLink(url: string): void;
   openTelegramLink?(url: string): void;
+  close?(): void;
   requestWriteAccess?(callback: (granted: boolean) => void): void;
   HapticFeedback?: {
     impactOccurred(style: 'light' | 'medium' | 'heavy'): void;
@@ -120,6 +121,11 @@ export function haptic(kind: 'light' | 'heavy' | 'success' | 'error'): void {
   if (!h) return;
   if (kind === 'light' || kind === 'heavy') h.impactOccurred(kind);
   else h.notificationOccurred(kind);
+}
+
+/** Закрыть мини-апп; вне Telegram закрывать нечего. */
+export function closeApp(): void {
+  wa()?.close?.();
 }
 
 export function openLink(url: string): void {
