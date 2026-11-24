@@ -59,6 +59,8 @@
 	"vars": {
 		"BOT_USERNAME": "fc_altynka_bot",
 		"MINIAPP_SHORT_NAME": "fc_altynka_app",
-		"ADMIN_TG_ID": "1008342008"
+		"ADMIN_TG_ID": "1008342008",
+		// Кому бот присылает алерты о сбоях (src/ops/alerts.ts). Пусто — алерты выключены.
+		"ALERT_CHAT_ID": "1008342008"
 	}
 }

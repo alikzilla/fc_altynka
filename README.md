@@ -308,6 +308,7 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
 | `BOT_USERNAME`       | `vars` в `wrangler.jsonc` | имя бота без `@`                                       |
 | `MINIAPP_SHORT_NAME` | `vars`                    | short name мини-аппа из `/newapp`                      |
 | `ADMIN_TG_ID`        | `vars`                    | Telegram ID админа (узнать у @userinfobot)             |
+| `ALERT_CHAT_ID`      | `vars`                    | кому бот присылает алерты о сбоях; пусто — выключено   |
 
 Тип `Env` генерируется из `wrangler.jsonc`: `pnpm --filter @altynka/worker types` пишет `apps/worker/worker-configuration.d.ts`,
 а `pnpm typecheck` падает, если файл устарел. После правки привязок в `wrangler.jsonc` перегенерируй его.
@@ -334,6 +335,16 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
   `vite preview` отдаёт те же заголовки, а Playwright падает на любом нарушении CSP, так что новый внешний ресурс
   нужно добавить в политику.
 - **Наблюдаемость** — логи и трейсы Workers включены в `wrangler.jsonc` (`observability`).
+- **Алерты** (`src/ops/alerts.ts`). Необработанные ошибки API, упавшие апдейты бота и сбои задач крона
+  записываются в `ops_incidents`. Крон раз в 5 минут присылает в личку `ALERT_CHAT_ID` одну сводку: сколько сбоев
+  каждого вида и текст последнего, плюс новую ошибку вебхука из `getWebhookInfo` или очередь от 20 необработанных
+  апдейтов. Сводки приходят не чаще раза в 30 минут, а сбои между ними попадают в следующую. Если Telegram не принял
+  сводку, она уйдёт следующим прогоном. Записи старше 14 дней удаляются. Получатель должен хоть раз написать боту
+  `/start`. Пустой `ALERT_CHAT_ID` выключает отправку.
+- **Health check.** `GET /api/health` отвечает `503`, если D1 недоступна (`db_unavailable`) или крон не отрабатывал
+  дольше 15 минут (`cron_stale`). Остановку всего Worker сам Worker сообщить не может, поэтому `/api/health`
+  проверяет внешний монитор (Cloudflare Health Checks, UptimeRobot и т. п.) раз в 1–5 минут и уведомляет при
+  нескольких неудачах подряд.
 - **Размещение** — Worker выполняется во Франкфурте (`placement: { mode: "targeted", region: "aws:eu-central-1" }`),
   рядом с D1 (EEUR) и Bot API Telegram, а не в Алматы, куда приходят запросы игроков: так страница матча с
   десятками обращений к базе открывается вдвое быстрее. Smart Placement здесь не срабатывает — почти весь трафик

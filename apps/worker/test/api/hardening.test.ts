@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm';
 import { MAX_GUESTS_PER_PLAYER } from '@altynka/core';
 import { api, MAX_BODY_BYTES, setDepsFactoryForTests } from '../../src/api/routes';
 import { getDb } from '../../src/db/client';
-import { events, memberships, signups, users } from '../../src/db/schema';
+import { events, memberships, opsIncidents, signups, users } from '../../src/db/schema';
 import { createEvent } from '../../src/domain/events';
 import { MEMBERSHIP_CACHE_MS } from '../../src/domain/members';
 import { upsertBill } from '../../src/domain/bills';
@@ -115,6 +115,8 @@ describe('request limits', () => {
     const r = await apiRequest('/api/me', { as: w.player });
     expect(r.status).toBe(500);
     expect(await r.json()).toEqual({ error: 'internal' });
+    // The failure waits in the incident log for the next alert summary.
+    expect(await db().select({ kind: opsIncidents.kind, detail: opsIncidents.detail }).from(opsIncidents)).toEqual([{ kind: 'api_error', detail: 'GET /api/me: D1 down' }]);
   });
 });
 

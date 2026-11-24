@@ -265,3 +265,17 @@ export const venues = sqliteTable('venues', {
   createdBy: integer('created_by').references(() => users.id),
   createdAt: integer('created_at').notNull(),
 }, t => [uniqueIndex('venues_community_name').on(t.communityId, t.name)]);
+
+/** Сбой продакшена (ошибка API, бота, крона или мини-аппа). Крон присылает администратору сводку новых записей. */
+export const opsIncidents = sqliteTable('ops_incidents', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  at: integer('at').notNull(),
+  kind: text('kind').notNull(),
+  detail: text('detail').notNull(),
+}, t => [index('ops_incidents_at').on(t.at)]);
+
+/** Служебные отметки эксплуатации: ключ → значение. */
+export const opsState = sqliteTable('ops_state', {
+  key: text('key').primaryKey(),
+  value: text('value').notNull(),
+});

@@ -113,5 +113,7 @@ test('a failing update is logged and dropped, and the tapped button still gets a
   await expect(bot.handleUpdate(tap(501, `j:${ev}`))).resolves.toBeUndefined();
   expect(answers).toEqual(['Не получилось. Попробуй ещё раз.']);
   expect(JSON.parse(logged.mock.calls[0][0] as string)).toMatchObject({ event: 'bot_update_failed', error: 'D1 down' });
+  const { opsIncidents } = await import('../../src/db/schema');
+  expect(await db().select({ kind: opsIncidents.kind, detail: opsIncidents.detail }).from(opsIncidents)).toEqual([{ kind: 'bot_update_failed', detail: 'D1 down' }]);
   logged.mockRestore();
 });
