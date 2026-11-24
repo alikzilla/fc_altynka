@@ -4,7 +4,7 @@
 // затем учебное восстановление .restore.sql в одноразовую локальную D1 и сверка числа строк в каждой таблице.
 // Только чтение продовой базы. Экспорт на несколько секунд блокирует запросы к D1: не запускать в разгар матча.
 import { execFile } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -17,6 +17,18 @@ const DATABASE = 'fc-altynka';
 const REQUIRED_TABLES = ['communities', 'users', 'memberships', 'events', 'signups', 'bills', 'd1_migrations'];
 
 export const backupName = (date = new Date()) => `${DATABASE}-${date.toISOString().replace(/[:.]/g, '-')}.sql`;
+/** Столько последних бэкапов хранится; политика конфиденциальности обещает, что старые копии удаляются. */
+export const KEEP_BACKUPS = 10;
+const BACKUP_FILE = new RegExp(`^${DATABASE}-(\\d{4}-\\d{2}-\\d{2}T[\\d-]+Z)(?:\\.restore)?\\.sql$`);
+
+/** Оставить `keep` последних бэкапов (пара .sql и .restore.sql — один бэкап), остальные удалить; вернуть метки удалённых. Чужие файлы не трогает. */
+export async function pruneBackups(dir, keep = KEEP_BACKUPS) {
+  const files = (await readdir(dir)).map(name => ({ name, stamp: BACKUP_FILE.exec(name)?.[1] })).filter(f => f.stamp);
+  const stamps = [...new Set(files.map(f => f.stamp))].sort().reverse();
+  const old = new Set(stamps.slice(keep));
+  for (const f of files) if (old.has(f.stamp)) await rm(join(dir, f.name));
+  return [...old];
+}
 
 /**
  * Загрузить SQL-дамп в пустую базу в памяти. Бросает, если дамп обрывается, не исполняется или в нём нет
@@ -98,8 +110,7 @@ export async function restoreDrill(file, counts, exec) {
   }
 }
 
-export async function runBackup({ log = console.log, exec = promisify(execFile), now = new Date() } = {}) {
-  const dir = join(ROOT, 'artifacts', 'deploy', 'backups');
+export async function runBackup({ log = console.log, exec = promisify(execFile), now = new Date(), dir = join(ROOT, 'artifacts', 'deploy', 'backups'), keep = KEEP_BACKUPS } = {}) {
   await mkdir(dir, { recursive: true });
   const file = join(dir, backupName(now));
   log(`Экспорт ${DATABASE} (remote) → ${file}`);
@@ -113,7 +124,10 @@ export async function runBackup({ log = console.log, exec = promisify(execFile),
   log('Учебное восстановление в одноразовую локальную D1…');
   await restoreDrill(restoreFile, counts, exec);
   log(`Восстановление проверено, все строки на месте. Для аварийного восстановления: ${restoreFile}`);
-  return { file, restoreFile, counts };
+  // Только после проверенного нового бэкапа: неудачный запуск не должен оставить меньше копий, чем было.
+  const removed = await pruneBackups(dir, keep);
+  if (removed.length) log(`Удалено старых бэкапов: ${removed.length} (храним ${keep} последних).`);
+  return { file, restoreFile, counts, removed };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {

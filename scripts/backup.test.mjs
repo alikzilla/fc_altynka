@@ -4,7 +4,9 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
-import { backupName, runBackup, toRestoreSql, verifyDump } from './backup.mjs';
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { backupName, pruneBackups, runBackup, toRestoreSql, verifyDump } from './backup.mjs';
 
 const MIGRATIONS = fileURLToPath(new URL('../apps/worker/migrations/', import.meta.url));
 
@@ -111,10 +113,11 @@ test('the backup exports the remote database, writes a restorable copy and rehea
     }
     return { stdout: '' };
   };
-  const { file, restoreFile, counts } = await runBackup({ log: () => {}, exec, now: new Date('2026-11-24T10:00:00Z') });
+  const dir = await mkdtemp(join(tmpdir(), 'altynka-backup-test-'));
+  const { file, restoreFile, counts } = await runBackup({ log: () => {}, exec, now: new Date('2026-11-24T10:00:00Z'), dir });
   assert.deepEqual(calls[0].slice(0, 8), ['pnpm', '--filter', '@altynka/worker', 'exec', 'wrangler', 'd1', 'export', 'fc-altynka']);
   assert.ok(calls[0].includes('--remote'));
-  assert.match(file, /artifacts\/deploy\/backups\/fc-altynka-2026-11-24T10-00-00-000Z\.sql$/);
+  assert.match(file, /fc-altynka-2026-11-24T10-00-00-000Z\.sql$/);
   assert.match(restoreFile, /fc-altynka-2026-11-24T10-00-00-000Z\.restore\.sql$/);
   // The drill only ever touches a throwaway local database.
   for (const call of calls.slice(1)) {
@@ -122,8 +125,23 @@ test('the backup exports the remote database, writes a restorable copy and rehea
     assert.ok(call.some(a => a.startsWith('--persist-to=')));
   }
   assert.equal(counts.communities, 0);
-  await rm(file);
-  await rm(restoreFile);
+  await rm(dir, { recursive: true });
+});
+
+test('only the newest backups are kept, both files of a backup go together, other files stay', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'altynka-prune-test-'));
+  const stamps = Array.from({ length: 12 }, (_, i) => backupName(new Date(Date.UTC(2026, 10, 1 + i))));
+  for (const name of stamps) { await writeFile(join(dir, name), ''); await writeFile(join(dir, name.replace(/\.sql$/, '.restore.sql')), ''); }
+  await writeFile(join(dir, 'notes.txt'), 'keep me');
+  const removed = await pruneBackups(dir, 10);
+  assert.equal(removed.length, 2);
+  const left = (await readdir(dir)).sort();
+  assert.equal(left.length, 10 * 2 + 1);
+  assert.ok(left.includes('notes.txt'));
+  // The two oldest (1 and 2 November) are gone, with their .restore.sql.
+  assert.ok(!left.some(n => n.includes('2026-11-01') || n.includes('2026-11-02')));
+  assert.ok(left.includes(stamps[11]) && left.includes(stamps[11].replace(/\.sql$/, '.restore.sql')));
+  await rm(dir, { recursive: true });
 });
 
 test('backup names sort by time', () => {
