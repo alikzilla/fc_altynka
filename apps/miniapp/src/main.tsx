@@ -8,6 +8,8 @@ import { queryClient } from './lib/queryClient';
 import { initializeTheme } from './lib/theme';
 import { trackInputMode } from './lib/inputMode';
 import { trackPrefetch } from './lib/prefetch';
+import { trackErrors } from './lib/errorReport';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import '@fontsource-variable/onest';
 import './styles/app.css';
 import './styles/themes.css';
@@ -18,13 +20,14 @@ import './styles/statistics.css';
 import './styles/ceremony.css';
 import './styles/transitions.css';
 
+trackErrors();
 initializeTheme();
 trackInputMode();
 trackPrefetch();
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <Router aroundNav={aroundNav}><App /></Router>
+      <ErrorBoundary><Router aroundNav={aroundNav}><App /></Router></ErrorBoundary>
     </QueryClientProvider>
   </StrictMode>,
 );

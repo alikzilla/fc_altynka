@@ -28,6 +28,7 @@ import { ready, startParam } from './lib/tg';
 import { ErrorNote, ToastProvider } from './components/ui';
 import { RouteSkeleton } from './components/skeletons';
 import { OfflineNotice } from './components/OfflineNotice';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
@@ -84,6 +85,8 @@ function TeamApp() {
           <ToastProvider>
             <NotificationsProvider>
               <ScreenSearchContext.Provider value={screenSearch}>
+                {/* A crashed screen keeps the dock: moving to another screen clears the error. */}
+                <ErrorBoundary resetKey={screenPath}>
                 <Suspense fallback={<RouteSkeleton path={screenPath} search={screenSearch} />}>
                 <Switch location={screenPath}>
                   <Route path="/" component={Home} />
@@ -104,6 +107,7 @@ function TeamApp() {
                   <Route><Home /></Route>
                 </Switch>
                 </Suspense>
+                </ErrorBoundary>
               </ScreenSearchContext.Provider>
               <Nav />
               <SkillsPrompt />
