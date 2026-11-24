@@ -18,6 +18,7 @@ import { gamesApi } from './games';
 import { feedApi } from './feed';
 import { availabilityApi } from './availability';
 import { venuesApi } from './venues';
+import { clientErrorsApi } from './clientErrors';
 import { venueCommunity } from '../domain/venues';
 import { idParam } from './validate';
 
@@ -105,3 +106,4 @@ api.route('/', gamesApi);
 api.route('/', feedApi);
 api.route('/', availabilityApi);
 api.route('/', venuesApi);
+api.route('/', clientErrorsApi);
