@@ -397,13 +397,28 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
 `wrangler.jsonc`). Алерты staging выключены (`ALERT_CHAT_ID` пуст). Реальных игроков и их данных в staging нет:
 это пустая база, которую наполняет тестовая группа.
 
-Релиз идёт так: ветка → CI зелёный → `pnpm db:migrate:staging` (если есть миграции) → `pnpm run deploy:staging` →
-проверка руками в тестовой группе → мерж → прод.
+Релиз идёт так: ветка → CI зелёный → `pnpm release --staging` → проверка руками в тестовой группе → мерж →
+`pnpm release`.
 
 ```bash
-pnpm db:migrate:staging        # миграции в staging D1
-pnpm run deploy:staging        # сборка мини-аппа + деплой staging Worker
+pnpm release --staging         # миграции staging D1 + деплой staging Worker + проверка, с любой ветки
+pnpm release                   # прод: только из чистого main с зелёным CI, бэкап перед миграциями
+pnpm db:migrate:staging        # по отдельности: миграции в staging D1
+pnpm run deploy:staging        #                 сборка мини-аппа + деплой staging Worker
 ```
+
+`pnpm release` (`scripts/release.mjs`) по шагам:
+
+1. Прод: ветка `main`, нет незакоммиченных правок, локальный `main` совпадает с `origin/main`, CI этого коммита
+   завершён успешно (`--skip-ci` пропускает только эту проверку). Staging: любая ветка, без этих проверок.
+2. Запоминает текущую версию Worker.
+3. Если есть новые миграции: на проде `pnpm backup` (с учебным восстановлением), затем `migrations apply`.
+4. Деплой (`pnpm run deploy` / `deploy:staging`).
+5. Проверка: `/api/health` отвечает `ok`, у вебхука нет ошибки новее деплоя (токен из `.webhook.env` /
+   `.webhook.staging.env`; если файла нет или Telegram недоступен, вебхук не проверяется).
+6. Проверка не прошла → `wrangler rollback` на версию из шага 2 и ошибка. Миграции при этом остаются применёнными.
+
+Отчёт каждого релиза (коммит, версии, миграции, бэкап, результат) — `artifacts/deploy/releases/*.json`.
 
 Настройка с нуля (один раз):
 

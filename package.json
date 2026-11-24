@@ -4,7 +4,7 @@
   "packageManager": "pnpm@10.32.1",
   "scripts": {
     "test:ui": "pnpm build && playwright test",
-    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs scripts/channel-post.test.mjs scripts/backup.test.mjs",
+    "test:connectors": "node --test scripts/mcp/*.test.mjs scripts/bot-profile.test.mjs scripts/channel-post.test.mjs scripts/backup.test.mjs scripts/release.test.mjs",
     "test:migrations": "node --test scripts/multiple-groups-migration.test.mjs scripts/game-statistics-migration.test.mjs",
     "test:migrations:games": "node --test scripts/game-statistics-migration.test.mjs",
     "bot:profile": "node scripts/bot-profile.mjs",
@@ -17,7 +17,8 @@
     "build": "pnpm --filter @altynka/miniapp build",
     "backup": "node scripts/backup.mjs",
     "deploy:staging": "pnpm --filter @altynka/miniapp build && pnpm --filter @altynka/worker exec wrangler deploy --env staging",
-    "db:migrate:staging": "pnpm --filter @altynka/worker exec wrangler d1 migrations apply fc-altynka-staging --env staging --remote"
+    "db:migrate:staging": "pnpm --filter @altynka/worker exec wrangler d1 migrations apply fc-altynka-staging --env staging --remote",
+    "release": "node scripts/release.mjs"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
