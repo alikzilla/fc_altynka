@@ -5,8 +5,14 @@
 #   WEBHOOK_SECRET='...'
 #   WORKER_URL='https://fc-altynka.<you>.workers.dev'
 # Запуск из корня: apps/worker/scripts/set-webhook.sh
+# Staging: apps/worker/scripts/set-webhook.sh staging — значения из apps/worker/.webhook.staging.env.
 set -euo pipefail
-env_file="$(dirname "$0")/../.webhook.env"
+case "${1:-}" in
+  '') env_file="$(dirname "$0")/../.webhook.env" ;;
+  staging) env_file="$(dirname "$0")/../.webhook.staging.env"
+    [ -f "$env_file" ] || { echo "нет $env_file" >&2; exit 1; } ;;
+  *) echo "использование: $0 [staging]" >&2; exit 1 ;;
+esac
 # shellcheck disable=SC1090
 [ -f "$env_file" ] && source "$env_file"
 : "${BOT_TOKEN:?нужен BOT_TOKEN}"

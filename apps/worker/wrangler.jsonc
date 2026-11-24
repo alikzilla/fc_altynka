@@ -62,5 +62,36 @@
 		"ADMIN_TG_ID": "1008342008",
 		// Кому бот присылает алерты о сбоях (src/ops/alerts.ts). Пусто — алерты выключены.
 		"ALERT_CHAT_ID": "1008342008"
+	},
+	// Staging: отдельный Worker (fc-altynka-staging), своя D1, свой тестовый бот и тестовая группа.
+	// Деплой: `pnpm run deploy:staging`; см. README «Staging». Привязки, лимиты и vars не наследуются из верхнего
+	// уровня, поэтому перечислены заново; крон, размещение, наблюдаемость и ассеты — общие.
+	"env": {
+		"staging": {
+			"ratelimits": [
+				{ "name": "API_LIMITER", "namespace_id": "1003", "simple": { "limit": 300, "period": 60 } },
+				{ "name": "WRITE_LIMITER", "namespace_id": "1004", "simple": { "limit": 60, "period": 60 } }
+			],
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "fc-altynka-staging",
+					"database_id": "7fb855ad-b715-41c9-acb1-fc2e25d31c3c",
+					"migrations_dir": "migrations"
+				}
+			],
+			"durable_objects": {
+				"bindings": [{ "name": "EVENT_SYNC", "class_name": "EventSync" }]
+			},
+			"secrets": { "required": ["BOT_TOKEN", "WEBHOOK_SECRET"] },
+			"vars": {
+				// Заполняется после создания тестового бота в @BotFather.
+				"BOT_USERNAME": "",
+				"MINIAPP_SHORT_NAME": "",
+				"ADMIN_TG_ID": "1008342008",
+				// Сбои staging не будят: алерты выключены.
+				"ALERT_CHAT_ID": ""
+			}
+		}
 	}
 }
