@@ -166,6 +166,10 @@ body::before { content: ''; position: fixed; inset: 0 0 auto; z-index: 4; height
 .system-action-row { display: flex; align-items: center; gap: 16px; width: 100%; min-height: 80px; padding: 14px 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
 button.system-action-row { cursor: pointer; }
 .system-action-label { flex-shrink: 0; color: var(--accent); font-size: 14px; font-weight: 550; }
+.report-problem { display: grid; gap: 10px; }
+.report-problem label { font-weight: 550; }
+.report-problem p { margin: 0; font-size: 14px; line-height: 1.45; }
+.system-version { margin: 12px 4px 0; font-size: 13px; }
 .delete-data-copy { display: grid; gap: 12px; font-size: 15px; line-height: 1.5; }
 .delete-data-copy p { margin: 0; }
 .btn.delete-data-confirm { background: var(--danger-surface); color: var(--on-danger-surface); }

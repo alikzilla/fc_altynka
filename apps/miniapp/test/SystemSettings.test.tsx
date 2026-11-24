@@ -138,3 +138,36 @@ describe('delete my data', () => {
     expect(screen.getByRole('dialog', { name: 'Удалить мои данные?' })).toBeVisible();
   });
 });
+
+describe('report a problem', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  test('the text goes to the developer with the screen and the version; the sheet closes with thanks', async () => {
+    telegram();
+    const fetchMock = vi.fn(async () => Response.json({ sent: true }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderWithApp(<SystemSettings />, { me: player });
+    expect(screen.getByText(/^Версия dev/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /Сообщить о проблеме/ }));
+    const send = screen.getByRole('button', { name: 'Отправить' });
+    expect(send).toBeDisabled();
+    await userEvent.type(screen.getByLabelText('Что случилось?'), '  Не обновился список  ');
+    await userEvent.click(send);
+    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe('/api/feedback');
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'Не обновился список', path: '/', version: 'dev' });
+    expect(await screen.findByText('Отправили. Спасибо!')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: 'Сообщить о проблеме' })).not.toBeInTheDocument();
+  });
+
+  test('too often: the text stays and the person learns when to retry', async () => {
+    telegram();
+    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'too_often' }, { status: 429 })));
+    renderWithApp(<SystemSettings />, { me: player });
+    await userEvent.click(screen.getByRole('button', { name: /Сообщить о проблеме/ }));
+    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Снова');
+    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Подожди полминуты');
+    expect(screen.getByLabelText('Что случилось?')).toHaveValue('Снова');
+  });
+});
