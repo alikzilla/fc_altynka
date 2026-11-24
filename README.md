@@ -51,6 +51,12 @@ pnpm bot:profile   # показать план оформления бота б�
 pnpm channel:post  # проверить пост для канала новостей; публикация только с --apply
 ```
 
+**CI.** GitHub Actions (`.github/workflows/ci.yml`) на каждый PR и push в `main` запускает две задачи:
+«Типы и тесты» (`typecheck`, `test`, `test:migrations`, `test:connectors`) и «Playwright» (`test:ui` в Chromium и
+WebKit). В CI Playwright повторяет упавший тест до двух раз: прошедший со второй попытки тест помечается как flaky
+в отчёте, а не скрывается. При падении отчёт и трейсы можно скачать в артефакте `playwright-report`. Деплой
+из CI не выполняется.
+
 Локально: `cp apps/worker/.dev.vars.example apps/worker/.dev.vars`, затем
 `cd apps/worker && pnpm exec wrangler d1 migrations apply fc-altynka --local && pnpm exec wrangler dev`.
 Мини-апп в браузере: `pnpm --filter @altynka/miniapp dev` (проксирует `/api` на `localhost:8787`).
