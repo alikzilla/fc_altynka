@@ -15,7 +15,9 @@
     "typecheck": "pnpm -r typecheck",
     "deploy": "pnpm --filter @altynka/miniapp build && pnpm --filter @altynka/worker exec wrangler deploy",
     "build": "pnpm --filter @altynka/miniapp build",
-    "backup": "node scripts/backup.mjs"
+    "backup": "node scripts/backup.mjs",
+    "deploy:staging": "pnpm --filter @altynka/miniapp build && pnpm --filter @altynka/worker exec wrangler deploy --env staging",
+    "db:migrate:staging": "pnpm --filter @altynka/worker exec wrangler d1 migrations apply fc-altynka-staging --env staging --remote"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",

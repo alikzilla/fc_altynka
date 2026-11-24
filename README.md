@@ -390,6 +390,37 @@ Cloudflare требует OAuth (`codex mcp login cloudflare`); после до�
    открытые матчи и история сохраняются. Повторный `/bind` в том же чате не сбрасывает данные.
    Превращение группы в супергруппу меняет чат только её команды автоматически.
 
+## Staging
+
+Отдельная копия для проверки релиза до прода: Worker `fc-altynka-staging`, своя D1 `fc-altynka-staging`, свой
+тестовый бот и тестовая группа. Код и сборка мини-аппа те же, отличаются только привязки (`env.staging` в
+`wrangler.jsonc`). Алерты staging выключены (`ALERT_CHAT_ID` пуст). Реальных игроков и их данных в staging нет:
+это пустая база, которую наполняет тестовая группа.
+
+Релиз идёт так: ветка → CI зелёный → `pnpm db:migrate:staging` (если есть миграции) → `pnpm run deploy:staging` →
+проверка руками в тестовой группе → мерж → прод.
+
+```bash
+pnpm db:migrate:staging        # миграции в staging D1
+pnpm run deploy:staging        # сборка мини-аппа + деплой staging Worker
+```
+
+Настройка с нуля (один раз):
+
+1. @BotFather: `/newbot` → тестовый бот; `/setprivacy` → Enable.
+2. Создать `apps/worker/.webhook.staging.env` (в git не попадает):
+   ```bash
+   BOT_TOKEN='...'
+   WEBHOOK_SECRET='...'          # openssl rand -hex 32
+   WORKER_URL='https://fc-altynka-staging.<you>.workers.dev'
+   ```
+3. Секреты: `wrangler secret put BOT_TOKEN --env staging` и `wrangler secret put WEBHOOK_SECRET --env staging`
+   (в `apps/worker`) с теми же значениями.
+4. В `wrangler.jsonc` → `env.staging.vars` вписать `BOT_USERNAME` и `MINIAPP_SHORT_NAME`, затем `pnpm run deploy:staging`.
+5. @BotFather: `/newapp` → тестовый бот, URL = адрес staging Worker, short name = `MINIAPP_SHORT_NAME`.
+6. `apps/worker/scripts/set-webhook.sh staging` — вебхук и кнопка меню тестового бота.
+7. Тестовая группа: добавить бота администратором с правом закреплять сообщения и отправить `/bind`.
+
 ## Бэкапы и восстановление
 
 Два уровня защиты, оба бесплатные:
