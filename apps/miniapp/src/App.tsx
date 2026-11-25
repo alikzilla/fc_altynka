@@ -102,6 +102,7 @@ function TeamApp() {
                   <Route path="/venues"><Venues /></Route>
                   <Route path="/profile/skills"><SkillAssessment /></Route>
                   <Route path="/profile/availability"><Profile availability /></Route>
+                  <Route path="/profile/club"><Profile club /></Route>
                   <Route path="/profile/settings/:section">{params => <Profile settings={params.section} />}</Route>
                   <Route path="/profile/settings"><Redirect to="/profile" /></Route>
                   <Route path="/profile"><Profile /></Route>

@@ -1,4 +1,4 @@
-import { formatKzPhone, normalizeKzPhone, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
+import { clubById, formatKzPhone, normalizeKzPhone, type MeDto, type PlayerProfileDto, type Role } from '@altynka/core';
 import { lazy, Suspense, useRef, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { Icon } from '../components/Icon';
@@ -13,6 +13,7 @@ import { PlayerGameHistory } from '../components/PlayerGameHistory';
 import { useResource } from '../hooks/useResource';
 import { SystemSettings } from './SystemSettings';
 import { ProfileHelp } from '../components/ProfileHelp';
+import { ClubPickerSheet } from '../components/ClubPicker';
 import { isSettingsSection, ProfileSettingsSheet } from './ProfileSettings';
 
 const AvailabilitySheet = lazy(() => import('./Availability').then(m => ({ default: m.AvailabilitySheet })));
@@ -24,7 +25,7 @@ function roleLine(me: MeDto) {
   return me.communities.reduce((best, c) => rank[c.role] > rank[best] ? c.role : best, 'player' as Role);
 }
 
-export function Profile({ settings, availability }: { settings?: string; availability?: boolean }) {
+export function Profile({ settings, availability, club }: { settings?: string; availability?: boolean; club?: boolean }) {
   const me = useMe();
   const [, navigate] = useLocation();
   const sportingProfile = useResource<PlayerProfileDto>(`/api/players/${me.userId}`);
@@ -99,6 +100,7 @@ export function Profile({ settings, availability }: { settings?: string; availab
       <nav className="profile-management" aria-labelledby="profile-editing">
         <Link className="card task-preview material-graphite" href="/profile/settings/name"><span className="task-icon"><Icon name="user" /></span><span className="task-copy"><b>Изменить имя</b><small>{me.displayName}</small></span><Icon name="back" className="chevron-right" /></Link>
         <Link className="card task-preview material-graphite" href="/profile/settings/payment"><span className="task-icon"><Icon name="receipt" /></span><span className="task-copy"><b>Изменить оплату</b><small>Номер Kaspi для переводов</small></span><Icon name="back" className="chevron-right" /></Link>
+        <Link className="card task-preview material-graphite" href="/profile/club"><span className="task-icon"><Icon name="shirt" /></span><span className="task-copy"><b>Любимый клуб</b><small>{clubById(me.favoriteClub)?.name ?? 'Не выбран'}</small></span><Icon name="back" className="chevron-right" /></Link>
         <Link className="card task-preview material-graphite" href="/profile/availability"><span className="task-icon"><Icon name="calendar" /></span><span className="task-copy"><b>Когда могу играть</b><small>Дни для сбора на матч</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Игроки'}</h2>
@@ -106,6 +108,7 @@ export function Profile({ settings, availability }: { settings?: string; availab
       <SystemSettings />
       <ProfileHelp />
       {isSettingsSection(settings) && <ProfileSettingsSheet section={settings} onClose={() => navigate('/profile', { replace: true })} />}
+      {club && <ClubPickerSheet onClose={() => navigate('/profile', { replace: true })} />}
       {availability && <Suspense fallback={null}><AvailabilitySheet onClose={() => navigate('/profile', { replace: true })} /></Suspense>}
     </Screen>
   );
