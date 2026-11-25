@@ -220,7 +220,7 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .profile-form.material-blue input { background: #090e25; }
 .new-event-form { margin-top: 0; gap: 18px; }
 .form-fields { display: flex; flex-direction: column; gap: 18px; border: 0; padding: 0; margin: 0; width: 100%; min-width: 0; max-width: 100%; }
-.create-sheet { position: fixed; inset: auto 0 var(--sheet-bottom, 0px); margin: 0 auto; width: 100%; max-width: 440px; --sheet-max: calc(var(--sheet-viewport, 100dvh) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); max-height: var(--sheet-max); min-height: min(var(--sheet-min, 0px), var(--sheet-max)); padding: 0; border: 0; border-radius: 32px 32px 0 0; color: var(--text); background: var(--card); box-shadow: 0 -12px 48px #0006; overflow: hidden; overscroll-behavior: contain; transform: translate3d(0, var(--sheet-y, 0px), 0); transition: transform 240ms cubic-bezier(.16, 1, .3, 1); }
+.create-sheet { position: fixed; inset: auto 0 var(--sheet-bottom, 0px); margin: 0 auto; width: 100%; max-width: 440px; --sheet-fit: calc(var(--sheet-viewport, 100dvh) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); --sheet-max: var(--sheet-fit); max-height: var(--sheet-max); min-height: min(var(--sheet-min, 0px), var(--sheet-max)); padding: 0; border: 0; border-radius: 32px 32px 0 0; color: var(--text); background: var(--card); box-shadow: 0 -12px 48px #0006; overflow: hidden; overscroll-behavior: contain; transform: translate3d(0, var(--sheet-y, 0px), 0); transition: transform 240ms cubic-bezier(.16, 1, .3, 1); }
 .create-sheet[open] { display: flex; flex-direction: column; animation: sheet-enter 240ms cubic-bezier(.16, 1, .3, 1); }
 .create-sheet[data-interacted] { animation: none; }
 .create-sheet[data-dragging] { animation: none; transition: none; will-change: transform; }
@@ -235,8 +235,8 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .sheet-heading p { margin-top: 8px; }
 .sheet-close { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; background: #2b2835; }
 @keyframes sheet-enter { from { transform: translate3d(0, 100%, 0); } to { transform: translate3d(0, 0, 0); } }
-/* An open sheet never gets shorter (useSheetMinHeight keeps its largest natural height in --sheet-min, clamped to the
-   same max as above). Content that appears later takes a place reserved in advance: */
+/* An open sheet never gets shorter (useSheetMinHeight keeps its largest height in --sheet-min, clamped to the
+   same --sheet-max as max-height; a sheet with its own cap narrows --sheet-max, never max-height alone). Content that appears later takes a place reserved in advance: */
 /* — a placeholder: the real content drawn invisibly sets the size, a dashed frame and a hint sit over it; */
 .sheet-placeholder { display: grid; min-width: 0; border-radius: 17px; }
 .sheet-placeholder > * { grid-area: 1 / 1; min-width: 0; }

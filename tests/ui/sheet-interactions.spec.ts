@@ -173,7 +173,7 @@ test('dragging horizontally or selecting text into the backdrop does not dismiss
   await expect(sheet).toHaveCount(0);
 });
 
-test('an open sheet grows with its content, never shrinks back, and starts fresh after a drag close', async ({ page }) => {
+test('an open sheet grows with its content and never shrinks back; drag close and reopen still work', async ({ page }) => {
   const sheet = await openSheet(page);
   const initial = await sheetHeight(page, sheet);
   const content = page.locator('.sheet-content');
@@ -187,6 +187,7 @@ test('an open sheet grows with its content, never shrinks back, and starts fresh
   const grabber = (await page.locator('.sheet-drag-area').boundingBox())!;
   await swipe(cdp, 195, grabber.y + 16, 0, 160);
   await expect(sheet).toHaveCount(0);
+  // A reopened sheet is a new dialog at its own natural height.
   await openCreateMatch(page);
   await expect(sheet).toBeVisible();
   expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
@@ -233,6 +234,7 @@ test('a long list never makes the sheet taller than a 600 px window; it scrolls 
   expect(height).toBeLessThanOrEqual(600 - 12);
   expect(box.y).toBeGreaterThanOrEqual(0);
   expect(Math.round(box.y + box.height)).toBe(600);
+  // Capped: the remembered height is the box itself, never the list's full height.
   expect(await sheet.evaluate(el => parseFloat(el.style.getPropertyValue('--sheet-min')) || 0)).toBeLessThanOrEqual(600 - 12);
   await content.evaluate(el => { el.scrollTop = el.scrollHeight; });
   await expect.poll(() => content.evaluate(el => el.scrollTop)).toBeGreaterThan(0);

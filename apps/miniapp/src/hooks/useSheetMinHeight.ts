@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 'react';
 
 /**
- * An open sheet never gets shorter. The largest natural height the sheet has had is kept in `--sheet-min` on the
- * dialog; CSS clamps it to the current max height (`min(var(--sheet-min), var(--sheet-max))`), so the keyboard or
- * a short screen still wins. A new `step` (the sheet deliberately turns into another screen) starts a fresh
+ * An open sheet never gets shorter. The largest height the sheet has had (its natural height, or the box while it is
+ * capped) is kept in `--sheet-min` on the dialog; CSS clamps it to the current max height
+ * (`min(var(--sheet-min), var(--sheet-max))`), so the keyboard or a short screen still wins. A new `step` (the sheet deliberately turns into another screen) starts a fresh
  * measurement; closing forgets it, since the dialog is gone.
  */
 export function useSheetMinHeight(dialog: RefObject<HTMLDialogElement | null>, step: string | number | undefined) {
@@ -16,11 +16,13 @@ export function useSheetMinHeight(dialog: RefObject<HTMLDialogElement | null>, s
     // Natural height: drag area, header and footer as they are, plus the content's full scroll height.
     const box = node.getBoundingClientRect().height;
     const natural = box - content.clientHeight + content.scrollHeight;
-    // Content that scrolls means the sheet is capped (keyboard, short screen): the box is squeezed and
-    // says nothing about the height the sheet wants. Wait until it fits again.
-    if (natural > box || natural <= remembered.current) return;
-    remembered.current = natural;
-    node.style.setProperty('--sheet-min', `${natural}px`);
+    // Content that scrolls means the sheet is capped (keyboard, short screen, long list): the natural height is
+    // more than fits, so keep the box itself. Under the keyboard the squeezed box is below what is remembered and
+    // never lowers it; a long list that hits the cap keeps the sheet at the cap when the list gets shorter.
+    const height = Math.min(natural, box);
+    if (height <= remembered.current) return;
+    remembered.current = height;
+    node.style.setProperty('--sheet-min', `${height}px`);
   }, [dialog]);
 
   useLayoutEffect(() => {

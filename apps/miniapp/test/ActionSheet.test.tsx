@@ -85,7 +85,7 @@ describe('ActionSheet height', () => {
     expect(minimum()).toBe('500px');
   });
 
-  it('measurements at the max height are ignored', () => {
+  it('a height squeezed by the keyboard never lowers the remembered one', () => {
     render(<Sheet />);
     expect(minimum()).toBe('500px');
     // The keyboard takes half the screen: the sheet is capped and its content scrolls.
@@ -99,12 +99,23 @@ describe('ActionSheet height', () => {
     expect(minimum()).toBe('550px');
   });
 
-  it('does not record a squeezed height when it opens under the keyboard', () => {
+  it('opening under the keyboard keeps the squeezed box, then grows to the natural height', () => {
     layout.max = 300;
     render(<Sheet />);
-    expect(minimum()).toBe('');
+    expect(minimum()).toBe('300px');
     resize({ max: 900 });
     expect(minimum()).toBe('500px');
+  });
+
+  it('a list that hits the cap and gets shorter keeps the sheet at the cap', () => {
+    render(<Sheet />);
+    expect(minimum()).toBe('500px');
+    resize({ content: 1200 });
+    expect(sheet().getBoundingClientRect().height).toBe(900);
+    expect(minimum()).toBe('900px');
+    resize({ content: 500 });
+    expect(sheet().getBoundingClientRect().height).toBe(900);
+    expect(minimum()).toBe('900px');
   });
 
   it('step change resets', () => {
