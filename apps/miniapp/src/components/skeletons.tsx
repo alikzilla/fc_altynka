@@ -257,6 +257,17 @@ function GamesSkeleton() {
   </div>;
 }
 
+/** Экран игры: пара, таймер и компактная таблица. */
+export function GameScreenSkeleton() {
+  return <Skeleton><div className="match-games game-screen-body">
+    <section className="card material-blue game-current">
+      <div className="game-versus">{times(2).map(side => <Fragment key={side}>{side === 1 && <span className="game-vs">VS</span>}<div className="game-side"><span className="game-kit sk-fill" /><b><Sk w="5em" /></b><small><Sk w="3.5em" /></small></div></Fragment>)}</div>
+    </section>
+    <section className="card material-graphite game-timer"><p className="game-timer-digits"><Sk w="2.4em" /></p><p className="game-timer-phase"><Sk w="6em" /></p></section>
+    <section className="card material-graphite game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
+  </div></Skeleton>;
+}
+
 /** Вкладка, чей код ещё грузится: Участники, Составы, Игры или Оплата. */
 export function EventTabSkeleton({ tab }: { tab: string }) {
   return <Skeleton>{tab === 'teams' ? <TeamsSkeleton /> : tab === 'bill' ? <BillSkeleton /> : tab === 'games' ? <GamesSkeleton /> : <ParticipantsSkeleton />}</Skeleton>;
@@ -327,6 +338,8 @@ export function RouteSkeleton({ path, search = '' }: { path: string; search?: st
   if (path === '/notifications') return <SkFrame title="Задачи"><TaskListSkeleton groups={false} /></SkFrame>;
   const review = /^\/event\/(\d+)\/review$/.exec(path);
   if (review) return <SkFrame title="Оценка матча" back={`/event/${review[1]}`}><ReviewSkeleton /></SkFrame>;
+  const game = /^\/event\/(\d+)\/game$/.exec(path);
+  if (game) return <SkFrame title="Игра" back={`/event/${game[1]}?tab=games`} subtitle className="match-screen game-screen"><GameScreenSkeleton /></SkFrame>;
   if (/^\/event\/\d+/.test(path)) return <SkFrame title="Матч" back={matchOrigin()} subtitle className="match-screen"><EventSkeleton /></SkFrame>;
   if (path.startsWith('/players')) return <SkFrame title="Игроки" back="/profile"><div className="form player-search"><span className="sk-search">Найти по имени</span></div><PlayersSkeleton /></SkFrame>;
   if (path === '/stats') return <SkFrame title="Статистика" back="/"><div className="tabs stat-boards">{['Голы', 'Пасы', 'Гол+пас', 'Игры', 'Победы'].map((label, index) => <span className={`tab-sk ${index ? '' : 'on'}`} key={label}>{label}</span>)}</div><StatisticsSkeleton /></SkFrame>;

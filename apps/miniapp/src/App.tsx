@@ -20,6 +20,7 @@ const Venues = lazy(() => import('./screens/Venues').then(m => ({ default: m.Ven
 const SkillAssessment = lazy(() => import('./screens/SkillAssessment').then(m => ({ default: m.SkillAssessment })));
 const MatchReview = lazy(() => import('./screens/MatchReview').then(m => ({ default: m.MatchReview })));
 const Schedule = lazy(() => import('./screens/Schedule').then(m => ({ default: m.Schedule })));
+const GameScreen = lazy(() => import('./screens/GameScreen').then(m => ({ default: m.GameScreen })));
 import { contextForStartParam } from './lib/startParam';
 import { api } from './lib/api';
 import { queryClient } from './lib/queryClient';
@@ -94,6 +95,7 @@ function TeamApp() {
                   <Route path="/notifications" component={Notifications} />
                   <Route path="/event/:id/schedule"><Schedule /></Route>
                   <Route path="/event/:id/review"><MatchReview /></Route>
+                  <Route path="/event/:id/game"><GameScreen /></Route>
                   <Route path="/event/:id" component={Event} />
                   <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
                   <Route path="/players"><Players /></Route>

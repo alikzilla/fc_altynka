@@ -1,0 +1,35 @@
+/* Game screen: the current pair, the shared timer and a compact table. Built on the game-tab cards (games.css). */
+/* «Воскресенье, 8 ноября»: only the first letter is capital (the match page capitalises every word of its weekday). */
+.game-screen .subtitle { text-transform: none; }
+.game-screen-body { padding-bottom: 4px; }
+.game-screen .game-versus { margin-bottom: 12px; }
+
+/* Timer: one graphite card with big tabular digits. The phase changes colour only, never animates. */
+.match-games .game-timer { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 22px 18px 18px; text-align: center; }
+.game-timer-digits { margin: 0; font-size: 80px; font-weight: 600; line-height: 1; letter-spacing: -.045em; font-variant-numeric: lining-nums tabular-nums; }
+.game-timer-phase { min-height: 24px; margin: 8px 0 0; font-size: 16px; font-weight: 550; line-height: 24px; color: var(--text); }
+.game-timer-waiting .game-timer-phase, .game-timer-paused .game-timer-phase { color: var(--hint); }
+.game-timer-paused .game-timer-digits { color: var(--hint); }
+.game-timer-last_minute .game-timer-phase { color: var(--warn); }
+.game-timer-last_attack .game-timer-phase, .game-timer-over .game-timer-phase { color: var(--danger); }
+.game-timer-duration { display: grid; grid-template-columns: 44px minmax(4.5em, auto) 44px; align-items: center; gap: 12px; margin-top: 16px; }
+.game-timer-duration button { width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--field-bg, var(--card)); color: var(--text); font-size: 24px; font-weight: 400; line-height: 1; }
+.game-timer-duration button:disabled { opacity: .3; }
+.game-timer-duration button:active:not(:disabled) { transform: scale(.94); }
+.game-timer-duration output { font-size: 17px; font-weight: 550; white-space: nowrap; }
+.game-timer-controls { display: grid; gap: 10px; width: 100%; max-width: 400px; margin-top: 18px; }
+.game-timer-controls:empty { display: none; }
+.game-timer-controls > .btn { min-height: 54px; font-size: 16px; }
+.game-timer-controls > .btn:disabled { opacity: .55; }
+.game-screen-hint { margin: -4px 4px 0; font-size: 13px; line-height: 1.5; }
+
+/* Place, team, games and points fit at 320 px without a scroll container. */
+.game-screen-standings th:not(:first-child), .game-screen-standings td { width: 3.5em; }
+
+@media (max-width: 359px) {
+  .game-timer-digits { font-size: 66px; }
+  .match-games .game-timer { padding: 18px 16px 16px; }
+}
+@media (prefers-contrast: more) {
+  .game-timer-duration button { border-color: currentColor; }
+}
