@@ -39,6 +39,7 @@ class FakeAudio extends EventTarget {
 }
 
 const PATH = '/api/events/7/games/timer';
+const QUIET = { refresh: false }; // the timer write does not refetch every screen
 const SKEW = 5000; // the phone clock is 5 s behind the server
 let audio: FakeAudio;
 let release: Mock<() => void>;
@@ -84,7 +85,7 @@ test('start plays the prebuilt track from 0 before sending the tap moment in ser
   expect(audio.src).toBe('blob:track-360');
   expect(audio.currentTime).toBe(0);
   expect(audio.play).toHaveBeenCalledTimes(1);
-  expect(send()).toHaveBeenCalledWith('PUT', PATH, { gameSequence: 1, durationSec: 360, startedAt: tap, pausedAt: null, pausedMs: 0, updatedAt: tap });
+  expect(send()).toHaveBeenCalledWith('PUT', PATH, { gameSequence: 1, durationSec: 360, startedAt: tap, pausedAt: null, pausedMs: 0, updatedAt: tap }, QUIET);
   expect(tap).toBe(serverTime());
   expect(audio.play.mock.invocationCallOrder[0]).toBeLessThan(send().mock.invocationCallOrder[0]);
   expect(result.current).toMatchObject({ status: 'running', sound: 'on' });
@@ -108,7 +109,7 @@ test('offline start still plays, keeps the state pending and re-sends it with th
   rerender({ ev: evWith() });
   await flush();
   expect(send()).toHaveBeenCalledTimes(2);
-  expect(send().mock.calls[1]).toEqual(['PUT', PATH, sent]);
+  expect(send().mock.calls[1]).toEqual(['PUT', PATH, sent, QUIET]);
   expect(readPendingTimer(7)).toBeNull();
   expect(result.current.status).toBe('running');
   expect(audio.pause).not.toHaveBeenCalled();
@@ -125,7 +126,7 @@ test('a pending state saved before a reload is re-sent on mount and wins over th
   const { result } = renderTimer(evWith({ timer: runningFor(30) }));
   await flush();
   expect(result.current.status).toBe('paused');
-  expect(send()).toHaveBeenCalledWith('PUT', PATH, paused);
+  expect(send()).toHaveBeenCalledWith('PUT', PATH, paused, QUIET);
   expect(readPendingTimer(7)).toEqual(paused);
 });
 
@@ -182,13 +183,13 @@ test('own pause and resume send ordered states and control the track', async () 
   await tick(30_000);
   act(() => result.current.pause());
   const pausedAt = serverTime();
-  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { ...started, pausedAt, updatedAt: pausedAt });
+  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { ...started, pausedAt, updatedAt: pausedAt }, QUIET);
   expect(audio.pause).toHaveBeenCalled();
   expect(result.current).toMatchObject({ status: 'paused', remainingSec: 330 });
   await tick(10_000);
   audio.play.mockClear();
   await act(() => result.current.resume());
-  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { ...started, pausedAt: null, pausedMs: 10_000, updatedAt: serverTime() });
+  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { ...started, pausedAt: null, pausedMs: 10_000, updatedAt: serverTime() }, QUIET);
   expect(audio.currentTime).toBe(30);
   expect(audio.play).toHaveBeenCalledTimes(1);
   expect(audio.play.mock.invocationCallOrder[0]).toBeLessThan(send().mock.invocationCallOrder[2]);
@@ -201,7 +202,7 @@ test('reset sends a reset marker and stops the sound', async () => {
   await act(() => result.current.start());
   await tick(5000);
   act(() => result.current.reset());
-  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { gameSequence: 1, updatedAt: serverTime(), reset: true });
+  expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { gameSequence: 1, updatedAt: serverTime(), reset: true }, QUIET);
   expect(audio.pause).toHaveBeenCalled();
   expect(result.current).toMatchObject({ status: 'waiting', sound: 'off', remainingSec: 360 });
 });
@@ -423,7 +424,7 @@ test('Media Session shows the game and its lock-screen pause pauses the shared t
     await tick(1000);
     await act(async () => handlers.pause?.());
     expect(result.current.status).toBe('paused');
-    expect(send()).toHaveBeenLastCalledWith('PUT', PATH, expect.objectContaining({ pausedAt: serverTime() }));
+    expect(send()).toHaveBeenLastCalledWith('PUT', PATH, expect.objectContaining({ pausedAt: serverTime() }), QUIET);
     await tick(5000);
     await act(async () => handlers.play?.());
     expect(result.current.status).toBe('running');

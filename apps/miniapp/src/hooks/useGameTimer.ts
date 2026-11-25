@@ -106,7 +106,8 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
 
   const send = (next: StoredGameTimer): Promise<void> => {
     inFlight.current = next;
-    return api.send<{ timer: GameTimer | null }>('PUT', `/api/events/${evRef.current.id}/games/timer`, next).then(
+    // The game screen polls on its own; a timer tap must not refetch every cached screen.
+    return api.send<{ timer: GameTimer | null }>('PUT', `/api/events/${evRef.current.id}/games/timer`, next, { refresh: false }).then(
       res => {
         if (localRef.current?.timer !== next) return; // a newer tap superseded this write
         clearPendingTimer(evRef.current.id);
