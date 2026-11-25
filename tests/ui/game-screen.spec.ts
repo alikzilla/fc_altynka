@@ -101,7 +101,7 @@ test('the organizer runs a game: start, phases by the clock, pause, overtime and
   await expect(phase(page)).toHaveText('Последняя атака');
   await jump(page, 16_000);
   await expect(phase(page)).toHaveText(/^Время \+0:0\d$/);
-  await expect(digits(page)).toHaveText(/^\+?0:0\d$|^-0:0\d$/);
+  await expect(digits(page)).toHaveText('0:00');
 
   expect((await axe(page)).violations).toEqual([]);
 
