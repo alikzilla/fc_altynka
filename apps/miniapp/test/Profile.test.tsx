@@ -41,7 +41,7 @@ test('theme switch saves the actual preference and rolls back a failed save', as
 test('permission availability does not opt a player into notifications', () => {
   renderWithApp(<Profile />, { me: { ...player, notifications: { enabled: false, available: true } } });
   expect(screen.getByRole('heading', { name: 'Системные настройки' })).toBeInTheDocument();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: 'Уведомления' })).toBeInTheDocument();
   expect(api.send).not.toHaveBeenCalled();
 });
@@ -52,7 +52,7 @@ test('explicit enable with existing permission saves only the preference', async
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(api.send).toHaveBeenCalledWith('PATCH', '/api/me', { notificationsEnabled: true });
   expect(requestWriteAccess).not.toHaveBeenCalled();
-  expect(await screen.findByText('Личные уведомления включены')).toBeInTheDocument();
+  expect(await screen.findByText('Включены')).toBeInTheDocument();
 });
 
 test('enabling requests native permission before saving and does not submit profile edits', async () => {
@@ -64,7 +64,7 @@ test('enabling requests native permission before saving and does not submit prof
   expect(requestWriteAccess).toHaveBeenCalledOnce();
   expect(api.send).toHaveBeenCalledWith('PATCH', '/api/me', { notificationsEnabled: true });
   expect(screen.getByLabelText('Имя в списках')).toHaveValue('Игрок черновик');
-  expect(await screen.findByText('Личные уведомления включены')).toBeInTheDocument();
+  expect(await screen.findByText('Включены')).toBeInTheDocument();
 });
 
 test('declining Telegram permission keeps notifications disabled', async () => {
@@ -73,7 +73,7 @@ test('declining Telegram permission keeps notifications disabled', async () => {
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(api.send).not.toHaveBeenCalled();
   expect(openTelegramLink).not.toHaveBeenCalled();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
 });
 
 test('unsupported clients open bot settings without pretending to enable notifications', async () => {
@@ -82,7 +82,7 @@ test('unsupported clients open bot settings without pretending to enable notific
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(openTelegramLink).toHaveBeenCalledWith('https://t.me/fc_altynka_bot?start=settings');
   expect(api.send).not.toHaveBeenCalled();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
 });
 
 test('unverified native grant falls back to bot settings without a false enabled state', async () => {
@@ -91,7 +91,7 @@ test('unverified native grant falls back to bot settings without a false enabled
   renderWithApp(<Profile />, { me: { ...player, notifications: { enabled: false, available: false } } });
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(openTelegramLink).toHaveBeenCalledWith('https://t.me/fc_altynka_bot?start=settings');
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
 });
 
 test('notification network error keeps actual state and allows retry', async () => {
@@ -100,18 +100,18 @@ test('notification network error keeps actual state and allows retry', async () 
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(await screen.findByText('Не получилось изменить уведомления. Попробуй ещё раз.')).toBeInTheDocument();
   expect(screen.getByRole('switch', { name: 'Уведомления' })).toBeEnabled();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
 });
 
 test('a blocked bot is shown separately from the enabled preference and can be disabled', async () => {
   (api.send as Mock).mockResolvedValue({ ...player, notifications: { enabled: false, available: false } });
   renderWithApp(<Profile />, { me: { ...player, notifications: { enabled: true, available: false } } });
-  expect(screen.getByText('Личные уведомления включены')).toBeInTheDocument();
+  expect(screen.getByText('Включены')).toBeInTheDocument();
   expect(screen.getByText('Бот пока не может писать тебе. Разреши сообщения в Telegram.')).toBeInTheDocument();
   await userEvent.click(screen.getByRole('switch', { name: 'Уведомления' }));
   expect(api.send).toHaveBeenCalledWith('PATCH', '/api/me', { notificationsEnabled: false });
   expect(requestWriteAccess).not.toHaveBeenCalled();
-  expect(await screen.findByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(await screen.findByText('Выключены')).toBeInTheDocument();
 });
 
 test('declining restored access never claims an existing subscription was disabled', async () => {
@@ -119,7 +119,7 @@ test('declining restored access never claims an existing subscription was disabl
   renderWithApp(<Profile />, { me: { ...player, notifications: { enabled: true, available: false } } });
   await userEvent.click(screen.getByRole('button', { name: 'Разрешить сообщения' }));
   expect(api.send).not.toHaveBeenCalled();
-  expect(screen.getByText('Личные уведомления включены')).toBeInTheDocument();
+  expect(screen.getByText('Включены')).toBeInTheDocument();
   expect(screen.queryByText(/Уведомления остаются выключены/)).not.toBeInTheDocument();
 });
 

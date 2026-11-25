@@ -33,7 +33,7 @@ test('on a phone the app opens full screen; the switch turns it off for this dev
   expect(toggle).toBeChecked();
   await userEvent.click(toggle);
   expect(app.exitFullscreen).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('С верхней панелью Telegram')).toBeInTheDocument();
+  expect(screen.getByText('С панелью Telegram')).toBeInTheDocument();
   // The next launch on this phone remembers the choice.
   ready();
   expect(app.requestFullscreen).toHaveBeenCalledTimes(1);
@@ -55,18 +55,18 @@ test('computers and older clients keep the window and show no full-screen switch
 test('the home-screen icon can be added once and then reads as added', async () => {
   const { app, listeners } = telegram();
   renderWithApp(<SystemSettings />, { me: player });
-  await userEvent.click(screen.getByRole('button', { name: /Иконка на главном экране.*Добавить/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Иконка на главном экране.*Открывать как приложение/ }));
   expect(app.addToHomeScreen).toHaveBeenCalledTimes(1);
   act(() => listeners.get('homeScreenAdded')?.());
   expect(screen.getByText('Иконка ФК Алтынка на главном экране')).toBeInTheDocument();
-  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Добавить/ })).not.toBeInTheDocument();
 });
 
 test('an icon added earlier shows as added; unsupported clients and the browser show nothing', () => {
   telegram({ status: 'added' });
   const first = renderWithApp(<SystemSettings />, { me: player });
-  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена')).toBeInTheDocument();
   first.unmount();
   telegram({ status: 'unsupported' });
   const second = renderWithApp(<SystemSettings />, { me: player });
@@ -85,7 +85,7 @@ test('the notifications switch moves at the tap and moves back when the server r
   const toggle = screen.getByRole('switch', { name: 'Уведомления' });
   await userEvent.click(toggle);
   expect(toggle).not.toBeChecked();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
   await act(async () => reject(new TypeError('offline')));
   expect(toggle).toBeChecked();
   expect(await screen.findByText('Не получилось изменить уведомления. Попробуй ещё раз.')).toBeInTheDocument();
