@@ -34,13 +34,16 @@ test('player sees pair, rest, table and empty history without organizer actions'
   expect(screen.getByRole('table',{name:'Таблица команд'})).toBeVisible();
   expect(screen.getByText(/Отдыхают/)).toHaveTextContent('Жёлтые');
   expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull();
+  expect(screen.getByRole('link',{name:'Открыть игру'})).toHaveAttribute('href','/event/7/game');
   expect(screen.getByRole('heading',{name:'Бомбардиры'})).toBeVisible();
 });
 test('organizer can record, and completed meetings keep edits but no new result',()=>{
   const result=renderWithApp(<MatchGames ev={{...ev,viewerRole:'organizer',gameProtocol:makeProtocol()}} reload={()=>{}}/>,{me:organizer});
-  expect(screen.getByRole('button',{name:'Внести результат'})).toBeVisible(); result.unmount();
+  expect(screen.getByRole('link',{name:'Открыть игру'})).toHaveAttribute('href','/event/7/game');
+  expect(screen.getAllByRole('link',{name:'Открыть игру'})).toHaveLength(1);
+  expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull(); result.unmount();
   renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({state:'completed',currentPair:null,completedAt:2,canRecord:false,canFinish:false})}} reload={()=>{}}/>,{me:organizer});
-  expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull();
+  expect(screen.queryByRole('link',{name:'Открыть игру'})).toBeNull();
   expect(screen.getByText('Результаты не записывались')).toBeVisible();
 });
 test('legacy has no invented zero statistics',()=>{

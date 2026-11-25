@@ -65,7 +65,7 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
     if (protocol) reload();
   }
   function toGames() {
-    onClose(); reload(); navigate(`/event/${ev.id}?tab=games`);
+    onClose(); reload(); navigate(`/event/${ev.id}/game`);
   }
 
   const decided = protocol !== null && answer !== null;

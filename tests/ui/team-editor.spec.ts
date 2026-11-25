@@ -39,7 +39,8 @@ test('tap swap, toast undo, kit colours, publish, coin start and active recolor 
   await expect(start.getByText(/^С мячом начинают /)).toBeVisible();
   await page.screenshot({path:'artifacts/team-editor/coin-dark-390.png'});
   await start.getByRole('button',{name:'К игре 1',exact:true}).click();
-  await expect(page).toHaveURL(/tab=games/);
+  await expect(page).toHaveURL('/event/7/game');
+  await page.getByRole('link',{name:'Назад',exact:true}).click();await expect(page).toHaveURL(/tab=games/);
   await page.getByRole('tab',{name:'Составы',exact:true}).click();
   await expect(page.getByRole('region',{name:'Баланс команд'})).toHaveCount(0);
   await page.getByRole('button',{name:'Изменить цвет: Синие',exact:true}).first().click();

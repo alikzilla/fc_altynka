@@ -157,7 +157,7 @@ test('the game protocol and its sheets never scroll sideways with long names at 
   world.start();
   world.add({ score: [9, 8], scorers: [] });
   await world.attach(page);
-  await visit(page, '/event/7?tab=games');
+  await visit(page, '/event/7/game');
   const result = await sheet(page, page.getByRole('button', { name: 'Внести результат', exact: true }), 'Результат игры');
   for (const side of [0, 1]) await result.locator('.game-score-side').nth(side).getByRole('button', { name: /Добавить гол команды/ }).click();
   await close(page);

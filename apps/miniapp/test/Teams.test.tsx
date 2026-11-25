@@ -37,7 +37,7 @@ test('manual start confirms the full-session lineup and moves to games', async (
   expect(within(dialog).queryByText('С мячом начинают Синие')).toBeNull();
   expect(await within(dialog).findByText('С мячом начинают Синие',{},{timeout:4000})).toBeVisible();
   await userEvent.click(within(dialog).getByRole('button',{name:'К игре 1'}));
-  expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5?tab=games');
+  expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5/game');
 });
 
 test('swapping a guest changes the draft and requires publishing before start', async () => {
