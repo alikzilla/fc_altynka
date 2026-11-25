@@ -3,7 +3,7 @@ import type { AppTheme, Club, ClubPattern } from '@altynka/core';
 const PAGE_BG: Record<AppTheme, string> = { dark: '#08090b', light: '#f4f2f7' };
 const STRIPE_WIDTH = 34;
 /** Доля акцента в мягком фоне чипов (поверх цвета страницы). */
-const SOFT_SHARE = 0.16;
+const SOFT_SHARE = 0.1;
 
 function channels(hex: string): [number, number, number] {
   const h = hex.replace('#', '');

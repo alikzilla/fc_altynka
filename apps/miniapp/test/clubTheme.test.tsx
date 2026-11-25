@@ -1,6 +1,6 @@
-import { clubById } from '@altynka/core';
+import { CLUBS, clubById, contrastRatio } from '@altynka/core';
 import { act, cleanup } from '@testing-library/react';
-import { clubPatternCss } from '../src/lib/clubTheme';
+import { clubPatternCss, clubVariables } from '../src/lib/clubTheme';
 import { applyClub } from '../src/lib/theme';
 import { Screen } from '../src/components/ui';
 import { player, renderWithApp } from './render';
@@ -55,4 +55,13 @@ test('clubPatternCss: solid is a single colour', () => {
   const css = clubPatternCss({ kind: 'solid', colors: ['#abcdef'] });
   expect(css).toContain('#abcdef');
   expect(css).not.toContain('repeating');
+});
+
+test('accentInk stays readable on the soft accent tint for every club in both themes', () => {
+  for (const club of CLUBS) {
+    for (const theme of ['dark', 'light'] as const) {
+      const v = clubVariables(club, theme);
+      expect(contrastRatio(v['--accent-ink']!, v['--accent-soft']!), `${club.id} ${theme}`).toBeGreaterThanOrEqual(4.5);
+    }
+  }
 });

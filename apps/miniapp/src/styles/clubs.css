@@ -10,7 +10,7 @@
 
 /* Клубный акцент вне цветных материалов. */
 :root[data-club] .btn.primary { background: var(--club-accent); color: var(--club-on-accent); }
-:root[data-club] :is(.material-plum, .material-blue) .btn.primary { background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: #191c30; }
+:root[data-club] :is(.material-plum, .material-blue, .club-material) .btn.primary { background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: #191c30; }
 :root[data-club] .material-coral .btn.primary { background: linear-gradient(160deg, #f7e9e3, #e5c8c0); color: #321e21; }
 :root[data-club] :is(.material-plum, .material-blue, .material-coral, .club-material) {
   --accent: #ded5f4;
