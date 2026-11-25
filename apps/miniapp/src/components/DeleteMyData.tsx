@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { closeApp, haptic } from '../lib/tg';
+import { applyClub } from '../lib/theme';
 import { ActionSheet } from './ActionSheet';
 
 /**
@@ -16,6 +17,8 @@ export function DeleteMyDataSheet({ onClose }: { onClose: () => void }) {
     setBusy(true); setError(null);
     try {
       await api.send('DELETE', '/api/me', { confirm: 'delete' });
+      // Клуб удалён и на сервере; кэш устройства тоже забываем, чтобы следующий запуск не красился им.
+      applyClub(null);
       haptic('success');
       setDone(true);
     } catch (e) {

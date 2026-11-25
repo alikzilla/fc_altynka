@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ProfileHelp } from '../src/components/ProfileHelp';
+import { applyClub, getClubId } from '../src/lib/theme';
 import { player, renderWithApp } from './render';
 
 /** A minimal Telegram WebApp: what the help section and its sheets touch. */
@@ -58,6 +59,30 @@ describe('delete my data', () => {
     expect(await screen.findByRole('dialog', { name: 'Данные удалены' })).toBeVisible();
     await userEvent.click(screen.getAllByRole('button', { name: 'Закрыть приложение' }).at(-1)!);
     expect(close).toHaveBeenCalled();
+  });
+
+  test('deleting the data forgets the favourite club on this device', async () => {
+    telegram();
+    applyClub('barcelona');
+    stubDelete(Response.json({ deleted: true }));
+    renderWithApp(<ProfileHelp />, { me: { ...player, favoriteClub: 'barcelona' } });
+    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
+    expect(await screen.findByRole('dialog', { name: 'Данные удалены' })).toBeVisible();
+    expect(getClubId()).toBeNull();
+    expect(localStorage.getItem('altynka:club')).toBeNull();
+  });
+
+  test('a failed deletion keeps the club', async () => {
+    telegram();
+    applyClub('barcelona');
+    stubDelete(Response.json({ error: 'receiver_open_bill' }, { status: 409 }));
+    renderWithApp(<ProfileHelp />, { me: player });
+    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
+    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
+    await screen.findByRole('alert');
+    expect(getClubId()).toBe('barcelona');
+    applyClub(null);
   });
 
   test('the receiver of an open bill learns what to do first; nothing is deleted', async () => {

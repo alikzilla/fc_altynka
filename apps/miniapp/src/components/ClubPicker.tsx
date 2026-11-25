@@ -1,5 +1,5 @@
 import { CLUBS, CLUB_LEAGUES, CLUB_LEAGUE_LABEL, clubById, type ClubId, type ClubLeague, type MeDto } from '@altynka/core';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { api } from '../lib/api';
 import { getClubId, applyClub, useClubId } from '../lib/theme';
 import { haptic } from '../lib/tg';
@@ -16,6 +16,7 @@ type Filter = 'all' | ClubLeague;
 
 export function ClubPickerSheet({ onClose }: { onClose: () => void }) {
   const current = useClubId();
+  const ids = useId();
   const updateMe = useUpdateMe();
   const toast = useToast();
   const [initial] = useState(() => clubById(getClubId()));
@@ -56,8 +57,8 @@ export function ClubPickerSheet({ onClose }: { onClose: () => void }) {
         <button type="button" className={`chip-btn${filter === 'all' ? ' on' : ''}`} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Все</button>
         {CLUB_LEAGUES.map(league => <button key={league} type="button" className={`chip-btn${filter === league ? ' on' : ''}`} aria-pressed={filter === league} onClick={() => setFilter(league)}>{CLUB_LEAGUE_LABEL[league]}</button>)}
       </div>}
-      <button type="button" className={`club-none${current ? '' : ' on'}`} aria-label="Без клуба" aria-pressed={!current} onClick={() => void choose(null)}>
-        <b>Без клуба</b><small>Обычная тема</small>{!current && <Icon name="check" />}
+      <button type="button" className={`club-none${current ? '' : ' on'}`} aria-labelledby={`${ids}-none`} aria-describedby={`${ids}-none-hint`} aria-pressed={!current} onClick={() => void choose(null)}>
+        <b id={`${ids}-none`}>Без клуба</b><small id={`${ids}-none-hint`}>Обычная тема</small>{!current && <Icon name="check" />}
       </button>
       <div className="club-grid">
         {visible.map(club => {

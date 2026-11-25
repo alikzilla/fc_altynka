@@ -32,6 +32,13 @@ test('opens on clubs/all without a club and lists every club tile', () => {
   expect(screen.getByRole('button', { name: 'Без клуба' })).toHaveAttribute('aria-pressed', 'true');
 });
 
+test('«Без клуба» is named by its text and described by «Обычная тема»', () => {
+  open();
+  const none = screen.getByRole('button', { name: 'Без клуба' });
+  expect(none).not.toHaveAttribute('aria-label');
+  expect(none).toHaveAccessibleDescription('Обычная тема');
+});
+
 test('league chip filters', async () => {
   open();
   await userEvent.click(screen.getByRole('button', { name: 'Ла Лига' }));

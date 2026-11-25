@@ -35,3 +35,14 @@ test("peer profile uses the owner's club, not the viewer's", async () => {
   expect(crest.closest('section')).toHaveClass('club-material');
   act(() => applyClub(null));
 });
+
+test('own profile opened as a sheet loads in the cached club colour, a peer profile in plum', async () => {
+  act(() => applyClub('kairat'));
+  (api.get as Mock).mockReturnValue(new Promise(() => {}));
+  const own = renderWithApp(<PlayerProfileSheet userId={player.userId} onClose={vi.fn()} />, { me: player });
+  expect(document.querySelector('.player-sports-card')).toHaveClass('club-material');
+  own.unmount();
+  renderWithApp(<PlayerProfileSheet userId={player.userId + 1} onClose={vi.fn()} />, { me: player });
+  expect(document.querySelector('.player-sports-card')).toHaveClass('material-plum');
+  act(() => applyClub(null));
+});
