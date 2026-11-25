@@ -225,3 +225,27 @@ test('a participant sees the hint once the signals play on the phone', async () 
   await settle();
   expect(screen.queryByText(HINT)).toBeNull();
 });
+
+test('a response slower than the poll interval is waited for, not cancelled', async () => {
+  vi.useFakeTimers();
+  open(playerEvent, player);
+  await settle();
+  const advance = async (ms: number) => { await act(async () => { await vi.advanceTimersByTimeAsync(ms); }); };
+  const count = (api.get as Mock).mock.calls.length;
+  let resolveSlow!: (value: EventDetailDto) => void;
+  const aborted: boolean[] = [];
+  (api.get as Mock).mockImplementation((_path: string, options?: { signal?: AbortSignal }) => new Promise<EventDetailDto>(resolve => {
+    resolveSlow = resolve;
+    options?.signal?.addEventListener('abort', () => aborted.push(true));
+  }));
+  await advance(3000);
+  await advance(3000);
+  await advance(3000);
+  expect(api.get).toHaveBeenCalledTimes(count + 1);
+  expect(aborted).toEqual([]);
+  const next = { ...playerEvent, gameProtocol: makeProtocol({ canRecord: false, canEdit: false, canUndo: false, canFinish: false, games: [played], currentPair: [0, 2], restingTeamIndex: 1 }) } as EventDetailDto;
+  await act(async () => resolveSlow(next));
+  expect(screen.getByRole('heading', { level: 1, name: 'Игра 2' })).toBeVisible();
+  await advance(3000);
+  expect(api.get).toHaveBeenCalledTimes(count + 2);
+});

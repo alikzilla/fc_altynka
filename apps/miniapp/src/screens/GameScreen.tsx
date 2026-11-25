@@ -25,19 +25,20 @@ export function GameScreen() {
   const { id } = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const back = `/event/${id}?tab=games`;
-  const { data: ev, error, loading, reload } = useResource<EventDetailDto>(`/api/events/${id}`);
+  const { data: ev, error, loading, reload, poll } = useResource<EventDetailDto>(`/api/events/${id}`);
   const playing = ev?.gameProtocol?.state === 'playing';
   const leave = !!ev && !playing;
   useEffect(() => { if (leave) navigate(back, { replace: true }); }, [leave, back, navigate]);
   // Everyone sees the next pair and the timer within a few seconds; nothing is fetched while hidden.
+  // On a slow pitch-side network a poll waits for the response still in flight instead of cancelling it.
   useEffect(() => {
     if (!playing) return;
     const visible = () => document.visibilityState === 'visible';
-    const poll = setInterval(() => { if (visible()) reload(); }, POLL_MS);
-    const onVisible = () => { if (visible()) reload(); };
+    const timer = setInterval(() => { if (visible()) poll(); }, POLL_MS);
+    const onVisible = () => { if (visible()) poll(); };
     document.addEventListener('visibilitychange', onVisible);
-    return () => { clearInterval(poll); document.removeEventListener('visibilitychange', onVisible); };
-  }, [playing, reload]);
+    return () => { clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [playing, poll]);
   if (ev && playing) return <GameView ev={ev} protocol={ev.gameProtocol!} reload={reload} back={back} />;
   return <Screen title="Игра" back={back} className="match-screen game-screen">
     {error ? <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} /> : (loading || !ev) && <GameScreenSkeleton />}

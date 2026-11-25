@@ -80,3 +80,20 @@ test('field-scoped saved responses merge into the current cache instead of overw
   });
   expect(result.current.data).toEqual({ phone: '+77071234567', notifications: true });
 });
+
+test('poll never cancels a slow refresh still in flight, so a snapshot arrives on a weak network', async () => {
+  (api.get as Mock).mockResolvedValueOnce('first');
+  const { result } = renderHook(() => useResource<string>('/slow'));
+  await waitFor(() => expect(result.current.data).toBe('first'));
+  let resolveSlow!: (value: string) => void;
+  (api.get as Mock).mockImplementation((_path: string, options?: { signal?: AbortSignal }) => new Promise<string>((resolve, reject) => {
+    resolveSlow = resolve;
+    options?.signal?.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')));
+  }));
+  act(() => result.current.poll());
+  act(() => result.current.poll());
+  act(() => result.current.poll());
+  expect(api.get).toHaveBeenCalledTimes(2);
+  await act(async () => resolveSlow('second'));
+  expect(result.current.data).toBe('second');
+});
