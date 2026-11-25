@@ -1,7 +1,6 @@
 import { aggregatePlayerStatistics, type PlayerProfileDto } from '@altynka/core';
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import type { Mock } from 'vitest';
-import { act } from '@testing-library/react';
 import { applyClub } from '../src/lib/theme';
 import { api } from '../src/lib/api';
 import { PlayerProfileSheet } from '../src/screens/PlayerProfile';

@@ -3,6 +3,7 @@
 :root { --sk: #35313f; }
 :root[data-theme='light'] { --sk: #e0d8e8; }
 :is(.material-plum, .material-blue, .material-coral) { --sk: #ffffff26; }
+.club-material { --sk: color-mix(in srgb, var(--club-ink) 18%, transparent); }
 
 /* Шаг между карточками скелета наследуется от экрана или вкладки, как у настоящих карточек. */
 .loading { width: 100%; min-width: 0; display: flex; flex-direction: column; gap: inherit; }
