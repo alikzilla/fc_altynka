@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { aggregatePlayerStatistics, type PlayerMeetingStatistics } from '@altynka/core';
+import { aggregatePlayerStatistics, clubById, type ClubId, type PlayerMeetingStatistics } from '@altynka/core';
 import { PlayerSportsCard } from '../src/components/PlayerSports';
 import { PlayerGameHistory } from '../src/components/PlayerGameHistory';
 import { player,renderWithApp } from './render';
@@ -114,4 +114,29 @@ test('the profile of the reigning MVP shows the crown and the chip',()=>{
   const plain=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
   expect(plain.container.querySelector('[data-testid="crown-badge"]')).toBeNull();
   expect(plain.container.querySelector('.player-crown-chip')).toBeNull();
+});
+
+test('favourite club paints the card and shows the crest',()=>{
+  const {container}=renderWithApp(<PlayerSportsCard {...props} favoriteClub="barcelona"/>,{me:player});
+  const card=container.querySelector('section')!;
+  expect(card).toHaveClass('club-material');
+  expect(card).not.toHaveClass('material-plum');
+  expect(card.style.getPropertyValue('--club-mid')).toBe(clubById('barcelona')!.material.mid);
+  expect(screen.getByRole('img',{name:'Любимый клуб: Барселона'})).toHaveClass('player-club-crest');
+});
+test('no club keeps plum',()=>{
+  for(const favoriteClub of [undefined,null]){
+    const {container,unmount}=renderWithApp(<PlayerSportsCard {...props} favoriteClub={favoriteClub}/>,{me:player});
+    const card=container.querySelector('section')!;
+    expect(card).toHaveClass('material-plum');
+    expect(card).not.toHaveClass('club-material');
+    expect(card.getAttribute('style')).toBeNull();
+    expect(container.querySelector('.player-club-crest')).toBeNull();
+    unmount();
+  }
+});
+test('unknown club keeps plum',()=>{
+  const {container}=renderWithApp(<PlayerSportsCard {...props} favoriteClub={'dinamo-zagreb' as ClubId}/>,{me:player});
+  expect(container.querySelector('section')).toHaveClass('material-plum');
+  expect(container.querySelector('.player-club-crest')).toBeNull();
 });

@@ -27,3 +27,17 @@
   :root[data-club] .btn.primary { background: #e5def5; color: #191c30; }
   :root[data-club][data-theme='light'] .btn.primary { background: #573579; color: #fff; }
 }
+
+/* Карточка профиля в цвете клуба: рецепт .material-plum на трёх тонах клуба, текст — из его материала
+   (токены --text, --hint, --accent, --plum-ink* ставит materialVariables прямо на карточку). */
+.club-material { position: relative; color: var(--club-ink); background: radial-gradient(ellipse 105% 33% at 42% -7%, var(--club-hi) 0%, var(--club-mid) 53%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, var(--club-mid) 0%, transparent 100%), var(--club-base); box-shadow: var(--rim), inset 0 -2px 9px color-mix(in srgb, var(--club-hi) 38%, transparent), inset 1px 0 7px color-mix(in srgb, var(--club-hi) 30%, transparent); }
+.club-material .muted { color: var(--club-ink-soft); }
+.player-club-crest { position: absolute; top: 8px; right: 12px; width: 34px; height: 41px; object-fit: contain; pointer-events: none; }
+.club-material.player-sports-card .player-card-top { padding-top: 24px; }
+.club-material .player-identity h2, .club-material .player-position-line, .club-material .player-statistics dd, .club-material .player-awards dd, .club-material .player-statistics .foot-stat dd { color: var(--club-ink); }
+.club-material.player-sports-card .avatar-large { color: var(--club-ink); background: color-mix(in srgb, var(--club-ink) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--club-ink) 24%, transparent); }
+.club-material .player-statistics-section { background: color-mix(in srgb, var(--club-ink) 7%, transparent); }
+.club-material .player-awards { border-top-color: color-mix(in srgb, var(--club-ink) 14%, transparent); }
+.club-material .player-awards > div { background: color-mix(in srgb, var(--club-ink) 9%, transparent); }
+.club-material .rank-track { stroke: color-mix(in srgb, var(--club-ink) 14%, transparent); }
+.club-material .rating-caption { color: var(--club-ink-soft); }

@@ -1,8 +1,9 @@
-import { AWARDS, AWARD_SHORT_LABEL, playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
+import { AWARDS, AWARD_SHORT_LABEL, clubById, playingPositionLabel, type ClubId, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
+import { materialVariables } from '../lib/clubTheme';
 import { Sk } from './ui';
 
 const format = (value: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
@@ -50,12 +51,16 @@ interface Props {
   injured?: boolean;
   /** Действующий MVP хотя бы в одной общей группе: корона на фото и чип под именем. */
   reigningMvp?: boolean;
+  /** Любимый клуб владельца профиля: карточка в его цвете и эмблема в углу. */
+  favoriteClub?: ClubId | null;
 }
 const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
-export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref,injured,reigningMvp}:Props) {
+export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref,injured,reigningMvp,favoriteClub}:Props) {
+  const club=clubById(favoriteClub);
   const personRole=roles[role];
   const pending=statisticsPending && !statistics ? <Sk w="1.1em"/> : null;
-  return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
+  return <section className={`card ${club?'club-material':'material-plum'} player-sports-card`} style={club?materialVariables(club):undefined} aria-label="Профиль игрока">
+    {club && <img className="player-club-crest" src={club.crest} alt={`Любимый клуб: ${club.name}`}/>}
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large injured={injured} crowned={reigningMvp}/>
       <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div>{reigningMvp && <span className="player-crown-chip">Действующий MVP</span>}</div>
       <RatingBadge rating={rating}/>

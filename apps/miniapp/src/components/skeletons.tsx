@@ -2,12 +2,14 @@
  * Скелеты повторяют загруженную разметку: те же классы карточек, отступы и высоты строк.
  * Постоянные подписи остаются текстом, данные заменяет <Sk />. Меняешь экран — поправь и его скелет.
  */
-import { MATCH_FORMATS } from '@altynka/core';
+import { MATCH_FORMATS, clubById } from '@altynka/core';
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
 import { Icon } from './Icon';
+import { materialVariables } from '../lib/clubTheme';
 import { matchOrigin } from '../lib/navHistory';
+import { getClubId } from '../lib/theme';
 import { Screen, Sk, Skeleton } from './ui';
 
 const times = (count: number) => Array.from({ length: count }, (_, index) => index);
@@ -151,8 +153,10 @@ export function VenuesSkeleton() {
 
 const STATS: [string, string][] = [['goals', 'Голы'], ['assists', 'Ассисты'], ['', 'Игры'], ['wins-stat', 'Побед'], ['foot-stat', 'Нога']];
 
-function PlayerSportsSkeleton() {
-  return <section className="card material-plum player-sports-card">
+function PlayerSportsSkeleton({ own }: { own?: boolean }) {
+  // Свой профиль красим клубом из кэша, чтобы цвет не прыгал; чужой клуб до ответа неизвестен.
+  const club = own ? clubById(getClubId()) : null;
+  return <section className={`card ${club ? 'club-material' : 'material-plum'} player-sports-card`} style={club ? materialVariables(club) : undefined}>
     <div className="player-card-top">
       <span className="avatar avatar-large sk-pulse" />
       <div className="player-identity">
@@ -199,8 +203,8 @@ function GameHistorySkeleton() {
 }
 
 /** Профиль другого игрока в шторке: карточка, достижения, сыгранные матчи. */
-export function PlayerProfileSkeleton() {
-  return <Skeleton><div className="player-profile-content"><PlayerSportsSkeleton /><AchievementsSkeleton /><GameHistorySkeleton /></div></Skeleton>;
+export function PlayerProfileSkeleton({ own = false }: { own?: boolean } = {}) {
+  return <Skeleton><div className="player-profile-content"><PlayerSportsSkeleton own={own} /><AchievementsSkeleton /><GameHistorySkeleton /></div></Skeleton>;
 }
 
 /** Свой профиль: карточка уже нарисована из /api/me, догружаются достижения и матчи. */
@@ -332,7 +336,7 @@ export function RouteSkeleton({ path, search = '' }: { path: string; search?: st
   if (path === '/stats') return <SkFrame title="Статистика" back="/"><div className="tabs stat-boards">{['Голы', 'Пасы', 'Гол+пас', 'Игры', 'Победы'].map((label, index) => <span className={`tab-sk ${index ? '' : 'on'}`} key={label}>{label}</span>)}</div><StatisticsSkeleton /></SkFrame>;
   if (path === '/venues') return <SkFrame title="Площадки" back="/"><section className="venues-group"><VenuesSkeleton /></section></SkFrame>;
   if (path === '/profile/skills') return <SkFrame title="Твоя игра" back="/profile"><Skeleton><div className="card material-blue"><h2><Sk w="54%" /></h2><p><Sk w="96%" /> <Sk w="62%" /></p><span className="btn primary wide sk-fill" /></div></Skeleton></SkFrame>;
-  if (path.startsWith('/profile')) return <SkFrame title="Профиль"><PlayerProfileSkeleton /></SkFrame>;
+  if (path.startsWith('/profile')) return <SkFrame title="Профиль"><PlayerProfileSkeleton own /></SkFrame>;
   return <SkFrame title="Ближайший матч">
     <HomeMatchSkeleton />
     <section className="home-section"><div className="section-heading"><h2>Нужно сделать</h2><Link href="/notifications">Все задачи<Icon name="arrow" /></Link></div><HomeTasksSkeleton groups={false} /></section>

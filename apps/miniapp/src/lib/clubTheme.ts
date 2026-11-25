@@ -1,4 +1,4 @@
-import type { AppTheme, Club, ClubPattern } from '@altynka/core';
+import { contrastRatio, type AppTheme, type Club, type ClubPattern } from '@altynka/core';
 
 const PAGE_BG: Record<AppTheme, string> = { dark: '#08090b', light: '#f4f2f7' };
 const STRIPE_WIDTH = 34;
@@ -43,15 +43,31 @@ export function clubVariables(club: Club, theme: AppTheme): Record<string, strin
   };
 }
 
-/** Переменные клубной карточки (материал). */
+/** Второй тон текста карточки: чуть мягче чернил, но не ниже 4,5:1 на среднем и тёмном тонах. */
+function softInk(m: Club['material']): string {
+  for (const share of [0.82, 0.88, 0.94]) {
+    const soft = mix(m.ink, m.mid, share);
+    if (contrastRatio(soft, m.mid) >= 4.6 && contrastRatio(soft, m.base) >= 4.6) return soft;
+  }
+  return m.ink;
+}
+
+/** Переменные клубной карточки (материал): краски и все токены текста, чтобы карточка читалась и на светлом материале. */
 export function materialVariables(club: Club): Record<string, string> {
   const m = club.material;
+  const soft = softInk(m);
   return {
     '--club-hi': m.highlight,
     '--club-mid': m.mid,
     '--club-base': m.base,
     '--club-ink': m.ink,
-    '--plum-ink': m.ink,
+    '--club-ink-soft': soft,
+    '--text': m.ink,
+    '--hint': soft,
+    '--accent': m.ink,
+    '--accent-ink': m.ink,
+    '--accent-soft': mix(m.ink, m.mid, 0.14),
+    '--plum-ink': soft,
     '--plum-ink-strong': m.ink,
   };
 }

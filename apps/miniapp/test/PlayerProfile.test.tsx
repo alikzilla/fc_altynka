@@ -1,6 +1,8 @@
 import { aggregatePlayerStatistics, type PlayerProfileDto } from '@altynka/core';
 import { screen, waitFor, within } from '@testing-library/react';
 import type { Mock } from 'vitest';
+import { act } from '@testing-library/react';
+import { applyClub } from '../src/lib/theme';
 import { api } from '../src/lib/api';
 import { PlayerProfileSheet } from '../src/screens/PlayerProfile';
 import { player, renderWithApp } from './render';
@@ -24,4 +26,13 @@ test('another player sees the injury an admin set moments ago, even with the pro
   expect(await screen.findByTestId('injury-badge')).toBeInTheDocument();
   expect(within(screen.getByRole('dialog')).getByText('Травма')).toBeInTheDocument();
   await waitFor(() => expect(api.get).toHaveBeenCalledTimes(2));
+});
+
+test("peer profile uses the owner's club, not the viewer's", async () => {
+  act(() => applyClub('real-madrid'));
+  (api.get as Mock).mockResolvedValue({ ...base, favoriteClub: 'barcelona' });
+  renderWithApp(<PlayerProfileSheet userId={77} onClose={vi.fn()} />, { me: player });
+  const crest = await screen.findByRole('img', { name: 'Любимый клуб: Барселона' });
+  expect(crest.closest('section')).toHaveClass('club-material');
+  act(() => applyClub(null));
 });

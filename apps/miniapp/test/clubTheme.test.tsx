@@ -1,6 +1,6 @@
 import { CLUBS, clubById, contrastRatio } from '@altynka/core';
 import { act, cleanup } from '@testing-library/react';
-import { clubPatternCss, clubVariables } from '../src/lib/clubTheme';
+import { clubPatternCss, clubVariables, materialVariables } from '../src/lib/clubTheme';
 import { applyClub } from '../src/lib/theme';
 import { Screen } from '../src/components/ui';
 import { player, renderWithApp } from './render';
@@ -62,6 +62,18 @@ test('accentInk stays readable on the soft accent tint for every club in both th
     for (const theme of ['dark', 'light'] as const) {
       const v = clubVariables(club, theme);
       expect(contrastRatio(v['--accent-ink']!, v['--accent-soft']!), `${club.id} ${theme}`).toBeGreaterThanOrEqual(4.5);
+    }
+  }
+});
+
+test('every text colour of the club card is readable on its material for every club', () => {
+  const textVars = ['--text', '--hint', '--accent', '--accent-ink', '--plum-ink', '--plum-ink-strong', '--club-ink'];
+  for (const club of CLUBS) {
+    const v = materialVariables(club);
+    for (const name of textVars) {
+      for (const bg of [club.material.mid, club.material.base]) {
+        expect(contrastRatio(v[name]!, bg), `${club.id} ${name} on ${bg}`).toBeGreaterThanOrEqual(4.5);
+      }
     }
   }
 });
