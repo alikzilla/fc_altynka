@@ -12,7 +12,7 @@ function telegram() {
 
 afterEach(() => Reflect.deleteProperty(window, 'Telegram'));
 
-test('the section reads like profile settings, then the quiet delete action and the version close the page', () => {
+test('the section reads like profile settings, then a separate red delete row and the version close the page', () => {
   telegram();
   renderWithApp(<ProfileHelp />, { me: player });
   const nav = screen.getByRole('navigation', { name: 'Помощь и данные' });
@@ -20,7 +20,7 @@ test('the section reads like profile settings, then the quiet delete action and 
   expect(screen.getByRole('button', { name: /Сообщить о проблеме/ })).toBeVisible();
   expect(screen.getByRole('button', { name: /Политика конфиденциальности/ })).toBeVisible();
   // The destructive action is not one of the section's rows.
-  expect(nav).not.toContainElement(screen.getByRole('button', { name: 'Удалить мои данные' }));
+  expect(nav).not.toContainElement(screen.getByRole('button', { name: /Удалить мои данные/ }));
   expect(screen.getByText(/^Версия dev/)).toBeInTheDocument();
 });
 

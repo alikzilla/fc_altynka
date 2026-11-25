@@ -99,10 +99,10 @@ export function Profile({ settings, availability }: { settings?: string; availab
       <nav className="profile-management" aria-labelledby="profile-editing">
         <Link className="card task-preview material-graphite" href="/profile/settings/name"><span className="task-icon"><Icon name="user" /></span><span className="task-copy"><b>Изменить имя</b><small>{me.displayName}</small></span><Icon name="back" className="chevron-right" /></Link>
         <Link className="card task-preview material-graphite" href="/profile/settings/payment"><span className="task-icon"><Icon name="receipt" /></span><span className="task-copy"><b>Изменить оплату</b><small>Номер Kaspi для переводов</small></span><Icon name="back" className="chevron-right" /></Link>
-        <Link className="card task-preview material-graphite" href="/profile/availability"><span className="task-icon"><Icon name="calendar" /></span><span className="task-copy"><b>Когда могу играть</b><small>Дни для сбора на матч и уведомлений</small></span><Icon name="back" className="chevron-right" /></Link>
+        <Link className="card task-preview material-graphite" href="/profile/availability"><span className="task-icon"><Icon name="calendar" /></span><span className="task-copy"><b>Когда могу играть</b><small>Дни для сбора на матч</small></span><Icon name="back" className="chevron-right" /></Link>
       </nav>
       <h2 className="section" id="profile-team">{creatableCommunities(me).length > 0 ? 'Управление' : 'Игроки'}</h2>
-      <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки</b><small>Профили, характеристики и рейтинг</small></span><Icon name="back" className="chevron-right" /></Link></nav>
+      <nav className="profile-management" aria-labelledby="profile-team"><Link className="card task-preview material-graphite" href="/players"><span className="task-icon"><Icon name="people" /></span><span className="task-copy"><b>Игроки</b><small>Профили и рейтинг игроков</small></span><Icon name="back" className="chevron-right" /></Link></nav>
       <SystemSettings />
       <ProfileHelp />
       {isSettingsSection(settings) && <ProfileSettingsSheet section={settings} onClose={() => navigate('/profile', { replace: true })} />}

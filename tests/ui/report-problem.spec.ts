@@ -18,6 +18,10 @@ for (const [width, theme] of [[320, 'dark'], [390, 'light']] as const) test(`rep
   const version = page.getByText(/^Версия /);
   await expect(version).toBeVisible();
   await expect(version).not.toHaveText(/dev/);
+  // Row descriptions stay on one line and are short enough not to be cut, down to 320 px.
+  const cut = await page.evaluate(() => [...document.querySelectorAll('.profile-management .task-copy small, .profile-delete .task-copy small')]
+    .filter(e => e.scrollWidth > e.clientWidth + 1 || e.getClientRects().length > 1).map(e => e.textContent));
+  expect(cut).toEqual([]);
   await page.getByRole('button', { name: /Сообщить о проблеме/ }).click();
   const sheet = page.getByRole('dialog', { name: 'Сообщить о проблеме' });
   await sheet.getByLabel('Что случилось?').fill('Список не обновился после записи');
