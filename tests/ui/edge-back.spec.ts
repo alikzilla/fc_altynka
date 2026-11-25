@@ -186,10 +186,11 @@ test('a pull from the right edge never makes the screen scroll sideways', async 
   expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
   await touch(page, 'touchmove', 370, 301);
   expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
-  await touch(page, 'touchmove', 350, 302);
+  await touch(page, 'touchmove', 352, 302);
   expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
-  // Let go before the threshold: the page stays and still does not scroll sideways.
-  await touch(page, 'touchend', 350, 302);
+  // Let go before the threshold: the page stays and still does not scroll sideways. 34 px stays under the 36 px
+  // minimum of a flick, so the result does not depend on how fast the automation delivers the events.
+  await touch(page, 'touchend', 352, 302);
   await expect(page).toHaveURL('/players');
   expect(await overflow(page, 'main')).toEqual({ width: 0, x: 0 });
 });

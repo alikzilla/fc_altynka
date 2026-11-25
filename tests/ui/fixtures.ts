@@ -3,6 +3,16 @@ import { expect, test as base } from '@playwright/test';
 export * from '@playwright/test';
 
 /**
+ * Wait until finite animations on the page are over (screen reveal, sheet entry). Contrast and layout checks taken
+ * mid-fade measure a half-transparent colour; infinite ones (skeleton pulse) are ignored.
+ */
+export async function animationsSettled(page: import('@playwright/test').Page): Promise<void> {
+  await page.evaluate(() => Promise.all(document.getAnimations()
+    .filter(a => a.effect?.getComputedTiming().endTime !== Infinity)
+    .map(a => a.finished.catch(() => undefined))));
+}
+
+/**
  * Blocks that scroll sideways on purpose: the match carousel, the availability strip, the game table
  * and the statistics tabs. Anything else that scrolls sideways is a layout bug.
  */
