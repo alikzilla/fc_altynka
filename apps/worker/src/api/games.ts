@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireRole, type AppEnv } from '../auth/middleware';
 import { getGameProtocol, startGameSession, type GameCommandResult } from '../domain/gameStart';
 import { body, idParam } from './validate';
+import { setGameTimer } from '../domain/gameTimer';
 import { recordGameResult, editGameResult, undoLastGame, finishGameSession } from '../domain/games';
 
 export const gamesApi = new Hono<AppEnv>();
@@ -46,4 +47,19 @@ gamesApi.post('/events/:id/games/finish', requireRole('organizer'), body(gameMet
   const id = idParam(c.req.param('id'));
   const input = c.req.valid('json');
   return gameReply(c, id === null ? { kind: 'not_found' } : await finishGameSession(c.get('deps'), id, c.get('user').id, input, input.participantSignupIds));
+});
+
+const timerFields = { gameSequence: safeInteger.positive(), updatedAt: safeInteger };
+const timerBody = z.union([
+  z.object({
+    ...timerFields, durationSec: safeInteger, startedAt: safeInteger,
+    pausedAt: safeInteger.nullable(), pausedMs: z.number().int().min(0).max(Number.MAX_SAFE_INTEGER),
+  }).strict(),
+  z.object({ ...timerFields, reset: z.literal(true) }).strict(),
+]);
+gamesApi.put('/events/:id/games/timer', requireRole('organizer'), body(timerBody), async c => {
+  const id = idParam(c.req.param('id'));
+  const result = id === null ? { kind: 'not_found' as const } : await setGameTimer(c.get('deps'), id, c.req.valid('json'));
+  if (result.kind === 'ok') return c.json({ timer: result.timer });
+  return c.json({ error: result.kind }, result.kind === 'invalid' ? 400 : result.kind === 'not_found' ? 404 : 409);
 });

@@ -1,4 +1,4 @@
-import { calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, todayAlmaty, type GameMutationMeta, type GameProtocolDto, type GameState, type TeamsDto } from '@altynka/core';
+import { calculateScorers, calculateStandings, chooseFirstPair, chooseKickoff, currentTimer, todayAlmaty, type StoredGameTimer, type GameMutationMeta, type GameProtocolDto, type GameState, type TeamsDto } from '@altynka/core';
 import { inArray } from 'drizzle-orm';
 import { users, type EventRow } from '../db/schema';
 import { getEvent, loadQueue, type Deps } from './events';
@@ -41,6 +41,7 @@ export async function gameProtocolFromEvent(
     kickoffTeamIndex: state?.teamCount === 2 ? state.kickoffTeamIndex ?? null : null,
     games: state?.games ?? [], standings: state ? calculateStandings(state.teamCount, state.games) : [],
     scorers: state ? calculateScorers(state.roster, state.games) : [],
+    timer: active ? currentTimer(ev.gameTimerJson ? JSON.parse(ev.gameTimerJson) as StoredGameTimer : null, state?.games.length ?? 0) : null,
     canStart: manage && canStart, canRecord: manage && active, canEdit: manage && editable,
     canUndo: manage && active && !!state?.games.length, canFinish: manage && active,
   };

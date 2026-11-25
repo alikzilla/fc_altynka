@@ -53,3 +53,17 @@ test('new sessions finish through the game protocol and support an empty no-play
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({protocol:{state:'completed',canRecord:false}});
 });
+
+test('only organizers set the shared game timer; players see it', async () => {
+  await apiRequest(`/api/events/${eventId}/games/start`,{as:w.org,method:'POST',body:{requestId:'start',expectedRevision:0}});
+  const path=`/api/events/${eventId}/games/timer`;
+  const timer={gameSequence:1,durationSec:360,startedAt:w.clock.now,pausedAt:null,pausedMs:0,updatedAt:w.clock.now};
+  expect((await apiRequest(path,{as:w.player,method:'PUT',body:timer})).status).toBe(403);
+  expect((await apiRequest(`/api/events/999999/games/timer`,{as:w.org,method:'PUT',body:timer})).status).toBe(404);
+  expect((await apiRequest(path,{as:w.org,method:'PUT',body:{...timer,extra:1}})).status).toBe(400);
+  const ok=await apiRequest(path,{as:w.org,method:'PUT',body:timer});
+  expect(ok.status).toBe(200); expect(await ok.json()).toEqual({timer});
+  expect((await apiRequest(path,{as:w.org,method:'PUT',body:{...timer,gameSequence:2}})).status).toBe(409);
+  const dto=await (await apiRequest(`/api/events/${eventId}/games`,{as:w.player})).json() as {timer:unknown};
+  expect(dto.timer).toEqual(timer);
+});
