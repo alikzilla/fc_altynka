@@ -14,12 +14,14 @@ export function keepAwake(): { release(): void } {
     document.body.appendChild(video);
     void video.play().catch(() => {});
   };
+  let pending = false;
   const request = () => {
-    if (released) return;
+    if (released || pending) return;
     if (!navigator.wakeLock) { startVideo(); return; }
+    pending = true;
     navigator.wakeLock.request('screen').then(
-      (s) => { if (released) void s.release().catch(() => {}); else sentinel = s; },
-      startVideo,
+      (s) => { pending = false; if (released) void s.release().catch(() => {}); else sentinel = s; },
+      () => { pending = false; /* e.g. NotAllowedError while hidden: retry on the next visible event. */ },
     );
   };
   const onVisible = () => {
