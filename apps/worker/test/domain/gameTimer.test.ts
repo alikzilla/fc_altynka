@@ -83,3 +83,13 @@ test('recording a result does not conflict with a timer write and retires the ti
   expect(r.kind).toBe('ok');
   expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toBeNull();
 });
+
+test('a timer for the next game is not ordered against the previous game timer', async () => {
+  const w = await started();
+  const rev = (await getEvent(w.d.db, w.eventId))!.gameRevision;
+  await setGameTimer(w.d, w.eventId, timerAt(w.d.now, { updatedAt: w.d.now + 5000 }));
+  await recordGameResult(w.d, w.eventId, w.actorId, { requestId: 'r1', expectedRevision: rev }, { score: [1, 0], scorers: [] });
+  const next = timerAt(w.d.now, { gameSequence: 2, updatedAt: w.d.now + 1000 });
+  expect(await setGameTimer(w.d, w.eventId, next)).toEqual({ kind: 'ok', timer: next });
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toEqual(next);
+});

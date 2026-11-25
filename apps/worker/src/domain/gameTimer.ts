@@ -30,7 +30,7 @@ export async function setGameTimer(d: Deps, eventId: number, input: StoredGameTi
     const played = parseGameState(ev)?.games.length ?? 0;
     if (input.gameSequence !== played + 1) return { kind: 'conflict' };
     const stored = ev.gameTimerJson ? JSON.parse(ev.gameTimerJson) as StoredGameTimer : null;
-    if (stored && stored.updatedAt > input.updatedAt) return { kind: 'ok', timer: currentTimer(stored, played) };
+    if (stored && stored.gameSequence === input.gameSequence && stored.updatedAt > input.updatedAt) return { kind: 'ok', timer: currentTimer(stored, played) };
     const saved = await d.db.update(events).set({ gameTimerJson: JSON.stringify(input) })
       .where(and(eq(events.id, eventId), ev.gameTimerJson === null ? isNull(events.gameTimerJson) : eq(events.gameTimerJson, ev.gameTimerJson)))
       .returning({ id: events.id });
