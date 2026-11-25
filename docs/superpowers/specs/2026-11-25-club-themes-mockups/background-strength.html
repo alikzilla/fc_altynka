@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Фон клуба</title>
+<style>
+  :root { --bg:#08090b; --text:#f2f1f8; --hint:#b6b2c2; --blue:#1d4fa3; --garnet:#a3123f; --gold:#edbb00; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#131318; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:28px 20px 60px; }
+  h1 { font-size:24px; margin:0 0 6px; font-weight:600; }
+  .sub { color:var(--hint); margin:0 0 26px; max-width:760px; line-height:1.45; }
+  .row { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; }
+  .card { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; border-radius:30px; border:2px solid transparent; transition:border-color .15s; }
+  .card.selected { border-color:#d4c7fa; background:#ffffff08; }
+  .label { text-align:center; max-width:300px; }
+  .label b { display:block; font-size:16px; margin-bottom:4px; }
+  .label span { color:var(--hint); font-size:13px; line-height:1.4; }
+
+  .phone { position:relative; width:300px; height:620px; border-radius:42px; overflow:hidden; background:var(--bg); box-shadow:0 0 0 8px #24242b, 0 20px 50px #0008; isolation:isolate; }
+  .screen { position:relative; z-index:2; padding:52px 16px 0; display:flex; flex-direction:column; gap:12px; }
+  .title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:4px; }
+  .title-row h2 { margin:0; font-size:30px; letter-spacing:-.02em; font-weight:650; }
+  .mini-crest { width:30px; height:36px; }
+  .m-card { border-radius:26px; padding:18px; }
+  .blue { background: radial-gradient(ellipse 110% 60% at 15% -20%, #8d83d5 0%, #333e88 47%, transparent 100%), radial-gradient(ellipse 60% 85% at 100% 120%, #344cac 0%, transparent 100%), #0a1230; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 8px #5366ae55; }
+  .graphite { background: radial-gradient(ellipse 100% 55% at 20% -28%, #505057 0%, transparent 100%), #17171c; }
+  .day { font-size:13px; color:#c8cce4; }
+  .headline { font-size:34px; font-weight:550; letter-spacing:-.04em; line-height:1.05; margin-top:4px; }
+  .when { font-size:14px; margin-top:6px; color:#fbf4fc; }
+  .btn { margin-top:14px; height:42px; border-radius:21px; display:grid; place-items:center; font-weight:600; font-size:14px; background:linear-gradient(165deg,#f0eaf5,#ccc9e2); color:#191c30; }
+  .btn.club { background:linear-gradient(165deg,#c4224f,#8e0f37); color:#fff; }
+  .task { display:flex; gap:12px; align-items:center; }
+  .task i { width:34px; height:34px; border-radius:12px; background:#ffffff14; display:block; }
+  .task b { font-size:14px; display:block; } .task small { color:var(--hint); font-size:12px; }
+  .chip { display:inline-block; font-size:11px; padding:4px 9px; border-radius:20px; background:#ffffff1c; margin-top:10px; }
+  .chip.club { background:#a3123f; }
+  .dock { position:absolute; z-index:3; left:12px; right:12px; bottom:14px; height:64px; border-radius:28px; display:grid; grid-template-columns:repeat(5,1fr); align-items:center; background: radial-gradient(ellipse 110% 100% at 22% -40%, #7773bc 0%, #3b3e78 50%, transparent 100%), #10142f; box-shadow: inset 0 1px 1px #fff3, 0 6px 16px #0006; }
+  .dock span { justify-self:center; width:22px; height:22px; border-radius:7px; background:#bec0da55; }
+  .dock span.on { background:var(--gold); }
+  .dock span.mid { width:40px; height:40px; border-radius:20px; background:linear-gradient(165deg,#f0eaf5,#ccc9e2); }
+
+  /* Фоны */
+  .bg { position:absolute; inset:0; z-index:1; pointer-events:none; }
+  .stripes { background: repeating-linear-gradient(90deg, var(--blue) 0 34px, var(--garnet) 34px 68px); }
+  .a .stripes { height:330px; opacity:.55; -webkit-mask-image:linear-gradient(#000 0%, #000 25%, transparent 100%); mask-image:linear-gradient(#000 0%, #000 25%, transparent 100%); }
+  .a .crest-bg { position:absolute; top:70px; left:50%; width:150px; transform:translateX(-50%); opacity:.22; }
+  .b .stripes { opacity:.14; }
+  .b .crest-bg { position:absolute; right:-60px; bottom:90px; width:260px; opacity:.10; }
+  .c .ribbon { height:6px; background: repeating-linear-gradient(90deg, var(--blue) 0 20px, var(--garnet) 20px 40px); position:absolute; top:0; left:0; right:0; }
+  .c .crest-bg { position:absolute; right:-70px; top:-30px; width:280px; opacity:.13; }
+  .note { margin:30px auto 0; max-width:760px; color:var(--hint); font-size:13px; text-align:center; }
+</style>
+</head>
+<body>
+<h1>Насколько заметна тема клуба на фоне?</h1>
+<p class="sub">Главная в теме «Барселона», тёмная тема. Во всех трёх вариантах клубный акцент одинаковый: золотая иконка в доке, гранатовая кнопка и чип. Различаются только фон и эмблема. Нажми на вариант, который ближе. Можно смешать, например «фон из B, эмблема из A», напиши это в терминале.</p>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="crest" viewBox="0 0 100 120">
+      <path d="M50 4 C70 4 88 8 94 14 V60 C94 88 72 108 50 116 C28 108 6 88 6 60 V14 C12 8 30 4 50 4Z" fill="#f4f1ea"/>
+      <path d="M12 18 H50 V46 H12Z" fill="#fff"/><path d="M12 18 H50 V46 H12Z" fill="none" stroke="#a3123f" stroke-width="2"/>
+      <path d="M26 18 V46 M12 32 H50" stroke="#a3123f" stroke-width="6"/>
+      <path d="M50 18 H88 V46 H50Z" fill="#edbb00"/><path d="M58 18V46 M68 18V46 M78 18V46" stroke="#a3123f" stroke-width="5"/>
+      <rect x="18" y="50" width="64" height="12" rx="6" fill="#edbb00"/>
+      <text x="50" y="59.5" font-size="9" font-weight="800" text-anchor="middle" fill="#1d4fa3" font-family="Arial">F C B</text>
+      <path d="M20 66 H80 V78 C80 96 66 106 50 110 C34 106 20 96 20 78Z" fill="#1d4fa3"/>
+      <path d="M32 66 V102 M44 66 V109 M56 66 V109 M68 66 V102" stroke="#a3123f" stroke-width="6"/>
+      <circle cx="50" cy="84" r="9" fill="#edbb00"/>
+    </symbol>
+  </defs>
+</svg>
+
+<div class="row">
+  <div class="card a" data-choice="a" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="stripes bg"></div><svg class="crest-bg" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+      <div class="screen">
+        <div class="title-row"><h2>Главная</h2></div>
+        <div style="height:120px"></div>
+        <div class="m-card blue"><div class="day">Пятница</div><div class="headline">20:00</div><div class="when">Алмагуль · 14 из 18</div><div class="btn club">Я играю</div></div>
+        <div class="m-card graphite task"><i></i><div><b>Оплатить матч</b><small>2 500 ₸ · Kaspi</small></div></div>
+      </div>
+      <div class="dock"><span class="on"></span><span></span><span class="mid"></span><span></span><span></span></div>
+    </div>
+    <div class="label"><b>A. Шапка</b><span>Полосы и эмблема крупно наверху, ниже плавно уходят в чёрный. Карточки на сплошном фоне, читаемость как сейчас.</span></div>
+  </div>
+
+  <div class="card b" data-choice="b" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="stripes bg"></div><svg class="crest-bg" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+      <div class="screen">
+        <div class="title-row"><h2>Главная</h2><svg class="mini-crest" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+        <div class="m-card blue"><div class="day">Пятница</div><div class="headline">20:00</div><div class="when">Алмагуль · 14 из 18</div><div class="btn club">Я играю</div></div>
+        <div class="m-card graphite task"><i></i><div><b>Оплатить матч</b><small>2 500 ₸ · Kaspi</small></div></div>
+        <div class="m-card graphite task"><i></i><div><b>Оценить игроков</b><small>До субботы, 22:00</small></div></div>
+        <span class="chip club" style="align-self:flex-start">Отдыхают Красные</span>
+      </div>
+      <div class="dock"><span class="on"></span><span></span><span class="mid"></span><span></span><span></span></div>
+    </div>
+    <div class="label"><b>B. Весь фон</b><span>Бледные полосы на всём экране, крупная эмблема полупрозрачно в углу. Маленькая эмблема у заголовка. Тема заметна на любом экране.</span></div>
+  </div>
+
+  <div class="card c" data-choice="c" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="ribbon"></div><svg class="crest-bg" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+      <div class="screen">
+        <div class="title-row"><h2>Главная</h2></div>
+        <div class="m-card blue"><div class="day">Пятница</div><div class="headline">20:00</div><div class="when">Алмагуль · 14 из 18</div><div class="btn club">Я играю</div></div>
+        <div class="m-card graphite task"><i></i><div><b>Оплатить матч</b><small>2 500 ₸ · Kaspi</small></div></div>
+        <div class="m-card graphite task"><i></i><div><b>Оценить игроков</b><small>До субботы, 22:00</small></div></div>
+      </div>
+      <div class="dock"><span class="on"></span><span></span><span class="mid"></span><span></span><span></span></div>
+    </div>
+    <div class="label"><b>C. Сдержанно</b><span>Тонкая полоска клубных цветов по верхнему краю и большая бледная эмблема, срезанная углом. Фон почти чёрный.</span></div>
+  </div>
+</div>
+
+<p class="note">Эмблема здесь нарисована схематично, в приложении будет настоящая. Узор у каждого клуба свой: полосы, обручи, половинки или однотонный фон.</p>
+</body>
+</html>
