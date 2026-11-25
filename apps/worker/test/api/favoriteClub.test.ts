@@ -24,7 +24,11 @@ test('rejects an unknown club with 400 and keeps the stored value', async () => 
 test('a stored id missing from the catalog reads as null', async () => {
   await env.DB.prepare('UPDATE users SET favorite_club = ? WHERE id = ?').bind('dinamo-zagreb', w.playerUserId).run();
   expect(await get()).toMatchObject({ favoriteClub: null });
-  expect(await (await patch({ theme: 'dark' })).json()).toMatchObject({ favoriteClub: null });
+});
+test('a PATCH without favoriteClub keeps the stored club', async () => {
+  await patch({ favoriteClub: 'barcelona' });
+  expect(await (await patch({ theme: 'dark' })).json()).toMatchObject({ favoriteClub: 'barcelona' });
+  expect(await get()).toMatchObject({ favoriteClub: 'barcelona' });
 });
 test("player profile carries the owner's favourite club", async () => {
   expect(await (await apiRequest(`/api/players/${w.playerUserId}`, { as: w.org })).json()).toMatchObject({ favoriteClub: null });
