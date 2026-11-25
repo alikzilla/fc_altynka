@@ -145,6 +145,18 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .profile-card-football dt { font-size: 12px; color: #d2cadd; }
 .profile-card-football dd { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }
 .profile-management { display: flex; flex-direction: column; gap: 12px; }
+button.task-preview { width: 100%; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.task-preview > svg.profile-external { width: 17px; height: 17px; color: var(--hint); }
+.system-actions { margin-top: 12px; }
+.system-switch-copy small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.task-preview > svg.system-action-done { width: 20px; height: 20px; }
+.profile-management .task-copy :is(b, small) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.material-danger { background: radial-gradient(ellipse 100% 55% at 20% -28%, #6b3141 0%, transparent 100%), #24141a; color: var(--danger); } /* taste-skill-ignore */
+.material-danger .task-copy small { color: #e6b9c3; }
+.material-danger .task-icon { background: #ffb8c61f; }
+.profile-delete { margin-top: 28px; }
+.profile-delete .task-copy :is(b, small) { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.profile-version { margin: 14px 4px 0; font-size: 13px; }
 .profile-system-settings { display: flex; flex-direction: column; gap: 20px; }
 .system-settings-list { gap: 0; padding-block: 0; }
 .system-setting-item + .system-setting-item { border-top: 1px solid var(--line); }
@@ -169,7 +181,6 @@ button.system-action-row { cursor: pointer; }
 .report-problem { display: grid; gap: 10px; }
 .report-problem label { font-weight: 550; }
 .report-problem p { margin: 0; font-size: 14px; line-height: 1.45; }
-.system-version { margin: 12px 4px 0; font-size: 13px; }
 .delete-data-copy { display: grid; gap: 12px; font-size: 15px; line-height: 1.5; }
 .delete-data-copy p { margin: 0; }
 .btn.delete-data-confirm { background: var(--danger-surface); color: var(--on-danger-surface); }

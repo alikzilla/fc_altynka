@@ -3,12 +3,9 @@ import { useEffect, useRef, useState } from 'react';
 import { api, ApiError } from '../lib/api';
 import { useMe, useReloadMe, useUpdateMe } from '../state/me';
 import { BOT_USERNAME } from '../lib/bot';
-import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openLink, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
+import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openTelegramLink, requestWriteAccess, setFullscreenPreferred } from '../lib/tg';
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Icon } from '../components/Icon';
-import { DeleteMyDataSheet } from '../components/DeleteMyData';
-import { ReportProblemSheet } from '../components/ReportProblem';
-import { versionLabel } from '../lib/version';
 import { applyTheme, getTheme } from '../lib/theme';
 import { useToast } from '../components/ui';
 
@@ -23,8 +20,6 @@ export function SystemSettings() {
   const [notifications, setNotifications] = useState(me.notifications);
   const [theme, setTheme] = useState<AppTheme>(me.theme ?? getTheme());
   const [busy, setBusy] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [reporting, setReporting] = useState(false);
   const saving = useRef(false);
   useEffect(() => setNotifications(me.notifications), [me.notifications]);
   useEffect(() => { if (me.theme) setTheme(me.theme); }, [me.theme]);
@@ -93,7 +88,7 @@ export function SystemSettings() {
     <div className="card material-graphite system-settings-list" aria-busy={busy}>
       <div className="system-setting-item">
         <label className="system-switch-row">
-          <span className="system-switch-copy"><b>Уведомления</b><small id="notification-switch-description">{enabled ? 'Личные уведомления включены' : 'Личные уведомления выключены'}</small></span>
+          <span className="system-switch-copy"><b>Уведомления</b><small id="notification-switch-description">{enabled ? 'Включены' : 'Выключены'}</small></span>
           <input className="system-switch-input" type="checkbox" role="switch" aria-label="Уведомления" aria-describedby="notification-switch-description" checked={enabled} disabled={busy} onChange={e => void changeNotifications(e.target.checked)} />
           <span className="system-switch-control" aria-hidden="true" />
         </label>
@@ -108,39 +103,24 @@ export function SystemSettings() {
       </div>
       {canFullscreen() && <div className="system-setting-item">
         <label className="system-switch-row">
-          <span className="system-switch-copy"><b>Во весь экран</b><small id="fullscreen-switch-description">{fullscreen ? 'Приложение занимает весь экран' : 'С верхней панелью Telegram'}</small></span>
+          <span className="system-switch-copy"><b>Во весь экран</b><small id="fullscreen-switch-description">{fullscreen ? 'Без панели Telegram' : 'С панелью Telegram'}</small></span>
           <input className="system-switch-input" type="checkbox" role="switch" aria-label="Во весь экран" aria-describedby="fullscreen-switch-description" checked={fullscreen} onChange={e => { setFullscreen(e.target.checked); setFullscreenPreferred(e.target.checked); }} />
           <span className="system-switch-control" aria-hidden="true" />
         </label>
       </div>}
-      {homeScreen && homeScreen !== 'unsupported' && <div className="system-setting-item">
-        {homeScreen === 'added'
-          ? <div className="system-action-row"><span className="system-switch-copy"><b>Иконка на главном экране</b><small>Уже добавлена: ФК Алтынка открывается прямо с экрана телефона</small></span><Icon name="check" className="system-action-done" /></div>
-          : <button type="button" className="system-action-row" aria-describedby="home-screen-description" onClick={() => { homeRequested.current = true; haptic('light'); addToHomeScreen(); }}>
-              <span className="system-switch-copy"><b>Иконка на главном экране</b><small id="home-screen-description">Открывай ФК Алтынка с экрана телефона, как приложение</small></span>
-              <span className="system-action-label">Добавить</span>
-            </button>}
-      </div>}
-      <div className="system-setting-item">
-        <button type="button" className="system-action-row" aria-describedby="report-description" onClick={() => setReporting(true)}>
-          <span className="system-switch-copy"><b>Сообщить о проблеме</b><small id="report-description">Что-то не работает или неудобно — напиши разработчику</small></span>
-          <span className="system-action-label">Написать</span>
-        </button>
-      </div>
-      <div className="system-setting-item">
-        <button type="button" className="system-action-row" aria-describedby="privacy-description" onClick={() => openLink(`${location.origin}/privacy.html`)}>
-          <span className="system-switch-copy"><b>Политика конфиденциальности</b><small id="privacy-description">Какие данные мы храним, кто их видит и как их удалить</small></span>
-          <span className="system-action-label">Открыть</span>
-        </button>
-      </div>
-      <div className="system-setting-item">
-        <button type="button" className="system-action-row" aria-describedby="delete-data-description" onClick={() => setDeleting(true)}>
-          <span className="system-switch-copy"><b className="danger-text">Удалить мои данные</b><small id="delete-data-description">Профиль, номер Kaspi, анкета и настройки. В истории матчей останется «Удалённый игрок»</small></span>
-        </button>
-      </div>
     </div>
-    <p className="system-version muted">Версия {versionLabel()}</p>
-    {deleting && <DeleteMyDataSheet onClose={() => setDeleting(false)} />}
-    {reporting && <ReportProblemSheet onClose={() => setReporting(false)} />}
+    {homeScreen && homeScreen !== 'unsupported' && <div className="profile-management system-actions">
+      {homeScreen === 'added'
+        ? <div className="card task-preview material-graphite">
+            <span className="task-icon"><Icon name="home" /></span>
+            <span className="task-copy"><b>Иконка на главном экране</b><small>Уже добавлена</small></span>
+            <Icon name="check" className="system-action-done" />
+          </div>
+        : <button type="button" className="card task-preview material-graphite" onClick={() => { homeRequested.current = true; haptic('light'); addToHomeScreen(); }}>
+            <span className="task-icon"><Icon name="home" /></span>
+            <span className="task-copy"><b>Иконка на главном экране</b><small>Открывать как приложение</small></span>
+            <Icon name="back" className="chevron-right" />
+          </button>}
+    </div>}
   </section>;
 }

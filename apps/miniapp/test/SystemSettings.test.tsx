@@ -33,7 +33,7 @@ test('on a phone the app opens full screen; the switch turns it off for this dev
   expect(toggle).toBeChecked();
   await userEvent.click(toggle);
   expect(app.exitFullscreen).toHaveBeenCalledTimes(1);
-  expect(screen.getByText('С верхней панелью Telegram')).toBeInTheDocument();
+  expect(screen.getByText('С панелью Telegram')).toBeInTheDocument();
   // The next launch on this phone remembers the choice.
   ready();
   expect(app.requestFullscreen).toHaveBeenCalledTimes(1);
@@ -55,18 +55,18 @@ test('computers and older clients keep the window and show no full-screen switch
 test('the home-screen icon can be added once and then reads as added', async () => {
   const { app, listeners } = telegram();
   renderWithApp(<SystemSettings />, { me: player });
-  await userEvent.click(screen.getByRole('button', { name: /Иконка на главном экране.*Добавить/ }));
+  await userEvent.click(screen.getByRole('button', { name: /Иконка на главном экране.*Открывать как приложение/ }));
   expect(app.addToHomeScreen).toHaveBeenCalledTimes(1);
   act(() => listeners.get('homeScreenAdded')?.());
   expect(screen.getByText('Иконка ФК Алтынка на главном экране')).toBeInTheDocument();
-  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена')).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: /Добавить/ })).not.toBeInTheDocument();
 });
 
 test('an icon added earlier shows as added; unsupported clients and the browser show nothing', () => {
   telegram({ status: 'added' });
   const first = renderWithApp(<SystemSettings />, { me: player });
-  expect(screen.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeInTheDocument();
+  expect(screen.getByText('Уже добавлена')).toBeInTheDocument();
   first.unmount();
   telegram({ status: 'unsupported' });
   const second = renderWithApp(<SystemSettings />, { me: player });
@@ -85,89 +85,10 @@ test('the notifications switch moves at the tap and moves back when the server r
   const toggle = screen.getByRole('switch', { name: 'Уведомления' });
   await userEvent.click(toggle);
   expect(toggle).not.toBeChecked();
-  expect(screen.getByText('Личные уведомления выключены')).toBeInTheDocument();
+  expect(screen.getByText('Выключены')).toBeInTheDocument();
   await act(async () => reject(new TypeError('offline')));
   expect(toggle).toBeChecked();
   expect(await screen.findByText('Не получилось изменить уведомления. Попробуй ещё раз.')).toBeInTheDocument();
   vi.unstubAllGlobals();
 });
 
-test('the privacy policy opens from the settings through Telegram', async () => {
-  const { app } = telegram();
-  const openLink = vi.fn();
-  Object.assign(app, { openLink });
-  renderWithApp(<SystemSettings />, { me: player });
-  await userEvent.click(screen.getByRole('button', { name: /Политика конфиденциальности/ }));
-  expect(openLink).toHaveBeenCalledWith(`${location.origin}/privacy.html`);
-});
-
-describe('delete my data', () => {
-  afterEach(() => vi.unstubAllGlobals());
-  const stubDelete = (response: Response) => {
-    const fetchMock = vi.fn(async () => response);
-    vi.stubGlobal('fetch', fetchMock);
-    return fetchMock;
-  };
-
-  test('explains what goes and what stays, deletes after one confirmation and offers to close the app', async () => {
-    const { app } = telegram();
-    const close = vi.fn();
-    Object.assign(app, { close });
-    const fetchMock = stubDelete(Response.json({ deleted: true }));
-    renderWithApp(<SystemSettings />, { me: player });
-    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
-    const sheet = screen.getByRole('dialog', { name: 'Удалить мои данные?' });
-    expect(sheet).toHaveTextContent('Удалённый игрок');
-    expect(sheet).toHaveTextContent('Отменить удаление нельзя');
-    expect(fetchMock).not.toHaveBeenCalled();
-    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect([url, init.method, init.body]).toEqual(['/api/me', 'DELETE', JSON.stringify({ confirm: 'delete' })]);
-    expect(await screen.findByRole('dialog', { name: 'Данные удалены' })).toBeVisible();
-    await userEvent.click(screen.getAllByRole('button', { name: 'Закрыть приложение' }).at(-1)!);
-    expect(close).toHaveBeenCalled();
-  });
-
-  test('the receiver of an open bill learns what to do first; nothing is deleted', async () => {
-    telegram();
-    stubDelete(Response.json({ error: 'receiver_open_bill' }, { status: 409 }));
-    renderWithApp(<SystemSettings />, { me: player });
-    await userEvent.click(screen.getByRole('button', { name: /Удалить мои данные/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Удалить навсегда' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Попроси организатора закрыть счёт');
-    expect(screen.getByRole('dialog', { name: 'Удалить мои данные?' })).toBeVisible();
-  });
-});
-
-describe('report a problem', () => {
-  afterEach(() => vi.unstubAllGlobals());
-
-  test('the text goes to the developer with the screen and the version; the sheet closes with thanks', async () => {
-    telegram();
-    const fetchMock = vi.fn(async () => Response.json({ sent: true }));
-    vi.stubGlobal('fetch', fetchMock);
-    renderWithApp(<SystemSettings />, { me: player });
-    expect(screen.getByText(/^Версия dev/)).toBeInTheDocument();
-    await userEvent.click(screen.getByRole('button', { name: /Сообщить о проблеме/ }));
-    const send = screen.getByRole('button', { name: 'Отправить' });
-    expect(send).toBeDisabled();
-    await userEvent.type(screen.getByLabelText('Что случилось?'), '  Не обновился список  ');
-    await userEvent.click(send);
-    const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    expect(url).toBe('/api/feedback');
-    expect(JSON.parse(init.body as string)).toEqual({ text: 'Не обновился список', path: '/', version: 'dev' });
-    expect(await screen.findByText('Отправили. Спасибо!')).toBeInTheDocument();
-    expect(screen.queryByRole('dialog', { name: 'Сообщить о проблеме' })).not.toBeInTheDocument();
-  });
-
-  test('too often: the text stays and the person learns when to retry', async () => {
-    telegram();
-    vi.stubGlobal('fetch', vi.fn(async () => Response.json({ error: 'too_often' }, { status: 429 })));
-    renderWithApp(<SystemSettings />, { me: player });
-    await userEvent.click(screen.getByRole('button', { name: /Сообщить о проблеме/ }));
-    await userEvent.type(screen.getByLabelText('Что случилось?'), 'Снова');
-    await userEvent.click(screen.getByRole('button', { name: 'Отправить' }));
-    expect(await screen.findByRole('alert')).toHaveTextContent('Подожди полминуты');
-    expect(screen.getByLabelText('Что случилось?')).toHaveValue('Снова');
-  });
-});

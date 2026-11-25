@@ -81,12 +81,15 @@ test('a sheet in full screen stops below Telegram\'s buttons', async ({ page }) 
 test('settings add the home-screen icon and turn full screen off for this phone', async ({ page }) => {
   await fullscreenTelegram(page);
   await page.goto('/profile');
-  const add = page.getByRole('button', { name: /Иконка на главном экране.*Добавить/ });
+  const add = page.getByRole('button', { name: /Иконка на главном экране.*Открывать как приложение/ });
   await add.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(300);
+  await page.screenshot({ path: 'artifacts/ui/profile-system-settings-telegram.png' });
   await add.click();
   expect(await calls(page)).toContain('addToHomeScreen');
   await page.evaluate(() => (window as unknown as { tgListeners: Record<string, () => void> }).tgListeners.homeScreenAdded?.());
-  await expect(page.getByText('Уже добавлена: ФК Алтынка открывается прямо с экрана телефона')).toBeVisible();
+  await expect(page.getByText('Уже добавлена')).toBeVisible();
+  await page.screenshot({ path: 'artifacts/ui/profile-system-settings-telegram-added.png' });
 
   const toggle = page.getByRole('switch', { name: 'Во весь экран' });
   await expect(toggle).toBeChecked();

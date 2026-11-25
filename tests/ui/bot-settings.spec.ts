@@ -18,10 +18,10 @@ for (const width of [320, 390]) test(`notification preferences preserve initial 
   await page.goto('/profile');
   await page.getByLabel('Имя в списках').fill('Тимур вратарь');
   await page.getByRole('switch', { name: 'Уведомления' }).click();
-  await expect(page.getByText('Личные уведомления выключены')).toBeVisible();
+  await expect(page.getByText('Выключены')).toBeVisible();
   await expect(page.getByLabel('Имя в списках')).toHaveValue('Тимур вратарь');
   await page.getByRole('switch', { name: 'Уведомления' }).click();
-  await expect(page.getByText('Личные уведомления включены')).toBeVisible();
+  await expect(page.getByText('Включены')).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   await page.screenshot({ path: `artifacts/ui/bot-notifications-${width}.png`, fullPage: true });

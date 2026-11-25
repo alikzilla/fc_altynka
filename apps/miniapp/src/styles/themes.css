@@ -51,6 +51,13 @@
   background: linear-gradient(150deg, #fff, #ece8f1);
   box-shadow: var(--rim);
 }
+:root[data-theme='light'] .material-danger {
+  background: linear-gradient(150deg, #fff6f8, #fbe3e8);
+  box-shadow: var(--rim);
+  color: var(--danger);
+}
+:root[data-theme='light'] .material-danger .task-copy small { color: #8a3a4f; }
+:root[data-theme='light'] .material-danger .task-icon { background: #a62b4b14; }
 :root[data-theme='light'] .back-link,
 :root[data-theme='light'] .sheet-close { background: #e9e3ef; }
 :root[data-theme='light'] .section-heading > :is(a, button) { color: #67458b; }
