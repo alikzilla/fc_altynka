@@ -15,12 +15,27 @@ vi.mock('../src/lib/timerTrack', () => ({ TRACK_TAIL_SEC: 4, buildTrack: vi.fn()
 vi.mock('../src/lib/keepAwake', () => ({ keepAwake: vi.fn() }));
 vi.mock('../src/lib/tg', () => ({ haptic: vi.fn() }));
 
-class FakeAudio {
-  src = ''; currentTime = 0; paused = true; ended = false;
-  play = vi.fn(() => { this.paused = false; return Promise.resolve(); });
-  pause = vi.fn(() => { this.paused = true; });
+/** An audio element whose position advances with the (fake) clock while playing and that fires media events. */
+class FakeAudio extends EventTarget {
+  src = ''; paused = true; ended = false;
+  private base = 0; private since = 0;
+  get currentTime() { return this.paused ? this.base : this.base + (performance.now() - this.since) / 1000; }
+  set currentTime(sec: number) { this.base = sec; this.since = performance.now(); }
+  play = vi.fn(() => {
+    if (this.paused) { this.since = performance.now(); this.paused = false; this.ended = false; this.dispatchEvent(new Event('playing')); }
+    return Promise.resolve();
+  });
+  pause = vi.fn(() => this.stop('pause'));
   load = vi.fn();
   removeAttribute = vi.fn((name: string) => { if (name === 'src') this.src = ''; });
+  /** The system paused it (call, another app): not through the hook. */
+  interrupt() { act(() => this.stop('pause')); }
+  finish() { act(() => { this.ended = true; this.stop('ended'); }); }
+  private stop(type: string) {
+    if (this.paused) return;
+    this.base = this.currentTime; this.paused = true;
+    this.dispatchEvent(new Event(type));
+  }
 }
 
 const PATH = '/api/events/7/games/timer';
@@ -72,8 +87,8 @@ test('start plays the prebuilt track from 0 before sending the tap moment in ser
   expect(result.current).toMatchObject({ status: 'running', sound: 'on' });
   expect(keepAwake).toHaveBeenCalledTimes(1);
   expect(readPendingTimer(7)).toBeNull();
-  audio.currentTime = 10;
-  await tick();
+  await tick(10_000);
+  expect(audio.currentTime).toBe(10);
   expect(result.current.remainingSec).toBe(350);
 });
 
@@ -129,7 +144,6 @@ test('a pause from another organizer stops the track and freezes the digits; the
   await act(() => result.current.start());
   const started = send().mock.calls[0][2] as GameTimer;
   await tick(20_000);
-  audio.currentTime = 20;
   rerender({ ev: evWith({ timer: { ...started, pausedAt: serverTime(), updatedAt: serverTime() } }) });
   expect(audio.pause).toHaveBeenCalled();
   expect(result.current).toMatchObject({ status: 'paused', remainingSec: 340, sound: 'on' });
@@ -163,7 +177,6 @@ test('own pause and resume send ordered states and control the track', async () 
   await act(() => result.current.start());
   const started = send().mock.calls[0][2] as GameTimer;
   await tick(30_000);
-  audio.currentTime = 30;
   act(() => result.current.pause());
   const pausedAt = serverTime();
   expect(send()).toHaveBeenLastCalledWith('PUT', PATH, { ...started, pausedAt, updatedAt: pausedAt });
@@ -210,11 +223,83 @@ test('overtime after a reload counts below zero and listen() does not seek past 
   await flush();
   expect(result.current.remainingSec).toBeCloseTo(-40);
   expect(result.current.phase).toBe('over');
+  expect(result.current.sound).toBe('off'); // nothing left to play: no «Продолжить сигналы»
   await act(() => result.current.listen());
   expect(audio.play).not.toHaveBeenCalled();
   expect(audio.currentTime).toBeLessThanOrEqual(364);
+  expect(result.current.sound).toBe('off');
   await tick(1000);
   expect(result.current.remainingSec).toBeCloseTo(-41);
+});
+
+test('when the track has played out the sound is off; the organizer keeps the screen on, a participant releases it', async () => {
+  const organizer = renderTimer(evWith());
+  await flush();
+  await act(() => organizer.result.current.start());
+  await tick(363_000);
+  expect(organizer.result.current.sound).toBe('on');
+  audio.finish();
+  expect(organizer.result.current).toMatchObject({ sound: 'off', status: 'running' });
+  await tick(5000);
+  expect(organizer.result.current.sound).toBe('off');
+  expect(release).not.toHaveBeenCalled();
+  organizer.unmount();
+
+  audio = new FakeAudio();
+  release.mockClear();
+  const participant = renderTimer(evWith({ canRecord: false, timer: runningFor(300) }));
+  await flush();
+  await act(() => participant.result.current.listen());
+  await tick(63_000);
+  expect(participant.result.current.sound).toBe('on');
+  await tick(1000); // reaches duration + TRACK_TAIL_SEC by the server clock
+  expect(participant.result.current.sound).toBe('off');
+  expect(release).toHaveBeenCalled();
+});
+
+test('an interrupted track shows «resumable» to the organizer and «off» to a participant', async () => {
+  const organizer = renderTimer(evWith());
+  await flush();
+  await act(() => organizer.result.current.start());
+  await tick(20_000);
+  audio.interrupt();
+  expect(organizer.result.current).toMatchObject({ sound: 'resumable', status: 'running' });
+  await act(() => organizer.result.current.listen());
+  expect(audio.currentTime).toBe(20);
+  expect(organizer.result.current.sound).toBe('on');
+  organizer.unmount();
+
+  audio = new FakeAudio();
+  const participant = renderTimer(evWith({ canRecord: false, timer: runningFor(30) }));
+  await flush();
+  await act(() => participant.result.current.listen());
+  audio.interrupt();
+  expect(participant.result.current.sound).toBe('off');
+});
+
+test('a track that cannot be built is not reported as playing', async () => {
+  vi.mocked(buildTrack).mockRejectedValue(new Error('offline'));
+  const { result } = renderTimer(evWith());
+  await flush();
+  expect(result.current.trackReady).toBe(false);
+  await act(() => result.current.start());
+  expect(send()).toHaveBeenCalledTimes(1);
+  expect(audio.play).not.toHaveBeenCalled();
+  expect(result.current).toMatchObject({ status: 'running', sound: 'resumable' });
+});
+
+test('a track that fell behind is seeked back on return to the screen and on the tick', async () => {
+  const { result } = renderTimer(evWith());
+  await flush();
+  await act(() => result.current.start());
+  await tick(30_000);
+  audio.currentTime = 10; // stalled while the screen was away
+  act(() => { document.dispatchEvent(new Event('visibilitychange')); });
+  expect(audio.currentTime).toBe(30);
+  audio.currentTime = 12;
+  await tick();
+  expect(audio.currentTime).toBeCloseTo(30.25);
+  expect(result.current.remainingSec).toBeCloseTo(329.75);
 });
 
 test('a recorded result while the timer runs stops the track, releases the screen and waits for the next game', async () => {
@@ -265,14 +350,12 @@ test('haptic fires once on each phase change while visible', async () => {
   const { result } = renderTimer(evWith());
   await flush();
   await act(() => result.current.start());
-  audio.currentTime = 301;
-  await tick();
+  await tick(301_000);
   expect(result.current.phase).toBe('last_minute');
   await tick();
   expect(haptic).toHaveBeenCalledTimes(1);
   expect(haptic).toHaveBeenCalledWith('heavy');
-  audio.currentTime = 346;
-  await tick();
+  await tick(45_000);
   expect(result.current.phase).toBe('last_attack');
   expect(haptic).toHaveBeenCalledTimes(2);
 });
@@ -291,6 +374,17 @@ test('Media Session shows the game and its lock-screen pause pauses the shared t
     await act(async () => handlers.pause?.());
     expect(result.current.status).toBe('paused');
     expect(send()).toHaveBeenLastCalledWith('PUT', PATH, expect.objectContaining({ pausedAt: serverTime() }));
+    await tick(5000);
+    await act(async () => handlers.play?.());
+    expect(result.current.status).toBe('running');
+    await tick(10_000);
+    audio.interrupt(); // a call took the audio; the lock-screen play brings it back at the elapsed time
+    expect(result.current.sound).toBe('resumable');
+    const sends = send().mock.calls.length;
+    await act(async () => handlers.play?.());
+    expect(audio.currentTime).toBeCloseTo(11);
+    expect(result.current.sound).toBe('on');
+    expect(send()).toHaveBeenCalledTimes(sends);
   } finally {
     Reflect.deleteProperty(navigator, 'mediaSession');
     vi.unstubAllGlobals();

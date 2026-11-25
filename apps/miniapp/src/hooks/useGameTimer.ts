@@ -3,7 +3,8 @@ import {
   type EventDetailDto, type GameTimer, type StoredGameTimer, type TimerPhase,
 } from '@altynka/core';
 import { useEffect, useRef, useState } from 'react';
-import { ApiError, api } from '../lib/api';
+import { api } from '../lib/api';
+import { effectiveTimer, isFinalRejection, type LocalTimer } from '../lib/gameTimerState';
 import { clearPendingTimer, readPendingTimer, readTimerDuration, writePendingTimer, writeTimerDuration } from '../lib/gameTimerStore';
 import { keepAwake } from '../lib/keepAwake';
 import { resourceReceivedAt } from '../lib/queryClient';
@@ -21,25 +22,6 @@ export interface GameTimerView {
   start(): Promise<void>; pause(): void; resume(): Promise<void>; reset(): void;
   listen(): Promise<void>; mute(): void;
 }
-
-/** This device's latest write: `confirmedAt` is null while it waits for the server (also across reloads). */
-type LocalTimer = { timer: StoredGameTimer; confirmedAt: number | null };
-
-/**
- * The newer of the server timer and this device's write. A null server timer is ambiguous (never started or
- * reset elsewhere), so a confirmed write stops counting once a snapshot served after its confirmation arrives.
- */
-function effectiveTimer(ev: EventDetailDto, local: LocalTimer | null): GameTimer | null {
-  const protocol = ev.gameProtocol;
-  if (protocol?.state !== 'playing') return null;
-  const server = protocol.timer ?? null;
-  if (!local || local.timer.gameSequence !== protocol.games.length + 1) return server;
-  if (server && server.updatedAt >= local.timer.updatedAt) return server;
-  if (local.confirmedAt !== null && (ev.serverNow ?? 0) > local.confirmedAt) return server;
-  return 'reset' in local.timer ? null : local.timer;
-}
-
-const giveUp = (error: unknown) => error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429;
 
 export function useGameTimer(ev: EventDetailDto): GameTimerView {
   const protocol = ev.gameProtocol;
@@ -78,10 +60,17 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
   const status = !timer ? 'waiting' : timer.pausedAt !== null ? 'paused' : 'running';
   const durationSec = timer?.durationSec ?? selected;
   const trackReady = track?.durationSec === durationSec;
+  const audioPlaying = !audio.paused; // re-rendered by the element's playing/pause/ended events
+  const serverRemaining = timer ? timerRemainingSec(timer, serverNow()) : selected;
+  // Nothing is left to play once the track has ended or the time is past its tail.
+  const trackOver = !!timer && (serverRemaining <= -TRACK_TAIL_SEC || (soundOn && audio.ended));
   const audioDriven = soundOn && status === 'running' && trackReady && audio.src === track.url
-    && !audio.paused && audio.currentTime < durationSec + TRACK_TAIL_SEC;
-  const remainingSec = !timer ? selected : audioDriven ? durationSec - audio.currentTime : timerRemainingSec(timer, serverNow());
+    && audioPlaying && audio.currentTime < durationSec + TRACK_TAIL_SEC;
+  const remainingSec = audioDriven ? durationSec - audio.currentTime : serverRemaining;
   const phase = timerPhase(remainingSec);
+  const sound = !timer || trackOver ? 'off'
+    : soundOn && (status === 'paused' || audioPlaying) ? 'on'
+    : canControl && status === 'running' ? 'resumable' : 'off';
 
   /** Brings this device's track in line with the current timer; plays synchronously when the track is ready. */
   const syncAudio = (): Promise<void> | undefined => {
@@ -112,7 +101,7 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
         applyLocal({ timer: confirmed, confirmedAt: toServerTime(performance.now()) });
       },
       error => {
-        if (!giveUp(error) || localRef.current?.timer !== next) return; // offline: stays pending, re-sent on the next poll
+        if (!isFinalRejection(error) || localRef.current?.timer !== next) return; // offline: stays pending, re-sent on the next poll
         clearPendingTimer(evRef.current.id);
         applyLocal(null);
       },
@@ -169,8 +158,10 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     setSelected(sec);
     writeTimerDuration(sec);
   };
-  const actions = useRef({ pause, resume });
-  actions.current = { pause, resume };
+  // Lock-screen play: resume a paused timer, or bring back the sound of a running one (e.g. after a call).
+  const play = () => (current()?.pausedAt === null ? listen() : resume());
+  const actions = useRef({ pause, play, syncAudio });
+  actions.current = { pause, play, syncAudio };
 
   // Every snapshot: drop a pending write the server already has or that belongs to a finished game; re-send the rest.
   useEffect(() => {
@@ -196,11 +187,16 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
   useEffect(() => {
     if (wanted === null || trackRef.current?.durationSec === wanted) return;
     let live = true;
-    buildTrack(wanted).then(url => { if (live) keepTrack({ durationSec: wanted, url }); }, () => {});
+    buildTrack(wanted).then(url => {
+      if (!live) return;
+      keepTrack({ durationSec: wanted, url });
+      if (audio.paused && audio.src !== url) audio.src = url; // loads metadata before the tap
+    }, () => {});
     return () => { live = false; };
   }, [wanted]);
 
-  const awake = soundOn && status === 'running';
+  // The organizer keeps the screen on while the timer runs; a participant only while there is sound to hear.
+  const awake = soundOn && status === 'running' && (canControl || !trackOver);
   useEffect(() => {
     if (!awake) return;
     const handle = keepAwake();
@@ -209,9 +205,24 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
 
   useEffect(() => {
     if (status !== 'running') return;
-    const id = setInterval(() => setTick(n => n + 1), 250);
+    const id = setInterval(() => {
+      setTick(n => n + 1);
+      if (!audio.paused) void actions.current.syncAudio(); // seeks a track that drifted more than 1 s
+    }, 250);
     return () => clearInterval(id);
-  }, [status]);
+  }, [status, audio]);
+
+  useEffect(() => {
+    const rerender = () => setTick(n => n + 1);
+    const onVisible = () => { if (document.visibilityState === 'visible') void actions.current.syncAudio(); };
+    const media = ['playing', 'pause', 'ended'];
+    for (const type of media) audio.addEventListener(type, rerender);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      for (const type of media) audio.removeEventListener(type, rerender);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [audio]);
 
   const lastPhase = useRef<TimerPhase | null>(null);
   useEffect(() => {
@@ -228,7 +239,7 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     const handle = (action: MediaSessionAction, fn: (() => void) | null) => { try { session.setActionHandler(action, fn); } catch { /* unsupported action */ } };
     try { if (typeof MediaMetadata === 'function') session.metadata = new MediaMetadata({ title: `Игра ${gameSequence} · таймер` }); } catch { /* no metadata */ }
     if (canControl) {
-      handle('play', () => void actions.current.resume());
+      handle('play', () => void actions.current.play());
       handle('pause', () => actions.current.pause());
     }
     return () => {
@@ -246,7 +257,6 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
 
   return {
     status, remainingSec, phase, durationSec, setDurationSec,
-    sound: soundOn && timer ? 'on' : canControl && status === 'running' ? 'resumable' : 'off',
-    canControl, trackReady, start, pause, resume, reset, listen, mute,
+    sound, canControl, trackReady, start, pause, resume, reset, listen, mute,
   };
 }
