@@ -1,10 +1,9 @@
 import { useSyncExternalStore } from 'react';
 import { clubById, type AppTheme, type ClubId } from '@altynka/core';
-import { clubVariables } from './clubTheme';
+import { CLUB_VARIABLES, clubVariables } from './clubTheme';
 
 const CACHE_KEY = 'altynka:theme';
 const CLUB_CACHE_KEY = 'altynka:club';
-const CLUB_VARIABLES = ['--accent', '--accent-ink', '--on-accent', '--accent-soft', '--club-accent', '--club-on-accent', '--club-pattern'];
 
 export function getTheme(): AppTheme {
   return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark';

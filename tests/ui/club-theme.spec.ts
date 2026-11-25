@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { animationsSettled, expect, test, type Page } from './fixtures';
 import { teamApiRoute } from './team-fixture';
+import { clubById, contrastRatio } from '../../packages/core/src/clubs';
 
 // Синтетические данные: ничего не уходит ни в бота, ни в D1.
 const community = { id: 1, title: 'FC Altynka' };
@@ -66,22 +67,86 @@ test('picking a club recolours the app and the profile card', async ({ page }) =
   await expect(page.locator('html')).toHaveAttribute('data-club', 'barcelona');
 });
 
-for (const theme of ['dark', 'light'] as const) for (const club of ['barcelona', 'real-madrid', 'kairat']) {
-  test(`club ${club} in the ${theme} theme keeps contrast on Home and Profile`, async ({ page }) => {
+for (const theme of ['dark', 'light'] as const) for (const club of ['barcelona', 'real-madrid', 'kairat', 'juventus']) {
+  test(`club ${club} in the ${theme} theme keeps contrast on Home, Profile and the match`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await world(page, { favoriteClub: club, theme });
-    for (const [path, shot] of [['/', 'home'], ['/profile', 'profile']] as const) {
+    for (const [path, shot] of [['/', 'home'], ['/profile', 'profile'], ['/event/7', 'event']] as const) {
       await page.goto(path);
       await expect(page.locator('html')).toHaveAttribute('data-club', club);
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
       await expect(page.locator('.club-backdrop')).toBeVisible();
-      await expect(page.locator('img.club-heading-crest')).toBeVisible();
+      // У матча в заголовке есть действия, поэтому маленькой эмблемы там нет.
+      if (shot === 'event') await expect(page.locator('.screen-heading .subtitle')).toBeVisible();
+      else await expect(page.locator('img.club-heading-crest')).toBeVisible();
       await page.waitForFunction(() => [...document.images].every(i => i.complete));
       expect(await contrast(page), `${path} ${club} ${theme}`).toEqual([]);
       await page.screenshot({ path: `artifacts/ui/club-${shot}-${club}-${theme}.png` });
     }
   });
 }
+
+/** `rgb(r, g, b)` из getComputedStyle → `#rrggbb`. */
+const hex = (rgb: string) => '#' + rgb.match(/\d+/g)!.slice(0, 3).map(v => Number(v).toString(16).padStart(2, '0')).join('');
+const over = (top: string, bottom: string, alpha: number) => '#' + [1, 3, 5].map(i => Math.round(parseInt(top.slice(i, i + 2), 16) * alpha + parseInt(bottom.slice(i, i + 2), 16) * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+
+// axe отдаёт текст на градиенте как «incomplete», поэтому контраст подзаголовка на узоре считаем сами из того, что отрисовано.
+for (const [club, theme] of [['real-madrid', 'dark'], ['juventus', 'light']] as const) {
+  test(`${club} ${theme}: the match heading and its weekday stay readable over the pattern`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await world(page, { favoriteClub: club, theme });
+    await page.goto('/event/7');
+    const subtitle = page.locator('.screen-heading .subtitle');
+    await expect(subtitle).toBeVisible();
+    await expect(page.locator('.club-backdrop')).toBeVisible();
+    const drawn = await page.evaluate(() => {
+      const backdrop = document.querySelector('.club-backdrop')!;
+      const heading = document.querySelector('.screen-heading')!;
+      return {
+        variable: getComputedStyle(document.documentElement).getPropertyValue('--club-pattern-opacity').trim(),
+        opacity: getComputedStyle(backdrop, '::before').opacity,
+        bg: getComputedStyle(document.documentElement).backgroundColor,
+        title: getComputedStyle(heading.querySelector('.title')!).color,
+        subtitle: getComputedStyle(heading.querySelector('.subtitle')!).color,
+        // Подзаголовок лежит на шапке, у верхней немаскированной части, где узор в полную силу: считаем худший случай.
+        subtitleTop: heading.querySelector('.subtitle')!.getBoundingClientRect().top - backdrop.getBoundingClientRect().top,
+        solidUntil: backdrop.getBoundingClientRect().height * 0.25,
+      };
+    });
+    const alpha = Number(drawn.opacity);
+    expect(drawn.variable).toBe(drawn.opacity);
+    expect(alpha).toBeLessThan(theme === 'dark' ? 0.55 : 0.3);
+    expect(alpha).toBeGreaterThan(0);
+    expect(drawn.subtitleTop).toBeLessThan(drawn.solidUntil);
+    for (const color of clubById(club)!.pattern.colors) {
+      const mixed = over(color, hex(drawn.bg), alpha);
+      expect(contrastRatio(hex(drawn.subtitle), mixed), `subtitle on ${color}`).toBeGreaterThanOrEqual(4.5);
+      expect(contrastRatio(hex(drawn.title), mixed), `title on ${color}`).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+}
+
+test('high contrast hides the backdrop and keeps only the club colour on a flat primary button', async ({ page }) => {
+  await page.emulateMedia({ contrast: 'more' });
+  await world(page, { favoriteClub: 'barcelona' });
+  await page.goto('/profile');
+  await expect(page.locator('html')).toHaveAttribute('data-club', 'barcelona');
+  await expect(page.locator('.club-backdrop')).toBeHidden();
+  const style = await page.evaluate(() => {
+    const host = document.querySelector('.screen')!;
+    const button = Object.assign(document.createElement('button'), { className: 'btn primary', textContent: 'Проверка' });
+    host.append(button);
+    const s = getComputedStyle(button);
+    const result = { bg: s.backgroundColor, image: s.backgroundImage, color: s.color, shadow: s.boxShadow };
+    button.remove();
+    return result;
+  });
+  const barcelona = clubById('barcelona')!.dark;
+  expect(hex(style.bg)).toBe(barcelona.accent);
+  expect(hex(style.color)).toBe(barcelona.onAccent);
+  expect(style.image).toBe('none');
+  expect(style.shadow).toBe('none');
+});
 
 for (const width of [390, 320]) test(`${width} px: picker with long names has no sideways scroll`, async ({ page }) => {
   await page.setViewportSize({ width, height: 700 });

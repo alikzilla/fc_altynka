@@ -1,6 +1,6 @@
 import { CLUBS, clubById, contrastRatio } from '@altynka/core';
 import { act, cleanup } from '@testing-library/react';
-import { clubPatternCss, clubVariables, materialVariables } from '../src/lib/clubTheme';
+import { clubPatternCss, clubVariables, materialVariables, patternColors } from '../src/lib/clubTheme';
 import { applyClub } from '../src/lib/theme';
 import { Screen } from '../src/components/ui';
 import { player, renderWithApp } from './render';
@@ -76,4 +76,39 @@ test('every text colour of the club card is readable on its material for every c
       }
     }
   }
+});
+
+// Токены текста страницы (app.css :root и themes.css) и их фон: всё, что стоит под шапкой без своей подложки.
+const PAGE = {
+  dark: { bg: '#08090b', text: '#f2f1f8', hint: '#b6b2c2', base: 0.55 },
+  light: { bg: '#f4f2f7', text: '#241f2e', hint: '#655c71', base: 0.3 },
+} as const;
+const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16));
+/** Цвет узора с прозрачностью `alpha` поверх фона страницы (CSS смешивает в sRGB). */
+function over(color: string, bg: string, alpha: number): string {
+  const [top, bottom] = [rgb(color), rgb(bg)];
+  return '#' + top.map((v, i) => Math.round(v * alpha + bottom[i]! * (1 - alpha)).toString(16).padStart(2, '0')).join('');
+}
+const readable = (theme: 'dark' | 'light', colors: string[], alpha: number) => colors.every(c => {
+  const mixed = over(c, PAGE[theme].bg, alpha);
+  return contrastRatio(PAGE[theme].text, mixed) >= 4.5 && contrastRatio(PAGE[theme].hint, mixed) >= 4.5;
+});
+
+test('pattern opacity keeps text and hint at 4.5:1 over every drawn colour, as strong as that allows', () => {
+  for (const club of CLUBS) {
+    for (const theme of ['dark', 'light'] as const) {
+      const raw = clubVariables(club, theme)['--club-pattern-opacity'];
+      expect(raw, `${club.id} ${theme}`).toMatch(/^0(\.\d{1,2})?$/);
+      const alpha = Number(raw);
+      expect(alpha, `${club.id} ${theme}`).toBeLessThanOrEqual(PAGE[theme].base);
+      expect(readable(theme, patternColors(club.pattern), alpha), `${club.id} ${theme} at ${alpha}`).toBe(true);
+      // Не слабее, чем нужно: на 0,01 сильнее уже нечитаемо, либо это базовая прозрачность темы.
+      if (alpha < PAGE[theme].base) expect(readable(theme, patternColors(club.pattern), alpha + 0.01), `${club.id} ${theme} could be ${alpha + 0.01}`).toBe(false);
+    }
+  }
+});
+
+test('patternColors: solid draws only its first colour', () => {
+  expect(patternColors({ kind: 'solid', colors: ['#111111', '#222222'] })).toEqual(['#111111']);
+  expect(patternColors({ kind: 'halves', colors: ['#111111', '#222222'] })).toEqual(['#111111', '#222222']);
 });

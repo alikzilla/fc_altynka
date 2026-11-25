@@ -41,3 +41,13 @@ test.each(CLUBS.map(c => [c.id, c] as const))('%s is readable in both themes', (
 test('striped clubs keep their stripes', () => {
   for (const id of ['barcelona', 'juventus', 'milan', 'inter', 'atletico', 'argentina']) expect(clubById(id)!.pattern.kind).toBe('stripes');
 });
+
+test.each(CLUBS.map(c => [c.id, c] as const))('%s accentInk is readable as text on cards', (_id, c) => {
+  // .btn-text, ссылки и подписи действий лежат и на карточках: графитовой в тёмной теме, белой в светлой.
+  expect(contrastRatio(c.dark.accentInk, '#19191f')).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio(c.light.accentInk, '#ffffff')).toBeGreaterThanOrEqual(4.5);
+});
+
+test('solid patterns carry exactly one colour, the one that is drawn', () => {
+  for (const c of CLUBS) if (c.pattern.kind === 'solid') expect(c.pattern.colors, c.id).toHaveLength(1);
+});

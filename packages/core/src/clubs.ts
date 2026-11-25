@@ -28,6 +28,10 @@ export type ClubId = (typeof CLUB_IDS)[number];
 export interface ClubAccent { accent: string; onAccent: string; accentInk: string }
 /** Материал карточки (как .material-plum): светлое пятно, средний тон, тёмная база. Один на обе темы. */
 export interface ClubMaterial { highlight: string; mid: string; base: string; ink: string }
+/**
+ * Узор шапки: `stripes` — вертикальные полосы, `hoops` — горизонтальные обручи, `halves` — равные вертикальные
+ * доли (две половины или три полосы флага), `solid` — один цвет: рисуется только `colors[0]`.
+ */
 export type ClubPattern = { kind: 'stripes' | 'hoops' | 'halves' | 'solid'; colors: string[] };
 
 export interface Club {
@@ -77,11 +81,11 @@ const SPECS: Spec[] = [
     m: ['#4f7fe0', '#123f9a', '#061430', W], p: { kind: 'solid', colors: ['#034694'] } },
   { id: 'tottenham', name: 'Тоттенхэм', league: 'epl',
     d: ['#8fa0c8', '#0b1230', '#9fb0d8'], l: ['#132257', W, '#132257'],
-    m: ['#7c8fc4', '#26386e', '#0a1230', W], p: { kind: 'solid', colors: ['#132257', '#ffffff'] } },
+    m: ['#7c8fc4', '#26386e', '#0a1230', W], p: { kind: 'solid', colors: ['#132257'] } },
 
   { id: 'real-madrid', name: 'Реал Мадрид', league: 'laliga',
     d: ['#e9d18a', '#1d1b29', '#e9d18a'], l: ['#7a5f12', W, '#6f560f'],
-    m: ['#ffffff', '#d9d6e2', '#b9b4c6', '#1d1b29'], p: { kind: 'solid', colors: ['#ffffff', '#c9a227'] } },
+    m: ['#ffffff', '#d9d6e2', '#b9b4c6', '#1d1b29'], p: { kind: 'solid', colors: ['#ffffff'] } },
   { id: 'barcelona', name: 'Барселона', league: 'laliga',
     d: ['#ef6f95', '#2a0612', '#ef6f95'], l: ['#b8174a', W, '#a8153f'],
     m: ['#d6386a', '#8c1238', '#2a0612', W], p: { kind: 'stripes', colors: ['#1d4fa3', '#a3123f'] } },
@@ -101,10 +105,10 @@ const SPECS: Spec[] = [
 
   { id: 'bayern', name: 'Бавария', league: 'bundesliga',
     d: ['#ee3a50', D, '#ff7d8e'], l: ['#c8102e', W, '#b50e29'],
-    m: ['#e2384c', '#a50f2e', '#1a0710', W], p: { kind: 'solid', colors: ['#dc052d', '#0066b2'] } },
+    m: ['#e2384c', '#a50f2e', '#1a0710', W], p: { kind: 'solid', colors: ['#dc052d'] } },
   { id: 'dortmund', name: 'Боруссия Дортмунд', league: 'bundesliga',
     d: ['#fde100', '#1a1500', '#fde100'], l: ['#6e5c00', W, '#645400'],
-    m: ['#e6c22a', '#8a7006', '#1f1802', W], p: { kind: 'solid', colors: ['#fde100', '#000000'] } },
+    m: ['#e6c22a', '#8a7006', '#1f1802', W], p: { kind: 'solid', colors: ['#fde100'] } },
 
   { id: 'psg', name: 'ПСЖ', league: 'ligue1',
     d: ['#5a82d8', D, '#86a6ee'], l: ['#1b3d85', W, '#173574'],
@@ -112,10 +116,10 @@ const SPECS: Spec[] = [
 
   { id: 'kairat', name: 'Кайрат', league: 'kpl',
     d: ['#ffd51f', '#221a02', '#ffd51f'], l: ['#6b5600', W, '#5f4c00'],
-    m: ['#e6c22a', '#876c06', '#221a02', W], p: { kind: 'solid', colors: ['#ffe600', '#000000'] } },
+    m: ['#e6c22a', '#876c06', '#221a02', W], p: { kind: 'solid', colors: ['#ffe600'] } },
   { id: 'astana', name: 'Астана', league: 'kpl',
     d: ['#4fc3f0', '#05202e', '#4fc3f0'], l: ['#0a6b9a', W, '#085f89'],
-    m: ['#2fa6dc', '#0a5f8f', '#04141f', W], p: { kind: 'solid', colors: ['#00a3e0', '#ffd100'] } },
+    m: ['#2fa6dc', '#0a5f8f', '#04141f', W], p: { kind: 'solid', colors: ['#00a3e0'] } },
   { id: 'tobol', name: 'Тобол', league: 'kpl',
     d: ['#4fc3a0', '#04241a', '#4fc3a0'], l: ['#0d6e55', W, '#0b6049'],
     m: ['#2fa584', '#0d5f48', '#04180f', W], p: { kind: 'solid', colors: ['#0b8f6e'] } },
@@ -124,23 +128,23 @@ const SPECS: Spec[] = [
     m: ['#d98a2a', '#8c4f08', '#241200', W], p: { kind: 'halves', colors: ['#f08a00', '#000000'] } },
   { id: 'aktobe', name: 'Актобе', league: 'kpl',
     d: ['#4f8fe8', D, '#7fb0f5'], l: ['#1a4f9e', W, '#164488'],
-    m: ['#3f7fd4', '#154c96', '#06101f', W], p: { kind: 'solid', colors: ['#1d5fb8', '#ffffff'] } },
+    m: ['#3f7fd4', '#154c96', '#06101f', W], p: { kind: 'solid', colors: ['#1d5fb8'] } },
 
   { id: 'kazakhstan', name: 'Казахстан',
     d: ['#4fc3f0', '#05202e', '#4fc3f0'], l: ['#0a6b9a', W, '#085f89'],
-    m: ['#2fa6dc', '#0a5f8f', '#04141f', W], p: { kind: 'solid', colors: ['#00afca', '#fec50c'] } },
+    m: ['#2fa6dc', '#0a5f8f', '#04141f', W], p: { kind: 'solid', colors: ['#00afca'] } },
   { id: 'argentina', name: 'Аргентина',
     d: ['#7cc4ee', '#0a2236', '#7cc4ee'], l: ['#2a6aa0', W, '#245f92'],
     m: ['#8fc9ee', '#2c6a9c', '#0b2034', W], p: { kind: 'stripes', colors: ['#74acdf', '#ffffff'] } },
   { id: 'brazil', name: 'Бразилия',
     d: ['#ffd51f', '#1a1500', '#ffd51f'], l: ['#0b6b34', W, '#095c2d'],
-    m: ['#2fa65a', '#0b6b34', '#04180c', W], p: { kind: 'solid', colors: ['#009c3b', '#ffdf00'] } },
+    m: ['#2fa65a', '#0b6b34', '#04180c', W], p: { kind: 'halves', colors: ['#ffdf00', '#009c3b'] } },
   { id: 'portugal', name: 'Португалия',
     d: ['#e8404a', D, '#ff7d86'], l: ['#a5121f', W, '#930f1b'],
     m: ['#c8283a', '#8a0f20', '#1f0508', W], p: { kind: 'halves', colors: ['#006600', '#ff0000'] } },
   { id: 'france', name: 'Франция',
     d: ['#5a82e8', D, '#86a6f5'], l: ['#1b3fa0', W, '#173587'],
-    m: ['#3f66cc', '#17358f', '#060b24', W], p: { kind: 'solid', colors: ['#0055a4', '#ffffff', '#ef4135'] } },
+    m: ['#3f66cc', '#17358f', '#060b24', W], p: { kind: 'halves', colors: ['#0055a4', '#ffffff', '#ef4135'] } },
 ];
 
 export const CLUBS: readonly Club[] = SPECS.map(s => ({

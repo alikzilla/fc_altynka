@@ -1,4 +1,5 @@
 import { clubById } from '@altynka/core';
+import { clubVariables } from '../src/lib/clubTheme';
 import { applyClub, applyTheme, getClubId, getTheme, initializeTheme } from '../src/lib/theme';
 
 beforeEach(() => {
@@ -89,7 +90,8 @@ describe('club theme', () => {
     applyClub(null);
     expect(root.dataset.club).toBeUndefined();
     expect(root.style.getPropertyValue('--accent')).toBe('');
-    expect(root.style.getPropertyValue('--club-pattern')).toBe('');
+    for (const name of Object.keys(clubVariables(clubById('barcelona')!, 'dark'))) expect(root.style.getPropertyValue(name), name).toBe('');
+    expect(Array.from({ length: root.style.length }, (_, i) => root.style.item(i)).filter(name => name.startsWith('--'))).toEqual([]);
     expect(localStorage.getItem('altynka:club')).toBeNull();
   });
 
