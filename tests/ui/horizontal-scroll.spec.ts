@@ -159,10 +159,22 @@ test('the game protocol and its sheets never scroll sideways with long names at 
   await world.attach(page);
   await visit(page, '/event/7?tab=games');
   await visit(page, '/event/7/game');
+  await sheet(page, page.getByRole('button', { name: 'Действия', exact: true }), 'Протокол матча');
+  await close(page);
   const result = await sheet(page, page.getByRole('button', { name: 'Внести результат', exact: true }), 'Результат игры');
   for (const side of [0, 1]) await result.locator('.game-score-side').nth(side).getByRole('button', { name: /Добавить гол команды/ }).click();
   await close(page);
   await visit(page, '/event/7?tab=teams');
   const kit = page.getByRole('button', { name: /Изменить цвет:/ }).first();
   if (await kit.count()) { await sheet(page, kit, /Цвет|Форма/); await close(page); }
+});
+
+test('the game screen of a participant never scrolls sideways at 320px', async ({ page }) => {
+  const world = gameStatisticsWorld({ count: 3 });
+  for (let i = 0; i < 6; i++) world.makeGuest(i, name(i + 1), i % 2 ? 'Али' : name(9));
+  world.start();
+  world.setTimer({ gameSequence: 1, durationSec: 360, startedAt: Date.now() - 1000, pausedAt: null, pausedMs: 0, updatedAt: Date.now() - 1000 });
+  await world.attach(page, { manage: false, userId: 2 });
+  await visit(page, '/event/7/game');
+  await expect(page.getByRole('timer')).toBeVisible();
 });
