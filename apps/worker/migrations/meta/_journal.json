@@ -157,10 +157,10 @@
       "breakpoints": true
     },
     {
-      "idx": 22,
+      "idx": 23,
       "version": "6",
-      "when": 1795970000000,
-      "tag": "0022_favorite_club",
+      "when": 1795980000000,
+      "tag": "0023_favorite_club",
       "breakpoints": true
     }
   ]
