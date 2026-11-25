@@ -19,6 +19,7 @@ import { feedApi } from './feed';
 import { availabilityApi } from './availability';
 import { venuesApi } from './venues';
 import { clientErrorsApi } from './clientErrors';
+import { feedbackApi } from './feedback';
 import { venueCommunity } from '../domain/venues';
 import { idParam } from './validate';
 
@@ -107,3 +108,4 @@ api.route('/', feedApi);
 api.route('/', availabilityApi);
 api.route('/', venuesApi);
 api.route('/', clientErrorsApi);
+api.route('/', feedbackApi);

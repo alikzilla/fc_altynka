@@ -7,6 +7,8 @@ import { addToHomeScreen, canFullscreen, fullscreenPreferred, haptic, openLink, 
 import { useHomeScreen } from '../hooks/useHomeScreen';
 import { Icon } from '../components/Icon';
 import { DeleteMyDataSheet } from '../components/DeleteMyData';
+import { ReportProblemSheet } from '../components/ReportProblem';
+import { versionLabel } from '../lib/version';
 import { applyTheme, getTheme } from '../lib/theme';
 import { useToast } from '../components/ui';
 
@@ -22,6 +24,7 @@ export function SystemSettings() {
   const [theme, setTheme] = useState<AppTheme>(me.theme ?? getTheme());
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [reporting, setReporting] = useState(false);
   const saving = useRef(false);
   useEffect(() => setNotifications(me.notifications), [me.notifications]);
   useEffect(() => { if (me.theme) setTheme(me.theme); }, [me.theme]);
@@ -119,6 +122,12 @@ export function SystemSettings() {
             </button>}
       </div>}
       <div className="system-setting-item">
+        <button type="button" className="system-action-row" aria-describedby="report-description" onClick={() => setReporting(true)}>
+          <span className="system-switch-copy"><b>Сообщить о проблеме</b><small id="report-description">Что-то не работает или неудобно — напиши разработчику</small></span>
+          <span className="system-action-label">Написать</span>
+        </button>
+      </div>
+      <div className="system-setting-item">
         <button type="button" className="system-action-row" aria-describedby="privacy-description" onClick={() => openLink(`${location.origin}/privacy.html`)}>
           <span className="system-switch-copy"><b>Политика конфиденциальности</b><small id="privacy-description">Какие данные мы храним, кто их видит и как их удалить</small></span>
           <span className="system-action-label">Открыть</span>
@@ -130,6 +139,8 @@ export function SystemSettings() {
         </button>
       </div>
     </div>
+    <p className="system-version muted">Версия {versionLabel()}</p>
     {deleting && <DeleteMyDataSheet onClose={() => setDeleting(false)} />}
+    {reporting && <ReportProblemSheet onClose={() => setReporting(false)} />}
   </section>;
 }

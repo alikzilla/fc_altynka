@@ -18,6 +18,7 @@ export default defineConfig(async () => {
             WEBHOOK_SECRET: 'test-secret',
             ADMIN_TG_ID: '1',
             ALERT_CHAT_ID: '',
+            FEEDBACK_CHAT_ID: '42',
             // свои значения: тесты не должны зависеть от vars для деплоя в wrangler.jsonc
             BOT_USERNAME: 'fc_altynka_bot',
             MINIAPP_SHORT_NAME: 'app',

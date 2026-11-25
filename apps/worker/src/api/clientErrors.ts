@@ -9,6 +9,7 @@ const report = z.object({
   stack: z.string().max(4000).optional(),
   path: z.string().max(200),
   source: z.enum(['boundary', 'error', 'rejection']),
+  version: z.string().max(40).optional(),
 });
 
 /**
@@ -21,7 +22,7 @@ clientErrorsApi.post('/client-errors', body(report), async c => {
   const { db, now } = c.get('deps');
   const r = c.req.valid('json');
   const userId = c.get('user').id;
-  console.error(JSON.stringify({ event: 'client_error', userId, source: r.source, path: r.path, message: r.message, stack: r.stack }));
-  await recordIncident(db, 'client_error', `${r.path}: ${r.message} (user ${userId})`, now);
+  console.error(JSON.stringify({ event: 'client_error', userId, version: r.version, source: r.source, path: r.path, message: r.message, stack: r.stack }));
+  await recordIncident(db, 'client_error', `${r.path}: ${r.message} (user ${userId}${r.version ? `, ${r.version}` : ''})`, now);
   return c.body(null, 204);
 });

@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
@@ -16,8 +17,20 @@ function productionHeaders(): Record<string, string> {
   return headers;
 }
 
+/** Короткий коммит сборки; `+` — собрано с незакоммиченными правками. Вне git — `dev`. */
+function buildVersion(): string {
+  try {
+    const sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { encoding: 'utf8' }).trim();
+    const dirty = execFileSync('git', ['status', '--porcelain', '--untracked-files=no'], { encoding: 'utf8' }).trim() !== '';
+    return `${sha}${dirty ? '+' : ''}`;
+  } catch {
+    return 'dev';
+  }
+}
+
 export default defineConfig({
   plugins: [react()],
+  define: { __APP_VERSION__: JSON.stringify(buildVersion()), __APP_BUILT_AT__: JSON.stringify(new Date().toISOString()) },
   server: { proxy: { '/api': 'http://localhost:8787' } },
   preview: { headers: productionHeaders() },
   build: { outDir: 'dist', emptyOutDir: true },

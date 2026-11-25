@@ -1,5 +1,6 @@
 import { ApiError } from './api';
 import { initData } from './tg';
+import { APP_VERSION } from './version';
 
 export type ErrorSource = 'boundary' | 'error' | 'rejection';
 
@@ -40,7 +41,7 @@ export function reportClientError(error: unknown, source: ErrorSource, extra?: s
       method: 'POST',
       keepalive: true,
       headers: { Authorization: `tma ${initData()}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ message, stack: stack || undefined, path: location.pathname.slice(0, 200), source }),
+      body: JSON.stringify({ message, stack: stack || undefined, path: location.pathname.slice(0, 200), source, version: APP_VERSION }),
     }).catch(() => {});
   } catch {
     // Отчёт об ошибке не должен стать новой ошибкой.

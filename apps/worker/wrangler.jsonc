@@ -61,7 +61,9 @@
 		"MINIAPP_SHORT_NAME": "fc_altynka_app",
 		"ADMIN_TG_ID": "1008342008",
 		// Кому бот присылает алерты о сбоях (src/ops/alerts.ts). Пусто — алерты выключены.
-		"ALERT_CHAT_ID": "1008342008"
+		"ALERT_CHAT_ID": "1008342008",
+		// Кому приходят сообщения «Сообщить о проблеме» (src/api/feedback.ts). Пусто — кнопка отвечает, что выключено.
+		"FEEDBACK_CHAT_ID": "1008342008"
 	},
 	// Staging: отдельный Worker (fc-altynka-staging), своя D1, свой тестовый бот и тестовая группа.
 	// Деплой: `pnpm run deploy:staging`; см. README «Staging». Привязки, лимиты и vars не наследуются из верхнего
@@ -90,7 +92,9 @@
 				"MINIAPP_SHORT_NAME": "fc_altynka_stage",
 				"ADMIN_TG_ID": "1008342008",
 				// Сбои staging не будят: алерты выключены.
-				"ALERT_CHAT_ID": ""
+				"ALERT_CHAT_ID": "",
+				// Сообщения о проблемах со staging приходят от тестового бота: так их можно проверить.
+				"FEEDBACK_CHAT_ID": "1008342008"
 			}
 		}
 	}
