@@ -1,10 +1,11 @@
 /* Тема любимого клуба. Переменные (--accent, --club-pattern …) ставит lib/theme.ts на <html>;
    цветные материалы возвращают свои токены, поэтому клуб их не перекрашивает. */
 
-/* Шапка: портал в body, на всю ширину окна, прокручивается со страницей и уходит под контент. */
-.club-backdrop { position: absolute; top: 0; left: 0; right: 0; height: 330px; z-index: -1; overflow: hidden; pointer-events: none; }
-/* --club-pattern-opacity считает clubVariables: не выше .55/.3 и так, чтобы --text и --hint на любом цвете узора держали 4,5:1. */
-.club-backdrop::before { content: ''; position: absolute; inset: 0; background-image: var(--club-pattern); opacity: var(--club-pattern-opacity, .55); -webkit-mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); }
+/* Фон клуба: портал в body, закреплён на всё окно (как обои), контент прокручивается поверх. */
+.club-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+/* --club-pattern-opacity считает clubVariables: не выше .55/.3 и так, чтобы --text и --hint на любом цвете узора держали 4,5:1 —
+   узор лежит под всей страницей в полную силу, поэтому это условие для любого текста на фоне. */
+.club-backdrop::before { content: ''; position: absolute; inset: 0; background-image: var(--club-pattern); opacity: var(--club-pattern-opacity, .55); }
 .club-backdrop img { position: absolute; top: calc(70px + var(--safe-top)); left: 50%; width: 150px; height: 180px; object-fit: contain; transform: translateX(-50%); opacity: .2; }
 :root[data-theme='light'] .club-backdrop::before { opacity: var(--club-pattern-opacity, .3); }
 /* Запас поверх расчёта прозрачности: тёмная тень под светлым текстом заголовка на светлых узорах. */
@@ -44,9 +45,6 @@
    (токены --text, --hint, --accent, --plum-ink* ставит materialVariables прямо на карточку). */
 .club-material { position: relative; color: var(--club-ink); background: radial-gradient(ellipse 105% 33% at 42% -7%, var(--club-hi) 0%, var(--club-mid) 53%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, var(--club-mid) 0%, transparent 100%), var(--club-base); box-shadow: var(--rim), inset 0 -2px 9px color-mix(in srgb, var(--club-hi) 38%, transparent), inset 1px 0 7px color-mix(in srgb, var(--club-hi) 30%, transparent); }
 .club-material .muted { color: var(--club-ink-soft); }
-.player-club-crest { position: absolute; top: 8px; right: 12px; width: 34px; height: 41px; object-fit: contain; pointer-events: none; }
-/* 24px: место под эмблему в углу, чтобы она не налезала на кольцо рейтинга. */
-.club-material.player-sports-card .player-card-top { padding-top: 24px; }
 .club-material .player-identity h2, .club-material .player-position-line, .club-material .player-statistics dd, .club-material .player-awards dd, .club-material .player-statistics .foot-stat dd { color: var(--club-ink); }
 .club-material.player-sports-card .avatar-large { color: var(--club-ink); background: color-mix(in srgb, var(--club-ink) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--club-ink) 24%, transparent); }
 .club-material .player-statistics-section { background: color-mix(in srgb, var(--club-ink) 7%, transparent); }

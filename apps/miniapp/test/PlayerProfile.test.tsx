@@ -31,8 +31,8 @@ test("peer profile uses the owner's club, not the viewer's", async () => {
   act(() => applyClub('real-madrid'));
   (api.get as Mock).mockResolvedValue({ ...base, favoriteClub: 'barcelona' });
   renderWithApp(<PlayerProfileSheet userId={77} onClose={vi.fn()} />, { me: player });
-  const crest = await screen.findByRole('img', { name: 'Любимый клуб: Барселона' });
-  expect(crest.closest('section')).toHaveClass('club-material');
+  const label = await screen.findByText('Любимый клуб: Барселона');
+  expect(label.closest('section')).toHaveClass('club-material');
   act(() => applyClub(null));
 });
 

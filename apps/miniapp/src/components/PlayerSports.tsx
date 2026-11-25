@@ -11,7 +11,7 @@ const tier = (value?: number) => value === undefined ? 'unknown' : value < 2 ? '
 function RatingRing({ value }: { value?: number }) {
   return <span className="rating-emblem" data-tier={tier(value)}>
     <svg viewBox="0 0 72 72" fill="none" aria-hidden="true">
-      <circle className="rank-core" cx="36" cy="36" r="23" />
+      <circle className="rank-core" cx="36" cy="36" r="27.25" />
       <circle className="rank-track" cx="36" cy="36" r="29" />
       {value !== undefined && <circle className="rank-progress" cx="36" cy="36" r="29" pathLength="100" strokeDasharray={`${Math.max(0,Math.min(10,value))*10} 100`} transform="rotate(-90 36 36)" />}
     </svg><strong>{value === undefined ? '?' : format(value)}</strong>
@@ -60,7 +60,7 @@ export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,do
   const personRole=roles[role];
   const pending=statisticsPending && !statistics ? <Sk w="1.1em"/> : null;
   return <section className={`card ${club?'club-material':'material-plum'} player-sports-card`} style={club?materialVariables(club):undefined} aria-label="Профиль игрока">
-    {club && <img className="player-club-crest" src={club.crest} alt={`Любимый клуб: ${club.name}`}/>}
+    {club && <span className="sr-only">Любимый клуб: {club.name}</span>}
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large injured={injured} crowned={reigningMvp}/>
       <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div>{reigningMvp && <span className="player-crown-chip">Действующий MVP</span>}</div>
       <RatingBadge rating={rating}/>

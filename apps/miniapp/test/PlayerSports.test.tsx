@@ -122,7 +122,8 @@ test('favourite club paints the card and shows the crest',()=>{
   expect(card).toHaveClass('club-material');
   expect(card).not.toHaveClass('material-plum');
   expect(card.style.getPropertyValue('--club-mid')).toBe(clubById('barcelona')!.material.mid);
-  expect(screen.getByRole('img',{name:'Любимый клуб: Барселона'})).toHaveClass('player-club-crest');
+  expect(card).toHaveTextContent('Любимый клуб: Барселона');
+  expect(card.querySelector('img[src^="/clubs/"]')).toBeNull();
 });
 test('no club keeps plum',()=>{
   for(const favoriteClub of [undefined,null]){
@@ -131,12 +132,12 @@ test('no club keeps plum',()=>{
     expect(card).toHaveClass('material-plum');
     expect(card).not.toHaveClass('club-material');
     expect(card.getAttribute('style')).toBeNull();
-    expect(container.querySelector('.player-club-crest')).toBeNull();
+    expect(container.querySelector('section')).not.toHaveTextContent('Любимый клуб');
     unmount();
   }
 });
 test('unknown club keeps plum',()=>{
   const {container}=renderWithApp(<PlayerSportsCard {...props} favoriteClub={'dinamo-zagreb' as ClubId}/>,{me:player});
   expect(container.querySelector('section')).toHaveClass('material-plum');
-  expect(container.querySelector('.player-club-crest')).toBeNull();
+  expect(container.querySelector('section')).not.toHaveTextContent('Любимый клуб');
 });

@@ -61,7 +61,7 @@ test('picking a club recolours the app and the profile card', async ({ page }) =
   await expect(page.locator('.club-backdrop')).toBeVisible();
   await expect(page.locator('.club-heading-crest')).toBeVisible();
   await expect(card).toHaveClass(/club-material/);
-  await expect(card.getByRole('img', { name: 'Любимый клуб: Барселона' })).toBeVisible();
+  await expect(card).toContainText('Любимый клуб: Барселона');
   await expect(page.getByRole('link', { name: /Любимый клуб/ })).toContainText('Барселона');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('data-club', 'barcelona');
@@ -108,16 +108,17 @@ for (const [club, theme] of [['real-madrid', 'dark'], ['juventus', 'light']] as 
         bg: getComputedStyle(document.documentElement).backgroundColor,
         title: getComputedStyle(heading.querySelector('.title')!).color,
         subtitle: getComputedStyle(heading.querySelector('.subtitle')!).color,
-        // Подзаголовок лежит на шапке, у верхней немаскированной части, где узор в полную силу: считаем худший случай.
-        subtitleTop: heading.querySelector('.subtitle')!.getBoundingClientRect().top - backdrop.getBoundingClientRect().top,
-        solidUntil: backdrop.getBoundingClientRect().height * 0.25,
+        // Узор в полную силу под всем окном: фон закреплён и закрывает его целиком.
+        position: getComputedStyle(backdrop).position,
+        covers: backdrop.getBoundingClientRect().height >= window.innerHeight - 1,
       };
     });
     const alpha = Number(drawn.opacity);
     expect(drawn.variable).toBe(drawn.opacity);
     expect(alpha).toBeLessThan(theme === 'dark' ? 0.55 : 0.3);
     expect(alpha).toBeGreaterThan(0);
-    expect(drawn.subtitleTop).toBeLessThan(drawn.solidUntil);
+    expect(drawn.position).toBe('fixed');
+    expect(drawn.covers).toBe(true);
     for (const color of clubById(club)!.pattern.colors) {
       const mixed = over(color, hex(drawn.bg), alpha);
       expect(contrastRatio(hex(drawn.subtitle), mixed), `subtitle on ${color}`).toBeGreaterThanOrEqual(4.5);
@@ -182,7 +183,7 @@ test("peer profile shows the owner's club", async ({ page }) => {
   const dialog = page.getByRole('dialog', { name: 'Профиль игрока' });
   const card = dialog.locator('.player-sports-card');
   await expect(card).toHaveClass(/club-material/);
-  await expect(card.getByRole('img', { name: 'Любимый клуб: Барселона' })).toBeVisible();
+  await expect(card).toContainText('Любимый клуб: Барселона');
   await expect(page.locator('html')).toHaveAttribute('data-club', 'real-madrid');
   await animationsSettled(page);
   await page.screenshot({ path: 'artifacts/ui/club-peer-profile.png' });

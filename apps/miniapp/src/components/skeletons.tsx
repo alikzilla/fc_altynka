@@ -164,7 +164,7 @@ function PlayerSportsSkeleton({ own }: { own?: boolean }) {
         <div className="player-social"><span className="player-role sk-fill sk-round" /><span className="player-telegram"><Sk w="6.5em" /></span></div>
       </div>
       <span className="rating-badge">
-        <span className="rating-emblem sk-pulse" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="23" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
+        <span className="rating-emblem sk-pulse" data-tier="unknown"><svg viewBox="0 0 72 72" fill="none"><circle className="rank-core" cx="36" cy="36" r="27.25" /><circle className="rank-track" cx="36" cy="36" r="29" /></svg></span>
         <small className="rating-caption"><Sk w="4em" /></small>
       </span>
     </div>
