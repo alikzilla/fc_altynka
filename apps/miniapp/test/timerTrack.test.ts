@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { encodeWav, layoutTrack, mixTrack, TRACK_TAIL_SEC, type ClipName } from '../src/lib/timerTrack';
 
 const NAMES: ClipName[] = ['beep', 'minute', 'attack', 'whistle', 'time'];
@@ -55,5 +55,65 @@ describe('encodeWav', () => {
     expect(view.getUint32(24, true)).toBe(16000);
     expect(view.getUint16(34, true)).toBe(16);
     expect([view.getInt16(44, true), view.getInt16(46, true), view.getInt16(48, true)]).toEqual([0, 32767, -32768]);
+  });
+});
+
+describe('buildTrack', () => {
+  type Module = typeof import('../src/lib/timerTrack');
+  let lib: Module;
+  let created: string[];
+  let revoked: string[];
+  let fetchMock: ReturnType<typeof vi.fn>;
+  const audioReply = () => new Response(new ArrayBuffer(8), { headers: { 'content-type': 'audio/mpeg' } });
+
+  beforeEach(async () => {
+    vi.resetModules();
+    lib = await import('../src/lib/timerTrack');
+    created = []; revoked = [];
+    let n = 0;
+    vi.spyOn(URL, 'createObjectURL').mockImplementation(() => { const url = `blob:t${++n}`; created.push(url); return url; });
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(url => { revoked.push(url); });
+    fetchMock = vi.fn(async () => audioReply());
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('OfflineAudioContext', class {
+      decodeAudioData = async () => ({ getChannelData: () => new Float32Array(4) });
+    });
+  });
+  afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); });
+
+  it('декодирует клипы один раз за сессию и держит готовым только трек текущей длительности', async () => {
+    const first = await lib.buildTrack(240);
+    expect(lib.readyTrack(240)).toBe(first);
+    expect(await lib.buildTrack(240)).toBe(first);
+    const second = await lib.buildTrack(300);
+    expect(fetchMock).toHaveBeenCalledTimes(5);
+    expect(lib.readyTrack(300)).toBe(second);
+    expect(lib.readyTrack(240)).toBeNull();
+    // Старый трек ещё стоит на элементе: его не отзывают, пока его не сменят.
+    lib.releaseTracks(first!);
+    expect(revoked).toEqual([]);
+    lib.releaseTracks(second!);
+    expect(revoked).toEqual([first]);
+    lib.releaseTracks('');
+    expect(revoked).toEqual([first]);
+  });
+
+  it('трек, который перебил новый, не остаётся в памяти', async () => {
+    const stale = lib.buildTrack(240);
+    const fresh = lib.buildTrack(300);
+    await Promise.all([stale, fresh]);
+    lib.releaseTracks(lib.readyTrack(300)!);
+    expect(created.filter(url => !revoked.includes(url))).toEqual([lib.readyTrack(300)]);
+  });
+
+  it('если вместо звука пришла страница, сборка падает, а следующая попытка снова скачивает клипы', async () => {
+    fetchMock.mockImplementation(async () => new Response('<!doctype html>', { headers: { 'content-type': 'text/html' } }));
+    await expect(lib.buildTrack(360)).rejects.toThrow();
+    expect(lib.readyTrack(360)).toBeNull();
+    fetchMock.mockImplementation(async () => audioReply());
+    const calls = fetchMock.mock.calls.length;
+    await expect(lib.buildTrack(360)).resolves.toMatch(/^blob:/);
+    expect(fetchMock.mock.calls.length).toBe(calls + 5);
+    expect(lib.readyTrack(360)).not.toBeNull();
   });
 });

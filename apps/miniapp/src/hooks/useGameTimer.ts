@@ -10,7 +10,7 @@ import { keepAwake } from '../lib/keepAwake';
 import { resourceReceivedAt } from '../lib/queryClient';
 import { noteServerTime, serverNow, toServerTime } from '../lib/serverClock';
 import { haptic } from '../lib/tg';
-import { TRACK_TAIL_SEC, buildTrack } from '../lib/timerTrack';
+import { TRACK_TAIL_SEC, buildTrack, readyTrack, releaseTracks } from '../lib/timerTrack';
 
 export interface GameTimerView {
   status: 'waiting' | 'running' | 'paused';
@@ -19,6 +19,8 @@ export interface GameTimerView {
   sound: 'off' | 'on' | 'resumable';                       // resumable — состояние есть, звука нет после перезапуска
   canControl: boolean;                                      // ev.gameProtocol.canRecord
   trackReady: boolean;                                      // трек длительности durationSec собран: play() прямо в жесте
+  trackFailed: boolean;                                     // трек не собрался (нет сети, битый звук); повтор — на снимке, online, возврате на экран
+  /** start/resume не ждут трека: без готового трека время идёт без звука, а sound становится 'resumable'. */
   start(): Promise<void>; pause(): void; resume(): Promise<void>; reset(): void;
   listen(): Promise<void>; mute(): void;
 }
@@ -50,21 +52,20 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
   const [soundOn, setSoundOn] = useState(false);
   const soundRef = useRef(false);
   const setSound = (on: boolean) => { soundRef.current = on; setSoundOn(on); };
-  const [track, setTrack] = useState<{ durationSec: number; url: string } | null>(null);
-  const trackRef = useRef(track);
-  const keepTrack = (next: { durationSec: number; url: string }) => { trackRef.current = next; setTrack(next); };
+  const [trackFailed, setTrackFailed] = useState(false);
   const inFlight = useRef<StoredGameTimer | null>(null);
   const [, setTick] = useState(0);
 
   const timer = effectiveTimer(ev, local);
   const status = !timer ? 'waiting' : timer.pausedAt !== null ? 'paused' : 'running';
   const durationSec = timer?.durationSec ?? selected;
-  const trackReady = track?.durationSec === durationSec;
+  const trackUrl = readyTrack(durationSec);
+  const trackReady = trackUrl !== null;
   const audioPlaying = !audio.paused; // re-rendered by the element's playing/pause/ended events
   const serverRemaining = timer ? timerRemainingSec(timer, serverNow()) : selected;
   // Nothing is left to play once the track has ended or the time is past its tail.
   const trackOver = !!timer && (serverRemaining <= -TRACK_TAIL_SEC || (soundOn && audio.ended));
-  const audioDriven = soundOn && status === 'running' && trackReady && audio.src === track.url
+  const audioDriven = soundOn && status === 'running' && trackUrl !== null && audio.src === trackUrl
     && audioPlaying && audio.currentTime < durationSec + TRACK_TAIL_SEC;
   const remainingSec = audioDriven ? durationSec - audio.currentTime : serverRemaining;
   const phase = timerPhase(remainingSec);
@@ -72,17 +73,29 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     : soundOn && (status === 'paused' || audioPlaying) ? 'on'
     : canControl && status === 'running' ? 'resumable' : 'off';
 
+  /** Sets the track on the element and revokes the tracks of other durations that nothing plays any more. */
+  const setSrc = (url: string) => { audio.src = url; releaseTracks(url); };
+  /** Builds the track of a duration; resolves to whether it is now the ready one. A failure is shown and retried later. */
+  const prepareTrack = (sec: number): Promise<boolean> => buildTrack(sec).then(
+    url => {
+      if (url === null) return false; // another duration superseded it
+      setTrackFailed(false);
+      setTick(n => n + 1);
+      releaseTracks(audio.src);
+      return true;
+    },
+    () => { setTrackFailed(true); return false; },
+  );
+
   /** Brings this device's track in line with the current timer; plays synchronously when the track is ready. */
   const syncAudio = (): Promise<void> | undefined => {
     const t = current();
     if (!soundRef.current || !t || t.pausedAt !== null) { if (!audio.paused) audio.pause(); return; }
     const elapsed = timerElapsedMs(t, serverNow()) / 1000;
     if (elapsed >= t.durationSec + TRACK_TAIL_SEC) { if (!audio.paused) audio.pause(); return; }
-    const ready = trackRef.current;
-    if (ready?.durationSec !== t.durationSec) {
-      return buildTrack(t.durationSec).then(url => { keepTrack({ durationSec: t.durationSec, url }); void syncAudio(); }, () => {});
-    }
-    if (audio.src !== ready.url) audio.src = ready.url;
+    const url = readyTrack(t.durationSec);
+    if (url === null) return prepareTrack(t.durationSec).then(ready => { if (ready) void syncAudio(); });
+    if (audio.src !== url) setSrc(url);
     const drifted = Math.abs(audio.currentTime - elapsed) > 1;
     if (audio.paused || drifted) audio.currentTime = elapsed;
     if (audio.paused && (drifted || !audio.ended)) {
@@ -115,7 +128,8 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     if (!canControl || !playing || current()) return;
     const t = tapTime();
     const next: GameTimer = { gameSequence, durationSec: selected, startedAt: t, pausedAt: null, pausedMs: 0, updatedAt: t };
-    setSound(true);
+    // Time never waits for the sound: without a ready track the game starts silently and offers the signals later.
+    setSound(readyTrack(selected) !== null);
     record(next);
     const played = syncAudio();
     await Promise.all([played, send(next)]);
@@ -134,7 +148,7 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     if (!canControl || !t0 || t0.pausedAt === null) return;
     const t = tapTime(t0);
     const next: GameTimer = { ...t0, pausedMs: t0.pausedMs + (t - t0.pausedAt), pausedAt: null, updatedAt: t };
-    setSound(true);
+    setSound(readyTrack(t0.durationSec) !== null);
     record(next);
     const played = syncAudio();
     await Promise.all([played, send(next)]);
@@ -160,8 +174,17 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
   };
   // Lock-screen play: resume a paused timer, or bring back the sound of a running one (e.g. after a call).
   const play = () => (current()?.pausedAt === null ? listen() : resume());
-  const actions = useRef({ pause, play, syncAudio });
-  actions.current = { pause, play, syncAudio };
+  // Prebuild the track so start(), resume() and listen() can call play() inside the tap.
+  const wanted = timer ? timer.durationSec : canControl && playing ? selected : null;
+  const prepare = () => {
+    if (wanted === null || readyTrack(wanted) !== null) return;
+    void prepareTrack(wanted).then(ready => {
+      const url = ready ? readyTrack(wanted) : null;
+      if (url !== null && audio.paused && audio.src !== url) setSrc(url); // loads metadata before the tap
+    });
+  };
+  const actions = useRef({ pause, play, syncAudio, prepare });
+  actions.current = { pause, play, syncAudio, prepare };
 
   // Every snapshot: drop a pending write the server already has or that belongs to a finished game; re-send the rest.
   useEffect(() => {
@@ -182,18 +205,8 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     void syncAudio();
   }, [timerKey]);
 
-  // Prebuild the track so start(), resume() and listen() can call play() inside the tap.
-  const wanted = timer ? timer.durationSec : canControl && playing ? selected : null;
-  useEffect(() => {
-    if (wanted === null || trackRef.current?.durationSec === wanted) return;
-    let live = true;
-    buildTrack(wanted).then(url => {
-      if (!live) return;
-      keepTrack({ durationSec: wanted, url });
-      if (audio.paused && audio.src !== url) audio.src = url; // loads metadata before the tap
-    }, () => {});
-    return () => { live = false; };
-  }, [wanted]);
+  // A track that failed to build (offline at the pitch) is tried again on every snapshot.
+  useEffect(() => { actions.current.prepare(); }, [wanted, ev]);
 
   // The organizer keeps the screen on while the timer runs; a participant only while there is sound to hear.
   const awake = soundOn && status === 'running' && (canControl || !trackOver);
@@ -214,13 +227,20 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
 
   useEffect(() => {
     const rerender = () => setTick(n => n + 1);
-    const onVisible = () => { if (document.visibilityState === 'visible') void actions.current.syncAudio(); };
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      actions.current.prepare();
+      void actions.current.syncAudio();
+    };
+    const onOnline = () => actions.current.prepare();
     const media = ['playing', 'pause', 'ended'];
     for (const type of media) audio.addEventListener(type, rerender);
     document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('online', onOnline);
     return () => {
       for (const type of media) audio.removeEventListener(type, rerender);
       document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('online', onOnline);
     };
   }, [audio]);
 
@@ -253,10 +273,11 @@ export function useGameTimer(ev: EventDetailDto): GameTimerView {
     audio.pause();
     audio.removeAttribute('src');
     audio.load();
+    releaseTracks(''); // the current duration's track stays cached for the session
   }, [audio]);
 
   return {
     status, remainingSec, phase, durationSec, setDurationSec,
-    sound, canControl, trackReady, start, pause, resume, reset, listen, mute,
+    sound, canControl, trackReady, trackFailed: trackFailed && !trackReady, start, pause, resume, reset, listen, mute,
   };
 }

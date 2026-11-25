@@ -17,7 +17,11 @@ function phaseText(view: GameTimerView): string {
   return 'Игра идёт';
 }
 
-/** The shared game time: big digits and the phase for everyone; start, pause and duration for the organizer. */
+/**
+ * The shared game time: big digits and the phase for everyone; start, pause and duration for the organizer.
+ * Start and resume never wait for the signals: without a ready track the time runs silently and
+ * «Продолжить сигналы» becomes available once the track is built. Only the sound buttons wait for it.
+ */
 export function GameTimer({ view }: { view: GameTimerView }) {
   const overtime = view.status === 'running' && view.phase === 'over';
   const tone = view.status === 'running' ? view.phase : view.status;
@@ -44,11 +48,12 @@ export function GameTimer({ view }: { view: GameTimerView }) {
     </div>}
     <div className="game-timer-controls">
       {view.canControl && (view.status === 'waiting'
-        ? <button type="button" className="btn primary wide" disabled={!view.trackReady} onClick={() => void view.start()}>Старт игры</button>
+        ? <button type="button" className="btn primary wide" onClick={() => void view.start()}>Старт игры</button>
         : view.status === 'running'
           ? <button type="button" className="btn wide" onClick={view.pause}>Пауза</button>
-          : <button type="button" className="btn primary wide" disabled={!view.trackReady} onClick={() => void view.resume()}>Продолжить</button>)}
+          : <button type="button" className="btn primary wide" onClick={() => void view.resume()}>Продолжить</button>)}
       {signals()}
     </div>
+    {view.trackFailed && !overtime && <p className="muted game-timer-note" role="status">Сигналы не загрузились — проверь интернет</p>}
   </section>;
 }

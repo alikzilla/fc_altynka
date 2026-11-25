@@ -2,7 +2,7 @@ import type { EventDetailDto, GameProtocolDto, GameResult, GameTimer } from '@al
 import type { Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { api, ApiError } from '../src/lib/api';
-import { buildTrack } from '../src/lib/timerTrack';
+import { buildTrack, readyTrack, releaseTracks } from '../src/lib/timerTrack';
 import { keepAwake } from '../src/lib/keepAwake';
 import { haptic } from '../src/lib/tg';
 import { readPendingTimer, readTimerDuration, writePendingTimer } from '../src/lib/gameTimerStore';
@@ -11,7 +11,7 @@ import { useGameTimer } from '../src/hooks/useGameTimer';
 import { makeProtocol } from './gameFixtures';
 
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
-vi.mock('../src/lib/timerTrack', () => ({ TRACK_TAIL_SEC: 4, buildTrack: vi.fn() }));
+vi.mock('../src/lib/timerTrack', () => ({ TRACK_TAIL_SEC: 4, buildTrack: vi.fn(), readyTrack: vi.fn(), releaseTracks: vi.fn() }));
 vi.mock('../src/lib/keepAwake', () => ({ keepAwake: vi.fn() }));
 vi.mock('../src/lib/tg', () => ({ haptic: vi.fn() }));
 
@@ -67,7 +67,10 @@ beforeEach(() => {
   vi.spyOn(window, 'Audio').mockImplementation(function () { return audio as unknown as HTMLAudioElement; });
   release = vi.fn<() => void>();
   vi.mocked(keepAwake).mockReturnValue({ release });
-  vi.mocked(buildTrack).mockImplementation(async sec => `blob:track-${sec}`);
+  // Like the real module: one ready track, the latest duration built.
+  let built: { sec: number; url: string } | null = null;
+  vi.mocked(buildTrack).mockImplementation(sec => Promise.resolve().then(() => { built = { sec, url: `blob:track-${sec}` }; return built.url; }));
+  vi.mocked(readyTrack).mockImplementation(sec => built?.sec === sec ? built.url : null);
   send().mockImplementation(async (_method, _path, body) => ({ timer: 'reset' in (body as object) ? null : body }));
 });
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); });
@@ -281,8 +284,53 @@ test('a track that cannot be built is not reported as playing', async () => {
   vi.mocked(buildTrack).mockRejectedValue(new Error('offline'));
   const { result } = renderTimer(evWith());
   await flush();
-  expect(result.current.trackReady).toBe(false);
+  expect(result.current).toMatchObject({ trackReady: false, trackFailed: true });
   await act(() => result.current.start());
+  expect(send()).toHaveBeenCalledTimes(1);
+  expect(audio.play).not.toHaveBeenCalled();
+  expect(result.current).toMatchObject({ status: 'running', sound: 'resumable', trackFailed: true });
+});
+
+test('offline at the pitch the game starts silently and the signals come back once the track loads on the next snapshot', async () => {
+  vi.mocked(buildTrack).mockRejectedValueOnce(new Error('offline'));
+  const { result, rerender } = renderTimer(evWith());
+  await flush();
+  expect(result.current).toMatchObject({ trackReady: false, trackFailed: true });
+  await act(() => result.current.start());
+  expect(send()).toHaveBeenCalledTimes(1);
+  expect(audio.play).not.toHaveBeenCalled();
+  expect(result.current).toMatchObject({ status: 'running', sound: 'resumable' });
+  const started = send().mock.calls[0][2] as GameTimer;
+  await tick(3000);
+  rerender({ ev: evWith({ timer: started }) });
+  await flush();
+  expect(result.current).toMatchObject({ trackReady: true, trackFailed: false, sound: 'resumable' });
+  expect(audio.play).not.toHaveBeenCalled(); // never outside a tap
+  await act(() => result.current.listen());
+  expect(audio.currentTime).toBe(3);
+  expect(audio.play).toHaveBeenCalledTimes(1);
+  expect(result.current.sound).toBe('on');
+});
+
+test('a failed track is built again when the phone is back online or the screen is shown again', async () => {
+  vi.mocked(buildTrack).mockRejectedValueOnce(new Error('offline')).mockRejectedValueOnce(new Error('offline'));
+  const { result } = renderTimer(evWith());
+  await flush();
+  expect(result.current.trackFailed).toBe(true);
+  await act(async () => { window.dispatchEvent(new Event('online')); });
+  expect(buildTrack).toHaveBeenCalledTimes(2);
+  expect(result.current.trackFailed).toBe(true);
+  await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+  expect(buildTrack).toHaveBeenCalledTimes(3);
+  expect(result.current).toMatchObject({ trackReady: true, trackFailed: false });
+  expect(audio.src).toBe('blob:track-360');
+});
+
+test('a paused game resumes even without a ready track, silently', async () => {
+  vi.mocked(buildTrack).mockRejectedValue(new Error('offline'));
+  const { result } = renderTimer(evWith({ timer: runningFor(30, { pausedAt: serverTime(), updatedAt: serverTime() }) }));
+  await flush();
+  await act(() => result.current.resume());
   expect(send()).toHaveBeenCalledTimes(1);
   expect(audio.play).not.toHaveBeenCalled();
   expect(result.current).toMatchObject({ status: 'running', sound: 'resumable' });
@@ -339,6 +387,8 @@ test('the duration can change only while waiting', async () => {
   await flush();
   expect(buildTrack).toHaveBeenCalledWith(480);
   expect(result.current.trackReady).toBe(true);
+  expect(audio.src).toBe('blob:track-480');
+  expect(releaseTracks).toHaveBeenLastCalledWith('blob:track-480'); // the 6-minute track is let go
   rerender({ ev: evWith({ timer: runningFor(10) }) });
   await flush();
   act(() => result.current.setDurationSec(600));
@@ -399,4 +449,5 @@ test('unmount pauses and releases the track and the screen', async () => {
   expect(audio.pause).toHaveBeenCalled();
   expect(audio.removeAttribute).toHaveBeenCalledWith('src');
   expect(release).toHaveBeenCalled();
+  expect(releaseTracks).toHaveBeenLastCalledWith('');
 });

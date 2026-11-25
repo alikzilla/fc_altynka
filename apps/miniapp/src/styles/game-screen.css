@@ -21,6 +21,7 @@
 .game-timer-controls:empty { display: none; }
 .game-timer-controls > .btn { min-height: 54px; font-size: 16px; }
 .game-timer-controls > .btn:disabled { opacity: .55; }
+.game-timer-note { margin: 12px 0 0; font-size: 13px; line-height: 1.5; }
 .game-screen-hint { margin: -4px 4px 0; font-size: 13px; line-height: 1.5; }
 
 /* Place, team, games and points fit at 320 px without a scroll container. */

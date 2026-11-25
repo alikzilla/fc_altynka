@@ -22,7 +22,7 @@ const playerEvent = { ...base, viewerRole: 'player', gameProtocol: makeProtocol(
 function view(overrides: Partial<GameTimerView> = {}): GameTimerView {
   return {
     status: 'waiting', remainingSec: 360, phase: 'playing', durationSec: 360, setDurationSec: vi.fn(),
-    sound: 'off', canControl: true, trackReady: true,
+    sound: 'off', canControl: true, trackReady: true, trackFailed: false,
     start: vi.fn(async () => {}), pause: vi.fn(), resume: vi.fn(async () => {}), reset: vi.fn(),
     listen: vi.fn(async () => {}), mute: vi.fn(), ...overrides,
   };
@@ -75,13 +75,22 @@ test('waiting organizer starts the game and picks its duration with a stepper', 
   expect(screen.getByText(HINT)).toBeVisible();
 });
 
-test('start waits for the track and the reset asks for confirmation', async () => {
-  (useGameTimer as Mock).mockReturnValue(view({ trackReady: false }));
+test('start and resume do not wait for the signals, a failed load is explained, and the reset asks for confirmation', async () => {
+  const waiting = view({ trackReady: false, trackFailed: true });
+  (useGameTimer as Mock).mockReturnValue(waiting);
   const first = open(organizerEvent);
   await settle();
-  expect(screen.getByRole('button', { name: 'Старт игры' })).toBeDisabled();
+  expect(screen.getByText('Сигналы не загрузились — проверь интернет')).toBeVisible();
+  await userEvent.click(screen.getByRole('button', { name: 'Старт игры' }));
+  expect(waiting.start).toHaveBeenCalled();
   first.unmount();
-  const timer = view({ status: 'paused', remainingSec: 75.4 });
+  const silent = open(organizerEvent);
+  (useGameTimer as Mock).mockReturnValue(view({ status: 'running', sound: 'resumable', trackReady: false }));
+  await act(async () => { document.dispatchEvent(new Event('visibilitychange')); });
+  expect(screen.getByRole('button', { name: /^Продолжить сигналы/ })).toBeDisabled();
+  expect(screen.queryByText('Сигналы не загрузились — проверь интернет')).toBeNull();
+  silent.unmount();
+  const timer = view({ status: 'paused', remainingSec: 75.4, trackReady: false });
   (useGameTimer as Mock).mockReturnValue(timer);
   open(organizerEvent);
   await settle();

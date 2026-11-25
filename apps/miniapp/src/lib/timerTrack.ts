@@ -56,27 +56,62 @@ export function encodeWav(samples: Float32Array, sampleRate: number): Blob {
 }
 
 const CLIP_NAMES: ClipName[] = ['beep', 'minute', 'attack', 'whistle', 'time'];
-const tracks = new Map<number, Promise<string>>();
+type Clips = Record<ClipName, Float32Array>;
 
-async function loadClips(): Promise<Record<ClipName, Float32Array>> {
+async function decodeClips(): Promise<Clips> {
   const ctx = new OfflineAudioContext(1, 1, TRACK_SAMPLE_RATE);
   const decoded = await Promise.all(CLIP_NAMES.map(async name => {
     const res = await fetch(`/sounds/${name}.mp3`);
-    if (!res.ok) throw new Error(`sound ${name}: ${res.status}`);
+    // A missing file is answered by the SPA fallback with 200 and the HTML page.
+    if (!res.ok || !res.headers.get('content-type')?.startsWith('audio/')) throw new Error(`sound ${name}: ${res.status}`);
     const buffer = await ctx.decodeAudioData(await res.arrayBuffer());
     return buffer.getChannelData(0);
   }));
-  return Object.fromEntries(CLIP_NAMES.map((name, i) => [name, decoded[i]])) as Record<ClipName, Float32Array>;
+  return Object.fromEntries(CLIP_NAMES.map((name, i) => [name, decoded[i]])) as Clips;
 }
 
-/** Object URL готового WAV-трека; кэшируется по длительности на сессию. */
-export function buildTrack(durationSec: number): Promise<string> {
-  let track = tracks.get(durationSec);
-  if (!track) {
-    track = loadClips()
-      .then(clips => URL.createObjectURL(encodeWav(mixTrack(durationSec, clips, TRACK_SAMPLE_RATE), TRACK_SAMPLE_RATE)))
-      .catch(error => { tracks.delete(durationSec); throw error; });
-    tracks.set(durationSec, track);
+// Clips are decoded once per session; a failed attempt is forgotten, so the next one downloads them again.
+let clips: Promise<Clips> | null = null;
+function loadClips(): Promise<Clips> {
+  clips ??= decodeClips().catch(error => { clips = null; throw error; });
+  return clips;
+}
+
+// Only the latest duration's track is kept: a WAV of 10 minutes is about 19 MB.
+interface Track { durationSec: number; url: string | null; built: Promise<string | null> }
+let latest: Track | null = null;
+const retired = new Set<string>();
+
+/**
+ * Builds the WAV track of a duration and keeps it as the current one; the previous duration's track is retired
+ * and revoked by `releaseTracks`. Resolves to the object URL, or null when another duration superseded it.
+ */
+export function buildTrack(durationSec: number): Promise<string | null> {
+  if (latest?.durationSec === durationSec) return latest.built;
+  if (latest?.url) retired.add(latest.url);
+  const track: Track = { durationSec, url: null, built: Promise.resolve(null) };
+  track.built = loadClips().then(
+    loaded => {
+      if (latest !== track) return null;
+      track.url = URL.createObjectURL(encodeWav(mixTrack(durationSec, loaded, TRACK_SAMPLE_RATE), TRACK_SAMPLE_RATE));
+      return track.url;
+    },
+    error => { if (latest === track) latest = null; throw error; },
+  );
+  latest = track;
+  return track.built;
+}
+
+/** Object URL of the built track of this duration, or null while it is not ready. */
+export function readyTrack(durationSec: number): string | null {
+  return latest?.durationSec === durationSec ? latest.url : null;
+}
+
+/** Revokes the tracks of other durations, except the one still set on the audio element. */
+export function releaseTracks(inUse: string): void {
+  for (const url of retired) {
+    if (url === inUse) continue;
+    URL.revokeObjectURL(url);
+    retired.delete(url);
   }
-  return track;
 }
