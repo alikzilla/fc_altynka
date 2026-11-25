@@ -1,8 +1,11 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { clubById } from '@altynka/core';
 import { Link, useLocation } from 'wouter';
 import { Icon } from './Icon';
 import { useBackButton } from '../lib/tg';
 import { EdgeBackGesture } from './EdgeBackGesture';
+import { useClubId } from '../lib/theme';
 
 type ToastOptions = { action?: { label: string; onClick: () => void }; tone?: 'error' };
 const ToastCtx = createContext<(text: string | null, options?: ToastOptions) => void>(() => {});
@@ -82,18 +85,40 @@ export function ConfirmButton(p: { label: string; confirmLabel: string; onConfir
   </>;
 }
 
+// Шапка клуба рисуется порталом в body (на всю ширину окна, а не колонки) и существует в одном экземпляре:
+// при переходе между экранами показывает её тот, что смонтирован последним.
+const backdropOwners: symbol[] = [];
+const backdropListeners = new Set<() => void>();
+const notifyBackdrop = () => backdropListeners.forEach(l => l());
+const subscribeBackdrop = (l: () => void) => { backdropListeners.add(l); return () => { backdropListeners.delete(l); }; };
+
+function ClubBackdrop({ crest }: { crest: string }) {
+  const [token] = useState(() => Symbol('club-backdrop'));
+  useLayoutEffect(() => {
+    backdropOwners.push(token);
+    notifyBackdrop();
+    return () => { backdropOwners.splice(backdropOwners.indexOf(token), 1); notifyBackdrop(); };
+  }, [token]);
+  const active = useSyncExternalStore(subscribeBackdrop, () => backdropOwners[backdropOwners.length - 1] === token, () => false);
+  if (!active) return null;
+  return createPortal(<div className="club-backdrop" aria-hidden="true"><img src={crest} alt="" /></div>, document.body);
+}
+
 /** Экран с заголовком; back — куда вести системной кнопкой «Назад». */
 export function Screen({ title, back, subtitle, action, className = '', children }: { title: string; back?: string; subtitle?: ReactNode; action?: ReactNode; className?: string; children: ReactNode }) {
   const [, navigate] = useLocation();
   const onBack = useCallback(() => back && navigate(back), [back, navigate]);
   useBackButton(back ? onBack : null);
+  const club = clubById(useClubId());
   return (
     <main className={`screen ${className}`}>
+      {club && <ClubBackdrop crest={club.crest} />}
       <EdgeBackGesture onBack={back ? onBack : null} />
       <header className="screen-heading">
         {back && <Link href={back} className="back-link" aria-label="Назад"><Icon name="back" /></Link>}
         <div className="heading-copy"><h1 className="title" tabIndex={-1}>{title}</h1>{subtitle && <p className="subtitle">{subtitle}</p>}</div>
         {action}
+        {club && !action && <img className="club-heading-crest" src={club.crest} alt="" aria-hidden="true" />}
       </header>
       {children}
     </main>

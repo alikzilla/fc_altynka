@@ -1,0 +1,29 @@
+/* Тема любимого клуба. Переменные (--accent, --club-pattern …) ставит lib/theme.ts на <html>;
+   цветные материалы возвращают свои токены, поэтому клуб их не перекрашивает. */
+
+/* Шапка: портал в body, на всю ширину окна, прокручивается со страницей и уходит под контент. */
+.club-backdrop { position: absolute; top: 0; left: 0; right: 0; height: 330px; z-index: -1; overflow: hidden; pointer-events: none; }
+.club-backdrop::before { content: ''; position: absolute; inset: 0; background-image: var(--club-pattern); opacity: .55; -webkit-mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); }
+.club-backdrop img { position: absolute; top: calc(70px + var(--safe-top)); left: 50%; width: 150px; height: 180px; object-fit: contain; transform: translateX(-50%); opacity: .2; }
+:root[data-theme='light'] .club-backdrop::before { opacity: .3; }
+.club-heading-crest { flex-shrink: 0; width: 30px; height: 36px; object-fit: contain; }
+
+/* Клубный акцент вне цветных материалов. */
+:root[data-club] .btn.primary { background: var(--club-accent); color: var(--club-on-accent); }
+:root[data-club] :is(.material-plum, .material-blue) .btn.primary { background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: #191c30; }
+:root[data-club] .material-coral .btn.primary { background: linear-gradient(160deg, #f7e9e3, #e5c8c0); color: #321e21; }
+:root[data-club] :is(.material-plum, .material-blue, .material-coral, .club-material) {
+  --accent: #ded5f4;
+  --accent-ink: #e5def8;
+  --on-accent: #191c30;
+  --accent-soft: #302a42;
+}
+:root[data-club] .nav a.on { color: var(--accent-ink); }
+:root[data-club] ::selection { background: color-mix(in srgb, var(--accent) 40%, var(--bg)); color: var(--text); }
+:root[data-club] :focus-visible { outline-color: var(--accent); }
+
+@media (prefers-contrast: more) {
+  .club-backdrop { display: none; }
+  :root[data-club] .btn.primary { background: #e5def5; color: #191c30; }
+  :root[data-club][data-theme='light'] .btn.primary { background: #573579; color: #fff; }
+}

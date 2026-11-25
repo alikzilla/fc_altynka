@@ -1,4 +1,4 @@
-import type { MeDto } from '@altynka/core';
+import { clubById, type MeDto } from '@altynka/core';
 import { lazy, Suspense, useEffect, useRef } from 'react';
 import { Redirect, Route, Switch, useLocation, useSearch } from 'wouter';
 import { MeContext, MeReloadContext, MeUpdateContext } from './state/me';
@@ -30,7 +30,7 @@ import { RouteSkeleton } from './components/skeletons';
 import { OfflineNotice } from './components/OfflineNotice';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useResource } from './hooks/useResource';
-import { applyTheme } from './lib/theme';
+import { applyClub, applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
 
 export function App() {
@@ -63,6 +63,7 @@ function TeamApp() {
   const scheduleParent = scheduleId && background.current.split('?')[0] === `/event/${scheduleId}` ? background.current : `/event/${scheduleId}${search ? `?${search}` : ''}`;
   const { data: me, error, reload: reloadMe, replace: updateMe } = useResource<MeDto>('/api/me');
   useEffect(() => { if (me?.theme) applyTheme(me.theme); }, [me?.theme]);
+  useEffect(() => { if (me) applyClub(clubById(me.favoriteClub)?.id ?? null); }, [me?.favoriteClub, !!me]);
   // /api/me works without any group, so only a missing Telegram session or the network can fail it.
   if (error && (!me || error.status === 401)) {
     const text = error.status === 401 ? 'Открой мини-апп из Telegram' : 'Нет связи, попробуй позже';
