@@ -1,5 +1,5 @@
 import {
-  AWARDS, calculatePlayerRating, matchStartsAt, MIN_REVIEW_VOTES, normalizeAwardPicks, REVIEW_WINDOW_MS,
+  AWARDS, calculatePlayerRating, clubById, matchStartsAt, MIN_REVIEW_VOTES, normalizeAwardPicks, REVIEW_WINDOW_MS,
   selfAssessmentRating, SKILLS, summarizePlayerProtocol, type AwardPicks, type MatchAwardsDto, type MatchReviewDto, type PlayerProfileDto,
   type PlayerSummaryDto, type RatedMatch, type ReviewAwardsInput, type ReviewInput, type ReviewPlayerStats, type SkillAnswers,
 } from '@altynka/core';
@@ -83,7 +83,7 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   const history = rows.map(({ communityId, communityTitle, ...h }) => ({ ...h, community: { id: communityId, title: communityTitle } }));
   const [games, details, roles] = await Promise.all([
     playerGameStatistics(db, userId, viewerId, now),
-    db.select({ username: users.username, pinnedAchievement: users.pinnedAchievement }).from(users).where(eq(users.id,userId)),
+    db.select({ username: users.username, pinnedAchievement: users.pinnedAchievement, favoriteClub: users.favoriteClub }).from(users).where(eq(users.id,userId)),
     db.all<{communityId:number;role:'organizer'|'player';telegramAdmin:number;injured:number}>(sql`
       SELECT m.community_id AS communityId,m.role,m.telegram_admin AS telegramAdmin,m.injured FROM memberships m JOIN communities c ON c.id=m.community_id
       WHERE m.user_id=${userId} AND m.active=1 AND c.active=1 ${userId===viewerId?sql``:sql`AND EXISTS (
@@ -92,7 +92,7 @@ export async function playerProfile(db: Db, userId: number, viewerId: number, no
   const role = roles.some(r=>r.telegramAdmin) ? 'admin' : roles.some(r=>r.role==='organizer') ? 'organizer' : 'player';
   // Корона, как и травма, видна, если она есть хотя бы в одной из групп, которые видит смотрящий.
   const crowns = await reigningMvps(db, roles.map(r=>r.communityId), now);
-  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, role, injured: roles.some(r=>r.injured),
+  return { ...player, history, ...games, telegramUsername: details[0]?.username??null, pinnedAchievement: details[0]?.pinnedAchievement??null, favoriteClub: clubById(details[0]?.favoriteClub)?.id??null, role, injured: roles.some(r=>r.injured),
     reigningMvp: [...crowns.values()].some(ids=>ids.includes(userId)) };
 }
 

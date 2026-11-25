@@ -1,4 +1,5 @@
 import type { Extra, LineState } from './bill';
+import type { ClubId } from './clubs';
 import type { AppTheme, DominantFoot, PlayingPosition } from './profile';
 import type { MatchReviewSummaryDto, PlayerRatingDto, PlayerSummaryDto } from './ratings';
 import type { GameProtocolDto } from './games';
@@ -23,6 +24,7 @@ export interface MeDto {
   dominantFoot?: DominantFoot | null;
   pinnedAchievement?: AchievementId | null;
   theme?: AppTheme;
+  favoriteClub?: ClubId | null;
   notifications?: { enabled: boolean; available: boolean };
   /** Confirmed groups, sorted by title; empty for a person without groups. */
   communities: MyCommunityDto[];

@@ -8,7 +8,7 @@ import { player, renderWithApp } from './render';
 vi.mock('../src/lib/api', async orig => ({ ...(await orig<typeof import('../src/lib/api')>()), api: { get: vi.fn(), send: vi.fn() } }));
 vi.mock('../src/lib/tg');
 
-const base: PlayerProfileDto = { userId: 77, displayName: 'Арман', telegramUsername: null, pinnedAchievement: null, role: 'player', playingPosition: null, dominantFoot: null,
+const base: PlayerProfileDto = { userId: 77, displayName: 'Арман', telegramUsername: null, pinnedAchievement: null, favoriteClub: null, role: 'player', playingPosition: null, dominantFoot: null,
   rating: { value: 5, initial: 5, selfAssessment: null, matchesCount: 0 }, statistics: aggregatePlayerStatistics([]), gameHistory: [], history: [] };
 
 test('another player sees the injury an admin set moments ago, even with the profile cached', async () => {

@@ -2,6 +2,7 @@ import type { DominantFoot, PlayingPosition } from './profile';
 import type { Role } from './api';
 import type { PlayerMeetingStatistics, PlayerStatistics } from './playerStatistics';
 import type { AchievementId } from './achievements';
+import type { ClubId } from './clubs';
 import type { AwardPicks, MatchAwardsDto } from './awards';
 
 export const SKILLS = [
@@ -58,6 +59,7 @@ export interface PlayerProfileDto extends PlayerSummaryDto {
   statistics: PlayerStatistics;
   gameHistory: PlayerMeetingStatistics[];
   pinnedAchievement: AchievementId | null;
+  favoriteClub: ClubId | null;
   history: { eventId: number; date: string; place: string | null; score: number | null; community: { id: number; title: string }; protocolVersion?: 0 | 1 }[];
 }
 export interface ReviewInput {

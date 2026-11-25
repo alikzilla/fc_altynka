@@ -44,7 +44,7 @@ const m1=meeting(4,'2026-11-06',['win','win','draw'],[2,1,0]);
 const m2=meeting(3,'2026-10-30',['loss','win'],[0,0]);
 const m3=meeting(2,'2026-10-23',['draw'],[1]);
 const m4=meeting(1,'2026-10-16',['win'],[1]);
-const profileWith=(gameHistory:PlayerMeetingStatistics[])=>({userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,statistics:aggregatePlayerStatistics([]),gameHistory,history:[]});
+const profileWith=(gameHistory:PlayerMeetingStatistics[])=>({userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,favoriteClub:null,statistics:aggregatePlayerStatistics([]),gameHistory,history:[]});
 
 test('the card lists the latest three meetings as rows with dots and goals', async () => {
   renderWithApp(<PlayerGameHistory profile={profileWith([m1, m2, m3, m4])}/>, { me: player });

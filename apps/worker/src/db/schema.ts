@@ -22,6 +22,7 @@ export const users = sqliteTable('users', {
   dominantFoot: text('dominant_foot', { enum: ['right', 'left', 'both'] }),
   theme: text('theme', { enum: ['dark', 'light'] }).notNull().default('dark'),
   pinnedAchievement: text('pinned_achievement', { enum: ACHIEVEMENT_IDS }),
+  favoriteClub: text('favorite_club'),
   notificationsEnabled: integer('notifications_enabled', { mode: 'boolean' }).notNull().default(false),
   pmAvailable: integer('pm_available', { mode: 'boolean' }).notNull().default(false),
   /** Последнее фото из Telegram initData; обновляется при входе в мини-апп. */
