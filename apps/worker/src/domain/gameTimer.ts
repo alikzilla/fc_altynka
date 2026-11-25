@@ -17,6 +17,17 @@ function validTimer(input: StoredGameTimer, now: number): boolean {
     && near(startedAt) && pausedMs >= 0 && (pausedAt === null || (near(pausedAt) && pausedAt >= startedAt));
 }
 
+/** The stored timer, or null when there is none or the stored value is corrupt: a bad value must not fail the match page. */
+export function parseStoredTimer(json: string | null): StoredGameTimer | null {
+  if (!json) return null;
+  try {
+    const value = JSON.parse(json) as Partial<StoredGameTimer> | null;
+    return value && typeof value === 'object' && typeof value.gameSequence === 'number' && typeof value.updatedAt === 'number' ? value as StoredGameTimer : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The shared timer is a last-writer-wins value keyed by `updatedAt`; it never bumps `gameRevision`,
  * so it cannot make a result write conflict. A stored reset marker keeps the ordering across resets.
@@ -29,7 +40,7 @@ export async function setGameTimer(d: Deps, eventId: number, input: StoredGameTi
     if (ev.protocolVersion !== 1 || ev.startedAt === null || ev.completedAt !== null || ev.status === 'cancelled') return { kind: 'conflict' };
     const played = parseGameState(ev)?.games.length ?? 0;
     if (input.gameSequence !== played + 1) return { kind: 'conflict' };
-    const stored = ev.gameTimerJson ? JSON.parse(ev.gameTimerJson) as StoredGameTimer : null;
+    const stored = parseStoredTimer(ev.gameTimerJson);
     if (stored && stored.gameSequence === input.gameSequence && stored.updatedAt > input.updatedAt) return { kind: 'ok', timer: currentTimer(stored, played) };
     const saved = await d.db.update(events).set({ gameTimerJson: JSON.stringify(input) })
       .where(and(eq(events.id, eventId), ev.gameTimerJson === null ? isNull(events.gameTimerJson) : eq(events.gameTimerJson, ev.gameTimerJson)))

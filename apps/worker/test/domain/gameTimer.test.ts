@@ -3,7 +3,7 @@ import type { GameTimer, StoredGameTimer } from '@altynka/core';
 import { events } from '../../src/db/schema';
 import { getEvent } from '../../src/domain/events';
 import { getGameProtocol, startGameSession } from '../../src/domain/gameStart';
-import { recordGameResult } from '../../src/domain/games';
+import { recordGameResult, undoLastGame } from '../../src/domain/games';
 import { setGameTimer } from '../../src/domain/gameTimer';
 import type { FakeSync } from '../fakes/fakeSync';
 import { gameFixture } from './gameFixture';
@@ -92,4 +92,27 @@ test('a timer for the next game is not ordered against the previous game timer',
   const next = timerAt(w.d.now, { gameSequence: 2, updatedAt: w.d.now + 1000 });
   expect(await setGameTimer(w.d, w.eventId, next)).toEqual({ kind: 'ok', timer: next });
   expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toEqual(next);
+});
+
+test('a corrupt stored timer reads as no timer instead of failing the match page, and the next write replaces it', async () => {
+  const w = await started();
+  await w.d.db.update(events).set({ gameTimerJson: '{not json' }).where(eq(events.id, w.eventId));
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toBeNull();
+  const t = timerAt(w.d.now);
+  expect(await setGameTimer(w.d, w.eventId, t)).toEqual({ kind: 'ok', timer: t });
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toEqual(t);
+  await w.d.db.update(events).set({ gameTimerJson: '42' }).where(eq(events.id, w.eventId));
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toBeNull();
+});
+
+test('undo brings back the stored timer of the undone game when the next game has none yet', async () => {
+  const w = await started();
+  const rev = (await getEvent(w.d.db, w.eventId))!.gameRevision;
+  const first = timerAt(w.d.now - 400_000, { updatedAt: w.d.now - 399_000 });
+  await setGameTimer(w.d, w.eventId, first);
+  const r = await recordGameResult(w.d, w.eventId, w.actorId, { requestId: 'r1', expectedRevision: rev }, { score: [1, 0], scorers: [] });
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toBeNull();
+  // That is the real state of game 1 again: its time ran on, usually into added time.
+  await undoLastGame(w.d, w.eventId, w.actorId, { requestId: 'u1', expectedRevision: r.kind === 'ok' ? r.appliedRevision : 0 });
+  expect((await getGameProtocol(w.d, w.eventId, false))?.timer).toEqual(first);
 });
