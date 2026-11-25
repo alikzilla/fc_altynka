@@ -2,6 +2,7 @@ import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page, type CDPSession } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { openCreateMatch } from './menu';
+import { expectStableSheet, sheetHeight } from './sheet-height';
 
 test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: null, community: { id: 4, title: 'Футбол по субботам' } };
@@ -170,6 +171,72 @@ test('dragging horizontally or selecting text into the backdrop does not dismiss
   await expect(textarea).toHaveValue('Светлые и тёмные футболки');
   await page.mouse.click(20, 100);
   await expect(sheet).toHaveCount(0);
+});
+
+test('an open sheet grows with its content, never shrinks back, and starts fresh after a drag close', async ({ page }) => {
+  const sheet = await openSheet(page);
+  const initial = await sheetHeight(page, sheet);
+  const content = page.locator('.sheet-content');
+  await content.evaluate(el => { const extra = document.createElement('div'); extra.id = 'extra'; extra.style.height = '160px'; el.append(extra); });
+  await expect.poll(async () => Math.round((await sheet.boundingBox())!.height)).toBe(Math.round(initial + 160));
+  // The content gets shorter again: the sheet keeps its height, its footer edge stays on the screen's bottom.
+  await expectStableSheet(page, sheet, () => content.evaluate(el => el.querySelector('#extra')!.remove()));
+  expect(Math.round((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height)).toBe(844);
+  expect(await content.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
+  const cdp = await page.context().newCDPSession(page);
+  const grabber = (await page.locator('.sheet-drag-area').boundingBox())!;
+  await swipe(cdp, 195, grabber.y + 16, 0, 160);
+  await expect(sheet).toHaveCount(0);
+  await openCreateMatch(page);
+  await expect(sheet).toBeVisible();
+  expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
+});
+
+test('the keyboard squeezes a sheet below its remembered height and it comes back to the same height', async ({ page }) => {
+  const sheet = await openSheet(page);
+  await sheet.getByLabel(/Комментарий/).focus();
+  const initial = await sheetHeight(page, sheet);
+  // No virtual keyboard in the browser: shrink the visual viewport the way useBottomSheet reports it.
+  const visible = Math.round(initial * .6);
+  await sheet.evaluate((el, visible) => {
+    el.style.setProperty('--sheet-viewport', `${visible}px`);
+    el.style.setProperty('--sheet-bottom', `${innerHeight - visible}px`);
+  }, visible);
+  const squeezed = await sheetHeight(page, sheet);
+  const box = (await sheet.boundingBox())!;
+  expect(squeezed).toBeLessThanOrEqual(visible - 12);
+  // It sits above the keyboard and fits in what is left of the screen.
+  expect(box.y).toBeGreaterThanOrEqual(12);
+  expect(Math.round(box.y + box.height)).toBe(visible);
+  expect(await page.locator('.sheet-content').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  await expect(sheet.getByLabel(/Комментарий/)).toBeFocused();
+  // The keyboard goes away: useBottomSheet measures the viewport again on resize.
+  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
+});
+
+test('a long list never makes the sheet taller than a 600 px window; it scrolls inside', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 600 });
+  await page.goto('/');
+  await openCreateMatch(page);
+  const sheet = page.getByRole('dialog');
+  await expect(sheet).toBeVisible();
+  const content = page.locator('.sheet-content');
+  await content.evaluate(el => {
+    const list = document.createElement('ul');
+    list.id = 'long-list';
+    for (let i = 1; i <= 40; i++) { const row = document.createElement('li'); row.textContent = `Игрок ${i}`; row.style.padding = '12px 0'; list.append(row); }
+    el.append(list);
+  });
+  const height = await sheetHeight(page, sheet);
+  const box = (await sheet.boundingBox())!;
+  expect(height).toBeLessThanOrEqual(600 - 12);
+  expect(box.y).toBeGreaterThanOrEqual(0);
+  expect(Math.round(box.y + box.height)).toBe(600);
+  expect(await sheet.evaluate(el => parseFloat(el.style.getPropertyValue('--sheet-min')) || 0)).toBeLessThanOrEqual(600 - 12);
+  await content.evaluate(el => { el.scrollTop = el.scrollHeight; });
+  await expect.poll(() => content.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  await expect(page.getByText('Игрок 40')).toBeInViewport();
 });
 
 for (const width of [320, 390]) {
