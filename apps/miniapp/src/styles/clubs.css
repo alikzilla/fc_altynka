@@ -6,7 +6,10 @@
 .club-backdrop::before { content: ''; position: absolute; inset: 0; background-image: var(--club-pattern); opacity: .55; -webkit-mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); mask-image: linear-gradient(#000 0%, #000 25%, transparent 100%); }
 .club-backdrop img { position: absolute; top: calc(70px + var(--safe-top)); left: 50%; width: 150px; height: 180px; object-fit: contain; transform: translateX(-50%); opacity: .2; }
 :root[data-theme='light'] .club-backdrop::before { opacity: .3; }
-.club-heading-crest { flex-shrink: 0; width: 30px; height: 36px; object-fit: contain; }
+/* Светлый узор (Реал: белый) даёт под белым заголовком ~2,8:1; тень возвращает читаемость. */
+:root[data-club]:not([data-theme='light']) .screen-heading .title { text-shadow: 0 1px 10px rgb(0 0 0 / .6), 0 0 3px rgb(0 0 0 / .4); }
+/* Отрицательный отступ: эмблема не растягивает заголовок, иначе экран с action (без эмблемы) и его каркас (с ней) разойдутся по высоте. */
+.club-heading-crest { flex-shrink: 0; width: 30px; height: 36px; margin-block: -8px; object-fit: contain; }
 
 /* Клубный акцент вне цветных материалов. */
 :root[data-club] .btn.primary { background: var(--club-accent); color: var(--club-on-accent); }
@@ -40,6 +43,8 @@
 .club-material .player-statistics-section { background: color-mix(in srgb, var(--club-ink) 7%, transparent); }
 .club-material .player-awards { border-top-color: color-mix(in srgb, var(--club-ink) 14%, transparent); }
 .club-material .player-awards > div { background: color-mix(in srgb, var(--club-ink) 9%, transparent); }
+/* Цвет ранга (жёлтый, зелёный) нечитаем на светлом жемчужном материале: число лежит на тёмном диске. */
+.club-material .rank-core { fill: #19191f; fill-opacity: .92; }
 .club-material .rank-track { stroke: color-mix(in srgb, var(--club-ink) 14%, transparent); }
 .club-material .rating-caption { color: var(--club-ink-soft); }
 

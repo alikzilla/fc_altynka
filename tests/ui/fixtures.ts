@@ -14,9 +14,9 @@ export async function animationsSettled(page: import('@playwright/test').Page): 
 
 /**
  * Blocks that scroll sideways on purpose: the match carousel, the availability strip, the game table
- * and the statistics tabs. Anything else that scrolls sideways is a layout bug.
+ * the statistics tabs and the league chips of the club picker. Anything else that scrolls sideways is a layout bug.
  */
-export const HORIZONTAL_SCROLLERS = ['.match-carousel', '.ceremony-cards', '.availability-strip', '.game-table-scroll', '.stat-groups', '.stat-boards'];
+export const HORIZONTAL_SCROLLERS = ['.match-carousel', '.ceremony-cards', '.availability-strip', '.game-table-scroll', '.stat-groups', '.stat-boards', '.club-leagues'];
 
 type Overflow = { where: string; scrollWidth: number; clientWidth: number; viewport: number; culprits: string[] };
 

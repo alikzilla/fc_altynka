@@ -15,8 +15,8 @@ const event = { id: 7, community, date: '2026-11-12', status: 'scheduled', start
 const me = { ...profile, profileCompleted: true, kaspiPhone: '+77071234567', communities: [{ ...community, role: 'admin' }], telegram: { firstName: 'Алихан', lastName: null, username: 'alikhan', photoUrl: null } };
 const task = { id: 's7', kind: 'schedule', eventId: 7, community, date: '2026-11-12', place: 'Школа Аксай' };
 
-function body(path: string, theme: string) {
-  if (path === '/api/me') return { ...me, theme };
+function body(path: string, theme: string, club: string | null = null) {
+  if (path === '/api/me') return { ...me, theme, favoriteClub: club };
   if (path === '/api/events') return { active: [event], past: [] };
   if (path === '/api/matches') return { events: [31, 24].map(day => ({ ...event, id: day, status: 'closed', date: `2026-10-${day}` })), nextCursor: null };
   if (path === '/api/notifications') return { tasks: [task, { ...task, id: 's8', eventId: 8 }] };
@@ -47,8 +47,10 @@ function boxes(page: Page, scope: string, selectors: string[], skeleton: boolean
   }), { scope, selectors, skeleton });
 }
 
-for (const [theme, width] of [['dark', 390], ['dark', 320], ['light', 390]] as const) {
-  test(`skeletons keep the loaded geometry: ${theme} ${width}px`, async ({ page }) => {
+// Третий элемент — любимый клуб: карточка профиля и шапка клуба не должны сдвигать загруженный экран.
+for (const [theme, width, club] of [['dark', 390, null], ['dark', 320, null], ['light', 390, null], ['dark', 390, 'real-madrid'], ['light', 320, 'kairat']] as const) {
+  test(`skeletons keep the loaded geometry: ${theme} ${width}px${club ? ` club ${club}` : ''}`, async ({ page }) => {
+    if (club) await page.addInitScript(id => localStorage.setItem('altynka:club', id), club);
     await page.setViewportSize({ width, height: 844 });
     await page.clock.setFixedTime(new Date('2026-11-07T10:00:00+05:00'));
     await page.route('https://telegram.org/**', route => route.fulfill({ body: '' }));
@@ -59,7 +61,7 @@ for (const [theme, width] of [['dark', 390], ['dark', 320], ['light', 390]] as c
       await page.route('**/api/**', async route => {
         const resource = new URL(route.request().url()).pathname;
         if (resource !== '/api/me') await gate;
-        await route.fulfill({ json: body(resource, theme) });
+        await route.fulfill({ json: body(resource, theme, club) });
       });
       await page.goto(path);
       const status = scope === 'dialog' ? page.getByRole('dialog').getByRole('status', { name: 'Загрузка…' }) : page.locator('main').getByRole('status', { name: 'Загрузка…' }).first();
