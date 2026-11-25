@@ -145,6 +145,11 @@ input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%;
 .profile-card-football dt { font-size: 12px; color: #d2cadd; }
 .profile-card-football dd { margin: 2px 0 0; font-size: 14px; overflow-wrap: anywhere; }
 .profile-management { display: flex; flex-direction: column; gap: 12px; }
+button.task-preview { width: 100%; border: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.task-preview > svg.profile-external { width: 17px; height: 17px; color: var(--hint); }
+.profile-footer { display: grid; justify-items: start; gap: 2px; margin-top: 28px; }
+.profile-footer .btn-text { min-height: 44px; padding: 0; font-size: 15px; font-weight: 550; }
+.profile-footer p { margin: 0; font-size: 13px; }
 .profile-system-settings { display: flex; flex-direction: column; gap: 20px; }
 .system-settings-list { gap: 0; padding-block: 0; }
 .system-setting-item + .system-setting-item { border-top: 1px solid var(--line); }
@@ -169,7 +174,6 @@ button.system-action-row { cursor: pointer; }
 .report-problem { display: grid; gap: 10px; }
 .report-problem label { font-weight: 550; }
 .report-problem p { margin: 0; font-size: 14px; line-height: 1.45; }
-.system-version { margin: 12px 4px 0; font-size: 13px; }
 .delete-data-copy { display: grid; gap: 12px; font-size: 15px; line-height: 1.5; }
 .delete-data-copy p { margin: 0; }
 .btn.delete-data-confirm { background: var(--danger-surface); color: var(--on-danger-surface); }
