@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { Route } from 'wouter';
 import { api } from '../src/lib/api';
+import { queryClient, resourceKey } from '../src/lib/queryClient';
 import { useGameTimer, type GameTimerView } from '../src/hooks/useGameTimer';
 import { GameScreen } from '../src/screens/GameScreen';
 import { organizer, player, renderWithApp } from './render';
@@ -248,4 +249,19 @@ test('a response slower than the poll interval is waited for, not cancelled', as
   expect(screen.getByRole('heading', { level: 1, name: 'Игра 2' })).toBeVisible();
   await advance(3000);
   expect(api.get).toHaveBeenCalledTimes(count + 2);
+});
+
+test('arriving from the coin toss with a stale cached match waits for the refresh instead of bouncing back', async () => {
+  const key = resourceKey('/api/events/7');
+  queryClient.setQueryData(key, { ...organizerEvent, status: 'scheduled', gameProtocol: makeProtocol({ state: 'not_started', currentPair: null, startedAt: null }) });
+  let resolve!: (value: EventDetailDto) => void;
+  (api.get as Mock).mockImplementation(() => new Promise<EventDetailDto>(r => { resolve = r; }));
+  // The sheet's reload() after the toss is still in flight when the screen opens.
+  queryClient.fetchQuery({ queryKey: key, queryFn: () => api.get('/api/events/7'), staleTime: 0 }).catch(() => {});
+  const { history } = renderWithApp(<Route path="/event/:id/game"><GameScreen /></Route>, { me: organizer, path: '/event/7/game' });
+  await settle();
+  expect(history.at(-1)).toBe('/event/7/game');
+  await act(async () => resolve(organizerEvent));
+  expect(screen.getByRole('heading', { level: 1, name: 'Игра 1' })).toBeVisible();
+  expect(history.at(-1)).toBe('/event/7/game');
 });

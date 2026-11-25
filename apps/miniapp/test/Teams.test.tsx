@@ -3,6 +3,7 @@ import { act, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
+import { queryClient, resourceKey } from '../src/lib/queryClient';
 import { Teams } from '../src/screens/Teams';
 import { organizer, player, renderWithApp } from './render';
 import { makeProtocol } from './gameFixtures';
@@ -27,6 +28,7 @@ beforeEach(() => (api.send as Mock).mockReset().mockResolvedValue({ kind: 'ok' }
 test('manual start confirms the full-session lineup and moves to games', async () => {
   const reload=vi.fn();
   const manual={...ev,protocolVersion:1 as const,gameProtocol:makeProtocol({state:'not_started',startedAt:null,currentPair:null,canStart:true,canRecord:false}),teams:{teamCount:2 as const,teams:[main.slice(0,5).map(p=>p.id),main.slice(5).map(p=>p.id)],publishedAt:1,stale:false}};
+  queryClient.setQueryData(resourceKey('/api/events/5'),manual);
   const {history}=renderWithApp(<Teams ev={manual} reload={reload}/>,{me:organizer});
   (api.send as Mock).mockResolvedValueOnce({protocol:makeProtocol({teamCount:2,currentPair:[0,1],restingTeamIndex:null,kickoffTeamIndex:1})});
   await userEvent.click(screen.getByRole('button',{name:'Начать матч'}));
@@ -38,6 +40,8 @@ test('manual start confirms the full-session lineup and moves to games', async (
   expect(await within(dialog).findByText('С мячом начинают Синие',{},{timeout:4000})).toBeVisible();
   await userEvent.click(within(dialog).getByRole('button',{name:'К игре 1'}));
   expect(reload).toHaveBeenCalled(); expect(history.at(-1)).toBe('/event/5/game');
+  // The game screen opens on the started match even before the refresh answers.
+  expect(queryClient.getQueryData<EventDetailDto>(resourceKey('/api/events/5'))?.gameProtocol).toMatchObject({state:'playing',currentPair:[0,1]});
 });
 
 test('swapping a guest changes the draft and requires publishing before start', async () => {

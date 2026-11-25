@@ -5,6 +5,7 @@ import { ActionSheet } from '../components/ActionSheet';
 import { TeamColorSheet } from '../components/TeamColorSheet';
 import { TossCoin } from '../components/TossCoin';
 import { api, ApiError } from '../lib/api';
+import { keepReceivedAt, queryClient, resourceKey } from '../lib/queryClient';
 import { haptic } from '../lib/tg';
 
 type Props = { ev: EventDetailDto; reload: () => void; onClose: () => void };
@@ -65,6 +66,14 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
     if (protocol) reload();
   }
   function toGames() {
+    // The game screen opens on the started match, not on a cached copy from before the toss.
+    const key = resourceKey(`/api/events/${ev.id}`);
+    const cached = queryClient.getQueryData<EventDetailDto>(key);
+    if (cached && protocol) {
+      const started = { ...cached, gameProtocol: protocol };
+      queryClient.setQueryData(key, started);
+      keepReceivedAt(cached, started);
+    }
     onClose(); reload(); navigate(`/event/${ev.id}/game`);
   }
 

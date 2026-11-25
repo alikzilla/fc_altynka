@@ -27,7 +27,8 @@ export function GameScreen() {
   const back = `/event/${id}?tab=games`;
   const { data: ev, error, loading, reload, poll } = useResource<EventDetailDto>(`/api/events/${id}`);
   const playing = ev?.gameProtocol?.state === 'playing';
-  const leave = !!ev && !playing;
+  // A cached copy from before the coin toss must not bounce the screen back while its refresh is on the way.
+  const leave = !!ev && !playing && !loading;
   useEffect(() => { if (leave) navigate(back, { replace: true }); }, [leave, back, navigate]);
   // Everyone sees the next pair and the timer within a few seconds; nothing is fetched while hidden.
   // On a slow pitch-side network a poll waits for the response still in flight instead of cancelling it.
