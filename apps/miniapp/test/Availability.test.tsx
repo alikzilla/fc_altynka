@@ -122,7 +122,7 @@ test('the organizer picks the match date on a two-week strip; the breakdown open
   // Вторая неделя: игроки её ещё не отмечают, дату выбрать можно.
   const later = availabilityDates(upcoming[0], 14)[10];
   await userEvent.click(within(strip).getByRole('button', { name: `${formatDateRu(later)} — отметок пока нет` }));
-  expect(region.querySelector('details')).toBeNull();
+  expect(region.querySelector('details:not([inert])')).toBeNull();
   expect(within(region).getByText(/На этот день отметок ещё нет/)).toBeInTheDocument();
   await userEvent.click(screen.getByRole('button', { name: 'Создать матч' }));
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events', expect.objectContaining({ date: later }));

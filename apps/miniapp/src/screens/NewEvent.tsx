@@ -8,13 +8,43 @@ import { useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
 import { AvailabilityGrid } from '../components/AvailabilityGrid';
+import { SheetPlaceholder } from '../components/SheetPlaceholder';
 import { useResource } from '../hooks/useResource';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 
 const names = (people: AvailabilityPersonDto[]) => people.map(p => p.name).join(', ');
 
 /** Матч создаётся не дальше двух недель: лента — единственный выбор даты. Игроки отмечают только текущую неделю, до воскресенья. */
 const PICKER_DAYS = 14;
 const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
+
+const NO_DAY: AvailabilitySummaryDto['days'][number] = { date: '', yes: [], no: [], unknown: 0 };
+
+/**
+ * Строка сводки под лентой даты. Варианты («заголовок со сводкой» и «отметок ещё нет») лежат в одной ячейке,
+ * неактивный невидим и недоступен; пока сводки нет (грузится, группа не выбрана), место просто занято.
+ */
+function SummaryLine({ day, total, mode, className }: { day: AvailabilitySummaryDto['days'][number] | null; total: number; mode: 'day' | 'none' | 'reserve'; className?: string }) {
+  const shown = day ?? NO_DAY;
+  const hide = (active: boolean) => active ? undefined : 'sheet-stack-hidden';
+  const reserve = mode === 'reserve';
+  return <div className={`sheet-stack summary-line ${className ?? ''}`.trim()} aria-hidden={reserve || undefined}>
+    <details className={`availability-details ${hide(mode === 'day') ?? ''}`.trim()} inert={mode !== 'day'} aria-hidden={mode !== 'day' || undefined}>
+      <summary><span className="availability-details-title">Могут играть · <b>{shown.yes.length}</b> из {total}</span><span className="availability-details-toggle">Кто может<Icon name="back" /></span></summary>
+      <div className="availability-day">
+        {shown.yes.length > 0 && <ul className="availability-windows" aria-label="Кто может по времени">
+          {DAY_PARTS.map(part => {
+            const people = shown.yes.filter(p => p.parts.includes(part));
+            return <li key={part} className={people.length ? '' : 'none'}><span className="availability-window-time">{DAY_PART_LABEL[part]}</span><b>{people.length}</b><span className="availability-window-names">{people.length ? names(people) : 'никто'}</span></li>;
+          })}
+        </ul>}
+        <p><b>Не могут · {shown.no.length}</b>{shown.no.length ? `: ${names(shown.no)}` : ''}</p>
+        <p className="muted">Не отметили · {shown.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
+      </div>
+    </details>
+    <p className={`muted ${hide(mode === 'none') ?? ''}`.trim()} inert={mode !== 'none'} aria-hidden={mode !== 'none' || undefined}>На этот день отметок ещё нет: игроки отмечают только текущую неделю.</p>
+  </div>;
+}
 
 /**
  * Дата матча: лента на две недели. Когда группа известна, под каждым днём — сколько человек может,
@@ -26,6 +56,7 @@ function MatchDatePicker({ communityId, date, onPick }: { communityId: number | 
   const marked = new Map((data?.days ?? []).map(d => [d.date, d]));
   const day = marked.get(date);
   const total = day ? day.yes.length + day.no.length + day.unknown : 0;
+  const reveal = useRevealAfter(!!data?.days);
   return <section className="availability-summary" aria-label="Дата матча">
     <p className="availability-date-heading"><span>Дата</span><b>{capital(formatDateRu(date))}</b></p>
     <AvailabilityGrid slider label="Дата" selected={date} onSelect={onPick} cells={availabilityDates(todayAlmaty(new Date()), PICKER_DAYS).map(d => {
@@ -35,19 +66,9 @@ function MatchDatePicker({ communityId, date, onPick }: { communityId: number | 
         label: `${formatDateRu(d)}${!data?.days ? '' : !known ? ' — отметок пока нет' : known.yes.length ? ` — ${plural(known.yes.length, 'может', 'могут', 'могут')} ${known.yes.length}` : ' — никто не отметил, что может'}`,
       };
     })} />
-    {day ? <details className="availability-details">
-      <summary><span className="availability-details-title">Могут играть · <b>{day.yes.length}</b> из {total}</span><span className="availability-details-toggle">Кто может<Icon name="back" /></span></summary>
-      <div className="availability-day">
-        {day.yes.length > 0 && <ul className="availability-windows" aria-label="Кто может по времени">
-          {DAY_PARTS.map(part => {
-            const people = day.yes.filter(p => p.parts.includes(part));
-            return <li key={part} className={people.length ? '' : 'none'}><span className="availability-window-time">{DAY_PART_LABEL[part]}</span><b>{people.length}</b><span className="availability-window-names">{people.length ? names(people) : 'никто'}</span></li>;
-          })}
-        </ul>}
-        <p><b>Не могут · {day.no.length}</b>{day.no.length ? `: ${names(day.no)}` : ''}</p>
-        <p className="muted">Не отметили · {day.unknown}. О новом матче бот напишет всем, кроме тех, кто не может.</p>
-      </div>
-    </details> : data?.days ? <p className="muted">На этот день отметок ещё нет: игроки отмечают только текущую неделю.</p> : null}
+    {communityId === null
+      ? <SheetPlaceholder hint="Выбери группу — здесь появится, сколько человек может"><SummaryLine day={null} total={0} mode="reserve" /></SheetPlaceholder>
+      : <SummaryLine day={day ?? null} total={total} mode={!data?.days ? 'reserve' : day ? 'day' : 'none'} className={reveal} />}
   </section>;
 }
 
