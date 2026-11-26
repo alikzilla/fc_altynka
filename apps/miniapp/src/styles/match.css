@@ -39,6 +39,11 @@
 .sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--sheet-safe-bottom, var(--safe-bottom))) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
 .action-sheet:has(.sheet-footer) .sheet-content { padding-bottom: 20px; }
 .bill-form { gap: 18px; }
+/* The receiver's number lays out like the other labelled fields; its two variants share one cell (.sheet-stack). */
+.bill-phone-field, .bill-phone-variant { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+.bill-phone-field { font-size: 14px; font-weight: 500; }
+.preview-placeholder { border-radius: 20px; }
+.extra-placeholder { border-radius: 12px; }
 .action-sheet .sheet-heading h2 { font-size: 22px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sheet-action[aria-disabled='true'] { opacity: .45; pointer-events: none; }
 .match-cancelled { background: #24212a; }

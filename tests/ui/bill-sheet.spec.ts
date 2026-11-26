@@ -1,6 +1,7 @@
 import { teamApiRoute } from './team-fixture';
-import { test, expect } from './fixtures';
+import { animationsSettled, test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
+import { expectStableSheet, sheetHeight } from './sheet-height';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567' };
 const players = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, seq: i + 1, userId: i + 1, name: i === 0 ? 'Организатор' : `Игрок ${i + 1}`, invitedByUserId: null, guestOfName: null }));
@@ -77,4 +78,50 @@ test('bill sheet preserves a failed draft, locks pending dismissal and closes af
     await expect(page).toHaveURL('/event/7?tab=bill');
     await expect(page.locator('#tab-bill')).toHaveAttribute('aria-selected', 'true');
   } finally { release(); }
+});
+
+for (const width of [320, 390]) test(`bill sheet keeps its height through the share, an extra, a Kaspi error and another receiver at ${width}px`, async ({ page }) => {
+  // Tall enough that the sheet is not capped: a growth would show.
+  await page.setViewportSize({ width, height: 1400 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const few = players.slice(0, 4).map((p, i) => i === 1 ? { ...p, kaspiPhone: '+77011111111' } : p);
+  await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
+  await teamApiRoute(page, r => {
+    const path = new URL(r.request().url()).pathname;
+    if (path === '/api/events/7/bill') return r.fulfill({ status: 400, json: { error: 'no_kaspi' } });
+    return r.fulfill({ json: path === '/api/me' ? { ...identity, kaspiPhone: null } : path === '/api/notifications' ? { tasks: [] } : { ...event, mainCount: 4, main: few } });
+  });
+  await page.goto('/event/7?tab=bill');
+  await page.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Выставить счёт' });
+  await expect(sheet.getByText('Укажи аренду — здесь появится сумма с человека')).toBeVisible();
+  expect(await sheetHeight(page, sheet)).toBeLessThan(1400 - 40);
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByLabel('Аренда поля, ₸').fill('24000');
+    await expect(sheet.getByText(/По 6\s000\s₸ с человека/)).toBeVisible();
+  });
+  // The first extra takes its outline's box. The sheet may still grow here: an empty extra brings the
+  // «укажи название и сумму» check, which the audit leaves unreserved (decision 5).
+  // Measured from the sheet's top: a sheet that grows rises from the bottom edge.
+  const top = async () => (await sheet.boundingBox())!.y;
+  const outline = (await sheet.locator('.extra-placeholder').boundingBox())!;
+  const outlineOffset = outline.y - await top();
+  await sheet.getByRole('button', { name: '+ Расход' }).click();
+  const row = (await sheet.getByRole('textbox', { name: 'Расход 1', exact: true }).locator('xpath=..').boundingBox())!;
+  await animationsSettled(page);
+  expect(Math.abs(row.y - await top() - outlineOffset)).toBeLessThanOrEqual(1);
+  // The two-line hint makes the outline a little taller than the 48px row: never shorter.
+  expect(row.height).toBeLessThanOrEqual(outline.height + 1);
+  await sheet.getByRole('button', { name: 'Убрать расход 1' }).click();
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
+    await expect(sheet.getByText('Нужен номер Kaspi получателя', { exact: true })).toBeVisible();
+  });
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByLabel('Кто заплатил за поле').selectOption(String(few[1].userId));
+    await expect(sheet.getByText('Номер получатель меняет в своём профиле')).toBeVisible();
+  });
+  await expect(sheet.getByLabel('Номер Kaspi получателя')).toHaveValue('+7 701 111 11 11');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
 });

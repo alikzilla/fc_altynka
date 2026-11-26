@@ -8,6 +8,7 @@ import { ConfirmButton, EmptyState, useToast } from '../components/ui';
 import { Icon } from '../components/Icon';
 import { MatchAction } from '../components/MatchAction';
 import { ActionSheet } from '../components/ActionSheet';
+import { SheetPlaceholder } from '../components/SheetPlaceholder';
 import { ReminderDelivery } from './ReminderDelivery';
 import { KaspiPay } from '../components/KaspiPay';
 import { PaymentMark, useReturnFromKaspi } from '../components/PaymentMark';
@@ -17,6 +18,18 @@ type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean }
 
 const responsible = (s: SignupDto) => s.userId ?? s.invitedByUserId;
 const PHONE_IN_PROFILE = 'Номер получатель меняет в своём профиле';
+/** The longer of the two expected number errors sizes the reserved line under the field. */
+const NO_KASPI = 'Нужен номер Kaspi получателя';
+
+/** Content that replaces a placeholder fades in where it stood; content present when the sheet opens does not. */
+function useAppearance(shown: boolean) {
+  const fade = useRef('');
+  const was = useRef<boolean | null>(null);
+  if (!shown) fade.current = '';
+  else if (was.current === false) fade.current = 'reveal';
+  was.current = shown;
+  return fade.current;
+}
 
 function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; onDone: () => void }) {
   const me = useMe();
@@ -59,6 +72,10 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
     if (who !== null) units.set(who, (units.get(who) ?? 0) + 1);
   });
   const preview = units.size && amountsValid ? computeBill(fieldAmount, extrasClean, [...units].map(([userId, u]) => ({ userId, units: u }))) : null;
+
+  const previewFade = useAppearance(!!preview);
+  const extraFade = useAppearance(extras.length > 0);
+  const phoneId = `${formId}-phone`;
 
   const toggle = (id: number) => {
     const next = new Set(picked);
@@ -135,19 +152,28 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
         </select>
       </label>
       {withoutPhone && <p className="muted">Другого получателя можно выбрать, если он сохранил номер Kaspi в своём профиле</p>}
-      <label>
-        Номер Kaspi получателя
-        {savedPhone
-          ? <><input inputMode="tel" readOnly value={formatKzPhone(savedPhone)} /><span className="muted">{PHONE_IN_PROFILE}</span></>
-          : <input inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />}
-        {phoneError && phoneError !== (savedPhone && PHONE_IN_PROFILE) && <span className="field-error">{phoneError}</span>}
-      </label>
+      <div className="bill-phone-field">
+        <label htmlFor={phoneId}>Номер Kaspi получателя</label>
+        {/* Both variants of the field share one cell: picking another receiver does not change the height. */}
+        <span className="sheet-stack">
+          <span className={`bill-phone-variant${savedPhone ? '' : ' sheet-stack-hidden'}`} inert={!savedPhone} aria-hidden={!savedPhone || undefined}>
+            <input id={savedPhone ? phoneId : undefined} inputMode="tel" readOnly value={savedPhone ? formatKzPhone(savedPhone) : ''} /><span className="muted">{PHONE_IN_PROFILE}</span>
+          </span>
+          <span className={`bill-phone-variant${savedPhone ? ' sheet-stack-hidden' : ''}`} inert={!!savedPhone} aria-hidden={!!savedPhone || undefined}>
+            <input id={savedPhone ? undefined : phoneId} inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />
+          </span>
+        </span>
+        <span className="field-error-slot" data-sizer={NO_KASPI}>{phoneError && phoneError !== (savedPhone && PHONE_IN_PROFILE) && <span className="field-error">{phoneError}</span>}</span>
+      </div>
       <label>
         Аренда поля, ₸
         <input inputMode="numeric" type="number" min={0} max={10_000_000} step={1} required value={field} onChange={e => setField(e.target.value)} />
       </label>
+      {extras.length === 0 && <SheetPlaceholder className="extra-placeholder" hint="Нажми «+ Расход» — здесь появится строка расхода">
+        <div className="extra"><input placeholder="Вода" /><input inputMode="numeric" type="number" /><button type="button" className="btn-text danger-text"><Icon name="close" /></button></div>
+      </SheetPlaceholder>}
       {extras.map((x, i) => (
-        <div key={i} className="extra">
+        <div key={i} className={i === 0 && extraFade ? `extra ${extraFade}` : 'extra'}>
           <input aria-label={`Расход ${i + 1}`} placeholder="Вода" maxLength={40} value={x.label} onChange={e => setExtras(extras.map((y, j) => (j === i ? { ...y, label: e.target.value } : y)))} />
           <input aria-label={`Сумма расхода ${i + 1}`} inputMode="numeric" type="number" min={0} value={x.amount} onChange={e => setExtras(extras.map((y, j) => (j === i ? { ...y, amount: e.target.value } : y)))} />
           <button type="button" className="btn-text danger-text" aria-label={`Убрать расход ${i + 1}`} onClick={() => setExtras(extras.filter((_, j) => j !== i))}>
@@ -169,12 +195,14 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
           <ul className="list bare">{ev.reserve.map(checkbox)}</ul>
         </details>
       )}
-      {preview && (
-        <div className="preview">
-          <b>По {formatTenge(preview.share)} с человека</b>
-          <span className="muted">Итого {formatTenge(preview.total)}</span>
-        </div>
-      )}
+      {preview
+        ? <div className={`preview ${previewFade}`.trim()}>
+            <b>По {formatTenge(preview.share)} с человека</b>
+            <span className="muted">Итого {formatTenge(preview.total)}</span>
+          </div>
+        : <SheetPlaceholder className="preview-placeholder" hint="Укажи аренду — здесь появится сумма с человека">
+            <div className="preview"><b>По {formatTenge(2000)} с человека</b><span className="muted">Итого {formatTenge(20000)}</span></div>
+          </SheetPlaceholder>}
       {!selectedIds.length && <p className="muted">Выбери хотя бы одного участника</p>}
       </fieldset>
       {formError && <p className="field-error" role="alert">{formError}</p>}
