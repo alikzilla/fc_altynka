@@ -12,7 +12,7 @@ const props = { players, scores: {}, gameScore: null, awards: {}, onAward: vi.fn
 test('the longest prize step is drawn invisibly under every step, so the sheet keeps one height', () => {
   render(<ReviewRater {...props} />);
   const stack = document.querySelector('.review-stack')!;
-  const ghosts = [...stack.querySelectorAll(':scope > .sheet-stack-hidden')];
+  const ghosts = [...stack.querySelectorAll(':scope > .review-ghost.sheet-stack-hidden')];
   // Two copies: a person with the stat tiles (taller than the list while there are few players) and a prize.
   expect(ghosts).toHaveLength(2);
   expect(ghosts.every(ghost => ghost.getAttribute('aria-hidden') === 'true' && ghost.hasAttribute('inert'))).toBe(true);
@@ -31,26 +31,32 @@ test('the longest prize step is drawn invisibly under every step, so the sheet k
   expect(screen.getAllByRole('heading', { level: 3 })).toHaveLength(1);
 });
 
-test('the recap line keeps its place on every step and shows on the last one', async () => {
+test('the recap lives in the final card, and the footer holds only the buttons', async () => {
   render(<ReviewRater {...props} scores={{ 1: 7, 2: 8 }} />);
   const dialog = screen.getByRole('dialog');
-  const recap = () => dialog.querySelector<HTMLElement>('.review-recap')!;
-  expect(recap().classList.contains('sheet-stack-hidden')).toBe(true);
-  expect(recap()).toHaveAttribute('aria-hidden', 'true');
-  expect(recap()).toHaveTextContent('Оценено игроков: 2 из 2');
+  const footer = dialog.querySelector('.sheet-footer')!;
+  // No step reserves a line for the recap: before the final step it is not there at all.
+  expect(dialog.querySelector('.review-recap')).toBeNull();
+  expect(footer.querySelector('p')).toBeNull();
   // The poll resumes at the first prize; skip them all to reach the final step.
   const total = players.length + AWARDS.length + 1;
   for (let i = 0; i < AWARDS.length; i++) {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Пропустить награду' }));
     expect(await screen.findByText(`${players.length + i + 2} из ${total}`)).toBeInTheDocument();
   }
-  expect(recap().classList.contains('sheet-stack-hidden')).toBe(false);
-  expect(recap()).not.toHaveAttribute('aria-hidden');
+  const recaps = dialog.querySelectorAll('.review-recap');
+  expect(recaps).toHaveLength(1);
+  expect(recaps[0]).toHaveTextContent('Оценено игроков: 2 из 2');
+  expect(recaps[0]).toHaveAttribute('aria-live', 'polite');
+  expect(recaps[0].closest('.review-step')).toHaveTextContent('Матч в целом');
+  expect(footer.querySelector('p')).toBeNull();
+  // The stacked-panel class stays inside stacks.
+  expect([...dialog.querySelectorAll('.sheet-stack-hidden')].every(node => node.parentElement?.classList.contains('sheet-stack'))).toBe(true);
 });
 
 test('the awards-only poll has no recap and no ghost without players', () => {
   render(<ReviewRater {...props} mode="awards" players={[]} />);
   expect(document.querySelector('.review-recap')).toBeNull();
-  expect(document.querySelector('.review-stack > .sheet-stack-hidden')).toBeNull();
+  expect(document.querySelector('.review-stack > .review-ghost')).toBeNull();
   expect(document.querySelector('.review-stack')).not.toBeNull();
 });

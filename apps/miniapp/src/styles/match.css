@@ -67,7 +67,7 @@
 .sheet-note { font-size: 14px; line-height: 1.45; color: var(--text); text-wrap: pretty; }
 .inline-failure { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 .inline-failure .btn-text { min-height: 44px; padding-inline: 4px; }
-.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; font-variant-numeric: tabular-nums; }
 .btn-text.armed, .sheet-action.armed { font-weight: 650; }
 .btn.armed { background: var(--danger-soft); color: var(--danger); }
 .bill-summary h2 { font-size: 17px; font-weight: 550; }

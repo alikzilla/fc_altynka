@@ -49,14 +49,14 @@ for (const width of widths) test(`profile settings: an expected error has its li
   await expectStableSheet(page, payment, async () => {
     await payment.getByRole('button', { name: 'Сохранить' }).click();
     await expect(payment.getByRole('alert')).toHaveText('Проверь номер');
-  });
+  }, { uncapped: true });
   await page.goto('/profile/settings/name');
   const name = page.getByRole('dialog', { name: 'Изменить имя' });
   await name.getByLabel('Имя в списках').fill('Арман');
   await expectStableSheet(page, name, async () => {
     await name.getByRole('button', { name: 'Сохранить' }).click();
     await expect(name.getByRole('alert')).toContainText('Это имя уже занято');
-  });
+  }, { uncapped: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -100,7 +100,7 @@ for (const width of widths) test(`feed post menu: the second tap on «Удали
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: 'Удалить пост' }).click();
     await expect(sheet.getByRole('button', { name: /Точно удалить/ })).toBeVisible();
-  });
+  }, { uncapped: true });
   expect(await sheet.getByRole('button', { name: /Точно удалить/ }).evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
 });
 
@@ -147,7 +147,7 @@ for (const width of widths) test(`player profile: pinning an achievement and ope
   await expectStableSheet(page, list, async () => {
     await detail.getByRole('button', { name: 'Закрепить в профиле' }).click();
     await expect(list.getByText('в профиле', { exact: true })).toBeVisible();
-  });
+  }, { uncapped: true });
   await expect(detail.getByRole('button', { name: 'Закреплено в профиле ✓' })).toBeDisabled();
   await detail.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await list.getByRole('button', { name: 'Закрыть', exact: true }).click();
@@ -188,13 +188,13 @@ for (const width of widths) test(`new match: the group hint is no taller than th
     await expectStableSheet(page, sheet, async () => {
       await sheet.getByLabel('Группа').selectOption({ label: 'FC Altynka' });
       await expect(hint).toHaveCount(0);
-    });
-    await expectStableSheet(page, sheet, async () => { release(); await expect(sheet.locator('.summary-line:not([aria-hidden])')).toBeVisible(); });
+    }, { uncapped: true });
+    await expectStableSheet(page, sheet, async () => { release(); await expect(sheet.locator('.summary-line:not([aria-hidden])')).toBeVisible(); }, { uncapped: true });
     // A day with no marks and a day with a summary share one cell: switching between them never moves the sheet.
     const strip = sheet.getByRole('group', { name: 'Дата' });
-    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(1).click(); });
-    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(12).click(); await expect(sheet.getByText(/На этот день отметок ещё нет/)).toBeVisible(); });
-    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(0).click(); });
+    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(1).click(); }, { uncapped: true });
+    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(12).click(); await expect(sheet.getByText(/На этот день отметок ещё нет/)).toBeVisible(); }, { uncapped: true });
+    await expectStableSheet(page, sheet, async () => { await strip.getByRole('button').nth(0).click(); }, { uncapped: true });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { release(); }
 });
@@ -206,7 +206,7 @@ for (const width of widths) test(`new match: one group — the summary place is 
   try {
     await expect(sheet).toBeVisible();
     await expect(sheet.locator('.sheet-placeholder')).toHaveCount(0);
-    await expectStableSheet(page, sheet, async () => { release(); await expect(sheet.locator('.summary-line:not([aria-hidden])')).toBeVisible(); });
+    await expectStableSheet(page, sheet, async () => { release(); await expect(sheet.locator('.summary-line:not([aria-hidden])')).toBeVisible(); }, { uncapped: true });
   } finally { release(); }
 });
 
@@ -229,14 +229,14 @@ for (const width of widths) test(`match rating: every step, the prizes and the s
       await sheet.getByRole('slider').press('End');
       await next.click();
       await expect(sheet.getByText(`${i + 2} из 10`, { exact: true })).toBeVisible();
-    });
+    }, { uncapped: true });
   }
   for (let i = 0; i < 5; i++) await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: 'Пропустить награду', exact: true }).click();
     await expect(sheet.getByText(`${names.length + i + 2} из 10`, { exact: true })).toBeVisible();
-  });
+  }, { uncapped: true });
   await expect(sheet.getByRole('heading', { name: 'Матч в целом', exact: true })).toBeVisible();
-  await expect(sheet.locator('.review-recap:not(.sheet-stack-hidden)')).toBeVisible();
+  await expect(sheet.locator('.review-step .review-recap')).toBeVisible();
   expect(Math.abs((await sheetHeight(page, sheet)) - before)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
@@ -248,6 +248,52 @@ test('match awards-only poll keeps its height from the prizes to the summary at 
   await page.getByRole('button', { name: 'Выбрать лучших', exact: true }).click();
   const sheet = page.getByRole('dialog', { name: 'Лучшие игроки матча' });
   await expect(sheet).toBeVisible();
-  for (let i = 0; i < 5; i++) await expectStableSheet(page, sheet, async () => { await sheet.getByRole('button', { name: 'Пропустить награду', exact: true }).click(); await expect(sheet.getByText(`${i + 2} из 6`, { exact: true })).toBeVisible(); });
+  for (let i = 0; i < 5; i++) await expectStableSheet(page, sheet, async () => { await sheet.getByRole('button', { name: 'Пропустить награду', exact: true }).click(); await expect(sheet.getByText(`${i + 2} из 6`, { exact: true })).toBeVisible(); }, { uncapped: true });
   await expect(sheet.getByRole('heading', { name: 'Твой выбор' })).toBeVisible();
+});
+
+// A full pitch: the invisible prize list (one row per player) is far taller than any screen. It only has to lift the
+// sheet to its cap, so a player step never scrolls into empty space below the card.
+const crowd = ['Арман', 'Руслан', 'Ерлан', 'Данияр', 'Нурлан', 'Темирлан', 'Айбек', 'Санжар', 'Мирас', 'Алихан', 'Бауыржан', 'Олжас', 'Ильяс', 'Жандос'];
+const crowdDto = { ...reviewDto, participants: [{ userId: 1, name: 'Тимур', score: null }, ...crowd.map((name, i) => ({ userId: 10 + i, name, score: null, stats: stats(i % 4) }))] };
+
+for (const height of [844, 1000]) test(`match rating with 14 players: a player step never scrolls into blank space and the height holds at 390×${height}`, async ({ page }) => {
+  await page.setViewportSize({ width: 390, height });
+  await page.route('https://telegram.org/**', r => r.fulfill({ body: '' }));
+  await teamApiRoute(page, r => { const path = new URL(r.request().url()).pathname; return r.fulfill({ json: path === '/api/me' ? { ...me, userId: 1 } : path === '/api/notifications' ? { tasks: [] } : path.endsWith('/review') ? crowdDto : {} }); });
+  await page.goto('/event/1/review');
+  await page.getByRole('button', { name: 'Оценить', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'Оценка матча' });
+  await expect(sheet).toBeVisible();
+  const total = crowd.length + 5 + 1;
+  // How far the content scrolls beyond what the live step itself needs: the step may be taller than a short screen
+  // (a person with the stat tiles at 844 px) and then scrolls by its overflow, but never into empty space after it.
+  const blankScroll = () => sheet.evaluate(dialog => {
+    const content = dialog.querySelector<HTMLElement>('.sheet-content')!;
+    const stack = content.querySelector<HTMLElement>('.review-stack')!;
+    // The live step stretches over the grid cell; its own height ends at its last line (the note under the card).
+    const live = stack.firstElementChild!.lastElementChild!.getBoundingClientRect().bottom - stack.getBoundingClientRect().top;
+    const room = content.clientHeight - (content.scrollHeight - stack.offsetHeight);
+    return content.scrollHeight - content.clientHeight - Math.max(0, live - room);
+  });
+  const check = async () => expect(await blankScroll(), 'шторка прокручивается в пустоту под шагом').toBeLessThanOrEqual(1);
+  const before = await sheetHeight(page, sheet);
+  // The sheet reaches its cap: the prize list for a full pitch is longer than the screen.
+  expect(before).toBeGreaterThan(height * 0.85);
+  await check();
+  const next = sheet.getByRole('button', { name: 'Далее', exact: true });
+  for (let i = 0; i < 3; i++) await expectStableSheet(page, sheet, async () => {
+    await sheet.getByRole('slider').press('End');
+    await next.click();
+    await expect(sheet.getByText(`${i + 2} из ${total}`, { exact: true })).toBeVisible();
+  });
+  await check();
+  // A prize step lists every player and may scroll; going there and back keeps the height.
+  const skip = sheet.getByRole('button', { name: 'Пропустить игрока', exact: true });
+  for (let i = 3; i < crowd.length - 1; i++) { await skip.click(); await expect(sheet.getByText(`${i + 2} из ${total}`, { exact: true })).toBeVisible(); }
+  await expectStableSheet(page, sheet, async () => { await skip.click(); await expect(sheet.getByRole('heading', { name: 'MVP матча' })).toBeVisible(); });
+  // The footer holds only the buttons: no reserved recap above «Далее».
+  await expect(sheet.locator('.sheet-footer .review-recap')).toHaveCount(0);
+  const gap = await sheet.locator('.sheet-footer').evaluate(node => node.querySelector('button')!.getBoundingClientRect().top - node.getBoundingClientRect().top - parseFloat(getComputedStyle(node).paddingTop));
+  expect(gap).toBeLessThanOrEqual(1);
 });
