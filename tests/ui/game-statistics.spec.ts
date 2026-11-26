@@ -2,6 +2,7 @@ import { test,expect,type Page,type Locator } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir,writeFile } from 'node:fs/promises';
 import { gameStatisticsWorld } from './game-statistics-fixture';
+import { expectStableSheet } from './sheet-height';
 
 async function setScore(root:Page|Locator,team:string,target:number){
   const output=root.getByLabel(`Голы команды ${team}`,{exact:true});
@@ -221,4 +222,46 @@ for(const theme of ['dark','light'] as const)for(const width of [320,390])test(`
   await noOverflow(page);await page.screenshot({path:`artifacts/games/goal-picker-${theme}-${width}.png`,fullPage:true});
   if(width===390)expect((await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze()).violations).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+for(const width of [320,390])test(`result sheet keeps its height and goal rows replace their outlines in place at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:width===320?568:844});await page.emulateMedia({reducedMotion:'reduce'});
+  const world=gameStatisticsWorld({started:true});world.add({score:[1,0],scorers:[]});await world.attach(page);
+  await page.goto('/event/7?tab=games');await page.getByRole('button',{name:'Внести результат',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Результат игры',exact:true});
+  const [first,second]=world.pair.map(t=>['Красные','Синие','Жёлтые'][t]);
+  const outlines=sheet.locator('.game-goal-placeholder');await expect(outlines).toHaveCount(2);
+  const outline=(await outlines.first().boundingBox())!;
+  const secondTeam=sheet.getByRole('region',{name:`Авторы голов: ${second}`});
+  const before=(await secondTeam.boundingBox())!;
+  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${first}`,exact:true}).click(),{content:true});
+  const row=(await sheet.getByRole('button',{name:`Гол 1 команды ${first}: выбрать автора`,exact:true}).boundingBox())!;
+  expect(Math.abs(row.y-outline.y)).toBeLessThanOrEqual(1);expect(Math.abs(row.height-outline.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs((await secondTeam.boundingBox())!.y-before.y)).toBeLessThanOrEqual(1);
+  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${second}`,exact:true}).click(),{content:true});
+  await expect(outlines).toHaveCount(0);
+  // The pickers open inside the fixed-height sheet and may scroll there; only the box is compared.
+  await expectStableSheet(page,sheet,async()=>{
+    await sheet.getByRole('button',{name:`Гол 1 команды ${first}: выбрать автора`,exact:true}).click();
+    await sheet.getByRole('group',{name:new RegExp(`Выбрать автора гола команды ${first}`)}).getByRole('button').first().click();
+  });
+  await expectStableSheet(page,sheet,async()=>{
+    await sheet.getByRole('button',{name:new RegExp(`Пас к голу 1 команды ${first}`)}).click();
+    await sheet.getByRole('group',{name:new RegExp(`Выбрать пас к голу 1 команды ${first}`)}).getByRole('button').first().click();
+  });
+  await noOverflow(page);
+});
+
+for(const [count,hint] of [[3,'кто отдыхает'],[2,'кто начинает']] as const)for(const width of [320,390])test(`start sheet keeps its height through the toss with ${count} teams at ${width}px`,async({page})=>{
+  await page.setViewportSize({width,height:width===320?568:844});await page.emulateMedia({reducedMotion:'reduce'});
+  const world=gameStatisticsWorld({count});await world.attach(page);
+  await page.goto('/event/7?tab=teams');await page.getByRole('button',{name:'Начать матч',exact:true}).click();
+  const sheet=page.getByRole('dialog',{name:'Начинаем матч'});
+  await expect(sheet.getByText(`Подбрось монету — здесь появится, ${hint}`)).toBeVisible();
+  await expectStableSheet(page,sheet,async()=>{
+    await sheet.getByRole('button',{name:'Подбросить монету',exact:true}).click();
+    await expect(sheet.getByRole('button',{name:'К игре 1',exact:true})).toBeVisible();
+  },{content:true});
+  await expect(sheet.getByText(`Подбрось монету — здесь появится, ${hint}`)).toHaveCount(0);
+  await noOverflow(page);
 });

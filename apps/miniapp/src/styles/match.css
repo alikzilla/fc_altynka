@@ -36,9 +36,14 @@
 .sheet-action:last-child { border-bottom: 0; }
 .action-sheet .sheet-heading { align-items: center; }
 .action-sheet .sheet-content > .muted { margin-bottom: 12px; }
-.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
+.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--sheet-safe-bottom, var(--safe-bottom))) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
 .action-sheet:has(.sheet-footer) .sheet-content { padding-bottom: 20px; }
 .bill-form { gap: 18px; }
+/* The receiver's number lays out like the other labelled fields; its two variants share one cell (.sheet-stack). */
+.bill-phone-field, .bill-phone-variant { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+.bill-phone-field { font-size: 14px; font-weight: 500; }
+.preview-placeholder { border-radius: 20px; }
+.extra-placeholder { border-radius: 12px; }
 .action-sheet .sheet-heading h2 { font-size: 22px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sheet-action[aria-disabled='true'] { opacity: .45; pointer-events: none; }
 .match-cancelled { background: #24212a; }
@@ -62,7 +67,7 @@
 .sheet-note { font-size: 14px; line-height: 1.45; color: var(--text); text-wrap: pretty; }
 .inline-failure { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 .inline-failure .btn-text { min-height: 44px; padding-inline: 4px; }
-.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; font-variant-numeric: tabular-nums; }
 .btn-text.armed, .sheet-action.armed { font-weight: 650; }
 .btn.armed { background: var(--danger-soft); color: var(--danger); }
 .bill-summary h2 { font-size: 17px; font-weight: 550; }
@@ -116,3 +121,5 @@
 .match-action-more { flex: 0 0 54px; width: 54px; padding: 0; border-radius: 50%; }
 .match-action-more svg { width: 22px; height: 22px; }
 .bill-mark-hint { margin: -4px 0 12px; font-size: 13px; }
+/* «Точно удалить? Пост исчезнет у всех» may wrap at 320 px: the button keeps room for two lines from the start (2 × 15px × the inherited 1.5 line height + padding; no `lh` unit, old WebViews lack it). */
+.sheet-action.feed-delete { min-height: calc(2 * 1.5 * 15px + 24px); }

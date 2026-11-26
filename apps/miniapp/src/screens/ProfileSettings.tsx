@@ -16,6 +16,9 @@ const sections: { id: SettingsSection; title: string }[] = [
   { id: 'football', title: 'Позиция и рабочая нога' },
 ];
 
+/** The expected refusal of each form keeps its line from the start (the longest text wraps to two lines at 320 px). */
+const SETTINGS_ERROR = { payment: 'Проверь номер', name: 'Это имя уже занято — добавь букву фамилии или номер' } as const;
+
 export const isSettingsSection = (value: string | undefined): value is SettingsSection => sections.some(item => item.id === value);
 
 /** Name, Kaspi number and football data are edited in a bottom sheet over the profile. */
@@ -42,7 +45,7 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
     event.preventDefault();
     if (saving.current) return;
     const normalized = phone.trim() ? normalizeKzPhone(phone) : null;
-    if (section === 'payment' && phone.trim() && !normalized) return setError('Проверь номер');
+    if (section === 'payment' && phone.trim() && !normalized) return setError(SETTINGS_ERROR.payment);
     if (section === 'name' && !name.trim()) return;
     saving.current = true;
     setBusy(true);
@@ -62,7 +65,7 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
       reloadMe();
       onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'name_taken') setError('Это имя уже занято — добавь букву фамилии или номер');
+      if (err instanceof ApiError && err.code === 'name_taken') setError(SETTINGS_ERROR.name);
       else if (err instanceof ApiError && err.code === 'receiver_needs_phone') setError('Тебе переводят по открытому счёту — номер нужен');
       else setError('Не получилось сохранить. Попробуй ещё раз.');
     } finally {
@@ -89,7 +92,9 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
           <p className="muted">Выбери основную позицию. Оба поля можно оставить пустыми.</p>
         </>}
       </fieldset>
-      {error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>}
+      {section === 'football'
+        ? error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>
+        : <div className="field-error-slot" data-sizer={SETTINGS_ERROR[section]}>{error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>}</div>}
     </form>
   </ActionSheet>;
 }

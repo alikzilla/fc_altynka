@@ -2,13 +2,14 @@ import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useBackButton } from '../lib/tg';
 import { useBottomSheet } from '../hooks/useBottomSheet';
+import { useSheetMinHeight } from '../hooks/useSheetMinHeight';
 import { EdgeBackGesture } from './EdgeBackGesture';
 import { Icon } from './Icon';
 
 const openSheets = new Set<HTMLDialogElement>();
 let previousOverflow = '';
 
-export function ActionSheet({ title, description, closeLabel = 'Закрыть', onClose, busy = false, children, footer, className = '' }: { title: string; description?: string; closeLabel?: string; onClose: () => void; busy?: boolean; children: ReactNode; footer?: ReactNode; className?: string }) {
+export function ActionSheet({ title, description, closeLabel = 'Закрыть', onClose, busy = false, children, footer, className = '', step }: { title: string; description?: string; closeLabel?: string; onClose: () => void; busy?: boolean; children: ReactNode; footer?: ReactNode; className?: string; step?: string | number }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const locked = useRef(busy);
   locked.current = busy;
@@ -16,6 +17,7 @@ export function ActionSheet({ title, description, closeLabel = 'Закрыть',
   const titleId = useId();
   const descriptionId = useId();
   const { dismiss, closing } = useBottomSheet(dialog, onClose, locked);
+  useSheetMinHeight(dialog, step);
   useBackButton(dismiss);
   useEffect(() => {
     const node = dialog.current!;
@@ -34,7 +36,7 @@ export function ActionSheet({ title, description, closeLabel = 'Закрыть',
   return createPortal(<dialog ref={dialog} className={`create-sheet action-sheet ${className}`} aria-labelledby={titleId} aria-describedby={description ? descriptionId : undefined} aria-modal="true" aria-busy={busy} onCancel={e => { e.preventDefault(); dismiss(); }} onKeyDown={e => {
     if (e.key !== 'Tab') return;
     const collapsed = [...e.currentTarget.querySelectorAll('details:not([open])')];
-    const controls = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]:not([aria-disabled="true"]), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary')].filter(control => control.getClientRects().length > 0 && collapsed.every(details => !details.contains(control) || details.querySelector(':scope > summary')?.contains(control)));
+    const controls = [...e.currentTarget.querySelectorAll<HTMLElement>('button:not(:disabled), a[href]:not([aria-disabled="true"]), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), summary')].filter(control => control.getClientRects().length > 0 && !control.closest('[inert]') && collapsed.every(details => !details.contains(control) || details.querySelector(':scope > summary')?.contains(control)));
     const first = controls[0];
     const last = controls.at(-1);
     if (!first) { e.preventDefault(); e.currentTarget.querySelector<HTMLElement>('h2')?.focus(); }

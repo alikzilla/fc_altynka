@@ -96,3 +96,26 @@ test('an in-flight settings save prevents duplicate submissions', async () => {
   expect(api.send).toHaveBeenCalledTimes(1);
   expect(screen.getByRole('button', { name: 'Сохраняем…' })).toBeDisabled();
 });
+
+test('the payment and name forms keep a line for their expected error, the football form does not', async () => {
+  const { unmount } = renderWithApp(<ProfileSettingsSheet section="payment" onClose={close} />, { me: player });
+  const slot = document.querySelector('.field-error-slot')!;
+  expect(slot).toHaveAttribute('data-sizer', 'Проверь номер');
+  expect(slot.querySelector('[role="alert"]')).toBeNull();
+  await userEvent.type(screen.getByLabelText('Номер Kaspi'), 'abc');
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(slot.querySelector('[role="alert"]')).toHaveTextContent('Проверь номер');
+  unmount();
+
+  (api.send as Mock).mockRejectedValue(new ApiError(409, 'name_taken'));
+  const named = renderWithApp(<ProfileSettingsSheet section="name" onClose={close} />, { me: player });
+  const nameSlot = document.querySelector('.field-error-slot')!;
+  expect(nameSlot.getAttribute('data-sizer')).toBe('Это имя уже занято — добавь букву фамилии или номер');
+  await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }));
+  expect(await screen.findByRole('alert')).toHaveTextContent('Это имя уже занято');
+  expect(nameSlot).toContainElement(screen.getByRole('alert'));
+  named.unmount();
+
+  renderWithApp(<ProfileSettingsSheet section="football" onClose={close} />, { me: player });
+  expect(document.querySelector('.field-error-slot')).toBeNull();
+});

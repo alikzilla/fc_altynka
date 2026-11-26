@@ -1,5 +1,5 @@
 import { AWARDS, AWARD_LABEL, AWARD_QUESTION, AWARD_SHORT_LABEL, type AwardKey, type AwardPicks, type ReviewPlayerStats } from '@altynka/core';
-import { useEffect, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ActionSheet } from '../components/ActionSheet';
 import { AwardPicker } from '../components/AwardPicker';
 import { Avatar, Icon } from '../components/Icon';
@@ -38,7 +38,29 @@ export function ReviewRater({ players, scores, gameScore, awards, onAward, onSco
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const transitioning = useRef(false);
   const heading = useRef<HTMLHeadingElement>(null);
+  const stack = useRef<HTMLDivElement>(null);
   useEffect(() => () => clearTimeout(timer.current), []);
+  // The invisible copies only have to lift the sheet to its cap. A prize list for a full pitch is far taller than any
+  // screen, so they are clipped to the room the stack has in a capped sheet (`--review-fit`): a player step then
+  // never scrolls into empty space. Measured once the dialog is laid out and again whenever it or the window resizes.
+  useLayoutEffect(() => {
+    const node = stack.current;
+    const content = node?.closest<HTMLElement>('.sheet-content');
+    const dialog = node?.closest('dialog');
+    if (!node || !content || !dialog) return;
+    const fit = () => {
+      node.style.removeProperty('--review-fit');
+      if (!content.clientHeight) return;
+      // Everything in the content besides the stack (progress, paddings) stays; the rest of the visible box is its room.
+      const room = content.clientHeight - (content.scrollHeight - node.offsetHeight);
+      if (room < node.offsetHeight) node.style.setProperty('--review-fit', `${Math.max(room, 0)}px`);
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    const observer = typeof ResizeObserver === 'undefined' ? undefined : new ResizeObserver(fit);
+    observer?.observe(dialog);
+    return () => { window.removeEventListener('resize', fit); observer?.disconnect(); };
+  }, []);
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [step]);
   // Players first, then one step per prize, then the match itself (or the summary of picks). Nobody else on the pitch means no prizes to give.
   const prizes: readonly AwardKey[] = players.length ? AWARDS : [];
@@ -50,6 +72,16 @@ export function ReviewRater({ players, scores, gameScore, awards, onAward, onSco
   const ratedCount = rated.filter(p => scores[p.userId] !== undefined).length;
   const picked = prizes.filter(key => awards[key] !== undefined).length;
   const answered = awardsOnly || ratedCount > 0 || gameScore !== null;
+  // The tallest steps are drawn invisibly under every step, so the sheet keeps one height: a prize (one row per player)
+  // and a person with the stat tiles (with few players that one is taller than the list). The longest name wraps most.
+  // The summary and its notes live inside the final card, which is as tall as the others with room to spare, so the
+  // footer holds only the buttons and no step reserves a line for them.
+  const ghostPerson = [...rated].sort((a, b) => Number(!!b.stats) - Number(!!a.stats) || b.name.length - a.name.length)[0] as Props['players'][number] | undefined;
+  const tallest = prizes.length ? prizes.reduce((a, b) => AWARD_LABEL[b].length + AWARD_QUESTION[b].length > AWARD_LABEL[a].length + AWARD_QUESTION[a].length ? b : a) : null;
+  // A row says «твоя оценка 10» once rated; the copy always shows the longest text, so rating a player never grows it.
+  const worstScores = Object.fromEntries(players.map(p => [p.userId, 10]));
+  const awardNote = 'Выбрать можно любого, кто играл. Имя автора останется скрытым, награды не меняют рейтинг.';
+  const recap = !awardsOnly && `Оценено игроков: ${ratedCount} из ${rated.length}${rated.length - ratedCount ? ` · пропущено: ${rated.length - ratedCount}` : ''}${prizes.length ? ` · наград: ${picked} из ${prizes.length}` : ''} · матч ${gameScore === null ? 'без оценки' : `${gameScore} / 10`}`;
   const nameOf = (userId: number | undefined) => players.find(p => p.userId === userId)?.name;
 
   function move(next: number, immediate = false) {
@@ -62,8 +94,6 @@ export function ReviewRater({ players, scores, gameScore, awards, onAward, onSco
   const submitLabel = awardsOnly ? picked ? 'Отправить награды' : 'Отправить без наград' : 'Отправить оценки';
   return <ActionSheet title={awardsOnly ? 'Лучшие игроки матча' : 'Оценка матча'} onClose={onClose} busy={busy} footer={<div className="review-rater-footer">
     {error && <p className="field-error" role="alert">{error}</p>}
-    {final && !awardsOnly && <p className="review-recap" aria-live="polite">Оценено игроков: {ratedCount} из {rated.length}{rated.length - ratedCount ? ` · пропущено: ${rated.length - ratedCount}` : ''}{prizes.length ? ` · наград: ${picked} из ${prizes.length}` : ''} · матч {gameScore === null ? 'без оценки' : `${gameScore} / 10`}</p>}
-    {final && !answered && picked > 0 && <p className="review-recap">Чтобы отправить, оцени хотя бы одного игрока или матч</p>}
     <button className="btn primary wide" disabled={busy || leaving || (final ? !answered : value === undefined)} onClick={event => { if (final) void onSubmit(); else move(step + 1, event.detail === 0); }}>
       {busy ? 'Отправляем…' : final ? submitLabel : 'Далее'}
     </button>
@@ -75,16 +105,39 @@ export function ReviewRater({ players, scores, gameScore, awards, onAward, onSco
     </div>
   </div>}>
     <div className="skills-progress review-progress"><span className="muted">{step + 1} из {total}</span><progress value={step + 1} max={total} aria-label="Прогресс оценки" /></div>
-    <div className="review-step-window">
-      <section key={step} className={`card material-blue review-step ${leaving ? 'is-leaving' : ''}`} style={{ '--step-direction': direction } as CSSProperties}>
-        <div className="review-person">{person && <Avatar name={person.name} photoUrl={person.photoUrl} />}<div><h3 ref={heading} tabIndex={-1}>{person ? person.name : award ? AWARD_LABEL[award] : awardsOnly ? 'Твой выбор' : 'Матч в целом'}</h3><p className="muted">{person ? 'Как проявил себя в этом матче?' : award ? AWARD_QUESTION[award] : awardsOnly ? 'Проверь и отправь. Изменить выбор после отправки нельзя.' : 'Твоё общее впечатление от матча'}</p></div></div>
-        {person?.stats && <ReviewStatTiles stats={person.stats} />}
-        {award ? <AwardPicker label={AWARD_LABEL[award]} players={players} scores={scores} value={awards[award]} disabled={busy || leaving} onChange={userId => onAward(award, userId)} />
-          : final && awardsOnly ? <ul className="review-award-summary">{prizes.map(key => <li key={key}><span>{AWARD_SHORT_LABEL[key]}</span><span className={awards[key] === undefined ? 'muted' : undefined}>{nameOf(awards[key]) ?? 'не выбрано'}</span></li>)}</ul>
-          : <RatingSlider label={person ? `Оценка: ${person.name}` : 'Матч в целом'} value={value} disabled={busy || leaving} kind={person ? 'player' : 'match'}
-            onChange={next => person ? onScore(person.userId, next) : onGameScore(next)} />}
-      </section>
+    <div ref={stack} className="sheet-stack review-stack">
+      <div>
+        <div className="review-step-window">
+          <section key={step} className={`card material-blue review-step ${leaving ? 'is-leaving' : ''}`} style={{ '--step-direction': direction } as CSSProperties}>
+            <div className="review-person">{person && <Avatar name={person.name} photoUrl={person.photoUrl} />}<div><h3 ref={heading} tabIndex={-1}>{person ? person.name : award ? AWARD_LABEL[award] : awardsOnly ? 'Твой выбор' : 'Матч в целом'}</h3><p className="muted">{person ? 'Как проявил себя в этом матче?' : award ? AWARD_QUESTION[award] : awardsOnly ? 'Проверь и отправь. Изменить выбор после отправки нельзя.' : 'Твоё общее впечатление от матча'}</p></div></div>
+            {person?.stats && <ReviewStatTiles stats={person.stats} />}
+            {award ? <AwardPicker label={AWARD_LABEL[award]} players={players} scores={scores} value={awards[award]} disabled={busy || leaving} onChange={userId => onAward(award, userId)} />
+              : final && awardsOnly ? <ul className="review-award-summary">{prizes.map(key => <li key={key}><span>{AWARD_SHORT_LABEL[key]}</span><span className={awards[key] === undefined ? 'muted' : undefined}>{nameOf(awards[key]) ?? 'не выбрано'}</span></li>)}</ul>
+              : <RatingSlider label={person ? `Оценка: ${person.name}` : 'Матч в целом'} value={value} disabled={busy || leaving} kind={person ? 'player' : 'match'}
+                onChange={next => person ? onScore(person.userId, next) : onGameScore(next)} />}
+            {final && recap && <div className="review-final-summary">
+              <p className="review-recap" aria-live="polite">{recap}</p>
+              {!answered && picked > 0 && <p className="review-recap">Чтобы отправить, оцени хотя бы одного игрока или матч</p>}
+            </div>}
+          </section>
+      </div>
+      <p className="muted review-rater-note">{final ? awardsOnly ? 'Имя автора останется скрытым, награды не меняют рейтинг. Отправка окончательная.' : 'Оценка матча не меняет рейтинг игроков. Отправка окончательная.' : award ? awardNote : 'Имя автора останется скрытым. Можно пропустить игрока или вернуться назад.'}</p>
+      </div>
+      {ghostPerson && <div className="sheet-stack-hidden review-ghost" aria-hidden="true" inert>
+        <div className="review-step-window"><section className="card material-blue review-step-ghost">
+          <div className="review-person"><Avatar name={ghostPerson.name} photoUrl={ghostPerson.photoUrl} /><div><h3>{ghostPerson.name}</h3><p className="muted">Как проявил себя в этом матче?</p></div></div>
+          {ghostPerson.stats && <ReviewStatTiles stats={ghostPerson.stats} />}
+          <RatingSlider label={`Оценка: ${ghostPerson.name}`} value={undefined} disabled kind="player" onChange={() => {}} />
+        </section></div>
+        <p className="muted review-rater-note">Имя автора останется скрытым. Можно пропустить игрока или вернуться назад.</p>
+      </div>}
+      {tallest && <div className="sheet-stack-hidden review-ghost" aria-hidden="true" inert>
+        <div className="review-step-window"><section className="card material-blue review-step-ghost">
+          <div className="review-person"><div><h3>{AWARD_LABEL[tallest]}</h3><p className="muted">{AWARD_QUESTION[tallest]}</p></div></div>
+          <AwardPicker name="award-ghost" label={AWARD_LABEL[tallest]} players={players} scores={worstScores} value={undefined} disabled onChange={() => {}} />
+        </section></div>
+        <p className="muted review-rater-note">{awardNote}</p>
+      </div>}
     </div>
-    <p className="muted review-rater-note">{final ? awardsOnly ? 'Имя автора останется скрытым, награды не меняют рейтинг. Отправка окончательная.' : 'Оценка матча не меняет рейтинг игроков. Отправка окончательная.' : award ? 'Выбрать можно любого, кто играл. Имя автора останется скрытым, награды не меняют рейтинг.' : 'Имя автора останется скрытым. Можно пропустить игрока или вернуться назад.'}</p>
   </ActionSheet>;
 }

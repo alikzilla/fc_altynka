@@ -147,7 +147,7 @@ export function NewsFeed() {
     {!all && posts.length > PREVIEW && <button type="button" className="btn-text feed-more" onClick={() => setAll(true)}>Показать ещё</button>}
     {profileId !== null && <PlayerProfileSheet key={profileId} userId={profileId} onClose={() => setProfileId(null)} />}
     {menu && <ActionSheet title="Пост в ленте" description={menu.text} onClose={() => setMenu(null)}>
-      <ConfirmButton className="sheet-action danger-text" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" onConfirm={() => remove(menu)} />
+      <ConfirmButton className="sheet-action danger-text feed-delete" label="Удалить пост" confirmLabel="Точно удалить? Пост исчезнет у всех" onConfirm={() => remove(menu)} />
     </ActionSheet>}
   </section>;
 }
