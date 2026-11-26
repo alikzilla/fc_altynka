@@ -227,7 +227,7 @@ for(const theme of ['dark','light'] as const)for(const width of [320,390])test(`
 for(const width of [320,390])test(`result sheet keeps its height and goal rows replace their outlines in place at ${width}px`,async({page})=>{
   await page.setViewportSize({width,height:width===320?568:844});await page.emulateMedia({reducedMotion:'reduce'});
   const world=gameStatisticsWorld({started:true});world.add({score:[1,0],scorers:[]});await world.attach(page);
-  await page.goto('/event/7?tab=games');await page.getByRole('button',{name:'Внести результат',exact:true}).click();
+  await page.goto('/event/7/game');await page.getByRole('button',{name:'Внести результат',exact:true}).click();
   const sheet=page.getByRole('dialog',{name:'Результат игры',exact:true});
   const [first,second]=world.pair.map(t=>['Красные','Синие','Жёлтые'][t]);
   const outlines=sheet.locator('.game-goal-placeholder');await expect(outlines).toHaveCount(2);
