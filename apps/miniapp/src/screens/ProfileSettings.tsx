@@ -16,6 +16,9 @@ const sections: { id: SettingsSection; title: string }[] = [
   { id: 'football', title: 'Позиция и рабочая нога' },
 ];
 
+/** The expected refusal of each form keeps its line from the start (the longest text wraps to two lines at 320 px). */
+const SETTINGS_ERROR = { payment: 'Проверь номер', name: 'Это имя уже занято — добавь букву фамилии или номер' } as const;
+
 export const isSettingsSection = (value: string | undefined): value is SettingsSection => sections.some(item => item.id === value);
 
 /** Name, Kaspi number and football data are edited in a bottom sheet over the profile. */
@@ -89,7 +92,9 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
           <p className="muted">Выбери основную позицию. Оба поля можно оставить пустыми.</p>
         </>}
       </fieldset>
-      {error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>}
+      {section === 'football'
+        ? error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>
+        : <div className="field-error-slot" data-sizer={SETTINGS_ERROR[section]}>{error && <p id="profile-settings-error" className="field-error" role="alert">{error}</p>}</div>}
     </form>
   </ActionSheet>;
 }

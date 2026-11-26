@@ -121,3 +121,5 @@
 .match-action-more { flex: 0 0 54px; width: 54px; padding: 0; border-radius: 50%; }
 .match-action-more svg { width: 22px; height: 22px; }
 .bill-mark-hint { margin: -4px 0 12px; font-size: 13px; }
+/* «Точно удалить? Пост исчезнет у всех» may wrap at 320 px: the button keeps room for two lines from the start. */
+.sheet-action.feed-delete { min-height: calc(2lh + 24px); }

@@ -26,13 +26,13 @@ export function DeleteMyDataSheet({ onClose }: { onClose: () => void }) {
     } finally { setBusy(false); }
   }
 
-  if (done) return <ActionSheet title="Данные удалены" onClose={closeApp} closeLabel="Закрыть приложение" footer={
+  if (done) return <ActionSheet title="Данные удалены" step="done" onClose={closeApp} closeLabel="Закрыть приложение" footer={
     <button type="button" className="btn wide" onClick={closeApp}>Закрыть приложение</button>
   }>
     <p className="delete-data-copy">Профиль, номер Kaspi, анкета и настройки удалены. Если откроешь приложение снова, начнёшь с чистого профиля.</p>
   </ActionSheet>;
 
-  return <ActionSheet title="Удалить мои данные?" onClose={onClose} busy={busy} footer={<>
+  return <ActionSheet title="Удалить мои данные?" step="confirm" onClose={onClose} busy={busy} footer={<>
     {error && <p className="delete-data-error" role="alert">{error}</p>}
     <button type="button" className="btn wide delete-data-confirm" disabled={busy} onClick={() => void remove()}>{busy ? 'Удаляем…' : 'Удалить навсегда'}</button>
   </>}>
