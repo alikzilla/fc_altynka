@@ -193,27 +193,132 @@ test('an open sheet grows with its content and never shrinks back; drag close an
   expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
 });
 
-test('the keyboard squeezes a sheet below its remembered height and it comes back to the same height', async ({ page }) => {
+/**
+ * No browser here has a virtual keyboard: move the visual viewport the way a phone does when the keyboard opens
+ * (shorter, and on iOS sometimes panned by offsetTop) and fire its events, so useBottomSheet measures it for real.
+ */
+async function moveVisualViewport(page: Page, height: number | null, offsetTop = 0) {
+  await page.evaluate(([height, offsetTop]) => {
+    const visual = window.visualViewport!;
+    Object.defineProperty(visual, 'height', { configurable: true, get: () => height ?? innerHeight });
+    Object.defineProperty(visual, 'offsetTop', { configurable: true, get: () => offsetTop });
+    visual.dispatchEvent(new Event('resize'));
+    visual.dispatchEvent(new Event('scroll'));
+    // The sheet applies the change in the next frame; return once its transition has started.
+    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+  }, [height, offsetTop] as const);
+}
+const keyboardPadding = (sheet: import('@playwright/test').Locator) => sheet.evaluate(el => getComputedStyle(el).paddingBottom);
+/** The part of the sheet above the keyboard: its box minus the keyboard padding at the bottom. */
+async function visiblePart(sheet: import('@playwright/test').Locator) {
+  const box = (await sheet.boundingBox())!;
+  return { top: box.y, bottom: box.y + box.height - parseFloat(await keyboardPadding(sheet)), box };
+}
+
+test('the keyboard squeezes a sheet below its remembered height; the sheet stays on the bottom and comes back to the same height', async ({ page }) => {
   const sheet = await openSheet(page);
   await sheet.getByLabel(/Комментарий/).focus();
   const initial = await sheetHeight(page, sheet);
-  // No virtual keyboard in the browser: shrink the visual viewport the way useBottomSheet reports it.
   const visible = Math.round(initial * .6);
-  await sheet.evaluate((el, visible) => {
-    el.style.setProperty('--sheet-viewport', `${visible}px`);
-    el.style.setProperty('--sheet-bottom', `${innerHeight - visible}px`);
-  }, visible);
-  const squeezed = await sheetHeight(page, sheet);
-  const box = (await sheet.boundingBox())!;
-  expect(squeezed).toBeLessThanOrEqual(visible - 12);
-  // It sits above the keyboard and fits in what is left of the screen.
-  expect(box.y).toBeGreaterThanOrEqual(12);
-  expect(Math.round(box.y + box.height)).toBe(visible);
+  await moveVisualViewport(page, visible);
+  await sheetHeight(page, sheet);
+  const { top, bottom, box } = await visiblePart(sheet);
+  // Anchored: the bottom edge stays on the window's bottom, the background goes on under the keys.
+  expect(Math.round(box.y + box.height)).toBe(844);
+  expect(await keyboardPadding(sheet)).toBe(`${844 - visible}px`);
+  // The part above the keys fits in what is left of the screen, below the top gap.
+  expect(top).toBeGreaterThanOrEqual(12);
+  expect(Math.round(bottom)).toBe(visible);
+  expect(bottom - top).toBeLessThanOrEqual(visible - 12);
   expect(await page.locator('.sheet-content').evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
   await expect(sheet.getByLabel(/Комментарий/)).toBeFocused();
-  // The keyboard goes away: useBottomSheet measures the viewport again on resize.
-  await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  // The keyboard goes away: the same transition takes the sheet back to the height it had.
+  await moveVisualViewport(page, null);
   expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
+  expect(await keyboardPadding(sheet)).toBe('0px');
+});
+
+test('report a problem with the keyboard open: the field and «Отправить» stay above the keys, the height comes back', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  await teamApiRoute(page, route => route.fulfill({ json: new URL(route.request().url()).pathname === '/api/me'
+    ? { userId: 2, displayName: 'Тимур', role: 'player', kaspiPhone: null, profileCompleted: true, notifications: { enabled: false, available: true } }
+    : { tasks: [] } }));
+  await page.goto('/profile');
+  await page.getByRole('button', { name: /Сообщить о проблеме/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Сообщить о проблеме' });
+  const initial = await sheetHeight(page, sheet);
+  const field = sheet.getByLabel('Что случилось?');
+  await field.fill('Список не обновился после записи');
+  // A 300 px keyboard; iOS also pans the visual viewport a little.
+  await moveVisualViewport(page, 667 - 300 - 20, 20);
+  // The keyboard padding grows over ~250 ms rather than jumping (its animated copy --sheet-pad).
+  const transition = await sheet.evaluate(el => new Promise<string[]>(resolve => requestAnimationFrame(() => resolve(el.getAnimations()
+    .filter((a): a is CSSTransition => a instanceof CSSTransition).map(a => `${a.transitionProperty} ${(a.effect!.getTiming().duration as number)}`)))));
+  expect(transition).toContain('--sheet-pad 250');
+  await sheetHeight(page, sheet);
+  const { top, bottom, box } = await visiblePart(sheet);
+  expect(Math.round(box.y + box.height)).toBe(667);
+  expect(await keyboardPadding(sheet)).toBe('300px');
+  expect(Math.round(bottom)).toBe(667 - 300);
+  expect(top).toBeGreaterThanOrEqual(20 + 12);
+  await expect(field).toBeFocused();
+  const send = (await sheet.getByRole('button', { name: 'Отправить' }).boundingBox())!;
+  expect(send.y).toBeGreaterThanOrEqual(top);
+  expect(send.y + send.height).toBeLessThanOrEqual(bottom + .5);
+  const content = (await page.locator('.sheet-content').boundingBox())!;
+  const area = (await field.boundingBox())!;
+  expect(area.y).toBeGreaterThanOrEqual(content.y - .5);
+  expect(Math.min(area.y + area.height, content.y + content.height)).toBeGreaterThan(area.y + 24);
+  await page.screenshot({ path: 'artifacts/ui/report-problem-keyboard-390.png' });
+  // The keyboard closes; iOS 26 may leave offsetTop where it was, the padding still goes back to 0.
+  await moveVisualViewport(page, null, 20);
+  expect(Math.abs(await sheetHeight(page, sheet) - initial)).toBeLessThanOrEqual(1);
+  expect(await keyboardPadding(sheet)).toBe('0px');
+  expect(Math.round((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height)).toBe(667);
+});
+
+test('a field covered by the keyboard is scrolled into view inside the sheet, never the page', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 667 });
+  const sheet = page.getByRole('dialog');
+  await page.goto('/');
+  await openCreateMatch(page);
+  await sheetHeight(page, sheet);
+  const comment = sheet.getByLabel(/Комментарий/);
+  await comment.focus();
+  await moveVisualViewport(page, 667 - 320);
+  await sheetHeight(page, sheet);
+  const content = page.locator('.sheet-content');
+  const inView = async () => {
+    const area = (await comment.boundingBox())!;
+    const box = (await content.boundingBox())!;
+    return area.y >= box.y - .5 && area.y + Math.min(area.height, 40) <= box.y + box.height + .5;
+  };
+  await expect.poll(inView).toBe(true);
+  expect(await content.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  // With the keyboard already open, focusing another field (without the browser's own scrolling) also reveals it.
+  await content.evaluate(el => { el.scrollTop = 0; });
+  await comment.evaluate(el => { (el as HTMLElement).blur(); (el as HTMLElement).focus({ preventScroll: true }); });
+  await expect.poll(inView).toBe(true);
+  expect(await page.evaluate(() => [scrollY, document.scrollingElement!.scrollTop])).toEqual([0, 0]);
+});
+
+test('with reduced motion the keyboard padding applies at once, without a transition', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  const sheet = await openSheet(page);
+  await sheet.getByLabel(/Комментарий/).focus();
+  await moveVisualViewport(page, 500);
+  const state = await sheet.evaluate(el => new Promise<{ transitions: number; padding: string }>(resolve => requestAnimationFrame(() => resolve({
+    transitions: el.getAnimations().filter(a => a instanceof CSSTransition).length, padding: getComputedStyle(el).paddingBottom,
+  }))));
+  expect(state).toEqual({ transitions: 0, padding: '344px' });
+});
+
+test('dragging and closing never animate the keyboard padding', async ({ page }) => {
+  const sheet = await openSheet(page);
+  await moveVisualViewport(page, 500);
+  await sheetHeight(page, sheet);
+  expect(await sheet.evaluate(el => { el.dataset.dragging = 'true'; const value = getComputedStyle(el).transitionProperty; delete el.dataset.dragging; return value; })).toBe('none');
+  expect(await sheet.evaluate(el => { el.dataset.closing = 'true'; const value = getComputedStyle(el).transitionProperty; delete el.dataset.closing; return value; })).toBe('transform');
 });
 
 test('a long list never makes the sheet taller than a 600 px window; it scrolls inside', async ({ page }) => {

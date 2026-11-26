@@ -51,8 +51,9 @@
 .tabs.game-leaders-switch button { min-height: 40px; padding: 8px 16px; font-size: 13px; }
 @media (max-width: 374px) { .tabs.game-leaders-switch button { padding-inline: 11px; } }
 .game-history-intro { margin: 0 0 18px; color: var(--hint); font-size: 13px; }
-/* Its own cap goes through --sheet-max so the never-shrink minimum is clamped by it too (app.css comes later: two classes). */
-.create-sheet.game-result-sheet { height: min(92dvh, 860px); --sheet-max: min(92dvh, var(--sheet-fit)); }
+/* Its own cap goes through --sheet-max so the never-shrink minimum is clamped by it too (app.css comes later: two classes);
+   both add the keyboard padding, which the box reaches under the keys by. */
+.create-sheet.game-result-sheet { height: calc(min(92dvh, 860px) + var(--sheet-pad)); --sheet-max: min(calc(92dvh + var(--sheet-pad)), var(--sheet-fit)); }
 .game-result-sheet .sheet-content { flex: 1; }
 .game-score-fields, .game-scorer-fields, .game-sulifa { border: 0; padding: 0; margin: 0; min-width: 0; }
 .game-score-fields { display: grid; grid-template-columns: minmax(0,1fr) 8px minmax(0,1fr); align-items: center; gap: 40px; /* Bleeds a little into the sheet padding via margins: a relative offset or transform would make the sheet scroll sideways. */ margin: 4px max(-8px, calc((100% - 368px) / 2)) 24px; }

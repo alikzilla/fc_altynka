@@ -13,8 +13,10 @@ export function useSheetMinHeight(dialog: RefObject<HTMLDialogElement | null>, s
     const node = dialog.current;
     const content = node?.querySelector<HTMLElement>('.sheet-content');
     if (!node || !content) return;
-    // Natural height: drag area, header and footer as they are, plus the content's full scroll height.
-    const box = node.getBoundingClientRect().height;
+    // Natural height: drag area, header and footer as they are, plus the content's full scroll height. The keyboard
+    // padding at the bottom (its current, possibly animated value) is not content: the sheet only extends under
+    // the keys, so it is left out, or opening the keyboard would raise the remembered height.
+    const box = node.getBoundingClientRect().height - (parseFloat(getComputedStyle(node).paddingBottom) || 0);
     const natural = box - content.clientHeight + content.scrollHeight;
     // Content that scrolls means the sheet is capped (keyboard, short screen, long list): the natural height is
     // more than fits, so keep the box itself. Under the keyboard the squeezed box is below what is remembered and

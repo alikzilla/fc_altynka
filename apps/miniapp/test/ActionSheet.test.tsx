@@ -6,18 +6,20 @@ import { SheetPlaceholder } from '../src/components/SheetPlaceholder';
 /**
  * happy-dom has no layout. A tiny model of the sheet's flex column stands in for it:
  * the box is the natural height (chrome + content), held at least at min(--sheet-min, max)
- * and at most at max, the way `.create-sheet` lays out in a browser.
+ * and at most at max, the way `.create-sheet` lays out in a browser. With the keyboard open the sheet keeps its
+ * bottom on the screen's bottom and pads its content by the keyboard height (`padding-bottom`): the box grows by it,
+ * and so do the minimum and the cap (`max` is the visible cap, the box may reach `max + keyboard`).
  */
-const layout = { chrome: 100, content: 400, max: 900 };
+const layout = { chrome: 100, content: 400, max: 900, keyboard: 0 };
 let observers: { callback: ResizeObserverCallback; observer: ResizeObserver }[] = [];
 
 function sheetHeight(node: HTMLElement): number {
   const remembered = parseFloat(node.style.getPropertyValue('--sheet-min')) || 0;
   const natural = layout.chrome + layout.content;
-  return Math.min(Math.max(natural, Math.min(remembered, layout.max)), layout.max);
+  return Math.min(Math.max(natural, Math.min(remembered, layout.max)), layout.max) + layout.keyboard;
 }
 const dialogOf = (el: Element) => el.closest<HTMLElement>('.create-sheet')!;
-const contentBox = (el: HTMLElement) => sheetHeight(dialogOf(el)) - layout.chrome;
+const contentBox = (el: HTMLElement) => sheetHeight(dialogOf(el)) - layout.chrome - layout.keyboard;
 
 const patched: [object, string, PropertyDescriptor | undefined][] = [];
 function patch(target: object, key: string, descriptor: PropertyDescriptor) {
@@ -26,7 +28,7 @@ function patch(target: object, key: string, descriptor: PropertyDescriptor) {
 }
 
 beforeEach(() => {
-  Object.assign(layout, { chrome: 100, content: 400, max: 900 });
+  Object.assign(layout, { chrome: 100, content: 400, max: 900, keyboard: 0 });
   observers = [];
   vi.stubGlobal('ResizeObserver', class {
     constructor(callback: ResizeObserverCallback) { observers.push({ callback, observer: this as unknown as ResizeObserver }); }
@@ -42,6 +44,10 @@ beforeEach(() => {
   } });
   patch(HTMLElement.prototype, 'clientHeight', { get(this: HTMLElement) { return this.matches('.sheet-content') ? contentBox(this) : 0; } });
   patch(HTMLElement.prototype, 'scrollHeight', { get(this: HTMLElement) { return this.matches('.sheet-content') ? Math.max(layout.content, contentBox(this)) : 0; } });
+  const computed = window.getComputedStyle.bind(window);
+  patch(window, 'getComputedStyle', { value: (el: Element, pseudo?: string | null) => el instanceof HTMLElement && el.matches('.create-sheet')
+    ? { paddingBottom: `${layout.keyboard}px` } as CSSStyleDeclaration
+    : computed(el, pseudo) });
   patch(HTMLElement.prototype, 'offsetHeight', { get(this: HTMLElement) { return this.matches('.create-sheet') ? sheetHeight(this) : 0; } });
 });
 
@@ -97,6 +103,21 @@ describe('ActionSheet height', () => {
     // Back to full height: the sheet returns to its largest natural height, not the squeezed one.
     resize({ max: 900 });
     expect(minimum()).toBe('550px');
+  });
+
+  it('the keyboard padding under the content is not content: opening the keyboard never raises the height', () => {
+    render(<Sheet />);
+    expect(minimum()).toBe('500px');
+    // The keyboard opens: the sheet stays on the bottom, the box grows by the padding, the visible part is the same.
+    resize({ keyboard: 300 });
+    expect(sheet().getBoundingClientRect().height).toBe(800);
+    expect(minimum()).toBe('500px');
+    // Squeezed under a big keyboard (the visible cap goes down): still nothing recorded.
+    resize({ keyboard: 400, max: 400 });
+    expect(minimum()).toBe('500px');
+    resize({ keyboard: 0, max: 900 });
+    expect(sheet().getBoundingClientRect().height).toBe(500);
+    expect(minimum()).toBe('500px');
   });
 
   it('opening under the keyboard keeps the squeezed box, then grows to the natural height', () => {
