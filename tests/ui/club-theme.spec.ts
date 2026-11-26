@@ -164,16 +164,46 @@ for (const width of [390, 320]) test(`${width} px: picker with long names has no
   await sheet.getByRole('button', { name: 'Бундеслига', exact: true }).click();
   await expect(sheet.getByRole('button', { name: 'Бавария' })).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Барселона' })).toHaveCount(0);
-  for (const tile of await sheet.locator('.club-tile').all()) {
-    const box = (await tile.boundingBox())!, parent = (await sheet.locator('.club-grid').boundingBox())!;
+  for (const tile of await sheet.locator('.club-row').all()) {
+    const box = (await tile.boundingBox())!, parent = (await sheet.locator('.club-list').boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(parent.x - 1);
     expect(box.x + box.width).toBeLessThanOrEqual(parent.x + parent.width + 1);
   }
   await page.screenshot({ path: `artifacts/ui/club-picker-bundesliga-${width}.png` });
   await sheet.getByRole('tab', { name: 'Сборные' }).click();
   await expect(sheet.getByRole('button', { name: 'Бразилия' })).toBeVisible();
-  await expect(sheet.locator('.club-leagues')).toHaveCount(0);
+  await expect(sheet.locator('.club-leagues')).not.toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [320, 390]) test(`club picker: a fixed-height sheet with a scrolling list that never moves at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await world(page, { favoriteClub: 'arsenal' });
+  await page.goto('/profile');
+  await page.getByRole('link', { name: /Любимый клуб/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Любимый клуб' });
+  await expect(sheet.getByRole('button', { name: 'АПЛ', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await animationsSettled(page);
+  const box = async () => (await sheet.boundingBox())!;
+  const list = async () => (await sheet.locator('.club-list').boundingBox())!;
+  const [sheetBefore, listBefore] = [await box(), await list()];
+  await sheet.getByRole('button', { name: 'Все', exact: true }).click();
+  await expect(sheet.getByRole('button', { name: 'Боруссия Дортмунд' })).toBeAttached();
+  await sheet.getByRole('tab', { name: 'Сборные' }).click();
+  await expect(sheet.getByRole('button', { name: 'Бразилия' })).toBeVisible();
+  for (const [after, before] of [[await box(), sheetBefore], [await list(), listBefore]]) {
+    expect(Math.abs(after.height - before.height)).toBeLessThanOrEqual(1);
+    expect(Math.abs(after.y - before.y)).toBeLessThanOrEqual(1);
+  }
+  await sheet.getByRole('tab', { name: 'Клубы' }).click();
+  const scroll = await sheet.locator('.club-list').evaluate(el => ({ inner: el.scrollHeight, outer: el.clientHeight }));
+  expect(scroll.inner).toBeGreaterThan(scroll.outer);
+  const row = (await sheet.locator('.club-row').first().boundingBox())!;
+  expect(row.height).toBeLessThan(72);
+  // Nothing above the list is squeezed on a short screen: chips keep their 44 px.
+  const chips = (await sheet.locator('.club-leagues').boundingBox())!;
+  expect(chips.height).toBeGreaterThanOrEqual(44);
 });
 
 test("peer profile shows the owner's club", async ({ page }) => {
@@ -216,3 +246,4 @@ test('an unknown club id is treated as no club', async ({ page }) => {
   await expect(page.locator('.club-backdrop')).toHaveCount(0);
   await expect(page.getByRole('link', { name: /Любимый клуб/ })).toContainText('Не выбран');
 });
+

@@ -16,7 +16,7 @@ beforeAll(() => {
 beforeEach(() => { (api.send as Mock).mockReset(); (api.send as Mock).mockResolvedValue({ ...player }); });
 afterEach(() => { cleanup(); act(() => applyClub(null)); });
 
-const tiles = () => [...document.querySelectorAll('.club-grid button')] as HTMLElement[];
+const tiles = () => [...document.querySelectorAll('.club-list .club-row')] as HTMLElement[];
 function open(onClose = vi.fn()) {
   renderWithApp(<ClubPickerSheet onClose={onClose} />, { me: player });
   return onClose;
@@ -106,4 +106,13 @@ test('a stale failure does not undo a newer choice', async () => {
   await act(async () => { rejectFirst(new Error('offline')); });
   expect(getClubId()).toBe('milan');
   expect(within(document.body).queryByText('Не получилось сохранить клуб')).toBeNull();
+});
+
+test('clubs are a list of rows in one scroll container inside a fixed-height sheet', () => {
+  open();
+  expect(document.querySelector('dialog')).toHaveClass('club-picker-sheet');
+  const list = document.querySelector('.club-list')!;
+  expect(list.querySelectorAll('button.club-row')).toHaveLength(20);
+  expect(list.querySelector('img')).toHaveAttribute('alt', '');
+  expect(document.querySelector('.club-grid, .club-tile')).toBeNull();
 });
