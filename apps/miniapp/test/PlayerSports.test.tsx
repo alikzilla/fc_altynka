@@ -1,6 +1,6 @@
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { aggregatePlayerStatistics, type PlayerMeetingStatistics } from '@altynka/core';
+import { aggregatePlayerStatistics, clubById, type ClubId, type PlayerMeetingStatistics } from '@altynka/core';
 import { PlayerSportsCard } from '../src/components/PlayerSports';
 import { PlayerGameHistory } from '../src/components/PlayerGameHistory';
 import { player,renderWithApp } from './render';
@@ -30,7 +30,7 @@ test('rating details use FACEIT colours and continuous circles',async()=>{
 });
 
 test('old protocol meetings do not resurface as legacy rows outside the displayed game-history window',()=>{
-  const profile={userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,statistics:aggregatePlayerStatistics([]),gameHistory:[],
+  const profile={userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,favoriteClub:null,statistics:aggregatePlayerStatistics([]),gameHistory:[],
     history:[{eventId:9,date:'2026-10-01',place:'Old protocol venue',community:{id:1,title:'FC Altynka'},score:7,protocolVersion:1 as const}]};
   renderWithApp(<PlayerGameHistory profile={profile}/>,{me:player});
   expect(screen.queryByText('Old protocol venue')).not.toBeInTheDocument();
@@ -44,7 +44,7 @@ const m1=meeting(4,'2026-11-06',['win','win','draw'],[2,1,0]);
 const m2=meeting(3,'2026-10-30',['loss','win'],[0,0]);
 const m3=meeting(2,'2026-10-23',['draw'],[1]);
 const m4=meeting(1,'2026-10-16',['win'],[1]);
-const profileWith=(gameHistory:PlayerMeetingStatistics[])=>({userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,statistics:aggregatePlayerStatistics([]),gameHistory,history:[]});
+const profileWith=(gameHistory:PlayerMeetingStatistics[])=>({userId:2,displayName:'Игрок',playingPosition:null,dominantFoot:null,rating:props.rating,role:'player' as const,telegramUsername:null,pinnedAchievement:null,favoriteClub:null,statistics:aggregatePlayerStatistics([]),gameHistory,history:[]});
 
 test('the card lists the latest three meetings as rows with dots and goals', async () => {
   renderWithApp(<PlayerGameHistory profile={profileWith([m1, m2, m3, m4])}/>, { me: player });
@@ -114,4 +114,30 @@ test('the profile of the reigning MVP shows the crown and the chip',()=>{
   const plain=renderWithApp(<PlayerSportsCard {...props}/>,{me:player});
   expect(plain.container.querySelector('[data-testid="crown-badge"]')).toBeNull();
   expect(plain.container.querySelector('.player-crown-chip')).toBeNull();
+});
+
+test('favourite club paints the card and shows the crest',()=>{
+  const {container}=renderWithApp(<PlayerSportsCard {...props} favoriteClub="barcelona"/>,{me:player});
+  const card=container.querySelector('section')!;
+  expect(card).toHaveClass('club-material');
+  expect(card).not.toHaveClass('material-plum');
+  expect(card.style.getPropertyValue('--club-mid')).toBe(clubById('barcelona')!.material.mid);
+  expect(card).toHaveTextContent('Любимый клуб: Барселона');
+  expect(card.querySelector('img[src^="/clubs/"]')).toBeNull();
+});
+test('no club keeps plum',()=>{
+  for(const favoriteClub of [undefined,null]){
+    const {container,unmount}=renderWithApp(<PlayerSportsCard {...props} favoriteClub={favoriteClub}/>,{me:player});
+    const card=container.querySelector('section')!;
+    expect(card).toHaveClass('material-plum');
+    expect(card).not.toHaveClass('club-material');
+    expect(card.getAttribute('style')).toBeNull();
+    expect(container.querySelector('section')).not.toHaveTextContent('Любимый клуб');
+    unmount();
+  }
+});
+test('unknown club keeps plum',()=>{
+  const {container}=renderWithApp(<PlayerSportsCard {...props} favoriteClub={'dinamo-zagreb' as ClubId}/>,{me:player});
+  expect(container.querySelector('section')).toHaveClass('material-plum');
+  expect(container.querySelector('section')).not.toHaveTextContent('Любимый клуб');
 });

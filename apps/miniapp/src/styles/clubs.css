@@ -1,0 +1,74 @@
+/* Тема любимого клуба. Переменные (--accent, --club-pattern …) ставит lib/theme.ts на <html>;
+   цветные материалы возвращают свои токены, поэтому клуб их не перекрашивает. */
+
+/* Фон клуба: портал в body, закреплён на всё окно (как обои), контент прокручивается поверх. */
+.club-backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+/* --club-pattern-opacity считает clubVariables: не выше .55/.3 и так, чтобы --text и --hint на любом цвете узора держали 4,5:1 —
+   узор лежит под всей страницей в полную силу, поэтому это условие для любого текста на фоне. */
+.club-backdrop::before { content: ''; position: absolute; inset: 0; background-image: var(--club-pattern); opacity: var(--club-pattern-opacity, .55); }
+.club-backdrop img { position: absolute; top: calc(70px + var(--safe-top)); left: 50%; width: 150px; height: 180px; object-fit: contain; transform: translateX(-50%); opacity: .2; }
+:root[data-theme='light'] .club-backdrop::before { opacity: var(--club-pattern-opacity, .3); }
+/* Запас поверх расчёта прозрачности: тёмная тень под светлым текстом заголовка на светлых узорах. */
+:root[data-club]:not([data-theme='light']) .screen-heading :is(.title, .subtitle) { text-shadow: 0 1px 10px rgb(0 0 0 / .6), 0 0 3px rgb(0 0 0 / .4); }
+/* Отрицательный отступ: эмблема не растягивает заголовок, иначе экран с action (без эмблемы) и его каркас (с ней) разойдутся по высоте. */
+.club-heading-crest { flex-shrink: 0; width: 30px; height: 36px; margin-block: -8px; object-fit: contain; }
+
+/* Клубный акцент вне цветных материалов. */
+:root[data-club] .btn.primary { background: var(--club-accent); color: var(--club-on-accent); }
+:root[data-club] :is(.material-plum, .material-blue, .club-material) .btn.primary { background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: #191c30; }
+:root[data-club] .material-coral .btn.primary { background: linear-gradient(160deg, #f7e9e3, #e5c8c0); color: #321e21; }
+:root[data-club] :is(.material-plum, .material-blue, .material-coral, .club-material) {
+  --accent: #ded5f4;
+  --accent-ink: #e5def8;
+  --on-accent: #191c30;
+  --accent-soft: #302a42;
+}
+/* Акцент как цвет текста — всегда чернила (accentInk): сам акцент на графитовой карточке бывает ниже 4,5:1.
+   :where — чтобы частные правила (.btn-text.danger, кнопки на материалах) по-прежнему побеждали. */
+:where(:root[data-club]) :is(.btn-text, .system-action-label) { color: var(--accent-ink); }
+:root[data-club] .section-heading > :is(a, button) { color: var(--accent-ink); }
+:root[data-club] .nav a.on { color: var(--accent-ink); }
+:root[data-club][data-theme='light'] .nav a.on .nav-icon { background: var(--accent-soft); }
+/* Центральная кнопка дока: в светлой теме сливовая заменяется клубной; в тёмной остаётся жемчужной. */
+:root[data-club][data-theme='light'] .nav .nav-create { background: var(--club-accent); color: var(--club-on-accent); }
+:root[data-club] ::selection { background: color-mix(in srgb, var(--accent) 40%, var(--bg)); color: var(--text); }
+:root[data-club] :focus-visible { outline-color: var(--accent); }
+
+/* Повышенная контрастность: шапки нет, остаётся только цвет — плоская клубная кнопка без градиента и тени.
+   Кнопки на цветных материалах не трогаем: у них свои правила. */
+@media (prefers-contrast: more) {
+  .club-backdrop { display: none; }
+  :root[data-club][data-theme] .btn.primary:not(:is(.material-plum, .material-blue, .material-coral, .club-material) *) { background: var(--club-accent); color: var(--club-on-accent); box-shadow: none; }
+}
+
+/* Карточка профиля в цвете клуба: рецепт .material-plum на трёх тонах клуба, текст — из его материала
+   (токены --text, --hint, --accent, --plum-ink* ставит materialVariables прямо на карточку). */
+.club-material { position: relative; color: var(--club-ink); background: radial-gradient(ellipse 105% 33% at 42% -7%, var(--club-hi) 0%, var(--club-mid) 53%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, var(--club-mid) 0%, transparent 100%), var(--club-base); box-shadow: var(--rim), inset 0 -2px 9px color-mix(in srgb, var(--club-hi) 38%, transparent), inset 1px 0 7px color-mix(in srgb, var(--club-hi) 30%, transparent); }
+.club-material .muted { color: var(--club-ink-soft); }
+.club-material .player-identity h2, .club-material .player-position-line, .club-material .player-statistics dd, .club-material .player-awards dd, .club-material .player-statistics .foot-stat dd { color: var(--club-ink); }
+.club-material.player-sports-card .avatar-large { color: var(--club-ink); background: color-mix(in srgb, var(--club-ink) 10%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--club-ink) 24%, transparent); }
+.club-material .player-statistics-section { background: color-mix(in srgb, var(--club-ink) 7%, transparent); }
+.club-material .player-awards { border-top-color: color-mix(in srgb, var(--club-ink) 14%, transparent); }
+.club-material .player-awards > div { background: color-mix(in srgb, var(--club-ink) 9%, transparent); }
+/* Цвет ранга (жёлтый, зелёный) нечитаем на светлом жемчужном материале: число лежит на тёмном диске. */
+.club-material .rank-core { fill: #19191f; fill-opacity: .92; }
+.club-material .rank-track { stroke: color-mix(in srgb, var(--club-ink) 14%, transparent); }
+.club-material .rating-caption { color: var(--club-ink-soft); }
+
+/* Шторка «Любимый клуб». */
+.club-picker { display: grid; gap: 12px; }
+.tabs.club-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.club-leagues { display: flex; gap: 8px; overflow-x: auto; margin-inline: -4px; padding: 2px 4px; scrollbar-width: none; }
+.club-leagues .chip-btn { flex-shrink: 0; white-space: nowrap; }
+.club-none { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 14px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); }
+.club-none small { color: var(--hint); font-size: 13px; margin-right: auto; }
+.club-none b { font-weight: 600; }
+.club-none.on { border-color: var(--accent); background: var(--accent-soft); }
+.club-none .icon { margin-left: auto; color: var(--accent-ink); }
+.club-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.club-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px; padding: 12px 6px 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
+.club-tile img { width: 44px; height: 52px; object-fit: contain; }
+.club-tile.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
+.club-tile-check { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
+.club-tile-check .icon { width: 12px; height: 12px; }
+.club-picker-note { margin: 0; text-align: center; }

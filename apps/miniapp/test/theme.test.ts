@@ -1,4 +1,6 @@
-import { applyTheme, getTheme, initializeTheme } from '../src/lib/theme';
+import { clubById } from '@altynka/core';
+import { clubVariables } from '../src/lib/clubTheme';
+import { applyClub, applyTheme, getClubId, getTheme, initializeTheme } from '../src/lib/theme';
 
 beforeEach(() => {
   localStorage.clear();
@@ -55,4 +57,49 @@ test('denied storage reads and writes do not prevent choosing a theme', () => {
   expect(() => applyTheme('light')).not.toThrow();
   expect(getTheme()).toBe('light');
   expect(document.documentElement.style.colorScheme).toBe('light');
+});
+
+describe('club theme', () => {
+  const root = document.documentElement;
+  beforeEach(() => { delete root.dataset.club; root.removeAttribute('style'); });
+
+  test('cached club paints before account hydration', () => {
+    localStorage.setItem('altynka:club', 'barcelona');
+    initializeTheme();
+    expect(root.dataset.club).toBe('barcelona');
+    expect(root.style.getPropertyValue('--accent')).toBe(clubById('barcelona')!.dark.accent);
+  });
+
+  test('switching to light recomputes club variables', () => {
+    applyTheme('dark');
+    applyClub('barcelona');
+    applyTheme('light');
+    expect(root.style.getPropertyValue('--accent')).toBe(clubById('barcelona')!.light.accent);
+  });
+
+  test('unknown cached club starts without a club', () => {
+    localStorage.setItem('altynka:club', 'dinamo-zagreb');
+    initializeTheme();
+    expect(root.dataset.club).toBeUndefined();
+    expect(root.style.getPropertyValue('--accent')).toBe('');
+  });
+
+  test('clearing the club removes every variable', () => {
+    applyClub('barcelona');
+    expect(getClubId()).toBe('barcelona');
+    applyClub(null);
+    expect(root.dataset.club).toBeUndefined();
+    expect(root.style.getPropertyValue('--accent')).toBe('');
+    for (const name of Object.keys(clubVariables(clubById('barcelona')!, 'dark'))) expect(root.style.getPropertyValue(name), name).toBe('');
+    expect(Array.from({ length: root.style.length }, (_, i) => root.style.item(i)).filter(name => name.startsWith('--'))).toEqual([]);
+    expect(localStorage.getItem('altynka:club')).toBeNull();
+  });
+
+  test('applyClub notifies listeners', () => {
+    const listener = vi.fn();
+    window.addEventListener('altynka:theme', listener);
+    applyClub('barcelona');
+    window.removeEventListener('altynka:theme', listener);
+    expect(listener).toHaveBeenCalled();
+  });
 });

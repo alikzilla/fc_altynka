@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Карточка в цвете клуба</title>
+<style>
+  :root { --text:#f2f1f8; --hint:#b6b2c2; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#08090b; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:28px 20px 60px; }
+  h1 { font-size:24px; margin:0 0 6px; font-weight:600; }
+  .sub { color:var(--hint); margin:0 0 26px; max-width:820px; line-height:1.45; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:22px; max-width:1000px; }
+  .club-name { font-size:13px; color:var(--hint); margin:0 0 8px 4px; }
+  .p-card { position:relative; overflow:hidden; border-radius:28px; padding:18px; display:flex; flex-direction:column; gap:16px; color:#fff; }
+  .p-top { display:grid; grid-template-columns:60px 1fr 34px; gap:14px; align-items:start; }
+  .avatar { width:60px; height:60px; border-radius:50%; background:linear-gradient(140deg,#d9b48f,#8a5a3c); box-shadow:0 0 0 3px #ffffff30; }
+  .p-name { font-size:19px; font-weight:650; line-height:1.15; }
+  .p-meta { font-size:13px; opacity:.8; margin-top:3px; }
+  .crest { width:34px; height:41px; border-radius:6px 6px 18px 18px; box-shadow:0 0 0 2px #ffffff55; }
+  .p-split { border-top:1px solid #ffffff2a; padding-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .p-split small { display:block; opacity:.72; font-size:11px; } .p-split b { font-size:15px; }
+  .accent-row { display:flex; gap:10px; align-items:center; margin-top:10px; }
+  .btn { height:40px; padding:0 18px; border-radius:20px; display:inline-grid; place-items:center; font-weight:600; font-size:14px; }
+  .dock-dot { width:26px; height:26px; border-radius:9px; }
+  .accent-row small { color:var(--hint); font-size:12px; }
+
+  /* Один оттенок клуба, тот же рецепт объёма, что у сливовой карточки */
+  .barca { background: radial-gradient(ellipse 105% 40% at 40% -8%, #d6386a 0%, #8c1238 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #a3123f 0%, transparent 100%), #2a0612; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #d6386a55; }
+  .city { background: radial-gradient(ellipse 105% 40% at 40% -8%, #8fc9ee 0%, #3c7fb3 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #4d93c8 0%, transparent 100%), #0b2034; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #8fc9ee55; }
+  .pool { background: radial-gradient(ellipse 105% 40% at 40% -8%, #f0505e 0%, #a8121f 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #c8102e 0%, transparent 100%), #2c0508; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #f0505e55; }
+  .chelsea { background: radial-gradient(ellipse 105% 40% at 40% -8%, #4f7fe0 0%, #123f9a 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #034694 0%, transparent 100%), #061430; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #4f7fe055; }
+  .kairat { background: radial-gradient(ellipse 105% 40% at 40% -8%, #e6c22a 0%, #8f7408 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #b38f00 0%, transparent 100%), #221a02; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #e6c22a55; }
+  .real { background: radial-gradient(ellipse 105% 40% at 40% -8%, #ffffff 0%, #d9d6e2 55%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #c9c3d8 0%, transparent 100%), #b9b4c6; box-shadow: inset 0 1px 1px #fff, inset 0 -2px 9px #8e86a455; color:#1d1b29; }
+  .real .p-split { border-color:#1d1b2922; }
+  .real .crest { box-shadow:0 0 0 2px #1d1b2930; }
+  .note { margin:28px 0 0; max-width:820px; color:var(--hint); font-size:13px; line-height:1.5; }
+</style>
+</head>
+<body>
+<h1>Один цвет клуба на карточку и акценты</h1>
+<p class="sub">У каждого клуба один фирменный оттенок. Карточка профиля сделана тем же объёмным материалом, что и сливовая сейчас, но в этом оттенке. Под каждой карточкой показан тот же цвет в роли акцента: главная кнопка и выбранная иконка в доке. Эмблемы здесь заглушки.</p>
+
+<div class="grid">
+  <div><p class="club-name">Барселона — гранатовый</p>
+    <div class="p-card barca"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:linear-gradient(90deg,#1d4fa3 50%,#a3123f 50%)"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:#b8174a;color:#fff">Я играю</span><span class="dock-dot" style="background:#ef6f95"></span><small>кнопка · иконка в доке</small></div></div>
+
+  <div><p class="club-name">Реал — жемчужный (белый клуб)</p>
+    <div class="p-card real"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:#fff;border:2px solid #c9a227"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:linear-gradient(165deg,#fff,#d9d6e2);color:#1d1b29">Я играю</span><span class="dock-dot" style="background:#e9d18a"></span><small>кнопка · иконка в доке</small></div></div>
+
+  <div><p class="club-name">Ман Сити — небесный</p>
+    <div class="p-card city"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:#6cabdd"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:#8fc9ee;color:#0b2034">Я играю</span><span class="dock-dot" style="background:#8fc9ee"></span><small>кнопка · иконка в доке</small></div></div>
+
+  <div><p class="club-name">Ливерпуль — красный</p>
+    <div class="p-card pool"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:#c8102e"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:#d4202f;color:#fff">Я играю</span><span class="dock-dot" style="background:#ff7680"></span><small>кнопка · иконка в доке</small></div></div>
+
+  <div><p class="club-name">Челси — синий</p>
+    <div class="p-card chelsea"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:#034694"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:#2c62cc;color:#fff">Я играю</span><span class="dock-dot" style="background:#7fa6ff"></span><small>кнопка · иконка в доке</small></div></div>
+
+  <div><p class="club-name">Кайрат — золотой (жёлтый клуб)</p>
+    <div class="p-card kairat"><div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div><div class="crest" style="background:#ffe600"></div></div><div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div></div>
+    <div class="accent-row"><span class="btn" style="background:#ffd51f;color:#221a02">Я играю</span><span class="dock-dot" style="background:#ffd51f"></span><small>кнопка · иконка в доке</small></div></div>
+</div>
+
+<p class="note">Светлые клубы (жёлтые, белые, небесные) получают тёмный текст на кнопке, а карточка у жёлтых затемнена до золота, чтобы белые буквы читались. Белые клубы получают светлую жемчужную карточку с тёмным текстом. Каждый оттенок проверяется на контраст.</p>
+</body>
+</html>

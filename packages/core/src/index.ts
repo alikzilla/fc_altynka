@@ -14,3 +14,4 @@ export * from './feed';
 export * from './ceremony';
 export * from './availability';
 export * from './gameTimer';
+export * from './clubs';

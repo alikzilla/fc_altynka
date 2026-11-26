@@ -23,13 +23,14 @@ async function player(name: string, tgId: number) {
 
 test('the profile is wiped and detached from Telegram; the next sign-in starts from scratch', async () => {
   const u = await player('Тимур', 501);
+  await env.DB.prepare('UPDATE users SET favorite_club = ? WHERE id = ?').bind('barcelona', u.id).run();
   await env.DB.prepare('INSERT INTO skill_assessments(user_id, teamwork, dribbling, technique, shooting, stamina, physical, passing, defending, created_at) VALUES (?,5,5,5,5,5,5,5,5,0)').bind(u.id).run();
   await db().insert(availabilityDays).values({ userId: u.id, date: '2026-11-25', status: 'yes', parts: '[]', updatedAt: 0 } as never);
   expect(await deleteMyData(deps(), u.id)).toEqual({ kind: 'deleted' });
   const row = await userRow(u.id);
   expect(row).toMatchObject({
     tgId: -u.id, firstName: DELETED_NAME, displayName: DELETED_NAME, lastName: null, username: null, kaspiPhone: null, photoUrl: null,
-    playingPosition: null, dominantFoot: null, notificationsEnabled: false, pmAvailable: false, profileCompletedAt: null, deletedAt: NOW,
+    playingPosition: null, dominantFoot: null, notificationsEnabled: false, pmAvailable: false, profileCompletedAt: null, deletedAt: NOW, favoriteClub: null,
   });
   expect(await db().select().from(skillAssessments)).toEqual([]);
   expect(await db().select().from(availabilityDays)).toEqual([]);

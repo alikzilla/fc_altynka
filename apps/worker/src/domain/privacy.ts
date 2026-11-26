@@ -71,7 +71,7 @@ export async function deleteMyData(d: Deps, userId: number): Promise<DeleteResul
   const writes = [
     d.db.update(users).set({
       tgId: -userId, firstName: DELETED_NAME, displayName: DELETED_NAME, lastName: null, username: null, kaspiPhone: null, photoUrl: null,
-      playingPosition: null, dominantFoot: null, pinnedAchievement: null, profileCompletedAt: null, availabilityAskedOn: null,
+      playingPosition: null, dominantFoot: null, pinnedAchievement: null, favoriteClub: null, profileCompletedAt: null, availabilityAskedOn: null,
       notificationsEnabled: false, pmAvailable: false, theme: 'dark', deletedAt: d.now,
     }).where(eq(users.id, userId)),
     d.db.delete(skillAssessments).where(eq(skillAssessments.userId, userId)),

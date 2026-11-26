@@ -4,19 +4,27 @@ import { Router } from 'wouter';
 import { memoryLocation } from 'wouter/memory-location';
 import { App } from '../src/App';
 import { startParam } from '../src/lib/tg';
+import { applyClub, getClubId } from '../src/lib/theme';
 
 vi.mock('../src/lib/tg');
 
 const me = { userId: 1, displayName: 'Игрок', kaspiPhone: null, communities: [] as unknown[] };
 let calls: { method: string; path: string }[];
 let meStatus: number;
+let meExtra: Record<string, unknown>;
+let meGate: Promise<void> | null;
 
 beforeEach(() => {
   calls = [];
   meStatus = 200;
+  meExtra = {};
+  meGate = null;
   vi.stubGlobal('fetch', vi.fn(async (path: string, init?: RequestInit) => {
     calls.push({ method: init?.method ?? 'GET', path });
-    if (path === '/api/me') return meStatus === 200 ? Response.json(me) : Response.json({ error: 'x' }, { status: meStatus });
+    if (path === '/api/me') {
+      if (meGate) await meGate;
+      return meStatus === 200 ? Response.json({ ...me, ...meExtra }) : Response.json({ error: 'x' }, { status: meStatus });
+    }
     if (path === '/api/communities/7/join') return Response.json({ community: { id: 7, title: 'Альфа' } });
     if (path === '/api/notifications') return Response.json({ tasks: [] });
     if (path === '/api/events') return Response.json({ active: [], past: [] });
@@ -57,4 +65,40 @@ test('/api/me 401 asks to open the app from Telegram', async () => {
   meStatus = 401;
   open();
   expect(await screen.findByText('Открой мини-апп из Telegram')).toBeInTheDocument();
+});
+
+describe('club hydration', () => {
+  afterEach(() => applyClub(null));
+
+  test('the cached club stays until /api/me arrives, then the account club replaces it', async () => {
+    (startParam as Mock).mockReturnValue(undefined);
+    applyClub('kairat');
+    let release!: () => void;
+    meGate = new Promise(resolve => { release = resolve; });
+    meExtra = { favoriteClub: 'barcelona' };
+    open();
+    await waitFor(() => expect(calls.some(c => c.path === '/api/me')).toBe(true));
+    expect(getClubId()).toBe('kairat');
+    release();
+    await waitFor(() => expect(getClubId()).toBe('barcelona'));
+    expect(localStorage.getItem('altynka:club')).toBe('barcelona');
+  });
+
+  test('an unknown favoriteClub from the account clears the cached club', async () => {
+    (startParam as Mock).mockReturnValue(undefined);
+    applyClub('kairat');
+    meExtra = { favoriteClub: 'dinamo-zagreb' };
+    open();
+    await waitFor(() => expect(getClubId()).toBeNull());
+    expect(localStorage.getItem('altynka:club')).toBeNull();
+  });
+
+  test('a failed /api/me keeps the cached club', async () => {
+    (startParam as Mock).mockReturnValue(undefined);
+    applyClub('kairat');
+    meStatus = 403;
+    open();
+    expect(await screen.findByText('Нет связи, попробуй позже')).toBeInTheDocument();
+    expect(getClubId()).toBe('kairat');
+  });
 });

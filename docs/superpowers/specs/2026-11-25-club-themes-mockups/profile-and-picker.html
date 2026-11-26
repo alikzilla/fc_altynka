@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Профиль и выбор клуба</title>
+<style>
+  :root { --bg:#08090b; --text:#f2f1f8; --hint:#b6b2c2; --blue:#1d4fa3; --garnet:#a3123f; --gold:#edbb00; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#131318; color:var(--text); font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; padding:28px 20px 60px; }
+  h1 { font-size:24px; margin:0 0 6px; font-weight:600; }
+  h3 { font-size:19px; margin:44px 0 6px; font-weight:600; }
+  .sub { color:var(--hint); margin:0 0 24px; max-width:820px; line-height:1.45; }
+  .row { display:flex; gap:28px; flex-wrap:wrap; justify-content:center; }
+  .card { cursor:pointer; display:flex; flex-direction:column; align-items:center; gap:12px; padding:12px; border-radius:30px; border:2px solid transparent; }
+  .card.selected { border-color:#d4c7fa; background:#ffffff08; }
+  .label { text-align:center; max-width:300px; }
+  .label b { display:block; font-size:16px; margin-bottom:4px; }
+  .label span { color:var(--hint); font-size:13px; line-height:1.4; }
+
+  .phone { position:relative; width:300px; height:560px; border-radius:42px; overflow:hidden; background:var(--bg); box-shadow:0 0 0 8px #24242b, 0 20px 50px #0008; isolation:isolate; }
+  .bg { position:absolute; inset:0; z-index:0; pointer-events:none; }
+  .stripes { position:absolute; inset:0 0 auto 0; height:300px; opacity:.55; background: repeating-linear-gradient(90deg, var(--blue) 0 34px, var(--garnet) 34px 68px); -webkit-mask-image:linear-gradient(#000 25%, transparent); mask-image:linear-gradient(#000 25%, transparent); }
+  .screen { position:relative; z-index:1; padding:52px 16px 0; display:flex; flex-direction:column; gap:12px; }
+  .title-row { display:flex; justify-content:space-between; align-items:center; }
+  .title-row h2 { margin:0; font-size:30px; font-weight:650; letter-spacing:-.02em; }
+  .mini-crest { width:30px; height:36px; }
+
+  .p-card { position:relative; overflow:hidden; border-radius:28px; padding:18px; display:flex; flex-direction:column; gap:16px; }
+  .p-top { display:grid; grid-template-columns:64px 1fr; gap:14px; align-items:start; position:relative; z-index:1; }
+  .avatar { width:64px; height:64px; border-radius:50%; background:linear-gradient(140deg,#d9b48f,#8a5a3c); box-shadow:0 0 0 3px #ffffff30; }
+  .p-name { font-size:20px; font-weight:650; line-height:1.15; }
+  .p-meta { font-size:13px; opacity:.8; margin-top:3px; }
+  .p-club { display:inline-flex; align-items:center; gap:6px; margin-top:8px; font-size:12px; font-weight:600; padding:4px 10px 4px 5px; border-radius:20px; background:#00000040; }
+  .p-club svg { width:16px; height:19px; }
+  .p-split { position:relative; z-index:1; border-top:1px solid #ffffff2a; padding-top:14px; display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:13px; }
+  .p-split small { display:block; opacity:.7; font-size:11px; } .p-split b { font-size:15px; }
+  .plum { background: radial-gradient(ellipse 105% 33% at 42% -7%, #cf65aa 0%, #803766 53%, transparent 100%), radial-gradient(ellipse 55% 45% at 100% 110%, #993b91 0%, transparent 100%), #240b24; box-shadow: inset 0 1px 1px #fff3; }
+  .club-stripes { background: repeating-linear-gradient(90deg, #1b4695 0 30px, #8f1038 30px 60px); box-shadow: inset 0 1px 1px #fff3; }
+  .club-stripes::after { content:""; position:absolute; inset:0; background:linear-gradient(180deg,#0006,#000a); }
+  .club-material { background: radial-gradient(ellipse 110% 60% at 10% -20%, #3f74d0 0%, #163a82 50%, transparent 100%), radial-gradient(ellipse 70% 90% at 105% 120%, #b81a4c 0%, #6d0b2b 55%, transparent 100%), #0b1532; box-shadow: inset 0 1px 1px #fff3, inset 0 -2px 9px #b81a4c55; }
+  .crest-mark { position:absolute; right:-34px; top:-18px; width:150px; opacity:.16; z-index:0; }
+  .crest-corner { position:absolute; right:16px; top:16px; width:34px; height:41px; z-index:1; }
+  .band { position:absolute; left:0; right:0; bottom:0; height:5px; background: repeating-linear-gradient(90deg, var(--blue) 0 18px, var(--garnet) 18px 36px); }
+  .graphite { background: radial-gradient(ellipse 100% 55% at 20% -28%, #505057 0%, transparent 100%), #17171c; border-radius:24px; padding:14px 16px; font-size:14px; display:flex; justify-content:space-between; align-items:center; }
+  .graphite small { color:var(--hint); display:block; font-size:12px; }
+
+  /* Sheet */
+  .sheet-wrap { display:flex; justify-content:center; gap:28px; flex-wrap:wrap; }
+  .sheet-phone { position:relative; width:330px; height:680px; border-radius:42px; overflow:hidden; background:#08090b; box-shadow:0 0 0 8px #24242b, 0 20px 50px #0008; }
+  .dim { position:absolute; inset:0; background:#0009; }
+  .sheet { position:absolute; left:0; right:0; bottom:0; top:70px; border-radius:32px 32px 0 0; background:#17171c; padding:10px 16px 0; display:flex; flex-direction:column; }
+  .grab { width:38px; height:5px; border-radius:3px; background:#ffffff40; margin:0 auto 12px; }
+  .sheet-head { display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; }
+  .sheet-head b { font-size:20px; }
+  .x { width:32px; height:32px; border-radius:16px; background:#2a2833; display:grid; place-items:center; color:var(--hint); font-size:16px; }
+  .seg { display:grid; grid-template-columns:1fr 1fr; background:#25232d; border-radius:16px; padding:3px; margin-bottom:10px; font-size:14px; }
+  .seg span { text-align:center; padding:8px; border-radius:13px; color:var(--hint); }
+  .seg span.on { background:#3a3647; color:#fff; font-weight:600; }
+  .chips { display:flex; gap:8px; overflow:hidden; margin-bottom:14px; white-space:nowrap; }
+  .chips span { font-size:13px; padding:7px 12px; border-radius:18px; background:#25232d; color:#e2deea; }
+  .chips span.on { background:#ded5f4; color:#191c30; font-weight:600; }
+  .none { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:18px; background:#201f27; margin-bottom:12px; font-size:14px; }
+  .none i { width:36px; height:36px; border-radius:50%; border:2px dashed #5c5768; display:block; }
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  .club { display:flex; flex-direction:column; align-items:center; gap:7px; padding:12px 6px 10px; border-radius:20px; background:#201f27; font-size:12px; text-align:center; position:relative; }
+  .club svg { width:40px; height:48px; }
+  .club.on { box-shadow: 0 0 0 2px var(--gold) inset; }
+  .club.on::after { content:"✓"; position:absolute; top:6px; right:8px; font-size:12px; color:var(--gold); font-weight:700; }
+  .shield { width:40px; height:48px; border-radius:6px 6px 20px 20px; }
+  .soon { text-align:center; color:var(--hint); font-size:12px; margin:14px 0 0; }
+  .sheet-notes { max-width:380px; color:var(--hint); font-size:14px; line-height:1.5; align-self:center; }
+  .sheet-notes li { margin-bottom:8px; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs>
+    <symbol id="crest" viewBox="0 0 100 120">
+      <path d="M50 4 C70 4 88 8 94 14 V60 C94 88 72 108 50 116 C28 108 6 88 6 60 V14 C12 8 30 4 50 4Z" fill="#f4f1ea"/>
+      <path d="M12 18 H50 V46 H12Z" fill="#fff" stroke="#a3123f" stroke-width="2"/>
+      <path d="M26 18 V46 M12 32 H50" stroke="#a3123f" stroke-width="6"/>
+      <path d="M50 18 H88 V46 H50Z" fill="#edbb00"/><path d="M58 18V46 M68 18V46 M78 18V46" stroke="#a3123f" stroke-width="5"/>
+      <rect x="18" y="50" width="64" height="12" rx="6" fill="#edbb00"/>
+      <text x="50" y="59.5" font-size="9" font-weight="800" text-anchor="middle" fill="#1d4fa3" font-family="Arial">F C B</text>
+      <path d="M20 66 H80 V78 C80 96 66 106 50 110 C34 106 20 96 20 78Z" fill="#1d4fa3"/>
+      <path d="M32 66 V102 M44 66 V109 M56 66 V109 M68 66 V102" stroke="#a3123f" stroke-width="6"/>
+      <circle cx="50" cy="84" r="9" fill="#edbb00"/>
+    </symbol>
+  </defs>
+</svg>
+
+<h1>1. Карточка профиля в цветах клуба</h1>
+<p class="sub">Эту карточку видит каждый, кто открывает профиль игрока. Фон экрана — выбранный вариант A с эмблемой в правом углу. Нажми на вариант карточки, который ближе.</p>
+
+<div class="row">
+  <div class="card" data-choice="card-plum" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="stripes"></div></div>
+      <div class="screen">
+        <div class="title-row"><h2>Профиль</h2><svg class="mini-crest" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+        <div style="height:40px"></div>
+        <div class="p-card plum">
+          <div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div><div class="p-club"><svg viewBox="0 0 100 120"><use href="#crest"/></svg>Барселона</div></div></div>
+          <div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div>
+          <div class="band"></div>
+        </div>
+        <div class="graphite"><div>Достижения<small>Золото · 64 гола</small></div>›</div>
+      </div>
+    </div>
+    <div class="label"><b>1. Сливовая + метка клуба</b><span>Карточка остаётся сливовой. Под ролью чип «эмблема + Барселона», по нижнему краю тонкая полоска клубных цветов.</span></div>
+  </div>
+
+  <div class="card" data-choice="card-material" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="stripes"></div></div>
+      <div class="screen">
+        <div class="title-row"><h2>Профиль</h2><svg class="mini-crest" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+        <div style="height:40px"></div>
+        <div class="p-card club-material">
+          <svg class="crest-mark" viewBox="0 0 100 120"><use href="#crest"/></svg>
+          <div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div><div class="p-club"><svg viewBox="0 0 100 120"><use href="#crest"/></svg>Барселона</div></div></div>
+          <div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div>
+        </div>
+        <div class="graphite"><div>Достижения<small>Золото · 64 гола</small></div>›</div>
+      </div>
+    </div>
+    <div class="label"><b>2. Материал в цветах клуба</b><span>Карточка перекрашивается тем же объёмным материалом, что и остальные, но сине-гранатовым. Бледная эмблема срезана углом.</span></div>
+  </div>
+
+  <div class="card" data-choice="card-stripes" onclick="toggleSelect(this)">
+    <div class="phone">
+      <div class="bg"><div class="stripes"></div></div>
+      <div class="screen">
+        <div class="title-row"><h2>Профиль</h2><svg class="mini-crest" viewBox="0 0 100 120"><use href="#crest"/></svg></div>
+        <div style="height:40px"></div>
+        <div class="p-card club-stripes">
+          <svg class="crest-corner" viewBox="0 0 100 120"><use href="#crest"/></svg>
+          <div class="p-top"><div class="avatar"></div><div><div class="p-name">Алихан Нуспеков</div><div class="p-meta">@alikzilla · Организатор</div></div></div>
+          <div class="p-split"><div><small>Позиция</small><b>Полузащитник</b></div><div><small>Рабочая нога</small><b>Правая</b></div></div>
+        </div>
+        <div class="graphite"><div>Достижения<small>Золото · 64 гола</small></div>›</div>
+      </div>
+    </div>
+    <div class="label"><b>3. Форма клуба</b><span>Карточка как клубная футболка: полосы под затемнением, эмблема чётко в правом верхнем углу, как на груди.</span></div>
+  </div>
+</div>
+
+<h3>2. Шторка «Любимый клуб»</h3>
+<p class="sub">Одно предложение, без вариантов. Поправь, что не так, в терминале.</p>
+<div class="sheet-wrap">
+  <div class="sheet-phone">
+    <div class="dim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="sheet-head"><b>Любимый клуб</b><span class="x">✕</span></div>
+      <div class="seg"><span class="on">Клубы</span><span>Сборные</span></div>
+      <div class="chips"><span class="on">Все</span><span>АПЛ</span><span>Ла Лига</span><span>Серия А</span><span>Бундеслига</span></div>
+      <div class="none"><i></i>Без клуба<span style="margin-left:auto;color:var(--hint);font-size:12px">обычная тема</span></div>
+      <div class="grid">
+        <div class="club"><div class="shield" style="background:linear-gradient(90deg,#fff 50%,#e8e8e8 50%);"></div>Реал</div>
+        <div class="club on"><svg viewBox="0 0 100 120"><use href="#crest"/></svg>Барселона</div>
+        <div class="club"><div class="shield" style="background:repeating-linear-gradient(90deg,#c8102e 0 8px,#fff 8px 16px);"></div>Атлетико</div>
+        <div class="club"><div class="shield" style="background:#c8102e;"></div>Ливерпуль</div>
+        <div class="club"><div class="shield" style="background:#6cabdd;"></div>Ман Сити</div>
+        <div class="club"><div class="shield" style="background:#da291c;"></div>Ман Юнайтед</div>
+        <div class="club"><div class="shield" style="background:linear-gradient(#ef0107 60%,#fff 60%);"></div>Арсенал</div>
+        <div class="club"><div class="shield" style="background:#034694;"></div>Челси</div>
+        <div class="club"><div class="shield" style="background:#ffe600;"></div>Кайрат</div>
+      </div>
+      <p class="soon">Список клубов будет пополняться</p>
+    </div>
+  </div>
+  <ul class="sheet-notes">
+    <li>Сверху переключатель <b>Клубы | Сборные</b>: сборные отдельно, как ты просил.</li>
+    <li>Под ним чипы лиг: Все, АПЛ, Ла Лига, Серия А, Бундеслига, Лига 1, КПЛ. Лента прокручивается вбок. У сборных чипов нет.</li>
+    <li>Первая строка «Без клуба» возвращает обычную тему.</li>
+    <li>Плитка: эмблема и название, выбранная обведена клубным цветом с галочкой. Тема меняется сразу по нажатию, шторка закрывается.</li>
+    <li>Внизу подпись «Список клубов будет пополняться».</li>
+    <li>Открывается из профиля строкой «Любимый клуб · Барселона» в «Настройке профиля».</li>
+  </ul>
+</div>
+</body>
+</html>

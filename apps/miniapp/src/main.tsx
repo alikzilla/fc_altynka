@@ -13,6 +13,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import '@fontsource-variable/onest';
 import './styles/app.css';
 import './styles/themes.css';
+import './styles/clubs.css';
 import './styles/match.css';
 import './styles/ratings.css';
 import './styles/venues.css';

@@ -1,8 +1,9 @@
-import { AWARDS, AWARD_SHORT_LABEL, playingPositionLabel, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
+import { AWARDS, AWARD_SHORT_LABEL, clubById, playingPositionLabel, type ClubId, type DominantFoot, type PlayerRatingDto, type PlayerStatistics, type PlayingPosition, type Role } from '@altynka/core';
 import { useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from './ActionSheet';
 import { Avatar, Icon } from './Icon';
+import { materialVariables } from '../lib/clubTheme';
 import { Sk } from './ui';
 
 const format = (value: number) => value.toLocaleString('ru-RU', { maximumFractionDigits: 1 });
@@ -10,7 +11,7 @@ const tier = (value?: number) => value === undefined ? 'unknown' : value < 2 ? '
 function RatingRing({ value }: { value?: number }) {
   return <span className="rating-emblem" data-tier={tier(value)}>
     <svg viewBox="0 0 72 72" fill="none" aria-hidden="true">
-      <circle className="rank-core" cx="36" cy="36" r="23" />
+      <circle className="rank-core" cx="36" cy="36" r="27.25" />
       <circle className="rank-track" cx="36" cy="36" r="29" />
       {value !== undefined && <circle className="rank-progress" cx="36" cy="36" r="29" pathLength="100" strokeDasharray={`${Math.max(0,Math.min(10,value))*10} 100`} transform="rotate(-90 36 36)" />}
     </svg><strong>{value === undefined ? '?' : format(value)}</strong>
@@ -50,12 +51,16 @@ interface Props {
   injured?: boolean;
   /** Действующий MVP хотя бы в одной общей группе: корона на фото и чип под именем. */
   reigningMvp?: boolean;
+  /** Любимый клуб владельца профиля: карточка в его цвете и эмблема в углу. */
+  favoriteClub?: ClubId | null;
 }
 const roles={admin:{emoji:'🧑‍💻',label:'Администратор'},organizer:{emoji:'🧑‍✈️',label:'Организатор'},player:{emoji:'⚽️',label:'Игрок'}};
-export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref,injured,reigningMvp}:Props) {
+export function PlayerSportsCard({name,username,photoUrl,role,playingPosition,dominantFoot,rating,statistics,statisticsPending,editPositionHref,injured,reigningMvp,favoriteClub}:Props) {
+  const club=clubById(favoriteClub);
   const personRole=roles[role];
   const pending=statisticsPending && !statistics ? <Sk w="1.1em"/> : null;
-  return <section className="card material-plum player-sports-card" aria-label="Профиль игрока">
+  return <section className={`card ${club?'club-material':'material-plum'} player-sports-card`} style={club?materialVariables(club):undefined} aria-label="Профиль игрока">
+    {club && <span className="sr-only">Любимый клуб: {club.name}</span>}
     <div className="player-card-top"><Avatar name={name} photoUrl={photoUrl} large injured={injured} crowned={reigningMvp}/>
       <div className="player-identity"><h2>{name}</h2><div className="player-social"><span className="player-role" role="img" aria-label={personRole.label} title={personRole.label}>{personRole.emoji}</span>{username && <><span className="player-social-dot" aria-hidden="true">·</span><span className="player-telegram" title={`@${username}`}>@{username}</span></>}</div>{reigningMvp && <span className="player-crown-chip">Действующий MVP</span>}</div>
       <RatingBadge rating={rating}/>

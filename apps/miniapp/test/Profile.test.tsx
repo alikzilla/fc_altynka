@@ -217,3 +217,17 @@ test('with two groups the role line has no group name and history rows carry gro
   expect(screen.getByRole('img', { name: 'Организатор' }).textContent).not.toMatch(/FC Altynka/);
   expect(await screen.findByText('Футбол по средам')).toBeInTheDocument();
 });
+
+test('profile has the favourite club row after payment', () => {
+  renderWithApp(<Profile />, { me: { ...player, profileCompleted: true } });
+  const row = screen.getByRole('link', { name: /Любимый клуб/ });
+  expect(row).toHaveAttribute('href', '/profile/club');
+  expect(row).toHaveTextContent('Не выбран');
+  const links = screen.getAllByRole('link').map(l => l.getAttribute('href'));
+  expect(links.indexOf('/profile/club')).toBe(links.indexOf('/profile/settings/payment') + 1);
+});
+
+test('favourite club row shows the club name', () => {
+  renderWithApp(<Profile />, { me: { ...player, profileCompleted: true, favoriteClub: 'barcelona' } });
+  expect(screen.getByRole('link', { name: /Любимый клуб/ })).toHaveTextContent('Барселона');
+});

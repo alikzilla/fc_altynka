@@ -162,6 +162,13 @@
       "when": 1795970000000,
       "tag": "0022_game_timer",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1795980000000,
+      "tag": "0023_favorite_club",
+      "breakpoints": true
     }
   ]
 }

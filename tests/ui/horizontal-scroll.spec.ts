@@ -120,6 +120,12 @@ test('player screens and their sheets never scroll sideways with long names at 3
     await visit(page, path);
   await visit(page, '/profile/availability');
   await expect(page.getByRole('dialog', { name: 'Когда могу играть' })).toBeVisible();
+  // Шторка клуба: сетка плиток и вкладка сборных на 320 px; ряд лиг прокручивается намеренно.
+  await visit(page, '/profile/club');
+  const clubs = page.getByRole('dialog', { name: 'Любимый клуб' });
+  await expect(clubs.getByRole('button', { name: 'Боруссия Дортмунд' })).toBeVisible();
+  await clubs.getByRole('tab', { name: 'Сборные' }).click();
+  await expect(clubs.getByRole('button', { name: 'Казахстан' })).toBeVisible();
   await visit(page, '/event/2');
   await sheet(page, page.getByRole('button', { name: 'Изменить', exact: true }), 'Твоё участие');
   await close(page);
