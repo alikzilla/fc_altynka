@@ -10,7 +10,7 @@ import { SheetPlaceholder } from '../src/components/SheetPlaceholder';
  * bottom on the screen's bottom and pads its content by the keyboard height (`padding-bottom`): the box grows by it,
  * and so do the minimum and the cap (`max` is the visible cap, the box may reach `max + keyboard`).
  */
-const layout = { chrome: 100, content: 400, max: 900, keyboard: 0 };
+const layout = { chrome: 100, content: 400, max: 900, keyboard: 0, scale: 1 };
 let observers: { callback: ResizeObserverCallback; observer: ResizeObserver }[] = [];
 
 function sheetHeight(node: HTMLElement): number {
@@ -28,7 +28,7 @@ function patch(target: object, key: string, descriptor: PropertyDescriptor) {
 }
 
 beforeEach(() => {
-  Object.assign(layout, { chrome: 100, content: 400, max: 900, keyboard: 0 });
+  Object.assign(layout, { chrome: 100, content: 400, max: 900, keyboard: 0, scale: 1 });
   observers = [];
   vi.stubGlobal('ResizeObserver', class {
     constructor(callback: ResizeObserverCallback) { observers.push({ callback, observer: this as unknown as ResizeObserver }); }
@@ -39,14 +39,15 @@ beforeEach(() => {
   const getRect = HTMLElement.prototype.getBoundingClientRect;
   patch(HTMLElement.prototype, 'getBoundingClientRect', { value: function (this: HTMLElement) {
     if (!this.matches('.create-sheet')) return getRect.call(this);
-    const height = sheetHeight(this);
+    // A transform (the sheet under a nested one is scaled to .96) changes the drawn box, never the layout.
+    const height = sheetHeight(this) * layout.scale;
     return { x: 0, y: 0, top: 0, left: 0, right: 390, bottom: height, width: 390, height, toJSON() {} } as DOMRect;
   } });
   patch(HTMLElement.prototype, 'clientHeight', { get(this: HTMLElement) { return this.matches('.sheet-content') ? contentBox(this) : 0; } });
   patch(HTMLElement.prototype, 'scrollHeight', { get(this: HTMLElement) { return this.matches('.sheet-content') ? Math.max(layout.content, contentBox(this)) : 0; } });
   const computed = window.getComputedStyle.bind(window);
   patch(window, 'getComputedStyle', { value: (el: Element, pseudo?: string | null) => el instanceof HTMLElement && el.matches('.create-sheet')
-    ? { paddingBottom: `${layout.keyboard}px` } as CSSStyleDeclaration
+    ? { paddingBottom: `${layout.keyboard}px`, height: `${sheetHeight(el)}px`, boxSizing: 'border-box' } as CSSStyleDeclaration
     : computed(el, pseudo) });
   patch(HTMLElement.prototype, 'offsetHeight', { get(this: HTMLElement) { return this.matches('.create-sheet') ? sheetHeight(this) : 0; } });
 });
@@ -81,6 +82,13 @@ describe('ActionSheet height', () => {
     resize({ content: 200 });
     expect(minimum()).toBe('500px');
     expect(sheet().getBoundingClientRect().height).toBe(500);
+  });
+
+  it('a scaled sheet (under a nested one) records its layout height, not the drawn one', () => {
+    render(<Sheet />);
+    expect(minimum()).toBe('500px');
+    resize({ scale: 0.96, content: 600 });
+    expect(minimum()).toBe('700px');
   });
 
   it('grows with content', () => {

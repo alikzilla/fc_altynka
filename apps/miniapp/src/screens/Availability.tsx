@@ -74,7 +74,7 @@ function MarkEditor({ title, mark, choosing, onChange, onChoose }: { title: stri
     {status === 'yes'
       ? <div className={`availability-time-section ${fade ?? ''}`.trim()}>{timeSection}</div>
       : <SheetPlaceholder hint="Выбери «Могу» — здесь появится выбор времени"><div className="availability-time-section">{timeSection}</div></SheetPlaceholder>}
-    <StatusLine text={choosing ? 'Выбери время, и отметка сохранится.' : ''} />
+    <StatusLine text={choosing ? TIME_STATUS : ''} />
   </section>;
 }
 

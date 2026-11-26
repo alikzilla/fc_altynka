@@ -286,7 +286,7 @@ export function ScheduleSkeleton() {
         </div></fieldset>
         <div><span className="schedule-field-label">Место проведения <span>· необязательно</span></span>
           <span className="venue-trigger"><Icon name="pin" /><VenueTriggerText><Sk w="9em" /></VenueTriggerText><Icon name="back" className="venue-chevron" /></span>
-          <VenueSummaryPlaceholder />
+          <VenueSummaryPlaceholder hinted={false} />
         </div>
         <p className="muted">Участники получат время и место матча в уведомлении.</p>
       </fieldset>

@@ -1,7 +1,7 @@
 import { teamApiRoute } from './team-fixture';
 import { test, expect, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { expectStableSheet, sheetHeight } from './sheet-height';
+import { expectStableSheet, hintLines, sheetHeight } from './sheet-height';
 
 const draft = { id: 7, date: '2026-11-08', serverNow: Date.parse('2026-11-06T08:00:00Z'), status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null, community: { id: 1, title: 'FC Altynka' } };
 async function setup(page: Page, theme = 'dark') {
@@ -145,6 +145,21 @@ async function stableSetup(page: Page, hold: { event?: Promise<void>; venues?: P
 }
 const release = () => { let open = () => {}; const gate = new Promise<void>(resolve => { open = resolve; }); return { gate, open }; };
 
+test('changing time and court of a match with a court: the venue hint never shows while the sheet loads', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  const event = release();
+  await stableSetup(page);
+  await page.route('**/api/events/7', async r => { await event.gate; await r.fulfill({ json: { ...draft, status: 'scheduled', startTime: '21:00', durationHours: 1, place: courts[0].name } }); });
+  await page.goto('/event/7/schedule');
+  const sheet = page.getByRole('dialog');
+  await expect(sheet.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
+  await expect(sheet.locator('.venue-summary-placeholder')).toHaveCount(1);
+  await expect(sheet.locator('.sheet-placeholder-hint')).toHaveCount(0);
+  event.open();
+  await expect(page.getByRole('dialog', { name: 'Изменить время и поле', exact: true }).getByRole('link', { name: 'Открыть в 2ГИС' })).toBeVisible();
+  await expect(sheet.locator('.sheet-placeholder-hint')).toHaveCount(0);
+});
+
 for (const court of [courts[0], courts[1]]) for (const width of [320, 390]) test(`scheduling keeps its height from skeleton to form and through choosing ${court.mapUrl ? 'a court' : 'a court without a map link'} at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
   const event = release();
@@ -153,9 +168,11 @@ for (const court of [courts[0], courts[1]]) for (const width of [320, 390]) test
   const sheet = page.getByRole('dialog', { name: 'Назначить матч', exact: true });
   await expect(sheet.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
   const skeleton = await sheet.locator('.sheet-content').evaluate(el => el.scrollHeight);
-  await expectStableSheet(page, sheet, async () => { event.open(); await expect(sheet.getByLabel('Начало')).toBeVisible(); });
+  await expectStableSheet(page, sheet, async () => { event.open(); await expect(sheet.getByLabel('Начало')).toBeVisible(); }, { content: true });
   expect(Math.abs(await sheet.locator('.sheet-content').evaluate(el => el.scrollHeight) - skeleton)).toBeLessThanOrEqual(1);
-  await expect(sheet.getByText('Выбери площадку — появится карта')).toBeVisible();
+  await expect(sheet.getByText('Выбери площадку — карта и цена')).toBeVisible();
+  // Over the one-line summary (map link and price) the hint is one line too, down to 320px.
+  expect(await hintLines(sheet.locator('.venue-summary-placeholder .sheet-placeholder-hint'))).toBe(1);
   // The summary takes exactly its outline's box, measured within the scrolling content (the field may scroll into view).
   const place = (selector: string) => sheet.locator(selector).evaluate(el => {
     const content = el.closest('.sheet-content')!; const box = el.getBoundingClientRect();
@@ -169,7 +186,7 @@ for (const court of [courts[0], courts[1]]) for (const width of [320, 390]) test
     await picker.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
     await expect(picker).toHaveCount(0);
     await expect(sheet.locator('.venue-summary-placeholder')).toHaveCount(0);
-  });
+  }, { content: true });
   const summary = await place('.venue-summary');
   expect(Math.abs(summary.height - outline.height)).toBeLessThanOrEqual(1);
   expect(Math.abs(summary.top - outline.top)).toBeLessThanOrEqual(1);
@@ -186,10 +203,11 @@ for (const width of [320, 390]) test(`court picker keeps its height while loadin
   const picker = page.getByRole('dialog', { name: 'Место проведения', exact: true });
   await expect(picker.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
   await expect(picker.getByRole('button', { name: 'Выбрать площадку', exact: true })).toBeDisabled();
+  // A long court name may wrap at 320px where the skeleton draws one line (data length): only the box is compared.
   await expectStableSheet(page, picker, async () => { venues.open(); await expect(picker.locator('li.venue-option')).toHaveCount(2); });
-  await expectStableSheet(page, picker, () => picker.getByRole('button', { name: 'Удалить площадку Манеж Арена на Толе би', exact: true }).click());
+  await expectStableSheet(page, picker, () => picker.getByRole('button', { name: 'Удалить площадку Манеж Арена на Толе би', exact: true }).click(), { content: true });
   await expect(picker.getByRole('group', { name: 'Удалить площадку Манеж Арена на Толе би?' })).toBeVisible();
-  await expectStableSheet(page, picker, () => picker.getByRole('group', { name: 'Удалить площадку Манеж Арена на Толе би?' }).getByRole('button', { name: 'Отмена' }).click());
+  await expectStableSheet(page, picker, () => picker.getByRole('group', { name: 'Удалить площадку Манеж Арена на Толе би?' }).getByRole('button', { name: 'Отмена' }).click(), { content: true });
   // The add form is a new step: it starts from its own height, not the taller list's (at 320px both reach the cap).
   const list = await sheetHeight(page, picker);
   await picker.getByRole('button', { name: 'Добавить площадку', exact: true }).click();
@@ -200,7 +218,7 @@ for (const width of [320, 390]) test(`court picker keeps its height while loadin
   await expectStableSheet(page, form, async () => {
     await form.getByRole('button', { name: 'Добавить площадку', exact: true }).click();
     await expect(form.getByRole('alert')).toHaveText('Площадка с таким названием уже есть');
-  });
+  }, { content: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
@@ -213,5 +231,5 @@ test('match actions keep their height when cancelling asks for confirmation at 3
   await expectStableSheet(page, actions, async () => {
     await actions.getByRole('button', { name: 'Отменить матч', exact: true }).click();
     await expect(actions.getByRole('button', { name: 'Точно отменить матч?', exact: true })).toBeVisible();
-  });
+  }, { uncapped: true });
 });

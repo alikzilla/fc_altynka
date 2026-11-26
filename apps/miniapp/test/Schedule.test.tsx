@@ -203,7 +203,7 @@ test('the organizer adds an indoor venue, it becomes the selection, and removes 
 });
 
 test('the venue summary keeps an outline until a venue is chosen, then fades in there', async () => {
-  const hint = 'Выбери площадку — появится карта';
+  const hint = 'Выбери площадку — карта и цена';
   open(); const sheet = await appointment();
   expect(within(sheet).getByText(hint)).toBeVisible();
   expect(within(sheet).queryByRole('link', { name: 'Открыть в 2ГИС' })).toBeNull();
@@ -222,8 +222,27 @@ test('the schedule skeleton holds the venue summary outline as well', async () =
   const dialog = await screen.findByRole('dialog', { name: 'Назначить матч' });
   expect(within(dialog).getByRole('status', { name: 'Загрузка…' })).toBeInTheDocument();
   expect(dialog.querySelector('.venue-summary-placeholder')).not.toBeNull();
+  // Loading is not the «choose a court» state: the place is reserved, empty and without a frame.
+  expect(dialog.querySelector('.sheet-placeholder-hint')).toBeNull();
   await act(async () => releaseEvent());
   await appointment();
+});
+
+test('a match that already has a court never flashes the venue hint while the sheet loads', async () => {
+  event.place = 'Школа Аксай';
+  let releaseEvent!: () => void;
+  const hold = new Promise<void>(resolve => { releaseEvent = resolve; });
+  const fetch = vi.mocked(globalThis.fetch);
+  const real = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (path, init) => { if (path === '/api/events/7') await hold; return real(path, init); });
+  open();
+  const dialog = await screen.findByRole('dialog', { name: 'Назначить матч' });
+  expect(within(dialog).getByRole('status', { name: 'Загрузка…' })).toBeInTheDocument();
+  expect(dialog.querySelector('.sheet-placeholder-hint')).toBeNull();
+  await act(async () => releaseEvent());
+  const sheet = await appointment();
+  expect(await within(sheet).findByRole('link', { name: 'Открыть в 2ГИС' })).toBeInTheDocument();
+  expect(sheet.querySelector('.sheet-placeholder-hint')).toBeNull();
 });
 
 test('the venue picker draws outlines while loading and always shows its footer', async () => {
@@ -260,7 +279,7 @@ test('deleting a venue asks in place of its card, in the same cell', async () =>
 test('a place that is not a saved court keeps the summary space without the hint', async () => {
   event.place = 'Arena · старое поле';
   open(); const sheet = await appointment();
-  expect(within(sheet).queryByText('Выбери площадку — появится карта')).toBeNull();
+  expect(within(sheet).queryByText('Выбери площадку — карта и цена')).toBeNull();
   expect(sheet.querySelector('.venue-summary-placeholder')).not.toBeNull();
 });
 

@@ -17,7 +17,7 @@ export function VenueTriggerText({ id, children }: { id?: string; children: Reac
  * сохранённых площадок (`hinted={false}`), подсказка противоречила бы полю: место остаётся пустым.
  */
 export function VenueSummaryPlaceholder({ hinted = true }: { hinted?: boolean }) {
-  return <SheetPlaceholder className="venue-summary-placeholder" hint={hinted ? 'Выбери площадку — появится карта' : undefined}>
+  return <SheetPlaceholder className="venue-summary-placeholder" hint={hinted ? 'Выбери площадку — карта и цена' : undefined}>
     <div className="venue-summary"><span className="venue-map-link">Открыть в 2ГИС <Icon name="arrow" /></span><span className="venue-rate">Цена уточняется</span></div>
   </SheetPlaceholder>;
 }

@@ -7,6 +7,7 @@ import { TeamColorSheet } from '../components/TeamColorSheet';
 import { TossCoin, type CoinFace } from '../components/TossCoin';
 import { api, ApiError } from '../lib/api';
 import { haptic } from '../lib/tg';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 
 type Props = { ev: EventDetailDto; reload: () => void; onClose: () => void };
 
@@ -84,6 +85,7 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
   const ghost = { answer: longest, pair: three ? [0, 1, 2].filter(index => index !== longest) : [0, 1] };
   const decided = protocol !== null && answer !== null;
   const landed = decided && revealed;
+  const answerFade = useRevealAfter(landed);
   return <>
     <ActionSheet title="Начинаем матч" onClose={close} busy={flying || decided && !revealed} className="start-sheet">
       <section className="start-step">
@@ -102,7 +104,7 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
       <TossCoin faces={faces} result={decided ? answer : null} failed={failed} disabled={decided} onToss={start} onLanded={() => setRevealed(true)} />
       {error && <p className="field-error" role="alert">{error}</p>}
       {landed
-        ? <StartAnswer faces={faces} three={three} answer={answer} pair={pair} onGo={toGames} live className="reveal" />
+        ? <StartAnswer faces={faces} three={three} answer={answer} pair={pair} onGo={toGames} live className={answerFade} />
         : <SheetPlaceholder hint={three ? 'Подбрось монету — здесь появится, кто отдыхает' : 'Подбрось монету — здесь появится, кто начинает'}><StartAnswer faces={faces} three={three} answer={ghost.answer} pair={ghost.pair} /></SheetPlaceholder>}
     </ActionSheet>
     {colorTeam !== null && <TeamColorSheet index={colorTeam} colors={colors} busy={colorBusy} error={colorError} onClose={() => setColorTeam(null)} onPick={pickColors} />}

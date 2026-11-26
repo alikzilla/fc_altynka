@@ -67,6 +67,9 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   const previewFade = useRevealAfter(!!preview);
   const extraFade = useRevealAfter(extras.length > 0);
   const phoneId = `${formId}-phone`;
+  const phoneErrorId = `${formId}-phone-error`;
+  // The receiver's own number speaks for itself (PHONE_IN_PROFILE under the field); any other error is announced.
+  const phoneAlert = phoneError && phoneError !== (savedPhone && PHONE_IN_PROFILE) ? phoneError : null;
 
   const toggle = (id: number) => {
     const next = new Set(picked);
@@ -148,19 +151,19 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
         {/* Both variants of the field share one cell: picking another receiver does not change the height. */}
         <span className="sheet-stack">
           <span className={`bill-phone-variant${savedPhone ? '' : ' sheet-stack-hidden'}`} inert={!savedPhone} aria-hidden={!savedPhone || undefined}>
-            <input id={savedPhone ? phoneId : undefined} inputMode="tel" readOnly value={savedPhone ? formatKzPhone(savedPhone) : ''} /><span className="muted">{PHONE_IN_PROFILE}</span>
+            <input id={savedPhone ? phoneId : undefined} aria-describedby={savedPhone && phoneAlert ? phoneErrorId : undefined} inputMode="tel" readOnly value={savedPhone ? formatKzPhone(savedPhone) : ''} /><span className="muted">{PHONE_IN_PROFILE}</span>
           </span>
           <span className={`bill-phone-variant${savedPhone ? ' sheet-stack-hidden' : ''}`} inert={!!savedPhone} aria-hidden={!!savedPhone || undefined}>
-            <input id={savedPhone ? undefined : phoneId} inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />
+            <input id={savedPhone ? undefined : phoneId} aria-describedby={!savedPhone && phoneAlert ? phoneErrorId : undefined} inputMode="tel" placeholder="Пусто — если номер уже сохранён" value={phone} onChange={e => setPhone(e.target.value)} />
           </span>
         </span>
-        <span className="field-error-slot" data-sizer={NO_KASPI}>{phoneError && phoneError !== (savedPhone && PHONE_IN_PROFILE) && <span className="field-error">{phoneError}</span>}</span>
+        <span className="field-error-slot" data-sizer={NO_KASPI}>{phoneAlert && <span className="field-error" id={phoneErrorId} role="alert">{phoneAlert}</span>}</span>
       </div>
       <label>
         Аренда поля, ₸
         <input inputMode="numeric" type="number" min={0} max={10_000_000} step={1} required value={field} onChange={e => setField(e.target.value)} />
       </label>
-      {extras.length === 0 && <SheetPlaceholder className="extra-placeholder" hint="Нажми «+ Расход» — новая строка">
+      {extras.length === 0 && <SheetPlaceholder className="extra-placeholder" hint="Добавь расход — появится строка">
         <div className="extra"><input placeholder="Вода" /><input inputMode="numeric" type="number" /><button type="button" className="btn-text danger-text"><Icon name="close" /></button></div>
       </SheetPlaceholder>}
       {extras.map((x, i) => (

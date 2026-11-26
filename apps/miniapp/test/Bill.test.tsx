@@ -341,7 +341,7 @@ test('player mark switches the card at once and returns the button when the serv
 
 test('the share and the first extra keep outlines until they appear, then fade in there', async () => {
   const shareHint = 'Укажи аренду — здесь появится сумма с человека';
-  const extraHint = 'Нажми «+ Расход» — новая строка';
+  const extraHint = 'Добавь расход — появится строка';
   renderWithApp(<Bill ev={evWith(10)} reload={() => {}} />, { me: organizer });
   await userEvent.click(billAction());
   const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
@@ -359,6 +359,21 @@ test('the share and the first extra keep outlines until they appear, then fade i
   expect(within(dialog).queryByText(shareHint)).toBeNull();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Убрать расход 1' }));
   expect(within(dialog).getByText(extraHint)).toBeVisible();
+});
+
+test('a Kaspi number error is announced and described on the field', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(400, 'no_kaspi'));
+  renderWithApp(<Bill ev={evWith(2)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  const field = within(dialog).getByLabelText(/Номер Kaspi получателя/);
+  expect(field).not.toHaveAttribute('aria-describedby');
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  const alert = await within(dialog).findByRole('alert');
+  expect(alert).toHaveTextContent('Нужен номер Kaspi получателя');
+  expect(field).toHaveAttribute('aria-describedby', alert.id);
+  expect(field).toHaveAccessibleDescription('Нужен номер Kaspi получателя');
 });
 
 test('the Kaspi number keeps a line for its error and one cell for both field variants', async () => {

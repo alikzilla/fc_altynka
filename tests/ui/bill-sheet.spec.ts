@@ -1,7 +1,7 @@
 import { teamApiRoute } from './team-fixture';
 import { animationsSettled, test, expect } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { expectStableSheet, sheetHeight } from './sheet-height';
+import { expectStableSheet, hintLines, sheetHeight } from './sheet-height';
 
 const identity = { userId: 1, displayName: 'Организатор', role: 'organizer', kaspiPhone: '+77071234567' };
 const players = Array.from({ length: 12 }, (_, i) => ({ id: i + 1, seq: i + 1, userId: i + 1, name: i === 0 ? 'Организатор' : `Игрок ${i + 1}`, invitedByUserId: null, guestOfName: null }));
@@ -99,11 +99,13 @@ for (const width of [320, 390]) test(`bill sheet keeps its height through the sh
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByLabel('Аренда поля, ₸').fill('24000');
     await expect(sheet.getByText(/По 6\s000\s₸ с человека/)).toBeVisible();
-  });
+  }, { uncapped: true });
   // The first extra takes its outline's box. The sheet may still grow here: an empty extra brings the
   // «укажи название и сумму» check, which the audit leaves unreserved (decision 5).
   // Measured from the sheet's top: a sheet that grows rises from the bottom edge.
   const top = async () => (await sheet.boundingBox())!.y;
+  // Over a one-line row the hint is one line too, down to 320px.
+  expect(await hintLines(sheet.locator('.extra-placeholder .sheet-placeholder-hint'))).toBe(1);
   const outline = (await sheet.locator('.extra-placeholder').boundingBox())!;
   const outlineOffset = outline.y - await top();
   await sheet.getByRole('button', { name: '+ Расход' }).click();
@@ -115,11 +117,11 @@ for (const width of [320, 390]) test(`bill sheet keeps its height through the sh
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: 'Выставить счёт', exact: true }).click();
     await expect(sheet.getByText('Нужен номер Kaspi получателя', { exact: true })).toBeVisible();
-  });
+  }, { uncapped: true });
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByLabel('Кто заплатил за поле').selectOption(String(few[1].userId));
     await expect(sheet.getByText('Номер получатель меняет в своём профиле')).toBeVisible();
-  });
+  }, { uncapped: true });
   await expect(sheet.getByLabel('Номер Kaspi получателя')).toHaveValue('+7 701 111 11 11');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
