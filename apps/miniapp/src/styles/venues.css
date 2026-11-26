@@ -34,7 +34,7 @@
 .venue-selection-caption { margin-bottom: 10px; color: var(--hint); font-size: 12px; }
 :root[data-theme='light'] .venue-trigger.has-place { background: var(--accent-soft); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .schedule-sheet.sheet-covered { transform: none; } }
-.venue-meta > span:first-child:empty { min-height: 44px; }
+:is(.venue-meta, .venue-summary) > span:first-child:empty { min-height: 44px; }
 .venue-remove-toggle { display: block; margin: -8px 12px 6px; color: var(--hint); font-size: 12px; }
 .venue-remove { padding: 0 20px 10px; }
 .venue-remove > p { font-size: 13px; }

@@ -1,5 +1,5 @@
 import type { VenueDto, VenuesDto } from '@altynka/core';
-import { useId, useRef, useState } from 'react';
+import { useId, useLayoutEffect, useRef, useState } from 'react';
 import { useResource } from '../hooks/useResource';
 import { api, ApiError } from '../lib/api';
 import { openLink } from '../lib/tg';
@@ -29,6 +29,14 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
   const [failure, setFailure] = useState<string | null>(null);
   const formId = useId();
   const pending = findVenue(venues, picked) ?? venues?.[0];
+  // Asking hides the toggle and «Отмена» hides the question: focus follows to what took their place.
+  const list = useRef<HTMLUListElement>(null);
+  const refocus = useRef<{ id: number; target: 'cancel' | 'toggle' } | null>(null);
+  useLayoutEffect(() => {
+    const next = refocus.current;
+    refocus.current = null;
+    if (next) list.current?.querySelector<HTMLElement>(`[data-venue="${next.id}"] .venue-${next.target}`)?.focus();
+  }, [removing]);
 
   async function remove(venue: VenueDto) {
     setFailure(null);
@@ -57,11 +65,11 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
     {!venues && !error && <VenuePickerSkeleton />}
     {venues && <>
       <p className="muted venue-intro">{venues.length ? 'Выбери площадку для игры' : 'Площадок пока нет. Добавь поле, где вы играете: его можно будет выбирать для каждого матча.'}</p>
-      {venues.length > 0 && <ul className="venue-options" aria-label="Площадки">
+      {venues.length > 0 && <ul className="venue-options" aria-label="Площадки" ref={list}>
         {venues.map(venue => {
           const asking = removing === venue.id;
           // The card and its delete confirmation share one cell: asking does not make the row taller.
-          return <li className={`venue-option${venue === pending ? ' selected' : ''}`} key={venue.id}><div className="sheet-stack venue-option-stack">
+          return <li className={`venue-option${venue === pending ? ' selected' : ''}`} key={venue.id} data-venue={venue.id}><div className="sheet-stack venue-option-stack">
             <div className={asking ? 'sheet-stack-hidden' : undefined} inert={asking} aria-hidden={asking || undefined}>
               <button type="button" className="venue-select" aria-pressed={venue === pending} onClick={() => setPicked(venue.name)}>
                 <span className="venue-info"><span className="venue-name">{venue.name}</span><span className="venue-address">{venue.address ?? 'Адрес уточняется'}</span></span>
@@ -71,11 +79,11 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
                 {venue.mapUrl ? <VenueMapLink url={venue.mapUrl} /> : <span />}
                 <span className="venue-rate">{venueRate(venue)}</span>
               </div>
-              <button type="button" className="btn-text venue-remove-toggle" aria-label={`Удалить площадку ${venue.name}`} onClick={() => { setFailure(null); setRemoving(venue.id); }}>Удалить</button>
+              <button type="button" className="btn-text venue-remove-toggle venue-toggle" aria-label={`Удалить площадку ${venue.name}`} onClick={() => { setFailure(null); refocus.current = { id: venue.id, target: 'cancel' }; setRemoving(venue.id); }}>Удалить</button>
             </div>
             <div className={`venue-remove${asking ? '' : ' sheet-stack-hidden'}`} role="group" aria-label={`Удалить площадку ${venue.name}?`} inert={!asking} aria-hidden={!asking || undefined}>
               <p className="muted">Удалить площадку? Матчи, где она уже указана, не изменятся.</p>
-              <div><button type="button" className="btn-text danger" disabled={busy} onClick={() => remove(venue)}>{busy ? 'Удаляем…' : 'Удалить'}</button><button type="button" className="btn-text" disabled={busy} onClick={() => setRemoving(null)}>Отмена</button></div>
+              <div><button type="button" className="btn-text danger" disabled={busy} onClick={() => remove(venue)}>{busy ? 'Удаляем…' : 'Удалить'}</button><button type="button" className="btn-text venue-cancel" disabled={busy} onClick={() => { refocus.current = { id: venue.id, target: 'toggle' }; setRemoving(null); }}>Отмена</button></div>
             </div>
           </div></li>;
         })}

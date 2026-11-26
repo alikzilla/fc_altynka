@@ -145,7 +145,7 @@ async function stableSetup(page: Page, hold: { event?: Promise<void>; venues?: P
 }
 const release = () => { let open = () => {}; const gate = new Promise<void>(resolve => { open = resolve; }); return { gate, open }; };
 
-for (const width of [320, 390]) test(`scheduling keeps its height from skeleton to form and through choosing a court at ${width}px`, async ({ page }) => {
+for (const court of [courts[0], courts[1]]) for (const width of [320, 390]) test(`scheduling keeps its height from skeleton to form and through choosing ${court.mapUrl ? 'a court' : 'a court without a map link'} at ${width}px`, async ({ page }) => {
   await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
   const event = release();
   await stableSetup(page, { event: event.gate });
@@ -155,14 +155,25 @@ for (const width of [320, 390]) test(`scheduling keeps its height from skeleton 
   const skeleton = await sheet.locator('.sheet-content').evaluate(el => el.scrollHeight);
   await expectStableSheet(page, sheet, async () => { event.open(); await expect(sheet.getByLabel('Начало')).toBeVisible(); });
   expect(Math.abs(await sheet.locator('.sheet-content').evaluate(el => el.scrollHeight) - skeleton)).toBeLessThanOrEqual(1);
-  await expect(sheet.getByText('Выбери площадку — здесь появится ссылка на карту и цена')).toBeVisible();
+  await expect(sheet.getByText('Выбери площадку — появится карта')).toBeVisible();
+  // The summary takes exactly its outline's box, measured within the scrolling content (the field may scroll into view).
+  const place = (selector: string) => sheet.locator(selector).evaluate(el => {
+    const content = el.closest('.sheet-content')!; const box = el.getBoundingClientRect();
+    return { top: box.top - content.getBoundingClientRect().top + content.scrollTop, height: box.height };
+  });
+  const outline = await place('.venue-summary-placeholder');
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: /Место проведения/ }).click();
     const picker = page.getByRole('dialog', { name: 'Место проведения', exact: true });
+    await picker.getByRole('button', { name: new RegExp(`^${court.name}`) }).click();
     await picker.getByRole('button', { name: 'Выбрать площадку', exact: true }).click();
     await expect(picker).toHaveCount(0);
-    await expect(sheet.getByRole('link', { name: 'Открыть в 2ГИС' })).toBeVisible();
+    await expect(sheet.locator('.venue-summary-placeholder')).toHaveCount(0);
   });
+  const summary = await place('.venue-summary');
+  expect(Math.abs(summary.height - outline.height)).toBeLessThanOrEqual(1);
+  expect(Math.abs(summary.top - outline.top)).toBeLessThanOrEqual(1);
+  if (court.mapUrl) await expect(sheet.getByRole('link', { name: 'Открыть в 2ГИС' })).toBeVisible();
 });
 
 for (const width of [320, 390]) test(`court picker keeps its height while loading, confirming a delete and on a duplicate name at ${width}px`, async ({ page }) => {

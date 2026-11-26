@@ -203,7 +203,7 @@ test('the organizer adds an indoor venue, it becomes the selection, and removes 
 });
 
 test('the venue summary keeps an outline until a venue is chosen, then fades in there', async () => {
-  const hint = 'Выбери площадку — здесь появится ссылка на карту и цена';
+  const hint = 'Выбери площадку — появится карта';
   open(); const sheet = await appointment();
   expect(within(sheet).getByText(hint)).toBeVisible();
   expect(within(sheet).queryByRole('link', { name: 'Открыть в 2ГИС' })).toBeNull();
@@ -255,4 +255,23 @@ test('deleting a venue asks in place of its card, in the same cell', async () =>
   await userEvent.click(within(confirm).getByRole('button', { name: 'Отмена' }));
   expect(select.closest('[inert]')).toBeNull();
   expect(confirm.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+});
+
+test('a place that is not a saved court keeps the summary space without the hint', async () => {
+  event.place = 'Arena · старое поле';
+  open(); const sheet = await appointment();
+  expect(within(sheet).queryByText('Выбери площадку — появится карта')).toBeNull();
+  expect(sheet.querySelector('.venue-summary-placeholder')).not.toBeNull();
+});
+
+test('asking to delete a court moves focus to «Отмена», and «Отмена» brings it back', async () => {
+  open(); const sheet = await appointment();
+  await userEvent.click(within(sheet).getByRole('button', { name: /Место проведения/ }));
+  const picker = await screen.findByRole('dialog', { name: 'Место проведения' });
+  const toggle = await within(picker).findByRole('button', { name: 'Удалить площадку Школа Аксай' });
+  await userEvent.click(toggle);
+  const confirm = within(picker).getByRole('group', { name: 'Удалить площадку Школа Аксай?' });
+  expect(within(confirm).getByRole('button', { name: 'Отмена' })).toHaveFocus();
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Отмена' }));
+  expect(toggle).toHaveFocus();
 });

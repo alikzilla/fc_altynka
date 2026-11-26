@@ -12,6 +12,7 @@ import { VenueMapLink, VenuePicker } from '../components/VenuePicker';
 import { VenueSummaryPlaceholder, VenueTriggerText } from '../components/VenueField';
 import { TemporalInput } from '../components/TemporalInput';
 import { useResource } from '../hooks/useResource';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 import { useMatchPhase } from '../hooks/useMatchPhase';
 
 export function Schedule({ eventId, onClose }: { eventId?: string; onClose?: () => void }) {
@@ -66,11 +67,7 @@ function ScheduleDraft({ ev, formId, className, busy, setBusy, place, picking, s
   const venue = findVenue(useResource<VenuesDto>(venuesPath(ev.community.id)).data?.venues, place);
   useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
   // The map link and price fade in where their outline stood; a venue known when the form opens does not fade.
-  const summaryFade = useRef('');
-  const hadVenue = useRef<boolean | null>(null);
-  if (!venue) summaryFade.current = '';
-  else if (hadVenue.current === false) summaryFade.current = 'reveal';
-  hadVenue.current = !!venue;
+  const summaryFade = useRevealAfter(!!venue);
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (locked.current) return;
@@ -100,7 +97,7 @@ function ScheduleDraft({ ev, formId, className, busy, setBusy, place, picking, s
         <button type="button" className={`venue-trigger${place ? ' has-place' : ''}`} aria-haspopup="dialog" aria-expanded={picking} aria-labelledby={`${formId}-venue-label ${formId}-venue-value`} onClick={e => { e.currentTarget.focus(); setPicking(true); }}>
           <Icon name="pin" /><VenueTriggerText id={`${formId}-venue-value`}>{place || 'Выбрать площадку'}{venue && <small>{venue.address ?? 'Адрес уточняется'}</small>}</VenueTriggerText><Icon name="back" className="venue-chevron" />
         </button>
-        {venue ? <div className={`venue-summary ${summaryFade.current}`.trim()}>{venue.mapUrl ? <VenueMapLink url={venue.mapUrl} /> : <span />}<span className="venue-rate">{venueRate(venue)}</span></div> : <VenueSummaryPlaceholder />}
+        {venue ? <div className={summaryFade ? `venue-summary ${summaryFade}` : 'venue-summary'}>{venue.mapUrl ? <VenueMapLink url={venue.mapUrl} /> : <span />}<span className="venue-rate">{venueRate(venue)}</span></div> : <VenueSummaryPlaceholder hinted={!place.trim()} />}
       </div>
       <p className="muted">Участники получат время и место матча в уведомлении.</p>
     </fieldset>

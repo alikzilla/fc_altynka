@@ -6,6 +6,7 @@ import { GameTeamName } from '../components/GameTeamName';
 import { api, ApiError } from '../lib/api';
 import { clearGameDraft, readGameDraft, writeGameDraft, type GameResultDraft } from '../lib/gameDraft';
 import { useMe } from '../state/me';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 import { gamePlayerName } from '../lib/gamePlayerName';
 import { assistAt, authorAt, changeGoalCount, goalRunsFromInput, inputFromGoalRuns, setGoalAssist, setGoalAuthor, type GoalRuns } from '../lib/gameGoalRuns';
 
@@ -27,8 +28,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
   const [activePass,setActivePass] = useState<{side:number;index:number}|null>(null);
   const [visibleGoals,setVisibleGoals] = useState([20,20]);
   // The first goal row fades in where its placeholder stood; rows already there when the sheet opens do not.
-  const scored=useRef<boolean[]|null>(null);
-  const fade=useRef(['','']);
+  const fade=[useRevealAfter(draft.input.score[0]>0),useRevealAfter(draft.input.score[1]>0)];
   const pickerId=useId();
   const picker=useRef<HTMLDivElement>(null);
   const goalButtons=useRef(new Map<string,HTMLButtonElement>());
@@ -99,11 +99,6 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
     nextNames=[0,1,2].filter(t=>t!==rest).map(t=>teamAppearance(t, ev.teams?.colors).name).join(' — ');
   }
   const totalGoals=draft.input.score[0]+draft.input.score[1];
-  draft.input.score.forEach((n,side)=>{
-    if(!n) fade.current[side]='';
-    else if(scored.current && !scored.current[side]) fade.current[side]='reveal';
-  });
-  scored.current=draft.input.score.map(n=>n>0);
   const assigned=totals[0]+totals[1];
   const footer = <><button className="btn primary wide" disabled={busy || !draft.submitted && (!valid || !!stale)} onClick={save}>{busy?'Сохраняем…':draft.submitted?(stale?'Проверить сохранение':'Повторить сохранение'):'Сохранить результат'}</button><p className="game-result-caption">Автора и пас можно указать позже</p></>;
   return <ActionSheet title={game?`Результат игры ${game.sequence}`:'Результат игры'} onClose={onClose} busy={busy} footer={footer} className="game-result-sheet">
@@ -119,7 +114,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
       {totals.some((n,side)=>n>draft.input.score[side]) && <div className="game-draft-notice"><p>В черновике указано больше авторских голов, чем в счёте. Проверь карточки и убери лишние голы.</p><button type="button" className="btn wide" disabled={!editable} onClick={()=>updateGoals(current=>current)}>Убрать лишние авторские голы</button></div>}
       {draft.pair.map((team,side)=><section key={team} aria-label={`Авторы голов: ${teamAppearance(team, ev.teams?.colors).name}`} className="game-scorer-team">
         <h3><GameTeamName colors={ev.teams?.colors} index={team}/></h3>
-        {draft.input.score[side]===0 && <SheetPlaceholder className="game-goal-placeholder" hint="Нажми «+» у команды — здесь появится строка гола"><div className="game-goal-row"><button type="button" className="game-goal-slot"><span className="game-goal-order">1.</span><span className="game-goal-identity">Кто забил?<small>Выбрать игрока</small></span><span aria-hidden="true">+</span></button></div></SheetPlaceholder>}
+        {draft.input.score[side]===0 && <SheetPlaceholder className="game-goal-placeholder" hint="Нажми «+» — появится строка гола"><div className="game-goal-row"><button type="button" className="game-goal-slot"><span className="game-goal-order">1.</span><span className="game-goal-identity">Кто забил?<small>Выбрать игрока</small></span><span aria-hidden="true">+</span></button></div></SheetPlaceholder>}
         {Array.from({length:Math.min(draft.input.score[side],visibleGoals[side])},(_,index)=>{
           const signupId=authorAt(runs[side],index);
           const person=protocol.roster.find(p=>p.signupId===signupId && p.teamIndex===team);
@@ -133,7 +128,7 @@ export function GameResultSheet({ ev, protocol, game, onClose, onSaved, reload }
           // A player who scores twice in a row is common: offer the previous author in one tap.
           const previousId=index>0?authorAt(runs[side],index-1):null;
           const previous=signupId===null && previousId!==null && previousId!==undefined ? protocol.roster.find(p=>p.signupId===previousId && p.teamIndex===team) : undefined;
-          return <div key={index} className={`game-goal-row${previous && !expanded ? ' with-repeat' : ''}${index===0 && fade.current[side] ? ` ${fade.current[side]}` : ''}`}>
+          return <div key={index} className={`game-goal-row${previous && !expanded ? ' with-repeat' : ''}${index===0 && fade[side] ? ` ${fade[side]}` : ''}`}>
             <button type="button" className={`game-goal-slot ${name?'assigned has-pass':''} ${expanded?'active':''}`} aria-label={`Гол ${index+1} команды ${teamAppearance(team, ev.teams?.colors).name}: ${name ?? 'выбрать автора'}`} aria-expanded={expanded} aria-controls={expanded?pickerId:undefined} disabled={!editable} ref={node=>{const key=`${side}:${index}`;if(node)goalButtons.current.set(key,node);else goalButtons.current.delete(key);}} onClick={()=>{setActivePass(null);setActiveGoal(expanded?null:{side,index});}}>
               <span className="game-goal-order">{index+1}.</span><span className="game-goal-identity">{name ?? 'Кто забил?'}<small>{name?'Нажми, чтобы изменить':'Выбрать игрока'}</small></span><span aria-hidden="true">{name?'✓':'+'}</span>
             </button>

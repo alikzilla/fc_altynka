@@ -110,8 +110,7 @@ for (const width of [320, 390]) test(`bill sheet keeps its height through the sh
   const row = (await sheet.getByRole('textbox', { name: 'Расход 1', exact: true }).locator('xpath=..').boundingBox())!;
   await animationsSettled(page);
   expect(Math.abs(row.y - await top() - outlineOffset)).toBeLessThanOrEqual(1);
-  // The two-line hint makes the outline a little taller than the 48px row: never shorter.
-  expect(row.height).toBeLessThanOrEqual(outline.height + 1);
+  expect(Math.abs(row.height - outline.height)).toBeLessThanOrEqual(1);
   await sheet.getByRole('button', { name: 'Убрать расход 1' }).click();
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: 'Выставить счёт', exact: true }).click();

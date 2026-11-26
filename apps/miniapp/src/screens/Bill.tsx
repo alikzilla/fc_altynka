@@ -13,6 +13,7 @@ import { ReminderDelivery } from './ReminderDelivery';
 import { KaspiPay } from '../components/KaspiPay';
 import { PaymentMark, useReturnFromKaspi } from '../components/PaymentMark';
 import { useOptimisticLines, type OptimisticMark } from '../lib/optimisticLines';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 
 type Props = { ev: EventDetailDto; reload: () => void; actionBlocked?: boolean };
 
@@ -20,16 +21,6 @@ const responsible = (s: SignupDto) => s.userId ?? s.invitedByUserId;
 const PHONE_IN_PROFILE = 'Номер получатель меняет в своём профиле';
 /** The longer of the two expected number errors sizes the reserved line under the field. */
 const NO_KASPI = 'Нужен номер Kaspi получателя';
-
-/** Content that replaces a placeholder fades in where it stood; content present when the sheet opens does not. */
-function useAppearance(shown: boolean) {
-  const fade = useRef('');
-  const was = useRef<boolean | null>(null);
-  if (!shown) fade.current = '';
-  else if (was.current === false) fade.current = 'reveal';
-  was.current = shown;
-  return fade.current;
-}
 
 function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; onDone: () => void }) {
   const me = useMe();
@@ -73,8 +64,8 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
   });
   const preview = units.size && amountsValid ? computeBill(fieldAmount, extrasClean, [...units].map(([userId, u]) => ({ userId, units: u }))) : null;
 
-  const previewFade = useAppearance(!!preview);
-  const extraFade = useAppearance(extras.length > 0);
+  const previewFade = useRevealAfter(!!preview);
+  const extraFade = useRevealAfter(extras.length > 0);
   const phoneId = `${formId}-phone`;
 
   const toggle = (id: number) => {
@@ -109,7 +100,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
       haptic('error');
       if (err instanceof ApiError && err.code === 'bad_phone') setPhoneError('Проверь номер');
       else if (err instanceof ApiError && err.code === 'receiver_phone_locked') setPhoneError(PHONE_IN_PROFILE);
-      else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError('Нужен номер Kaspi получателя');
+      else if (err instanceof ApiError && err.code === 'no_kaspi') setPhoneError(NO_KASPI);
       else if (err instanceof ApiError && err.code === 'receiver_no_phone') setPhoneError('У получателя нет номера Kaspi в профиле. Выбери другого или себя.');
       else setFormError(err instanceof ApiError && err.code === 'not_scheduled' ? 'Сначала назначь время и длительность матча' : err instanceof ApiError && err.code === 'not_started' ? 'Счёт можно выставить после начала матча' : err instanceof ApiError && err.status === 409 ? 'Состояние матча изменилось. Обнови страницу матча перед выставлением счёта.' : 'Не получилось выставить счёт. Проверь соединение и попробуй ещё раз.');
     }
@@ -169,7 +160,7 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
         Аренда поля, ₸
         <input inputMode="numeric" type="number" min={0} max={10_000_000} step={1} required value={field} onChange={e => setField(e.target.value)} />
       </label>
-      {extras.length === 0 && <SheetPlaceholder className="extra-placeholder" hint="Нажми «+ Расход» — здесь появится строка расхода">
+      {extras.length === 0 && <SheetPlaceholder className="extra-placeholder" hint="Нажми «+ Расход» — новая строка">
         <div className="extra"><input placeholder="Вода" /><input inputMode="numeric" type="number" /><button type="button" className="btn-text danger-text"><Icon name="close" /></button></div>
       </SheetPlaceholder>}
       {extras.map((x, i) => (
@@ -196,11 +187,11 @@ function BillForm({ ev, reload, initial, onDone }: Props & { initial?: BillDto; 
         </details>
       )}
       {preview
-        ? <div className={`preview ${previewFade}`.trim()}>
+        ? <div className={previewFade ? `preview ${previewFade}` : 'preview'}>
             <b>По {formatTenge(preview.share)} с человека</b>
             <span className="muted">Итого {formatTenge(preview.total)}</span>
           </div>
-        : <SheetPlaceholder className="preview-placeholder" hint="Укажи аренду — здесь появится сумма с человека">
+        : <SheetPlaceholder className="preview-placeholder" hint={field === '' ? 'Укажи аренду — здесь появится сумма с человека' : undefined}>
             <div className="preview"><b>По {formatTenge(2000)} с человека</b><span className="muted">Итого {formatTenge(20000)}</span></div>
           </SheetPlaceholder>}
       {!selectedIds.length && <p className="muted">Выбери хотя бы одного участника</p>}

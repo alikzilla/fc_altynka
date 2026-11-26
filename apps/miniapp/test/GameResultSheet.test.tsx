@@ -151,7 +151,7 @@ test('an unsaved edit of one game and a new result are kept apart',async()=>{
 });
 
 test('each side holds the place of its first goal row until that team scores',async()=>{
-  const hint='Нажми «+» у команды — здесь появится строка гола';
+  const hint='Нажми «+» — появится строка гола';
   open();
   expect(screen.queryByText(/Пока 0:0/)).toBeNull();
   expect(screen.getAllByText(hint)).toHaveLength(2);

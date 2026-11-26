@@ -8,6 +8,7 @@ import { SheetPlaceholder } from '../components/SheetPlaceholder';
 import { AvailabilityGrid } from '../components/AvailabilityGrid';
 import { ErrorNote, Skeleton, Sk, useToast } from '../components/ui';
 import { useResource } from '../hooks/useResource';
+import { useRevealAfter } from '../hooks/useRevealAfter';
 import { api } from '../lib/api';
 import { haptic } from '../lib/tg';
 
@@ -62,11 +63,7 @@ function MarkEditor({ title, mark, choosing, onChange, onChoose }: { title: stri
   // Одна и та же разметка стоит и настоящей, и невидимым образцом размера внутри заглушки.
   const timeSection = <TimeButtons parts={parts} whole={whole} onSet={setParts} />;
   // Выбор времени проявляется на месте заглушки; пока «Могу» горит, класс остаётся.
-  const fade = useRef('');
-  const wasYes = useRef<boolean | null>(null);
-  if (status !== 'yes') fade.current = '';
-  else if (wasYes.current === false) fade.current = 'reveal';
-  wasYes.current = status === 'yes';
+  const fade = useRevealAfter(status === 'yes');
   return <section className="availability-editor" aria-label={title}>
     <h4>{title}</h4>
     <div className="chips" role="group" aria-label="Смогу ли играть">
@@ -75,7 +72,7 @@ function MarkEditor({ title, mark, choosing, onChange, onChoose }: { title: stri
       <button type="button" className={`chip-btn${status === 'no' ? ' on' : ''}`} aria-pressed={status === 'no'} onClick={() => pick('no')}>Не могу</button>
     </div>
     {status === 'yes'
-      ? <div className={`availability-time-section ${fade.current}`.trim()}>{timeSection}</div>
+      ? <div className={`availability-time-section ${fade ?? ''}`.trim()}>{timeSection}</div>
       : <SheetPlaceholder hint="Выбери «Могу» — здесь появится выбор времени"><div className="availability-time-section">{timeSection}</div></SheetPlaceholder>}
     <StatusLine text={choosing ? 'Выбери время, и отметка сохранится.' : ''} />
   </section>;

@@ -341,7 +341,7 @@ test('player mark switches the card at once and returns the button when the serv
 
 test('the share and the first extra keep outlines until they appear, then fade in there', async () => {
   const shareHint = 'Укажи аренду — здесь появится сумма с человека';
-  const extraHint = 'Нажми «+ Расход» — здесь появится строка расхода';
+  const extraHint = 'Нажми «+ Расход» — новая строка';
   renderWithApp(<Bill ev={evWith(10)} reload={() => {}} />, { me: organizer });
   await userEvent.click(billAction());
   const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
@@ -353,6 +353,10 @@ test('the share and the first extra keep outlines until they appear, then fade i
   await userEvent.click(within(dialog).getByRole('button', { name: '+ Расход' }));
   expect(within(dialog).queryByText(extraHint)).toBeNull();
   expect(within(dialog).getByLabelText('Расход 1').closest('.extra')).toHaveClass('reveal');
+  // An empty extra hides the share, but the rent is there: its outline stays, without the rent hint.
+  expect(dialog.querySelector('.preview-placeholder')).not.toBeNull();
+  expect([...dialog.querySelectorAll('.preview')].every(p => p.closest('.sheet-placeholder-ghost'))).toBe(true);
+  expect(within(dialog).queryByText(shareHint)).toBeNull();
   await userEvent.click(within(dialog).getByRole('button', { name: 'Убрать расход 1' }));
   expect(within(dialog).getByText(extraHint)).toBeVisible();
 });
