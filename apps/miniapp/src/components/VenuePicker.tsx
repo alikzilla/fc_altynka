@@ -50,7 +50,7 @@ export function VenuePicker({ communityId, place, onSelect, onClose }: { communi
 
   // The footer is there from the start, so the list arriving does not push it down.
   return <ActionSheet title="Место проведения" className="venue-sheet" onClose={onClose} busy={busy} step="list" footer={<>
-    <p className="venue-selection-caption" aria-hidden={pending ? undefined : true}>{pending ? `Выбрано · ${pending.name}` : venues ? '\u00a0' : <Sk w="9em" />}</p>
+    <p className="venue-selection-caption" aria-hidden={pending ? undefined : true}>{pending ? `Выбрано · ${pending.name}` : venues || error ? '\u00a0' : <Sk w="9em" />}</p>
     <button className="btn primary wide" type="button" disabled={busy || !pending} onClick={() => { if (!pending) return; onSelect(pending.name); onClose(); }}>Выбрать площадку</button>
   </>}>
     {error && !venues && <ErrorNote text="Не получилось загрузить площадки" retry={reload} />}
