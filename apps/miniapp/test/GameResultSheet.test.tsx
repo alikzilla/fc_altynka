@@ -149,3 +149,25 @@ test('an unsaved edit of one game and a new result are kept apart',async()=>{
   sheet(played.games[0]);
   expect(screen.getByLabelText('Голы команды Синие')).toHaveTextContent('1');
 });
+
+test('each side holds the place of its first goal row until that team scores',async()=>{
+  const hint='Нажми «+» у команды — здесь появится строка гола';
+  open();
+  expect(screen.queryByText(/Пока 0:0/)).toBeNull();
+  expect(screen.getAllByText(hint)).toHaveLength(2);
+  expect(screen.queryByRole('button',{name:'Гол 1 команды Красные: выбрать автора'})).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Красные'}));
+  expect(screen.getAllByText(hint)).toHaveLength(1);
+  const row=screen.getByRole('button',{name:'Гол 1 команды Красные: выбрать автора'}).closest('.game-goal-row')!;
+  expect(row).toHaveClass('reveal');
+  await userEvent.click(screen.getByRole('button',{name:'Добавить гол команды Синие'}));
+  expect(screen.queryByText(hint)).toBeNull();
+  await userEvent.click(screen.getByRole('button',{name:'Убрать гол команды Красные'}));
+  expect(screen.getAllByText(hint)).toHaveLength(1);
+});
+
+test('a reopened result with goals does not fade its rows in',()=>{
+  renderWithApp(<GameResultSheet ev={ev} protocol={makeProtocol({games:[{id:'g',sequence:1,pair:[0,1],score:[1,0],scorers:[],firstRestTeamIndex:2,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}]})} game={{id:'g',sequence:1,pair:[0,1],score:[1,0],scorers:[],firstRestTeamIndex:2,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}} onClose={()=>{}} onSaved={()=>{}} reload={()=>{}}/>,{me:organizer});
+  const sheet=screen.getByRole('dialog',{name:'Результат игры 1'});
+  expect(within(sheet).getByRole('button',{name:'Гол 1 команды Красные: выбрать автора'}).closest('.game-goal-row')).not.toHaveClass('reveal');
+});

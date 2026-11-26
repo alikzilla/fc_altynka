@@ -2,12 +2,23 @@ import { teamAppearance, teamColorsFor, type EventDetailDto, type GameProtocolDt
 import { useRef, useState } from 'react';
 import { useLocation } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
+import { SheetPlaceholder } from '../components/SheetPlaceholder';
 import { TeamColorSheet } from '../components/TeamColorSheet';
-import { TossCoin } from '../components/TossCoin';
+import { TossCoin, type CoinFace } from '../components/TossCoin';
 import { api, ApiError } from '../lib/api';
 import { haptic } from '../lib/tg';
 
 type Props = { ev: EventDetailDto; reload: () => void; onClose: () => void };
+
+/** The coin's answer and the first pair. Drawn invisibly inside the placeholder too, so the outline has its size. */
+function StartAnswer({ faces, three, answer, pair, onGo, live = false, className = '' }: { faces: CoinFace[]; three: boolean; answer: number; pair: readonly number[] | null; onGo?: () => void; live?: boolean; className?: string }) {
+  return <div className={`start-answer ${className}`.trim()} role={live ? 'status' : undefined}>
+    <p className={`start-answer-line team-${faces[answer]?.key}`}><span className="team-dot" aria-hidden="true" />{three ? `Отдыхают ${faces[answer]?.name}` : `С мячом начинают ${faces[answer]?.name}`}</p>
+    {pair && <p className="start-pair material-blue"><span className={`game-team-name team-${faces[pair[0]]?.key}`}><span className="team-dot" aria-hidden="true" />{faces[pair[0]]?.name}</span><small>ИГРА 1</small><span className={`game-team-name team-${faces[pair[1]]?.key}`}>{faces[pair[1]]?.name}<span className="team-dot" aria-hidden="true" /></span></p>}
+    <button type="button" className="btn primary wide" onClick={onGo}>К игре 1</button>
+    <p className="start-saved">Результат сохранён и виден всем участникам</p>
+  </div>;
+}
 
 /**
  * «Начинаем матч»: check the kits on the pitch, then toss. The toss itself starts the match; the server
@@ -68,6 +79,9 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
     onClose(); reload(); navigate(`/event/${ev.id}?tab=games`);
   }
 
+  // Before the toss the outline holds the longest team name, so the real answer never needs more room.
+  const longest = faces.reduce((best, face, index) => face.name.length > faces[best].name.length ? index : best, 0);
+  const ghost = { answer: longest, pair: three ? [0, 1, 2].filter(index => index !== longest) : [0, 1] };
   const decided = protocol !== null && answer !== null;
   const landed = decided && revealed;
   return <>
@@ -87,12 +101,9 @@ export function StartMatchSheet({ ev, reload, onClose }: Props) {
       </section>
       <TossCoin faces={faces} result={decided ? answer : null} failed={failed} disabled={decided} onToss={start} onLanded={() => setRevealed(true)} />
       {error && <p className="field-error" role="alert">{error}</p>}
-      {landed && <div className="start-answer" role="status">
-        <p className={`start-answer-line team-${faces[answer]?.key}`}><span className="team-dot" aria-hidden="true" />{three ? `Отдыхают ${faces[answer]?.name}` : `С мячом начинают ${faces[answer]?.name}`}</p>
-        {pair && <p className="start-pair material-blue"><span className={`game-team-name team-${faces[pair[0]]?.key}`}><span className="team-dot" aria-hidden="true" />{faces[pair[0]]?.name}</span><small>ИГРА 1</small><span className={`game-team-name team-${faces[pair[1]]?.key}`}>{faces[pair[1]]?.name}<span className="team-dot" aria-hidden="true" /></span></p>}
-        <button type="button" className="btn primary wide" onClick={toGames}>К игре 1</button>
-        <p className="start-saved">Результат сохранён и виден всем участникам</p>
-      </div>}
+      {landed
+        ? <StartAnswer faces={faces} three={three} answer={answer} pair={pair} onGo={toGames} live className="reveal" />
+        : <SheetPlaceholder hint={three ? 'Подбрось монету — здесь появится, кто отдыхает' : 'Подбрось монету — здесь появится, кто начинает'}><StartAnswer faces={faces} three={three} answer={ghost.answer} pair={ghost.pair} /></SheetPlaceholder>}
     </ActionSheet>
     {colorTeam !== null && <TeamColorSheet index={colorTeam} colors={colors} busy={colorBusy} error={colorError} onClose={() => setColorTeam(null)} onPick={pickColors} />}
   </>;
