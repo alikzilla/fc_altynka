@@ -47,25 +47,26 @@ export function ClubPickerSheet({ onClose }: { onClose: () => void }) {
     }
   }
 
-  return <ActionSheet title="Любимый клуб" onClose={onClose} footer={<p className="muted club-picker-note">Список клубов будет пополняться</p>}>
+  return <ActionSheet title="Любимый клуб" className="club-picker-sheet" onClose={onClose} footer={<p className="muted club-picker-note">Список клубов будет пополняться</p>}>
     <div className="club-picker">
       <div className="tabs club-tabs" role="tablist" aria-label="Тип команды">
         <button type="button" role="tab" className={section === 'club' ? 'on' : ''} aria-selected={section === 'club'} onClick={() => setSection('club')}>Клубы</button>
         <button type="button" role="tab" className={section === 'national' ? 'on' : ''} aria-selected={section === 'national'} onClick={() => setSection('national')}>Сборные</button>
       </div>
-      {section === 'club' && <div className="club-leagues">
+      {/* The league row keeps its place for national teams too (hidden), so the list never moves. */}
+      <div className={`club-leagues${section === 'club' ? '' : ' club-leagues-hidden'}`} inert={section !== 'club'} aria-hidden={section !== 'club' || undefined}>
         <button type="button" className={`chip-btn${filter === 'all' ? ' on' : ''}`} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Все</button>
         {CLUB_LEAGUES.map(league => <button key={league} type="button" className={`chip-btn${filter === league ? ' on' : ''}`} aria-pressed={filter === league} onClick={() => setFilter(league)}>{CLUB_LEAGUE_LABEL[league]}</button>)}
-      </div>}
+      </div>
       <button type="button" className={`club-none${current ? '' : ' on'}`} aria-labelledby={`${ids}-none`} aria-describedby={`${ids}-none-hint`} aria-pressed={!current} onClick={() => void choose(null)}>
         <b id={`${ids}-none`}>Без клуба</b><small id={`${ids}-none-hint`}>Обычная тема</small>{!current && <Icon name="check" />}
       </button>
-      <div className="club-grid">
+      {/* One scroll container of a fixed height: the sheet never resizes when the filter or tab changes. */}
+      <div className="club-list" role="group" aria-label="Команды">
         {visible.map(club => {
           const on = current === club.id;
-          return <button key={club.id} type="button" className={`club-tile${on ? ' on' : ''}`} aria-pressed={on} onClick={() => void choose(club.id)}>
-            <img src={club.crest} alt="" loading="lazy" /><span>{club.name}</span>
-            {on && <span className="club-tile-check" aria-hidden="true"><Icon name="check" /></span>}
+          return <button key={club.id} type="button" className={`club-row${on ? ' on' : ''}`} aria-pressed={on} onClick={() => void choose(club.id)}>
+            <img src={club.crest} alt="" loading="lazy" /><span>{club.name}</span>{on && <Icon name="check" />}
           </button>;
         })}
       </div>

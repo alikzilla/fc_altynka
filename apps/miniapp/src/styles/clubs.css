@@ -56,19 +56,25 @@
 .club-material .rating-caption { color: var(--club-ink-soft); }
 
 /* Шторка «Любимый клуб». */
-.club-picker { display: grid; gap: 12px; }
+.create-sheet.club-picker-sheet { height: calc(var(--sheet-viewport, 100dvh) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); }
+/* The sheet is full height; only the list scrolls, everything above it stays put. */
+.club-picker-sheet .sheet-content { flex: 1 1 auto; display: flex; flex-direction: column; overflow: hidden; padding-bottom: 0; }
+.club-picker { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 12px; }
+/* Only the list gives up height on short screens; the tabs, league row and «Без клуба» keep theirs. */
+.club-picker > :not(.club-list) { flex-shrink: 0; }
+.club-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; display: flex; flex-direction: column; gap: 6px; margin-inline: -4px; padding: 2px 4px 16px; }
+.club-row { display: flex; align-items: center; gap: 12px; flex-shrink: 0; min-height: 52px; padding: 6px 14px 6px 10px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); font-size: 15px; font-weight: 500; }
+.club-row img { width: 32px; height: 38px; flex-shrink: 0; object-fit: contain; }
+.club-row span { min-width: 0; overflow-wrap: anywhere; }
+.club-row .icon { margin-left: auto; flex-shrink: 0; color: var(--accent-ink); }
+.club-row.on { border-color: var(--accent); background: var(--accent-soft); }
 .tabs.club-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .club-leagues { display: flex; gap: 8px; overflow-x: auto; margin-inline: -4px; padding: 2px 4px; scrollbar-width: none; }
 .club-leagues .chip-btn { flex-shrink: 0; white-space: nowrap; }
+.club-leagues-hidden { visibility: hidden; }
 .club-none { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 14px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); }
 .club-none small { color: var(--hint); font-size: 13px; margin-right: auto; }
 .club-none b { font-weight: 600; }
 .club-none.on { border-color: var(--accent); background: var(--accent-soft); }
 .club-none .icon { margin-left: auto; color: var(--accent-ink); }
-.club-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
-.club-tile { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; min-height: 44px; padding: 12px 6px 10px; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); font-size: 13px; font-weight: 500; line-height: 1.2; text-align: center; overflow-wrap: anywhere; }
-.club-tile img { width: 44px; height: 52px; object-fit: contain; }
-.club-tile.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); background: var(--accent-soft); }
-.club-tile-check { position: absolute; top: 6px; right: 6px; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); color: var(--on-accent); }
-.club-tile-check .icon { width: 12px; height: 12px; }
 .club-picker-note { margin: 0; text-align: center; }
