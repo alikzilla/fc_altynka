@@ -122,8 +122,10 @@ export function useBottomSheet(dialog: RefObject<HTMLDialogElement | null>, onDi
     };
     const viewport = () => { if (!frame) frame = requestAnimationFrame(measureViewport); };
     // The focused field is brought into the visible part of the sheet's own scroll area, never by scrolling the
-    // page (iOS pans the visual viewport by itself; that is already in the maths above). Same rule as
-    // scrollIntoView({ block: 'nearest' }), limited to .sheet-content, with a little air around the field.
+    // page (iOS pans the visual viewport by itself; that is already in the maths above). The scrollIntoView
+    // ({ block: 'nearest' }) rule, limited to .sheet-content, with a little air around the field: a field that fits
+    // is moved by its nearest edge; a field taller than the view (a long textarea) is left alone while any part of
+    // it is on screen, so the caret the person is typing at is never scrolled away.
     const reveal = () => {
       const area = content();
       const field = document.activeElement;
@@ -131,8 +133,15 @@ export function useBottomSheet(dialog: RefObject<HTMLDialogElement | null>, onDi
       const view = area.getBoundingClientRect();
       const rect = field.getBoundingClientRect();
       const air = 12;
-      if (rect.top < view.top + air) area.scrollTop -= view.top + air - rect.top;
-      else if (rect.bottom > view.bottom - air) area.scrollTop += Math.min(rect.bottom - view.bottom + air, rect.top - view.top - air);
+      const top = view.top + air;
+      const bottom = view.bottom - air;
+      if (rect.height > bottom - top) {
+        if (rect.bottom <= view.top) area.scrollTop -= bottom - rect.bottom; // above: its bottom edge in view
+        else if (rect.top >= view.bottom) area.scrollTop += rect.top - top; // below: its top edge in view
+        return;
+      }
+      if (rect.top < top) area.scrollTop -= top - rect.top;
+      else if (rect.bottom > bottom) area.scrollTop += rect.bottom - bottom;
     };
     const focusIn = () => requestAnimationFrame(reveal);
     const settled = (event: TransitionEvent) => {

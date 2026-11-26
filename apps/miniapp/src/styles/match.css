@@ -36,7 +36,7 @@
 .sheet-action:last-child { border-bottom: 0; }
 .action-sheet .sheet-heading { align-items: center; }
 .action-sheet .sheet-content > .muted { margin-bottom: 12px; }
-.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
+.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--sheet-safe-bottom, var(--safe-bottom))) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
 .action-sheet:has(.sheet-footer) .sheet-content { padding-bottom: 20px; }
 .bill-form { gap: 18px; }
 .action-sheet .sheet-heading h2 { font-size: 22px; flex: 1; min-width: 0; overflow-wrap: anywhere; }

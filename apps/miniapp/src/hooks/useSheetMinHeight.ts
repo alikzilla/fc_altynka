@@ -3,7 +3,8 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
 /**
  * An open sheet never gets shorter. The largest height the sheet has had (its natural height, or the box while it is
  * capped) is kept in `--sheet-min` on the dialog; CSS clamps it to the current max height
- * (`min(var(--sheet-min), var(--sheet-max))`), so the keyboard or a short screen still wins. A new `step` (the sheet deliberately turns into another screen) starts a fresh
+ * (`min(calc(var(--sheet-min) + var(--sheet-pad)), var(--sheet-max))`, where --sheet-pad is the keyboard padding
+ * under the content), so the keyboard or a short screen still wins. A new `step` (the sheet deliberately turns into another screen) starts a fresh
  * measurement; closing forgets it, since the dialog is gone.
  */
 export function useSheetMinHeight(dialog: RefObject<HTMLDialogElement | null>, step: string | number | undefined) {

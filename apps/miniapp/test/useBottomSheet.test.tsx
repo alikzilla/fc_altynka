@@ -148,4 +148,45 @@ describe('a sheet and the keyboard', () => {
     expect(content.scrollTop).toBe(112);
     expect(scrollTo).not.toHaveBeenCalled();
   });
+
+  /** The content shows 100..300; the field is `height` tall and starts at `top` before any scrolling. */
+  function placeField(top: number, height: number) {
+    const content = sheet().querySelector<HTMLElement>('.sheet-content')!;
+    const field = screen.getByRole('textbox', { hidden: true });
+    content.getBoundingClientRect = () => ({ top: 100, bottom: 300, height: 200, left: 0, right: 390, width: 390, x: 0, y: 100, toJSON() {} });
+    field.getBoundingClientRect = () => {
+      const y = top - content.scrollTop;
+      return { top: y, bottom: y + height, height, left: 0, right: 390, width: 390, x: 0, y, toJSON() {} };
+    };
+    return { content, field };
+  }
+
+  it('a field that fits and is only cut at the bottom moves up by its bottom edge', async () => {
+    render(<Sheet />);
+    const { content, field } = placeField(250, 70);
+    field.focus();
+    await frame();
+    expect(content.scrollTop).toBe(32);
+  });
+
+  it('a field taller than the view stays put while any of it is on screen (the caret is not scrolled away)', async () => {
+    render(<Sheet />);
+    // Top above the view, bottom inside it: the person is typing at the bottom of a long textarea.
+    const { content, field } = placeField(40, 240);
+    field.focus();
+    await frame();
+    expect(content.scrollTop).toBe(0);
+    // Covering the whole view: nothing moves either.
+    transitionEnd('--sheet-pad');
+    await frame();
+    expect(content.scrollTop).toBe(0);
+  });
+
+  it('a field taller than the view that is wholly below it comes in by its top edge', async () => {
+    render(<Sheet />);
+    const { content, field } = placeField(400, 240);
+    field.focus();
+    await frame();
+    expect(content.scrollTop).toBe(288);
+  });
 });

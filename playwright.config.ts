@@ -17,6 +17,8 @@ export default defineConfig({
     { name: 'webkit-schedule', testMatch: '**/schedule-sheet.spec.ts', use: { browserName: 'webkit', isMobile: true, hasTouch: true, locale: 'ru-RU' } },
     { name: 'webkit-overflow', testMatch: '**/horizontal-scroll.spec.ts', use: { browserName: 'webkit', isMobile: true, hasTouch: true, locale: 'ru-RU' } },
     { name: 'webkit-games', testMatch: '**/game-statistics.spec.ts', use: { browserName: 'webkit', isMobile: true, hasTouch: true, locale: 'ru-RU' } },
+    // The keyboard path of bottom sheets on the iOS engine; the rest of the spec drives touch through Chromium's CDP.
+    { name: 'webkit-sheets', testMatch: '**/sheet-interactions.spec.ts', grep: /@keyboard/, use: { browserName: 'webkit', isMobile: true, hasTouch: true, locale: 'ru-RU' } },
   ],
   webServer: { command: 'pnpm --filter @altynka/miniapp exec vite preview --host 127.0.0.1 --port 4173 --strictPort', url: 'http://127.0.0.1:4173', reuseExistingServer: !ci },
 });

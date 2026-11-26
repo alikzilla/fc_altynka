@@ -224,10 +224,12 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
    viewport (--sheet-viewport) and the keyboard height (--sheet-keyboard); their animated copies --sheet-visible and
    --sheet-pad follow over 250 ms on a keyboard-like curve. --sheet-pad is the bottom padding that keeps the content
    and footer above the keys; the cap lets the box reach under them by exactly that much, so the visible part fits
-   the visible viewport below the top gap. Only these two animate: min-height follows --sheet-min at once. */
+   the visible viewport below the top gap. Only these two animate: min-height follows --sheet-min at once. The bottom
+   safe-area inset is under the keyboard while it is open, so content and footer use --sheet-safe-bottom, which gives
+   way to the padding (resolved here, inherited by them as a length) and leaves no extra gap above the keys. */
 @property --sheet-pad { syntax: '<length>'; inherits: false; initial-value: 0px; }
 @property --sheet-visible { syntax: '<length>'; inherits: false; initial-value: 0px; }
-.create-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 440px; --sheet-pad: var(--sheet-keyboard, 0px); --sheet-visible: var(--sheet-viewport, 100dvh); --sheet-fit: calc(var(--sheet-visible) + var(--sheet-pad) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); --sheet-max: var(--sheet-fit); max-height: var(--sheet-max); min-height: min(calc(var(--sheet-min, 0px) + var(--sheet-pad)), var(--sheet-max)); padding: 0 0 var(--sheet-pad); border: 0; border-radius: 32px 32px 0 0; color: var(--text); background: var(--card); box-shadow: 0 -12px 48px #0006; overflow: hidden; overscroll-behavior: contain; transform: translate3d(0, var(--sheet-y, 0px), 0); transition: transform 240ms cubic-bezier(.16, 1, .3, 1), --sheet-pad 250ms cubic-bezier(.2, .8, .2, 1), --sheet-visible 250ms cubic-bezier(.2, .8, .2, 1); }
+.create-sheet { position: fixed; inset: auto 0 0; margin: 0 auto; width: 100%; max-width: 440px; --sheet-pad: var(--sheet-keyboard, 0px); --sheet-visible: var(--sheet-viewport, 100dvh); --sheet-safe-bottom: max(calc(var(--safe-bottom) - var(--sheet-pad)), 0px); --sheet-fit: calc(var(--sheet-visible) + var(--sheet-pad) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); --sheet-max: var(--sheet-fit); max-height: var(--sheet-max); min-height: min(calc(var(--sheet-min, 0px) + var(--sheet-pad)), var(--sheet-max)); padding: 0 0 var(--sheet-pad); border: 0; border-radius: 32px 32px 0 0; color: var(--text); background: var(--card); box-shadow: 0 -12px 48px #0006; overflow: hidden; overscroll-behavior: contain; transform: translate3d(0, var(--sheet-y, 0px), 0); transition: transform 240ms cubic-bezier(.16, 1, .3, 1), --sheet-pad 250ms cubic-bezier(.2, .8, .2, 1), --sheet-visible 250ms cubic-bezier(.2, .8, .2, 1); }
 .create-sheet[open] { display: flex; flex-direction: column; animation: sheet-enter 240ms cubic-bezier(.16, 1, .3, 1); }
 .create-sheet[data-interacted] { animation: none; }
 .create-sheet[data-dragging] { animation: none; transition: none; will-change: transform; }
@@ -236,14 +238,14 @@ input::placeholder, textarea::placeholder { color: var(--hint); opacity: 1; }
 .sheet-drag-area { flex-shrink: 0; height: 28px; display: grid; place-items: center; touch-action: none; cursor: grab; }
 .sheet-drag-area span { display: block; width: 36px; height: 4px; border-radius: 4px; background: var(--hint); opacity: .6; }
 .sheet-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 0 calc(20px + var(--safe-right)) 22px calc(20px + var(--safe-left)); flex-shrink: 0; touch-action: none; }
-.sheet-content { flex: 1 1 auto; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 0 calc(20px + var(--safe-right)) calc(24px + var(--safe-bottom)) calc(20px + var(--safe-left)); }
+.sheet-content { flex: 1 1 auto; align-content: start; min-height: 0; overflow-y: auto; overscroll-behavior-y: contain; padding: 0 calc(20px + var(--safe-right)) calc(24px + var(--sheet-safe-bottom, var(--safe-bottom))) calc(20px + var(--safe-left)); }
 .sheet-heading h2 { font-size: 25px; line-height: 1.25; font-weight: 600; letter-spacing: -.025em; }
 .sheet-heading h2:focus, .title:focus { outline: none; }
 .sheet-heading p { margin-top: 8px; }
 .sheet-close { display: grid; place-items: center; flex-shrink: 0; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 50%; background: #2b2835; }
 @keyframes sheet-enter { from { transform: translate3d(0, 100%, 0); } to { transform: translate3d(0, 0, 0); } }
 /* An open sheet never gets shorter (useSheetMinHeight keeps its largest height in --sheet-min, clamped to the
-   same --sheet-max as max-height; a sheet with its own cap narrows --sheet-max, never max-height alone). Content that appears later takes a place reserved in advance: */
+   same --sheet-max as max-height: min-height: min(calc(var(--sheet-min) + var(--sheet-pad)), var(--sheet-max)); a sheet with its own cap narrows --sheet-max, never max-height alone). Content that appears later takes a place reserved in advance: */
 /* — a placeholder: the real content drawn invisibly sets the size, a dashed frame and a hint sit over it; */
 .sheet-placeholder { display: grid; min-width: 0; border-radius: 17px; }
 .sheet-placeholder > * { grid-area: 1 / 1; min-width: 0; }
