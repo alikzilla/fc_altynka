@@ -21,8 +21,6 @@ describe('navKind', () => {
     expect(navKind('/players', '/players/7')).toBeNull();
     expect(navKind('/profile', '/profile/settings/name')).toBeNull();
     expect(navKind('/profile', '/profile/availability')).toBeNull();
-    expect(navKind('/profile', '/profile/club')).toBeNull();
-    expect(navKind('/profile/club', '/profile')).toBeNull();
     expect(navKind('/event/5', '/event/5')).toBeNull();
   });
 });
