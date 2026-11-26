@@ -97,6 +97,7 @@
 .review-progress { margin-bottom: 16px; }
 .review-step-window { overflow: hidden; margin-inline: -4px; padding-inline: 4px; }
 .review-step { min-height: 466px; gap: 12px; opacity: 1; transform: translateX(0); animation: review-step-in 240ms cubic-bezier(.22, 1, .36, 1) both; transition: transform 180ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease-out; }
+.review-step-ghost { min-height: 466px; gap: 12px; }
 .review-step.is-leaving { animation: none; transform: translateX(calc(var(--step-direction) * 36px)); opacity: 0; }
 .review-person { display: flex; align-items: center; gap: 12px; min-height: 62px; }
 .review-person > div { min-width: 0; }
