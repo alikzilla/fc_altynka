@@ -1,4 +1,4 @@
-import { CLUBS, CLUB_LEAGUES, CLUB_LEAGUE_LABEL, clubById, type ClubId, type ClubLeague, type MeDto } from '@altynka/core';
+import { CLUBS, CLUB_LEAGUES, CLUB_LEAGUE_LABEL, clubById, type Club, type ClubId, type ClubLeague, type MeDto } from '@altynka/core';
 import { useId, useState } from 'react';
 import { api } from '../lib/api';
 import { getClubId, applyClub, useClubId } from '../lib/theme';
@@ -13,6 +13,9 @@ let latestClubOperation = 0;
 
 type Section = 'club' | 'national';
 type Filter = 'all' | ClubLeague;
+
+/** Every club in league order: the longest list, so the grid is sized by it from the start (switching filters never moves the sheet). */
+const ALL_CLUBS = CLUB_LEAGUES.flatMap(league => CLUBS.filter(c => c.kind === 'club' && c.league === league));
 
 export function ClubPickerSheet({ onClose }: { onClose: () => void }) {
   const current = useClubId();
@@ -53,22 +56,30 @@ export function ClubPickerSheet({ onClose }: { onClose: () => void }) {
         <button type="button" role="tab" className={section === 'club' ? 'on' : ''} aria-selected={section === 'club'} onClick={() => setSection('club')}>Клубы</button>
         <button type="button" role="tab" className={section === 'national' ? 'on' : ''} aria-selected={section === 'national'} onClick={() => setSection('national')}>Сборные</button>
       </div>
-      {section === 'club' && <div className="club-leagues">
+      {/* The league row stays in place for national teams too (hidden), so switching tabs does not move the grid. */}
+      <div className={`club-leagues${section === 'club' ? '' : ' club-leagues-hidden'}`} inert={section !== 'club'} aria-hidden={section !== 'club' || undefined}>
         <button type="button" className={`chip-btn${filter === 'all' ? ' on' : ''}`} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Все</button>
         {CLUB_LEAGUES.map(league => <button key={league} type="button" className={`chip-btn${filter === league ? ' on' : ''}`} aria-pressed={filter === league} onClick={() => setFilter(league)}>{CLUB_LEAGUE_LABEL[league]}</button>)}
-      </div>}
+      </div>
       <button type="button" className={`club-none${current ? '' : ' on'}`} aria-labelledby={`${ids}-none`} aria-describedby={`${ids}-none-hint`} aria-pressed={!current} onClick={() => void choose(null)}>
         <b id={`${ids}-none`}>Без клуба</b><small id={`${ids}-none-hint`}>Обычная тема</small>{!current && <Icon name="check" />}
       </button>
-      <div className="club-grid">
-        {visible.map(club => {
-          const on = current === club.id;
-          return <button key={club.id} type="button" className={`club-tile${on ? ' on' : ''}`} aria-pressed={on} onClick={() => void choose(club.id)}>
-            <img src={club.crest} alt="" loading="lazy" /><span>{club.name}</span>
-            {on && <span className="club-tile-check" aria-hidden="true"><Icon name="check" /></span>}
-          </button>;
-        })}
+      <div className="sheet-stack">
+        <div className="club-grid">
+          {visible.map(club => <ClubTile key={club.id} club={club} on={current === club.id} onChoose={() => void choose(club.id)} />)}
+        </div>
+        {/* Invisible copy of the longest list: holds the sheet at its full height whatever the filter. */}
+        <div className="club-grid sheet-stack-hidden" aria-hidden="true" inert>
+          {ALL_CLUBS.map(club => <ClubTile key={club.id} club={club} on={false} />)}
+        </div>
       </div>
     </div>
   </ActionSheet>;
+}
+
+function ClubTile({ club, on, onChoose }: { club: Club; on: boolean; onChoose?: () => void }) {
+  return <button type="button" className={`club-tile${on ? ' on' : ''}`} aria-pressed={on} onClick={onChoose}>
+    <img src={club.crest} alt="" loading="lazy" /><span>{club.name}</span>
+    {on && <span className="club-tile-check" aria-hidden="true"><Icon name="check" /></span>}
+  </button>;
 }

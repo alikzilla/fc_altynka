@@ -1,6 +1,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { animationsSettled, expect, test, type Page } from './fixtures';
 import { teamApiRoute } from './team-fixture';
+import { expectStableSheet } from './sheet-height';
 import { clubById, contrastRatio } from '../../packages/core/src/clubs';
 
 // Синтетические данные: ничего не уходит ни в бота, ни в D1.
@@ -164,16 +165,38 @@ for (const width of [390, 320]) test(`${width} px: picker with long names has no
   await sheet.getByRole('button', { name: 'Бундеслига', exact: true }).click();
   await expect(sheet.getByRole('button', { name: 'Бавария' })).toBeVisible();
   await expect(sheet.getByRole('button', { name: 'Барселона' })).toHaveCount(0);
-  for (const tile of await sheet.locator('.club-tile').all()) {
-    const box = (await tile.boundingBox())!, parent = (await sheet.locator('.club-grid').boundingBox())!;
+  for (const tile of await sheet.locator('.club-grid:not(.sheet-stack-hidden) .club-tile').all()) {
+    const box = (await tile.boundingBox())!, parent = (await sheet.locator('.club-grid:not(.sheet-stack-hidden)').boundingBox())!;
     expect(box.x).toBeGreaterThanOrEqual(parent.x - 1);
     expect(box.x + box.width).toBeLessThanOrEqual(parent.x + parent.width + 1);
   }
   await page.screenshot({ path: `artifacts/ui/club-picker-bundesliga-${width}.png` });
   await sheet.getByRole('tab', { name: 'Сборные' }).click();
   await expect(sheet.getByRole('button', { name: 'Бразилия' })).toBeVisible();
-  await expect(sheet.locator('.club-leagues')).toHaveCount(0);
+  await expect(sheet.locator('.club-leagues')).not.toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [320, 390]) test(`club picker keeps its height when switching leagues and tabs at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: width === 320 ? 568 : 844 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await world(page, { favoriteClub: 'arsenal' });
+  await page.goto('/profile');
+  await page.getByRole('link', { name: /Любимый клуб/ }).click();
+  const sheet = page.getByRole('dialog', { name: 'Любимый клуб' });
+  await expect(sheet.getByRole('button', { name: 'АПЛ', exact: true })).toHaveAttribute('aria-pressed', 'true');
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByRole('button', { name: 'Все', exact: true }).click();
+    await expect(sheet.getByRole('button', { name: 'Боруссия Дортмунд' })).toBeVisible();
+  }, { content: true });
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByRole('tab', { name: 'Сборные' }).click();
+    await expect(sheet.getByRole('button', { name: 'Бразилия' })).toBeVisible();
+    await sheet.getByRole('tab', { name: 'Клубы' }).click();
+    await expect(sheet.getByRole('button', { name: 'Барселона' })).toBeVisible();
+  }, { content: true });
+  // Ghost tiles size the grid but are not buttons anyone can reach.
+  await expect(sheet.getByRole('button', { name: 'Барселона' })).toHaveCount(1);
 });
 
 test("peer profile shows the owner's club", async ({ page }) => {

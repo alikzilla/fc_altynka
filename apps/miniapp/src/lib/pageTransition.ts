@@ -2,7 +2,7 @@ import { flushSync } from 'react-dom';
 import type { AroundNavHandler } from 'wouter';
 
 /** Bottom sheets with their own route sit over the page underneath; opening or closing one keeps its scroll and plays no page transition. */
-export const SHEET_PATH = /^\/(?:new|event\/\d+\/schedule|profile\/settings\/[^/]+|profile\/availability|players\/\d+)$/;
+export const SHEET_PATH = /^\/(?:new|event\/\d+\/schedule|profile\/settings\/[^/]+|profile\/availability|profile\/club|players\/\d+)$/;
 
 const ROOT_TABS = new Set(['/', '/matches', '/notifications', '/profile']);
 export type NavKind = 'forward' | 'back' | 'fade';

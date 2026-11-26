@@ -60,6 +60,7 @@
 .tabs.club-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .club-leagues { display: flex; gap: 8px; overflow-x: auto; margin-inline: -4px; padding: 2px 4px; scrollbar-width: none; }
 .club-leagues .chip-btn { flex-shrink: 0; white-space: nowrap; }
+.club-leagues-hidden { visibility: hidden; }
 .club-none { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 14px; text-align: left; border: 1px solid var(--line); border-radius: 16px; background: var(--card); color: var(--text); }
 .club-none small { color: var(--hint); font-size: 13px; margin-right: auto; }
 .club-none b { font-weight: 600; }

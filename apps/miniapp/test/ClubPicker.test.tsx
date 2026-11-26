@@ -1,4 +1,4 @@
-import { act, cleanup, screen, within } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
 import { api } from '../src/lib/api';
@@ -16,7 +16,7 @@ beforeAll(() => {
 beforeEach(() => { (api.send as Mock).mockReset(); (api.send as Mock).mockResolvedValue({ ...player }); });
 afterEach(() => { cleanup(); act(() => applyClub(null)); });
 
-const tiles = () => [...document.querySelectorAll('.club-grid button')] as HTMLElement[];
+const tiles = () => [...document.querySelectorAll('.club-grid:not(.sheet-stack-hidden) button')] as HTMLElement[];
 function open(onClose = vi.fn()) {
   renderWithApp(<ClubPickerSheet onClose={onClose} />, { me: player });
   return onClose;
@@ -106,4 +106,22 @@ test('a stale failure does not undo a newer choice', async () => {
   await act(async () => { rejectFirst(new Error('offline')); });
   expect(getClubId()).toBe('milan');
   expect(within(document.body).queryByText('Не получилось сохранить клуб')).toBeNull();
+});
+
+test('the grid is held at the height of every club, by an invisible copy nobody can reach', () => {
+  open();
+  fireEvent.click(screen.getByRole('button', { name: 'АПЛ' }));
+  const ghost = document.querySelector('.club-grid.sheet-stack-hidden')!;
+  expect(ghost.querySelectorAll('button')).toHaveLength(20);
+  expect(ghost).toHaveAttribute('aria-hidden', 'true');
+  expect(ghost.hasAttribute('inert')).toBe(true);
+  expect(tiles()).toHaveLength(6);
+});
+
+test('the league row stays mounted but hidden for national teams', () => {
+  open();
+  fireEvent.click(screen.getByRole('tab', { name: 'Сборные' }));
+  const row = document.querySelector('.club-leagues')!;
+  expect(row).toHaveClass('club-leagues-hidden');
+  expect(row.hasAttribute('inert')).toBe(true);
 });
