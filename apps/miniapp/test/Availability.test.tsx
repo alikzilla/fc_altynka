@@ -59,6 +59,26 @@ test('«не могу» saves at once; «могу» is saved only together with 
   expect(screen.queryByRole('group', { name: 'Обычный график' })).toBeNull();
 });
 
+test('before «Могу» a hint holds the place of the time buttons; after it the buttons are reachable', async () => {
+  (api.get as Mock).mockResolvedValue(empty());
+  (api.send as Mock).mockResolvedValue(empty());
+  renderWithApp(<AvailabilitySheet onClose={() => {}} />, { me: player });
+  const editor = await screen.findByRole('region', { name: 'Среда, 11 ноября' });
+  expect(within(editor).getByText('Выбери «Могу» — здесь появится выбор времени')).toBeInTheDocument();
+  // Кнопки времени есть в разметке только как невидимый образец размера: скрыты от диктора, без фокуса.
+  expect(within(editor).queryByRole('group', { name: 'Время' })).toBeNull();
+  expect(within(editor).queryByRole('button', { name: 'Весь день' })).toBeNull();
+  expect(editor.querySelector('.sheet-placeholder-ghost')).toHaveAttribute('inert');
+  // Строка статуса — живая область, она есть до появления текста.
+  expect(within(editor).getByRole('status')).toBeInTheDocument();
+  expect(within(editor).getByRole('status')).toHaveTextContent('');
+  await userEvent.click(within(editor).getByRole('button', { name: 'Могу' }));
+  expect(within(editor).queryByText('Выбери «Могу» — здесь появится выбор времени')).toBeNull();
+  expect(editor.querySelector('.sheet-placeholder')).toBeNull();
+  expect(within(editor).getByRole('button', { name: 'Весь день' })).toBeEnabled();
+  expect(within(editor).getByRole('status')).toHaveTextContent('Выбери время, и отметка сохранится.');
+});
+
 test('a failed save says so and reloads the calendar', async () => {
   (api.get as Mock).mockResolvedValue(empty());
   (api.send as Mock).mockRejectedValue(new Error('offline'));
