@@ -45,7 +45,7 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
     event.preventDefault();
     if (saving.current) return;
     const normalized = phone.trim() ? normalizeKzPhone(phone) : null;
-    if (section === 'payment' && phone.trim() && !normalized) return setError('Проверь номер');
+    if (section === 'payment' && phone.trim() && !normalized) return setError(SETTINGS_ERROR.payment);
     if (section === 'name' && !name.trim()) return;
     saving.current = true;
     setBusy(true);
@@ -65,7 +65,7 @@ function SettingsForm({ section, title, onClose }: { section: SettingsSection; t
       reloadMe();
       onClose();
     } catch (err) {
-      if (err instanceof ApiError && err.code === 'name_taken') setError('Это имя уже занято — добавь букву фамилии или номер');
+      if (err instanceof ApiError && err.code === 'name_taken') setError(SETTINGS_ERROR.name);
       else if (err instanceof ApiError && err.code === 'receiver_needs_phone') setError('Тебе переводят по открытому счёту — номер нужен');
       else setError('Не получилось сохранить. Попробуй ещё раз.');
     } finally {

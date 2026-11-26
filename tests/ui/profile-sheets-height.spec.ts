@@ -116,10 +116,11 @@ for (const width of widths) test(`player profile sheet: the skeleton is as tall 
     await page.getByRole('button', { name: /герой матча/ }).click();
     const sheet = page.getByRole('dialog', { name: 'Профиль игрока' });
     await expect(sheet.getByRole('status', { name: 'Загрузка…' })).toBeAttached();
-    const skeleton = await sheetHeight(page, sheet);
+    const body = sheet.locator('.player-profile-content');
+    const skeleton = (await body.boundingBox())!.height;
     release();
     await expect(sheet.getByText('@aikyn')).toBeVisible();
-    const loaded = await sheetHeight(page, sheet);
+    const loaded = (await sheet.locator('.player-profile-content').boundingBox())!.height;
     expect(Math.abs(loaded - skeleton), `каркас ${skeleton}, профиль ${loaded}`).toBeLessThanOrEqual(1);
   } finally { release(); }
 });
@@ -170,7 +171,7 @@ const days = () => Array.from({ length: 7 }, (_, i) => day(new Date(Date.now() +
 
 async function outline(sheet: Locator) {
   const box = sheet.locator('.sheet-placeholder');
-  const [frame, ghost] = await Promise.all([box.boundingBox(), box.locator('.sheet-placeholder-ghost').boundingBox()]);
+  const [frame, ghost] = await Promise.all([box.boundingBox(), box.locator('.sheet-placeholder-ghost > *').boundingBox()]);
   return { frame: frame!.height, ghost: ghost!.height };
 }
 
@@ -180,7 +181,7 @@ for (const width of widths) test(`new match: the group hint is no taller than th
   const sheet = await openNew(page, width, async r => { await gate; return r.fulfill({ json: { community, days: days() } }); });
   try {
     await expect(sheet).toBeVisible();
-    const hint = sheet.getByText('Выбери группу — здесь появится, сколько человек может');
+    const hint = sheet.getByText('Выбери группу — кто может играть');
     await expect(hint).toBeVisible();
     const { frame, ghost } = await outline(sheet);
     expect(Math.abs(frame - ghost), `рамка ${frame}, содержимое ${ghost}`).toBeLessThanOrEqual(1);
@@ -235,7 +236,7 @@ for (const width of widths) test(`match rating: every step, the prizes and the s
     await expect(sheet.getByText(`${names.length + i + 2} из 10`, { exact: true })).toBeVisible();
   });
   await expect(sheet.getByRole('heading', { name: 'Матч в целом', exact: true })).toBeVisible();
-  await expect(sheet.locator('.review-recap')).toBeVisible();
+  await expect(sheet.locator('.review-recap:not(.sheet-stack-hidden)')).toBeVisible();
   expect(Math.abs((await sheetHeight(page, sheet)) - before)).toBeLessThanOrEqual(1);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

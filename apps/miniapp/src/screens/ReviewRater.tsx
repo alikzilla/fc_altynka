@@ -71,7 +71,7 @@ export function ReviewRater({ players, scores, gameScore, awards, onAward, onSco
   return <ActionSheet title={awardsOnly ? 'Лучшие игроки матча' : 'Оценка матча'} onClose={onClose} busy={busy} footer={<div className="review-rater-footer">
     {error && <p className="field-error" role="alert">{error}</p>}
     {recap && <p className={`review-recap${final ? '' : ' sheet-stack-hidden'}`} aria-live="polite" aria-hidden={!final || undefined}>{recap}</p>}
-    {final && !answered && picked > 0 && <p className="review-recap">Чтобы отправить, оцени хотя бы одного игрока или матч</p>}
+    {!awardsOnly && <p className={`review-recap${final && !answered && picked > 0 ? '' : ' sheet-stack-hidden'}`} aria-hidden={!(final && !answered && picked > 0) || undefined}>Чтобы отправить, оцени хотя бы одного игрока или матч</p>}
     <button className="btn primary wide" disabled={busy || leaving || (final ? !answered : value === undefined)} onClick={event => { if (final) void onSubmit(); else move(step + 1, event.detail === 0); }}>
       {busy ? 'Отправляем…' : final ? submitLabel : 'Далее'}
     </button>

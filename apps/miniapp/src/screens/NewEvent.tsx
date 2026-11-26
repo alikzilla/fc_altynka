@@ -67,7 +67,7 @@ function MatchDatePicker({ communityId, date, onPick }: { communityId: number | 
       };
     })} />
     {communityId === null
-      ? <SheetPlaceholder hint="Выбери группу — здесь появится, сколько человек может"><SummaryLine day={null} total={0} mode="reserve" /></SheetPlaceholder>
+      ? <SheetPlaceholder hint="Выбери группу — кто может играть"><SummaryLine day={null} total={0} mode="reserve" /></SheetPlaceholder>
       : <SummaryLine day={day ?? null} total={total} mode={!data?.days ? 'reserve' : day ? 'day' : 'none'} className={reveal} />}
   </section>;
 }

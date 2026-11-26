@@ -108,7 +108,14 @@ test('an unrated candidate shows a dash, and awards alone cannot be submitted', 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
   await skipAwards(dialog, 1);
   expect(await within(dialog).findByRole('button', { name: 'Отправить оценки' })).toBeDisabled();
-  expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).toBeInTheDocument();
+  expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).not.toHaveAttribute('aria-hidden');
+});
+
+test('the «nothing rated» line is reserved but hidden until the final step needs it', async () => {
+  const dialog = await openRater(openReview);
+  const note = within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч');
+  expect(note).toHaveAttribute('aria-hidden', 'true');
+  expect(note).toHaveClass('sheet-stack-hidden');
 });
 
 test('reopening the sheet resumes at the first unanswered step, or at the match rating when all is answered', async () => {

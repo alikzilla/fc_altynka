@@ -60,11 +60,11 @@ describe('the summary line under the date strip keeps its place', () => {
 
   test('several groups, none picked: a hint over the invisible summary row', async () => {
     renderWithApp(<NewEvent onClose={() => {}} />, { me: twoGroups });
-    const hint = screen.getByText('Выбери группу — здесь появится, сколько человек может');
+    const hint = screen.getByText('Выбери группу — кто может играть');
     expect(hint.closest('.sheet-placeholder')?.querySelector('.sheet-placeholder-ghost summary')).not.toBeNull();
     expect(api.get).not.toHaveBeenCalledWith(expect.stringContaining('/api/availability/summary'), expect.anything());
     await userEvent.selectOptions(screen.getByRole('combobox', { name: 'Группа' }), 'Суббота');
-    expect(screen.queryByText('Выбери группу — здесь появится, сколько человек может')).toBeNull();
+    expect(screen.queryByText('Выбери группу — кто может играть')).toBeNull();
   });
 
   test('a known group: the place is reserved blank while the summary loads, then both variants share one cell', async () => {
