@@ -90,6 +90,6 @@ for (const width of [320, 390]) test(`a duplicate court name takes its reserved 
   await expectStableSheet(page, sheet, async () => {
     await sheet.getByRole('button', { name: 'Добавить площадку' }).click();
     await expect(sheet.getByRole('alert')).toHaveText('Площадка с таким названием уже есть');
-  });
+  }, { uncapped: true });
   await fits(page);
 });

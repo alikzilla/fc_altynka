@@ -224,12 +224,13 @@ for(const width of [320,390])test(`result sheet keeps its height and goal rows r
   const outline=(await outlines.first().boundingBox())!;
   const secondTeam=sheet.getByRole('region',{name:`Авторы голов: ${second}`});
   const before=(await secondTeam.boundingBox())!;
-  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${first}`,exact:true}).click());
+  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${first}`,exact:true}).click(),{content:true});
   const row=(await sheet.getByRole('button',{name:`Гол 1 команды ${first}: выбрать автора`,exact:true}).boundingBox())!;
   expect(Math.abs(row.y-outline.y)).toBeLessThanOrEqual(1);expect(Math.abs(row.height-outline.height)).toBeLessThanOrEqual(1);
   expect(Math.abs((await secondTeam.boundingBox())!.y-before.y)).toBeLessThanOrEqual(1);
-  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${second}`,exact:true}).click());
+  await expectStableSheet(page,sheet,()=>sheet.getByRole('button',{name:`Добавить гол команды ${second}`,exact:true}).click(),{content:true});
   await expect(outlines).toHaveCount(0);
+  // The pickers open inside the fixed-height sheet and may scroll there; only the box is compared.
   await expectStableSheet(page,sheet,async()=>{
     await sheet.getByRole('button',{name:`Гол 1 команды ${first}: выбрать автора`,exact:true}).click();
     await sheet.getByRole('group',{name:new RegExp(`Выбрать автора гола команды ${first}`)}).getByRole('button').first().click();
@@ -250,7 +251,7 @@ for(const [count,hint] of [[3,'кто отдыхает'],[2,'кто начина
   await expectStableSheet(page,sheet,async()=>{
     await sheet.getByRole('button',{name:'Подбросить монету',exact:true}).click();
     await expect(sheet.getByRole('button',{name:'К игре 1',exact:true})).toBeVisible();
-  });
+  },{content:true});
   await expect(sheet.getByText(`Подбрось монету — здесь появится, ${hint}`)).toHaveCount(0);
   await noOverflow(page);
 });

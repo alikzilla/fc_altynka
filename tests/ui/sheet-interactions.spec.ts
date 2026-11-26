@@ -180,7 +180,7 @@ test('an open sheet grows with its content and never shrinks back; drag close an
   await content.evaluate(el => { const extra = document.createElement('div'); extra.id = 'extra'; extra.style.height = '160px'; el.append(extra); });
   await expect.poll(async () => Math.round((await sheet.boundingBox())!.height)).toBe(Math.round(initial + 160));
   // The content gets shorter again: the sheet keeps its height, its footer edge stays on the screen's bottom.
-  await expectStableSheet(page, sheet, () => content.evaluate(el => el.querySelector('#extra')!.remove()));
+  await expectStableSheet(page, sheet, () => content.evaluate(el => el.querySelector('#extra')!.remove()), { uncapped: true });
   expect(Math.round((await sheet.boundingBox())!.y + (await sheet.boundingBox())!.height)).toBe(844);
   expect(await content.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
   const cdp = await page.context().newCDPSession(page);
@@ -197,15 +197,25 @@ test('an open sheet grows with its content and never shrinks back; drag close an
  * No browser here has a virtual keyboard: move the visual viewport the way a phone does when the keyboard opens
  * (shorter, and on iOS sometimes panned by offsetTop) and fire its events, so useBottomSheet measures it for real.
  */
-async function moveVisualViewport(page: Page, height: number | null, offsetTop = 0) {
-  await page.evaluate(([height, offsetTop]) => {
+async function moveVisualViewport(page: Page, height: number | null, offsetTop = 0): Promise<string[]> {
+  return page.evaluate(([height, offsetTop]) => {
     const visual = window.visualViewport!;
+    // Transitions the sheet starts in reply, recorded in the same task that moves the viewport: a later look at
+    // getAnimations() can miss a short transition that has already ended on a loaded machine.
+    const started: string[] = [];
+    const record = (event: TransitionEvent) => {
+      const target = event.target as Element;
+      if (!target.matches('.create-sheet')) return;
+      const transition = target.getAnimations().find((a): a is CSSTransition => a instanceof CSSTransition && a.transitionProperty === event.propertyName);
+      started.push(`${event.propertyName} ${transition ? transition.effect!.getTiming().duration as number : '?'}`);
+    };
+    document.addEventListener('transitionrun', record);
     Object.defineProperty(visual, 'height', { configurable: true, get: () => height ?? innerHeight });
     Object.defineProperty(visual, 'offsetTop', { configurable: true, get: () => offsetTop });
     visual.dispatchEvent(new Event('resize'));
     visual.dispatchEvent(new Event('scroll'));
     // The sheet applies the change in the next frame; return once its transition has started.
-    return new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    return new Promise<string[]>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => { document.removeEventListener('transitionrun', record); resolve(started); })));
   }, [height, offsetTop] as const);
 }
 /** Keyboard tests also run on mobile WebKit (the `webkit-sheets` project); they use no Chromium-only CDP. */
@@ -256,10 +266,8 @@ test('report a problem with the keyboard open: the field and «Отправит�
   const field = sheet.getByLabel('Что случилось?');
   await field.fill('Список не обновился после записи');
   // A 300 px keyboard; iOS also pans the visual viewport a little.
-  await moveVisualViewport(page, 667 - 300 - 20, 20);
   // The keyboard padding grows over ~250 ms rather than jumping (its animated copy --sheet-pad).
-  const transition = await sheet.evaluate(el => new Promise<string[]>(resolve => requestAnimationFrame(() => resolve(el.getAnimations()
-    .filter((a): a is CSSTransition => a instanceof CSSTransition).map(a => `${a.transitionProperty} ${(a.effect!.getTiming().duration as number)}`)))));
+  const transition = await moveVisualViewport(page, 667 - 300 - 20, 20);
   expect(transition).toContain('--sheet-pad 250');
   await sheetHeight(page, sheet);
   const { top, bottom, box } = await visiblePart(sheet);

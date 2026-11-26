@@ -139,13 +139,13 @@ for (const width of [320, 390]) test(`availability sheet keeps its height across
   const editor = sheet.getByRole('region');
   await expect(editor.getByText('Выбери «Могу» — здесь появится выбор времени')).toBeVisible();
   if (width === 390) await page.screenshot({ path: 'artifacts/ui/availability-placeholder.png' });
-  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click());
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click(), { uncapped: true });
   await expect(editor.getByRole('group', { name: 'Время' })).toBeVisible();
-  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не могу', exact: true }).click());
-  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click());
-  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не указано', exact: true }).click());
-  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(4).click());
-  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(3).click());
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не могу', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не указано', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(4).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(3).click(), { uncapped: true });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
