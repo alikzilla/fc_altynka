@@ -96,6 +96,8 @@ test('rapid taps, per-goal authors and unknown card order survive reload without
   });
   expect(digitWidths.length).toBeGreaterThan(10);expect(digitWidths.every(r=>r.tabular && r.difference<.03)).toBe(true);
   await page.getByRole('button',{name:'Убрать гол команды Красные',exact:true}).click();await page.getByRole('button',{name:'Сохранить результат',exact:true}).click();
+  // The sheet closes once the save is answered; read the recorded game only then.
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(world.games.at(-1)?.score).toEqual([2,0]);expect(world.games.at(-1)?.scorers).toEqual([{signupId:1,goals:1}]);
 });
 
@@ -155,10 +157,25 @@ test('lost response survives reload and checks the old receipt without recording
 test('two organizers see a conflict rather than transferring an old result to a new pair',async({page,context})=>{
   const world=gameStatisticsWorld({started:true});await world.attach(page);await page.goto('/event/7/game');
   await page.getByRole('button',{name:'Внести результат',exact:true}).click();await setScore(page,'Красные',1);
+  // The game screen polls the match; hold this phone's refresh so the stale draft reaches the server and gets its 409.
+  const held:(()=>Promise<void>)[]=[];
+  await page.route('**/api/events/7',route=>{if(route.request().method()!=='GET')return route.fallback();held.push(()=>route.fallback());});
   const second=await context.newPage();await world.attach(second,{userId:2});await second.goto('/event/7/game');await result(second,[1,0]);
   await page.getByRole('button',{name:'Сохранить результат',exact:true}).click();
   await expect(page.getByRole('alert')).toContainText('Данные матча изменились');expect(world.games).toHaveLength(1);
+  await page.unroute('**/api/events/7');for(const release of held)await release();
   await expect(page.getByRole('button',{name:'Сохранить результат',exact:true})).toBeDisabled();await second.close();
+});
+
+test('the game screen poll warns about the other organizer\'s result before a stale draft is saved',async({page,context})=>{
+  const world=gameStatisticsWorld({started:true});await world.attach(page);await page.goto('/event/7/game');
+  await page.getByRole('button',{name:'Внести результат',exact:true}).click();await setScore(page,'Красные',1);
+  const second=await context.newPage();await world.attach(second,{userId:2});await second.goto('/event/7/game');await result(second,[1,0]);
+  // Within one poll the open sheet learns of the new game: the draft stays for review and cannot be moved onto the next pair.
+  const sheet=page.getByRole('dialog',{name:'Результат игры',exact:true});
+  await expect(sheet.getByText(/Данные матча изменились\. Сохранён черновик другой игры/)).toBeVisible();
+  await expect(sheet.getByRole('button',{name:'Сохранить результат',exact:true})).toBeDisabled();
+  expect(world.games).toHaveLength(1);expect(world.requests.filter(r=>r.path.endsWith('/results'))).toHaveLength(1);await second.close();
 });
 
 test('lost finish response preserves participants, survives closing, and reconciles completion after refresh',async({page})=>{
