@@ -100,7 +100,7 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small>{t.goalDifference>0?'+':''}{t.goalDifference}</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
     </table></div></section>
 
-    <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{protocol.games.length>0 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>
+    <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{/* The card already shows the latest three: «Все» only when there is more to see. */}{protocol.games.length>3 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>
       {protocol.games.length?<GameResults games={protocol.games.slice(-3).reverse()} protocol={protocol} ev={ev} onEdit={setResult}/>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
     </section>
 
