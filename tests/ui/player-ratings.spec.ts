@@ -208,7 +208,7 @@ test('questionnaire slider follows a reversible drag and Next stays at the botto
   await expect(slider).toHaveValue('7');
   await expect(page.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
   const action = (await next.boundingBox())!;
-  // The questionnaire is a deeper screen: no dock, Next takes its place at the bottom.
+  // The questionnaire is two steps from Профиль: no dock, Next takes its place at the bottom.
   await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
   expect(action.y + action.height).toBeLessThanOrEqual(740 - 16 + 1);
   await expect(next).toBeEnabled();

@@ -62,6 +62,8 @@ test('the organizer runs a game: start, phases by the clock, pause, overtime and
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
   await expect(phase(page)).toHaveText('Ждём старта');
+  // The running game is a single task two steps from Матчи: no dock, its own Back leads out.
+  await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
   await expect(page.getByRole('group', { name: 'Длительность игры' })).toBeVisible();
   await expect(digits(page)).toHaveText('6:00');
 

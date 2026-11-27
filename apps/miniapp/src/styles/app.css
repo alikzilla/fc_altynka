@@ -44,7 +44,7 @@
 }
 * { box-sizing: border-box; }
 html { background: var(--bg); color: var(--text); scrollbar-color: var(--line) var(--bg); scroll-padding-block: 24px 126px; }
-/* Only the tabs carry the dock (lib/pageTransition.ts `hasDock`); their content keeps clear of it. */
+/* The dock stays on the tabs and one step from them (lib/pageTransition.ts `hasDock`); content keeps clear of it. */
 html:has(.nav-shell) { scroll-padding-block: 24px 148px; }
 body { margin: 0; min-height: 100svh; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 #root { isolation: isolate; min-height: 100svh; }

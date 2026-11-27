@@ -95,9 +95,7 @@ test('payment obligation opens the real bill and clears after the member marks p
   await expect(page.getByRole('button', { name: 'Перевести в Kaspi', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Я перевёл' }).click();
   await expect(page.locator('.payment-label')).toHaveText('Ты отметил оплату');
-  // The match page has no dock: its Back returns to the tasks it was opened from.
-  await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
-  await page.getByRole('link', { name: 'Назад' }).click();
+  await page.getByRole('navigation').getByRole('link', { name: 'Задачи' }).click();
   await expect(page.getByRole('heading', { name: 'Новых задач нет' })).toBeVisible();
   // A player gets four dock destinations; opening creation directly still explains who creates matches.
   await expect(page.getByRole('navigation').getByRole('link', { name: 'Создать матч' })).toHaveCount(0);
@@ -156,7 +154,7 @@ test('long names, venue and expense editor fit a 320px screen', async ({ page })
 
 test('Airofit dock remains usable while scrolling and respects contrast preferences', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/matches');
+  await page.goto('/event/1');
   const nav = page.getByRole('navigation', { name: 'Основная навигация' });
   const box = (await nav.boundingBox())!;
   expect(box.x).toBeGreaterThan(0);

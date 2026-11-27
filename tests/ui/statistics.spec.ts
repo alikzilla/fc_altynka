@@ -55,11 +55,11 @@ for (const [width, theme] of [[320, 'dark'], [390, 'light']] as const) test(`men
   await page.getByRole('button', { name: saturday.title }).click();
   await expect(page.getByRole('list', { name: 'Таблица: Пасы' }).getByRole('button').last()).toHaveText(/Константинопольский.*—/);
   await fits(page);
-  // A menu section is a deeper screen: no dock, and the last note scrolls fully into view.
-  await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
+  // All content scrolls clear of the dock.
   await page.evaluate(() => scrollTo(0, document.body.scrollHeight));
   const note = (await page.locator('.stat-note').boundingBox())!;
-  expect(note.y + note.height).toBeLessThanOrEqual(page.viewportSize()!.height - 16);
+  const dock = (await page.getByRole('navigation', { name: 'Основная навигация' }).boundingBox())!;
+  expect(note.y + note.height).toBeLessThanOrEqual(dock.y);
 });
 
 test('a player sees the same centre button and a menu without match creation', async ({ page }) => {

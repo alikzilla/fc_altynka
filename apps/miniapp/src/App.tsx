@@ -114,7 +114,7 @@ function TeamApp() {
                 </Suspense>
                 </ErrorBoundary>
               </ScreenSearchContext.Provider>
-              {/* Only the tabs carry the dock; a deeper screen hides it until Back. */}
+              {/* The dock stays on the tabs and one step from them; deeper task screens hide it until Back. */}
               {hasDock(screenPath) && <Nav />}
               <SkillsPrompt />
               <AvailabilityPrompt />

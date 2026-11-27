@@ -48,7 +48,7 @@
 .team-row.dimmed { opacity:.45; }
 .team-row.target { background:#ffffff06; }
 
-/* Fixed action panel at the bottom of the match page (no dock there). */
+/* Fixed action panel above the dock. */
 .team-panel, .team-pick-row { display:grid; gap:8px; width:100%; max-width:400px; padding:12px; border-radius:28px; background:#121217f2; box-shadow:var(--rim), 0 -10px 30px #0008; pointer-events:auto; }
 .team-panel-status, .team-panel-hint { display:flex; align-items:center; justify-content:center; gap:7px; color:var(--hint); font-size:12.5px; text-align:center; }
 .team-status-dot { width:7px; height:7px; border-radius:50%; background:var(--warn); }

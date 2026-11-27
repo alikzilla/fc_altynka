@@ -49,16 +49,20 @@ test('a match opens forward, Back returns to the same place in the list', async 
   expect(await kinds(page)).toEqual(['forward', 'back']);
 });
 
-test('the dock belongs to the tabs: it sinks away into a match and comes back on Back', async ({ page }) => {
+test('the dock stays one step from the tabs and leaves a deeper task screen until Back', async ({ page }) => {
   const dock = page.getByRole('navigation', { name: 'Основная навигация' });
   await page.goto('/matches');
   await expect(dock).toBeVisible();
   await page.locator('a[href^="/event/3"]').first().click();
   await expect(page).toHaveURL(/\/event\/3/);
   await settled(page);
+  await expect(dock).toBeVisible();
+  // The skills questionnaire is two steps from Профиль: a single task without the dock.
+  await page.goto('/profile/skills');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(dock).toHaveCount(0);
   await page.getByRole('link', { name: 'Назад' }).click();
-  await expect(page).toHaveURL(/\/matches/);
+  await expect(page).toHaveURL(/\/profile$/);
   await settled(page);
   await expect(dock).toBeVisible();
 });
