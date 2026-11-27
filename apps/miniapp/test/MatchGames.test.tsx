@@ -174,3 +174,10 @@ test('a game in the history reads score, then scorers at the edges with «Игр
   expect(item).not.toHaveTextContent('—');
   expect(within(item).getByRole('button',{name:'Изменить результат игры 1'})).toBeEmptyDOMElement();
 });
+
+test('with three games or fewer the card already shows them all, so there is no «Все» link',()=>{
+  const games=Array.from({length:3},(_,i)=>({id:`game-${i+1}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}));
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games})}} reload={()=>{}}/>,{me:player});
+  expect(screen.queryByRole('button',{name:/Все игры/})).toBeNull();
+});
+
