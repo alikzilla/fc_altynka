@@ -116,7 +116,7 @@ test('a running organizer pauses, and a restarted phone offers to bring the sign
   expect(screen.getByText('Игра идёт')).toBeVisible();
   await userEvent.click(screen.getByRole('button', { name: 'Пауза' }));
   expect(timer.pause).toHaveBeenCalled();
-  await userEvent.click(screen.getByRole('button', { name: 'Продолжить сигналы (осталось 2:32)' }));
+  await userEvent.click(screen.getByRole('button', { name: 'Продолжить сигналы' }));
   expect(timer.listen).toHaveBeenCalled();
   expect(screen.queryByRole('button', { name: 'Слышать сигналы' })).toBeNull();
 });
