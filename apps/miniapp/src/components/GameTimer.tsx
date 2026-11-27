@@ -1,5 +1,6 @@
 import { GAME_TIMER_MAX_SEC, GAME_TIMER_MIN_SEC, timerCues, type TimerCue } from '@altynka/core';
 import type { GameTimerView } from '../hooks/useGameTimer';
+import { Icon } from './Icon';
 
 /** «M:SS» of whole seconds. */
 export function clockText(sec: number): string {
@@ -63,7 +64,7 @@ function phaseText(view: GameTimerView): string {
 
 /**
  * The shared game time: a horseshoe dial with the signal marks, big digits and the phase for everyone;
- * start, pause and duration for the organizer.
+ * for the organizer the dial's inner disc starts, pauses and resumes, and a stepper sets the duration.
  * Start and resume never wait for the signals: without a ready track the time runs silently and
  * «Продолжить сигналы» becomes available once the track is built. Only the sound buttons wait for it.
  */
@@ -82,9 +83,16 @@ export function GameTimer({ view }: { view: GameTimerView }) {
       ? <button type="button" className="btn wide" onClick={view.mute}>Выключить сигналы</button>
       : <button type="button" className="btn wide" disabled={!view.trackReady} onClick={() => void view.listen()}>Слышать сигналы</button>;
   };
-  return <section className={`card material-graphite game-timer game-timer-${tone}`} aria-label="Таймер игры">
+  // The organizer starts, pauses and resumes by tapping inside the horseshoe: the whole inner disc is the button.
+  const toggle = view.status === 'waiting' ? { label: 'Старт игры', icon: 'play' as const, run: () => void view.start() }
+    : view.status === 'running' ? { label: 'Пауза', icon: 'pause' as const, run: view.pause }
+    : { label: 'Продолжить', icon: 'play' as const, run: () => void view.resume() };
+  return <section className={`card material-graphite game-timer game-timer-${tone}${view.canControl ? ' game-timer-control' : ''}`} aria-label="Таймер игры">
     <div className="game-dial-frame">
       <GameDial view={view} />
+      {view.canControl && <button type="button" className="game-dial-button" aria-label={toggle.label} onClick={toggle.run}>
+        <span className="game-dial-icon"><Icon name={toggle.icon} /></span>
+      </button>}
       <div className="game-dial-center">
         <p className="game-timer-digits" role="timer">{leftText(view.remainingSec)}</p>
         {/* Announced once per phase; the added time ticks visibly but is not read out every second. */}
@@ -96,14 +104,7 @@ export function GameTimer({ view }: { view: GameTimerView }) {
       <output>{minutes} мин</output>
       <button type="button" aria-label="Больше" disabled={view.durationSec >= GAME_TIMER_MAX_SEC} onClick={() => view.setDurationSec(view.durationSec + 60)}>+</button>
     </div>}
-    <div className="game-timer-controls">
-      {view.canControl && (view.status === 'waiting'
-        ? <button type="button" className="btn primary wide" onClick={() => void view.start()}>Старт игры</button>
-        : view.status === 'running'
-          ? <button type="button" className="btn wide" onClick={view.pause}>Пауза</button>
-          : <button type="button" className="btn primary wide" onClick={() => void view.resume()}>Продолжить</button>)}
-      {signals()}
-    </div>
+    <div className="game-timer-controls">{signals()}</div>
     {view.trackFailed && !overtime && <p className="muted game-timer-note" role="status">Сигналы не загрузились — проверь интернет</p>}
   </section>;
 }
