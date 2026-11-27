@@ -28,6 +28,9 @@ body:has(.nav-shell) .match-screen:has(.match-action), body:has(.nav-shell) .scr
 .player-menu-button { color: var(--hint); margin-right: -8px; }
 /* A row its manager can act on is one button: the name stays the visible label and the tap area spans the row. */
 .person:has(.player-row-button) { position: relative; }
+/* The player's team once teams are published: a colour dot at the row's end, no label. */
+.row-team { display: grid; place-items: center; width: 24px; height: 24px; margin-left: auto; flex: none; }
+.row-team .team-dot { width: 10px; height: 10px; margin: 0; }
 .player-row-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
 .player-row-button::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
 .player-row-button:focus-visible { outline: none; }
@@ -70,6 +73,9 @@ body:has(.nav-shell) .match-action { bottom: calc(110px + var(--safe-bottom)); }
 .match-screen .team .list { padding: 0; }
 .pay { display: block; padding: 20px; }
 .pay-closed { --coral-ink: var(--hint); }
+.bill-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bill-heading h2 { margin: 0; }
+.bill-state { flex: none; padding: 3px 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--hint); font-size: 12.5px; }
 .pay-closed .payment-person-label { color: var(--hint); }
 .payment-label { color: var(--coral-ink); font-size: 14px; line-height: 21px; min-height: 21px; }
 .payment-amount { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; background: none; border: 0; padding: 0; margin-top: 4px; color: inherit; text-align: left; font-size: 36px; line-height: 1.2; font-weight: 550; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
