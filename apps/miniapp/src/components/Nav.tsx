@@ -14,7 +14,7 @@ export function Nav() {
   const [path] = useLocation();
   const { data, error } = useNotifications();
   const [menu, setMenu] = useState(false);
-  const active = (href: string) => href === '/' ? path === '/' : href === '/profile' ? path === '/profile' || path.startsWith('/profile/') || path === '/players' || path.startsWith('/players/') : path === href;
+  const active = (href: string) => href === '/' ? path === '/' : href === '/profile' ? path === '/profile' || path.startsWith('/profile/') : path === href;
   const link = ([href, label, icon]: [string, string, IconName]) => (
     <Link key={href} href={href} className={active(href) ? 'on' : ''} aria-label={label} aria-current={active(href) ? 'page' : undefined} onClick={() => haptic('light')}>
       <span className="nav-icon"><Icon name={icon} />{href === '/notifications' && !error && !!data?.tasks.length && <i className="nav-dot" aria-hidden="true" />}</span>

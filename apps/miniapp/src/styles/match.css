@@ -2,7 +2,8 @@
 .match-screen { gap: 16px; }
 .match-screen .screen-heading { min-height: 50px; }
 .match-screen .subtitle { margin-top: 3px; text-transform: capitalize; }
-.match-screen:has(.match-action), .screen:has(form .match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
+/* Deeper screens have no dock: the fixed action sits where the dock would, content keeps 110 px clear above it. */
+.match-screen:has(.match-action), .screen:has(form .match-action) { padding-bottom: calc(126px + var(--safe-bottom)); }
 .match-screen .event-summary { padding: 16px 18px; border-radius: 26px; display: block; }
 .match-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .match-summary-top .group-tag { align-self: auto; min-width: 0; }
@@ -30,7 +31,7 @@
 .match-guest { display: block; font-size: 12px; }
 .match-empty-row { padding-block: 16px; }
 .match-screen .person .name { font-size: 15px; }
-.match-action { position: fixed; z-index: 6; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(110px + var(--safe-bottom)); display: flex; justify-content: center; pointer-events: none; }
+.match-action { position: fixed; z-index: 6; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); display: flex; justify-content: center; pointer-events: none; }
 .match-action > .btn { width: 100%; max-width: 400px; min-height: 54px; font-size: 16px; pointer-events: auto; box-shadow: var(--rim), 0 4px 18px #0005; }
 .sheet-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 54px; padding: 12px 0; background: none; border: 0; border-bottom: 1px solid var(--line); font-size: 15px; text-align: left; }
 .sheet-action:last-child { border-bottom: 0; }
@@ -107,13 +108,6 @@
   .match-action > .btn { box-shadow: none; }
 }
 
-/* Short phones (≤ 640 px tall): the next step outranks the dock. The match page keeps its own back
-   control, so the dock steps aside while a contextual action is shown. */
-@media (max-height: 640px) {
-  body:has(.match-action) .nav-shell { display: none; }
-  .match-action { bottom: calc(14px + var(--safe-bottom)); }
-  .screen:has(.match-action) { padding-bottom: calc(96px + var(--safe-bottom)); }
-}
 /* The protocol's secondary actions ride beside the primary one, inside the thumb zone. */
 .match-action-pair { display: flex; gap: 10px; width: 100%; max-width: 400px; pointer-events: auto; }
 .match-action-pair > .btn { min-height: 54px; font-size: 16px; box-shadow: var(--rim), 0 4px 18px #0005; }

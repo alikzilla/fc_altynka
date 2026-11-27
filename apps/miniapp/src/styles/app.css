@@ -43,7 +43,9 @@
   font-optical-sizing: auto;
 }
 * { box-sizing: border-box; }
-html { background: var(--bg); color: var(--text); scrollbar-color: var(--line) var(--bg); scroll-padding-block: 24px 148px; }
+html { background: var(--bg); color: var(--text); scrollbar-color: var(--line) var(--bg); scroll-padding-block: 24px 126px; }
+/* Only the tabs carry the dock (lib/pageTransition.ts `hasDock`); their content keeps clear of it. */
+html:has(.nav-shell) { scroll-padding-block: 24px 148px; }
 body { margin: 0; min-height: 100svh; font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 #root { isolation: isolate; min-height: 100svh; }
 ::selection { background: #514064; color: #fff; }
@@ -66,7 +68,8 @@ h1, h2 { text-wrap: balance; }
 input, select, textarea { box-sizing: border-box; min-width: 0; max-width: 100%; caret-color: var(--accent); }
 /* A centred mobile canvas: 440 = 20 + 400 + 20. The dock uses the same frame.
    Surface gradients and inset light are explicitly approved Airofit references. */
-.screen { width: 100%; max-width: 440px; min-height: 100svh; margin: 0 auto; padding: calc(28px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) calc(148px + var(--safe-bottom)) calc(20px + var(--safe-left)); display: flex; flex-direction: column; gap: 20px; }
+.screen { width: 100%; max-width: 440px; min-height: 100svh; margin: 0 auto; padding: calc(28px + var(--safe-top) + var(--tg-content-safe-area-inset-top, 0px)) calc(20px + var(--safe-right)) calc(40px + var(--safe-bottom)) calc(20px + var(--safe-left)); display: flex; flex-direction: column; gap: 20px; }
+body:has(.nav-shell) .screen { padding-bottom: calc(148px + var(--safe-bottom)); }
 .screen { position: relative; }
 .edge-back-layer { position: absolute; inset: 0; z-index: 20; overflow: hidden; pointer-events: none; }
 .edge-back-cue { position: absolute; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--card); color: var(--text); pointer-events: none; opacity: 0; transform: translate3d(calc(var(--edge-offset, 0px) - 50%), -50%, 0); transition: opacity 120ms ease-out; }

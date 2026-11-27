@@ -102,3 +102,13 @@ describe('club hydration', () => {
     expect(getClubId()).toBe('kairat');
   });
 });
+
+test('the dock stays on the tabs and leaves deeper screens until Back', async () => {
+  const loc = open();
+  expect(await screen.findByRole('navigation', { name: 'Основная навигация' })).toBeInTheDocument();
+  loc.navigate('/profile/skills');
+  expect(await screen.findByRole('heading', { name: 'Твоя игра' })).toBeInTheDocument();
+  expect(screen.queryByRole('navigation', { name: 'Основная навигация' })).toBeNull();
+  loc.navigate('/profile');
+  expect(await screen.findByRole('navigation', { name: 'Основная навигация' })).toBeInTheDocument();
+});

@@ -1,11 +1,17 @@
 /* Screen changes (lib/pageTransition.ts sets data-nav on <html> for the length of one view transition).
-   Deeper screens arrive from the right, Back returns them, dock tabs cross-fade in place. The dock and toasts stand still. */
+   Deeper screens arrive from the right, Back returns them, dock tabs cross-fade in place. Toasts stand still; the dock
+   stands still between tabs and sinks away into a deeper screen. */
 :root[data-nav] .nav-shell { view-transition-name: dock; }
 :root[data-nav] .toast { view-transition-name: toast; }
 :root[data-nav] .connection-notice { view-transition-name: connection; }
 ::view-transition-group(dock), ::view-transition-group(toast), ::view-transition-group(connection) { animation: none; }
 ::view-transition-old(dock), ::view-transition-old(toast), ::view-transition-old(connection) { display: none; }
 ::view-transition-new(dock), ::view-transition-new(toast), ::view-transition-new(connection) { animation: none; }
+/* Only the tabs carry the dock: into a deeper screen it sinks away, Back to a tab raises it again. */
+::view-transition-old(dock):only-child { display: block; animation: dock-out 180ms var(--ease-out) both; }
+::view-transition-new(dock):only-child { animation: dock-in 240ms var(--ease-out) both; }
+@keyframes dock-out { to { opacity: 0; transform: translate3d(0, 28px, 0); } }
+@keyframes dock-in { from { opacity: 0; transform: translate3d(0, 28px, 0); } }
 
 :root[data-nav='fade']::view-transition-old(root) { animation: nav-fade-out 110ms ease-out both; }
 :root[data-nav='fade']::view-transition-new(root) { animation: nav-fade-in 170ms ease-out both; }
