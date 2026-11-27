@@ -290,3 +290,20 @@ test('the dial is full and unlit while waiting and empty in added time', async (
   expect(container.querySelectorAll('.game-dial-cue.passed')).toHaveLength(4);
 });
 
+
+test('the organizer starts and pauses from the dial itself; a participant has no such button', async () => {
+  const timer = view();
+  (useGameTimer as Mock).mockReturnValue(timer);
+  const first = open(organizerEvent);
+  await settle();
+  const start = screen.getByRole('button', { name: 'Старт игры' });
+  expect(start.closest('.game-dial-frame')).not.toBeNull();
+  expect(screen.getAllByRole('button').filter(b => /Старт|Пауза|Продолжить$/.test(b.getAttribute('aria-label') ?? b.textContent ?? ''))).toHaveLength(1);
+  await userEvent.click(start);
+  expect(timer.start).toHaveBeenCalled();
+  first.unmount();
+  (useGameTimer as Mock).mockReturnValue(view({ status: 'running', remainingSec: 200, canControl: false }));
+  const { container } = open(playerEvent, player);
+  await settle();
+  expect(container.querySelector('.game-dial-button')).toBeNull();
+});
