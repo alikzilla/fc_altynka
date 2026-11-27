@@ -95,6 +95,12 @@ export function Event() {
     {pending && <EventSkeleton />}
     {error && <ErrorNote text={error.status === 404 ? 'Матч не найден' : 'Не получилось загрузить матч'} retry={reload} />}
     {ev && <>
+      {/* A cancelled match says so first, with what it means for the player; everything under it stays readable but dimmed. */}
+      {ev.status === 'cancelled' && <section className={`card match-cancelled-banner ${reveal}`} role="status">
+        <h2>Матч отменён</h2>
+        <p>Запись закрыта, оплачивать ничего не нужно.</p>
+        <Link className="btn primary" href="/matches">К матчам</Link>
+      </section>}
       <section className={`card material-plum event-summary ${reveal} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Матч и твоё участие">
         <div className="match-summary-top"><GroupTag community={ev.community} always /><p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p></div>
         {ev.place && ev.placeMapUrl

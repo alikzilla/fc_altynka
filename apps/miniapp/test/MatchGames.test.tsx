@@ -139,3 +139,15 @@ test('goals without an author read as a count, and the goal difference sits on t
   expect(screen.getByRole('table',{name:'Таблица команд'})).toHaveTextContent('2:0+2');
 });
 
+test('a finished match stands the teams on a podium and adds the viewer\'s own line',()=>{
+  const roster=[{signupId:1,userId:player.userId,name:'Я',teamIndex:2},{signupId:2,userId:3,name:'Бека',teamIndex:0},{signupId:3,userId:4,name:'Ерпа',teamIndex:1}];
+  const g=(id:string,sequence:number,pair:[number,number],score:[number,number],scorers:{signupId:number;goals:number}[]=[])=>({id,sequence,pair,score,scorers,firstRestTeamIndex:null,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1});
+  const games=[g('g1',1,[0,2],[2,1],[{signupId:1,goals:1}]),g('g2',2,[0,1],[1,0]),g('g3',3,[1,2],[0,0])];
+  const standings=[{teamIndex:0,rank:1,played:2,wins:2,draws:0,losses:0,goalsFor:3,goalsAgainst:1,goalDifference:2,points:6},{teamIndex:1,rank:2,played:2,wins:0,draws:1,losses:1,goalsFor:0,goalsAgainst:1,goalDifference:-1,points:1},{teamIndex:2,rank:2,played:2,wins:0,draws:1,losses:1,goalsFor:1,goalsAgainst:2,goalDifference:-1,points:1}];
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({state:'completed',roster,games,standings,currentPair:null,restingTeamIndex:null})}} reload={()=>{}}/>,{me:player});
+  const podium=screen.getByRole('region',{name:'Итоги матча'});
+  expect(within(podium).getByText('3 игры')).toBeInTheDocument();
+  expect(within(podium).getAllByRole('listitem').map(li=>li.getAttribute('aria-label'))).toEqual(['2 место: Жёлтые, 1 очко','1 место: Красные, 6 очков','3 место: Синие, 1 очко']);
+  expect(podium).toHaveTextContent('Ты за Жёлтых · 0–1–1 · 1 гол');
+});
+

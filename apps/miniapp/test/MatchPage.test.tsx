@@ -326,3 +326,14 @@ test("the organizer's note sits in the match card beside time and place", async 
   const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
   expect(card).toHaveTextContent('Берём две футболки');
 });
+
+test('a cancelled match opens with a banner that closes the question of signing up and paying', async () => {
+  ev = { ...ev, status: 'cancelled' };
+  open();
+  const banner = (await screen.findByRole('heading', { name: 'Матч отменён' })).closest('section')!;
+  expect(banner).toHaveAttribute('role', 'status');
+  expect(banner).toHaveTextContent('Матч отменён');
+  expect(banner).toHaveTextContent('оплачивать ничего не нужно');
+  expect(within(banner).getByRole('link', { name: 'К матчам' })).toHaveAttribute('href', '/matches');
+});
+

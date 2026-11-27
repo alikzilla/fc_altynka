@@ -59,6 +59,11 @@ body:has(.nav-shell) .match-action { bottom: calc(110px + var(--safe-bottom)); }
 .sheet-action[aria-disabled='true'] { opacity: .45; pointer-events: none; }
 .match-cancelled { background: #24212a; }
 .match-cancelled :is(.match-detail-time, .match-detail-place) { color: #c5bacc; }
+.match-cancelled .match-detail-time { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.match-cancelled-banner { display: grid; justify-items: start; gap: 8px; padding: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--danger) 20%, var(--card)), var(--card)); box-shadow: var(--rim); }
+.match-cancelled-banner h2 { margin: 0; color: var(--danger); font-size: 19px; }
+.match-cancelled-banner p { margin: 0 0 6px; color: var(--text); font-size: 14px; }
+.match-screen:has(.match-cancelled-banner) :is(.event-summary, .tabs, .tab-panel) { opacity: .6; }
 .team-own { font-size: 14px; font-weight: 500; }
 .team-self { font-weight: 600; }
 .match-screen .team { padding: 18px; }
