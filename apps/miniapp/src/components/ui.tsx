@@ -2,7 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useLayoutEffect, use
 import { createPortal } from 'react-dom';
 import { clubById } from '@altynka/core';
 import { Link, useLocation } from 'wouter';
-import { Icon } from './Icon';
+import { Icon, type IconName } from './Icon';
 import { useBackButton } from '../lib/tg';
 import { EdgeBackGesture } from './EdgeBackGesture';
 import { useClubId } from '../lib/theme';
@@ -168,6 +168,7 @@ export function ErrorNote({ text, retry }: { text: string; retry?: () => void })
   return <div className="card error" role="alert"><Icon name="alert" /><p>{text}</p>{retry && <button className="btn wide" onClick={retry}>Попробовать ещё раз</button>}</div>;
 }
 
-export function EmptyState({ title, text, action, className = '' }: { title: string; text?: string; action?: ReactNode; className?: string }) {
-  return <section className={`empty-state ${className}`}><h2>{title}</h2>{text && <p>{text}</p>}{action && <div className="empty-action">{action}</div>}</section>;
+/** With `icon` the quiet, centred form used on the match tabs: a large muted glyph over the title and one line. */
+export function EmptyState({ title, text, action, icon, className = '' }: { title: string; text?: string; action?: ReactNode; icon?: IconName; className?: string }) {
+  return <section className={`empty-state ${icon ? 'empty-state-quiet' : ''} ${className}`}>{icon && <Icon name={icon} className="empty-state-icon" />}<h2>{title}</h2>{text && <p>{text}</p>}{action && <div className="empty-action">{action}</div>}</section>;
 }

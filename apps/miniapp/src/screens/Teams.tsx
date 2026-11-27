@@ -76,7 +76,7 @@ function PublishedTeams({ ev, reload }: Props) {
       if (failure instanceof ApiError && failure.status === 409) reload();
     } finally { locked.current = false; if (mounted.current) setBusy(false); }
   }
-  if (!ev.teams?.publishedAt) return <EmptyState title="Составы ещё не опубликованы" text="Организатор добавит команды перед игрой." />;
+  if (!ev.teams?.publishedAt) return <EmptyState icon="shirt" title="Составы ещё не опубликованы" text="Организатор добавит команды перед игрой." />;
   // The viewer's own team leads.
   const order = ev.teams.teams.map((_, i) => i).sort((a, b) => Number(b === ownTeam) - Number(a === ownTeam));
   return <div className="team-editor">
@@ -241,7 +241,7 @@ function TeamEditor({ ev, reload, actionBlocked, onStart }: EditorProps) {
     return () => document.removeEventListener('keydown', escape);
   }, [selected]);
 
-  if (!ev.main.length) return <EmptyState title="Нет игроков для составов" text="Сначала запиши участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">К списку участников</Link>} />;
+  if (!ev.main.length) return <EmptyState icon="shirt" title="Нет игроков для составов" text="Сначала запиши участников на матч." action={<Link href={`/event/${ev.id}`} className="btn">К списку участников</Link>} />;
   const source = selected === null ? -1 : draft.split.findIndex(ids => ids.includes(selected));
   const averages = draft.split.map(ids => ids.length ? ids.reduce((sum, id) => sum + (draft.ratings[id] ?? 5), 0) / ids.length : 0);
   const gap = averages.length ? Math.max(...averages) - Math.min(...averages) : 0;

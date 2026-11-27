@@ -3,6 +3,7 @@ import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
 import { CurrentPair } from '../components/CurrentPair';
+import { MatchPodium } from '../components/MatchPodium';
 import { GameTeamName } from '../components/GameTeamName';
 import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, EmptyState } from '../components/ui';
@@ -10,6 +11,7 @@ import { Icon } from '../components/Icon';
 import { GameResultSheet } from './GameResultSheet';
 import { gamePlayerName } from '../lib/gamePlayerName';
 import { FinishMatchSheet, useGameProtocolActions } from './gameProtocolActions';
+import { useMe } from '../state/me';
 
 /** One line per run of goals with the same author and pass: «Али ×2 (Дамир)». */
 type GoalLine = { author: string; pass: string | null };
@@ -64,13 +66,14 @@ function GameLeaders({protocol,ev}:{protocol:GameProtocolDto;ev:EventDetailDto})
 
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
   const protocol=ev.gameProtocol;
+  const me=useMe();
   const [result,setResult]=useState<GameResult|null|undefined>(undefined);
   const [menu,setMenu]=useState(false);
   const [history,setHistory]=useState(false);
   const actions=useGameProtocolActions(ev,reload,()=>setMenu(false));
   const {busy,error,pendingFinish}=actions;
-  if(!protocol || protocol.state==='legacy') return <EmptyState title="Протокол не велся" text="В этом матче результаты коротких игр не записывались."/>;
-  if(protocol.state==='not_started') return <EmptyState title="Матч ещё не начался" text="После подтверждения составов организатор начнёт матч. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
+  if(!protocol || protocol.state==='legacy') return <EmptyState icon="ball" title="Протокол не велся" text="В этом матче результаты коротких игр не записывались."/>;
+  if(protocol.state==='not_started') return <EmptyState icon="ball" title="Матч ещё не начался" text="После подтверждения составов организатор начнёт матч. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
   const active=protocol.state==='playing';
   // The time itself lives on the game screen; here a blinking mark only says the clock is running right now.
   const live=!!protocol.timer && protocol.timer.pausedAt===null;
@@ -82,7 +85,8 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
         ? <div className="match-action-pair"><Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link><button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button></div>
         : <Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>)}
       {protocol.canRecord && <MatchAction><div className="match-action-pair"><Link className="btn primary wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button>}</div></MatchAction>}
-    </section> : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">{protocol.games.length?`Сыграно игр: ${protocol.games.length}`:'Результаты не записывались'}</p></div>}
+    </section> : protocol.games.length ? <MatchPodium protocol={protocol} colors={ev.teams?.colors} userId={me.userId}/>
+      : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">Результаты не записывались</p></div>}
     <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
       <thead><tr><th scope="col">Команда</th><th scope="col"><abbr title="Игры">И</abbr></th><th scope="col"><abbr title="Победы, ничьи, поражения">В–Н–П</abbr></th><th scope="col"><abbr title="Забито, пропущено и разница голов">Мячи</abbr></th><th scope="col">Очки</th></tr></thead>
       <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small>{t.goalDifference>0?'+':''}{t.goalDifference}</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
