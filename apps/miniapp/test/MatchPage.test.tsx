@@ -320,3 +320,9 @@ test('an organizer removal takes the row away at once and puts it back when the 
   expect(screen.getByText('Ерлан')).toBeInTheDocument();
   expect(screen.getByRole('heading', { name: /Резерв/ })).toBeInTheDocument();
 });
+
+test("the organizer's note sits in the match card beside time and place", async () => {
+  open();
+  const card = await screen.findByRole('region', { name: 'Матч и твоё участие' });
+  expect(card).toHaveTextContent('Берём две футболки');
+});

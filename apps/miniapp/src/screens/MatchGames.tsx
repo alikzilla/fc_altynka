@@ -32,7 +32,7 @@ function goalLines(protocol: GameProtocolDto, game: GameResult, team: number, ev
     if(left) lines.push({author:`${scorer}${times(left)}`,pass:null});
   }
   const missing=game.score[game.pair.indexOf(team)]-known;
-  if(missing>0) lines.push({author:`автор не указан: ${missing}`,pass:null});
+  if(missing>0) lines.push({author:`${missing} ${plural(missing,'гол','гола','голов')} без автора`,pass:null});
   return lines;
 }
 
@@ -85,7 +85,7 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
     </section> : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">{protocol.games.length?`Сыграно игр: ${protocol.games.length}`:'Результаты не записывались'}</p></div>}
     <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
       <thead><tr><th scope="col">Команда</th><th scope="col"><abbr title="Игры">И</abbr></th><th scope="col"><abbr title="Победы, ничьи, поражения">В–Н–П</abbr></th><th scope="col"><abbr title="Забито, пропущено и разница голов">Мячи</abbr></th><th scope="col">Очки</th></tr></thead>
-      <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small> ({t.goalDifference>0?'+':''}{t.goalDifference})</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
+      <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small>{t.goalDifference>0?'+':''}{t.goalDifference}</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
     </table></div><p className="muted game-table-note">Победа — 3 очка, ничья — 1.</p></section>
 
     <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{protocol.games.length>0 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>

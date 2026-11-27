@@ -123,7 +123,14 @@ test('closed bill with outstanding due is read-only', () => {
   renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Перевести в Kaspi' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Я перевёл' })).not.toBeInTheDocument();
-  expect(screen.getByText('Расчёт закрыт')).toBeVisible();
+  expect(screen.getByText('Расчёт закрыт · оплата не отмечена')).toBeVisible();
+  expect(screen.getByRole('region', { name: 'Твоя оплата' })).not.toHaveClass('material-coral');
+});
+
+test('a closed bill tells a payer who marked payment that it is settled', () => {
+  const closed = { ...bill, status: 'closed' as const, lines: bill.lines.map(l => l.userId === player.userId ? { ...l, state: 'paid' as const, paidAmount: l.amount, due: 0 } : l) };
+  renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
+  expect(screen.getByText('✓ Ты оплатил · расчёт закрыт')).toBeVisible();
 });
 
 test('live share preview rounds up to 50', async () => {
@@ -195,12 +202,19 @@ test('receiver toggles a line and reminds debtors', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
   expect(screen.getByText('Кто-то перевёл, но не отметил? Поставь галочку сам.')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
-  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
   const remind = screen.getByRole('button', { name: 'Напомнить должникам' });
   await userEvent.click(remind);
   await userEvent.click(remind);
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/remind');
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
+});
+
+test('once everyone marked payment the organizer is offered to close the bill, not to remind', () => {
+  const paid: BillDto = { ...bill, lines: bill.lines.map(l => ({ ...l, paidAmount: l.amount, state: 'paid', due: 0 })) };
+  renderWithApp(<Bill ev={evWith(2, paid)} reload={() => {}} />, { me: organizer });
+  expect(screen.queryByRole('button', { name: 'Напомнить должникам' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Закрыть счёт' })).toHaveClass('primary');
 });
 
 test('closed bill keeps the checkboxes: unticking a mistaken mark reopens it', async () => {

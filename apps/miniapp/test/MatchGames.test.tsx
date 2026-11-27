@@ -131,3 +131,11 @@ describe('live mark on the current game',()=>{
   });
 });
 
+test('goals without an author read as a count, and the goal difference sits on the goals line', () => {
+  const unknown={id:'g1',sequence:1,pair:[0,1] as [number,number],score:[2,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1};
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games:[unknown]})}} reload={()=>{}}/>,{me:player});
+  expect(screen.getByText('2 гола без автора')).toBeInTheDocument();
+  expect(screen.queryByText(/автор не указан/)).toBeNull();
+  expect(screen.getByRole('table',{name:'Таблица команд'})).toHaveTextContent('2:0+2');
+});
+

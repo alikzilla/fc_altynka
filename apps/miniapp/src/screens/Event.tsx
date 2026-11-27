@@ -100,6 +100,8 @@ export function Event() {
         {ev.place && ev.placeMapUrl
           ? <button type="button" className="match-detail-place match-place-copy" aria-label={`${ev.place}, скопировать ссылку ${is2gis(ev.placeMapUrl) ? 'на 2ГИС' : 'на карту'}`} onClick={() => copyPlace(ev.placeMapUrl!)}><Icon name="pin" /><span>{ev.place}</span><Icon name="copy" className="match-place-copy-icon" /></button>
           : <p className="match-detail-place"><Icon name="pin" /><span>{ev.place || 'Поле пока не выбрано'}</span></p>}
+        {/* The organizer's note belongs to the match itself, beside time and place, not between a list heading and its rows. */}
+        {ev.comment && <p className="match-detail-place match-detail-note"><Icon name="chat" /><span>{ev.comment}</span></p>}
         <MatchParticipation key={ev.id} ev={ev} reload={reload} suppressAction={gamePrimary} />
       </section>
       <MatchRatings key={`ratings-${ev.id}`} ev={ev} reload={reload} />

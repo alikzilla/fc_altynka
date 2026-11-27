@@ -26,10 +26,17 @@ body:has(.nav-shell) .match-screen:has(.match-action), body:has(.nav-shell) .scr
 .match-heading-actions { display: flex; flex-shrink: 0; margin-right: -10px; }
 .match-menu-button, .player-menu-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--text); border-radius: 50%; }
 .player-menu-button { color: var(--hint); margin-right: -8px; }
+/* A row its manager can act on is one button: the name stays the visible label and the tap area spans the row. */
+.person:has(.player-row-button) { position: relative; }
+.player-row-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.player-row-button::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.player-row-button:focus-visible { outline: none; }
+.player-row-button:focus-visible::after { outline: 2px solid var(--accent); outline-offset: -2px; }
+.person:has(.player-row-button:active) { background: #ffffff08; }
 .match-list-heading { min-height: 28px; }
 .match-list-heading > :is(a, button) { margin-block: -8px; }
 .match-count { font-size: 15px; font-weight: 400; color: var(--hint); margin-left: 5px; }
-.match-comment { font-size: 13px; color: var(--hint); line-height: 1.5; margin-bottom: 12px; overflow-wrap: anywhere; }
+.match-detail-note { margin-top: 6px; overflow-wrap: anywhere; }
 .match-guest { display: block; font-size: 12px; }
 .match-empty-row { padding-block: 16px; }
 .match-screen .person .name { font-size: 15px; }
@@ -57,6 +64,8 @@ body:has(.nav-shell) .match-action { bottom: calc(110px + var(--safe-bottom)); }
 .match-screen .team { padding: 18px; }
 .match-screen .team .list { padding: 0; }
 .pay { display: block; padding: 20px; }
+.pay-closed { --coral-ink: var(--hint); }
+.pay-closed .payment-person-label { color: var(--hint); }
 .payment-label { color: var(--coral-ink); font-size: 14px; line-height: 21px; min-height: 21px; }
 .payment-amount { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; background: none; border: 0; padding: 0; margin-top: 4px; color: inherit; text-align: left; font-size: 36px; line-height: 1.2; font-weight: 550; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .payment-amount svg { width: 17px; height: 17px; color: var(--coral-ink); }
