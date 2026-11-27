@@ -59,7 +59,7 @@ test('/api/me 401 asks to open the app from Telegram', async () => {
   expect(await screen.findByText('Открой мини-апп из Telegram')).toBeInTheDocument();
 });
 
-test('the dock stays on the tabs and leaves deeper screens until Back', async () => {
+test('the dock leaves a deeper task screen until Back', async () => {
   const loc = open();
   expect(await screen.findByRole('navigation', { name: 'Основная навигация' })).toBeInTheDocument();
   loc.navigate('/profile/skills');

@@ -101,9 +101,8 @@ test('matches keyboard tabs separate upcoming games from past matches', async ({
   await page.screenshot({ path: 'artifacts/ui/ux-matches-active.png', fullPage: true });
 });
 
-// The menu lives in the dock, which only the tabs carry: a match page has no way to open it.
-test('sheet preserves past matches query in its background', async ({ page }) => {
-  for (const path of ['/matches?view=past']) {
+test('sheet preserves past matches and bill query in its background', async ({ page }) => {
+  for (const path of ['/matches?view=past', '/event/7?tab=bill']) {
     await page.goto(path);
     const tab = page.getByRole('tab', { name: path.startsWith('/matches') ? 'Прошлые' : 'Оплата', exact: true });
     await expect(tab).toHaveAttribute('aria-selected', 'true');

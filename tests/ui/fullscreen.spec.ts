@@ -63,10 +63,8 @@ for (const [route, heading] of [['/', /матч/i], ['/matches', 'Матчи'], 
     // The header row (back button, title and actions) starts below Telegram's own buttons.
     const header = (await page.locator('.screen-heading').boundingBox())!;
     expect(header.y).toBeGreaterThanOrEqual(SAFE_TOP + CONTENT_TOP);
-    // The tabs keep the dock above the home indicator; the match page is a deeper screen without one.
-    const nav = page.getByRole('navigation', { name: 'Основная навигация' });
-    if (route === '/event/7') { await expect(nav).toHaveCount(0); return; }
-    const dock = (await nav.boundingBox())!;
+    // The dock stays above the home indicator.
+    const dock = (await page.getByRole('navigation', { name: 'Основная навигация' }).boundingBox())!;
     expect(dock.y + dock.height).toBeLessThanOrEqual(844 - SAFE_BOTTOM);
   });
 }

@@ -5,14 +5,25 @@ import type { AroundNavHandler } from 'wouter';
 export const SHEET_PATH = /^\/(?:new|event\/\d+\/schedule|profile\/settings\/[^/]+|profile\/availability|players\/\d+)$/;
 
 const ROOT_TABS = new Set(['/', '/matches', '/notifications', '/profile']);
-/** Sheets over the Profile tab: the tab stays underneath, so its dock stays too. */
-const ROOT_SHEET = /^\/profile\/(?:settings\/[^/]+|availability|club)$/;
+/** A sheet route counts as the screen it opens over. */
+const SHEET_SUFFIX = /\/(?:schedule|settings\/[^/]+|availability|club)$/;
 
 /**
- * The dock belongs to the four tabs only. A deeper screen (a match, its game, the review, a menu section,
- * a player) hides it until Back returns to a tab: the screen's own Back is the way out.
+ * How far a screen sits from the tabs: the tabs are 0, a match or a menu section is 1, a match's game or review
+ * and the skills questionnaire are 2. Ids do not add a level (`/event/7` is one step from Матчи).
  */
-export const hasDock = (path: string) => ROOT_TABS.has(path) || ROOT_SHEET.test(path);
+function screenLevel(path: string): number {
+  if (ROOT_TABS.has(path)) return 0;
+  const base = path.replace(SHEET_SUFFIX, '') || '/';
+  return ROOT_TABS.has(base) ? 0 : base.split('/').filter(part => part && !/^\d+$/.test(part)).length;
+}
+
+/**
+ * The dock stays on the tabs and one step from them, where people still browse (a match, Статистика, Игроки).
+ * Deeper screens are a single task (the running game, the review, the questionnaire): the dock leaves until
+ * Back, and the screen's own Back is the way out.
+ */
+export const hasDock = (path: string) => screenLevel(path) <= 1;
 export type NavKind = 'forward' | 'back' | 'fade';
 
 /** Dock tabs are level 0; every other screen is as deep as its path. */

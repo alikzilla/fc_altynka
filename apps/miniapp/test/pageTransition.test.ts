@@ -26,14 +26,15 @@ describe('navKind', () => {
 });
 
 describe('hasDock', () => {
-  it('keeps the dock on the four tabs and the sheets over Profile', () => {
-    for (const path of ['/', '/matches', '/notifications', '/profile', '/profile/club', '/profile/availability', '/profile/settings/name']) {
+  it('keeps the dock on the tabs, one step from them and on the sheets over those screens', () => {
+    for (const path of ['/', '/matches', '/notifications', '/profile', '/profile/club', '/profile/availability', '/profile/settings/name',
+      '/event/5', '/event/5/schedule', '/stats', '/players', '/players/7', '/venues']) {
       expect(hasDock(path), path).toBe(true);
     }
   });
 
-  it('hides it on every deeper screen', () => {
-    for (const path of ['/event/5', '/event/5/game', '/event/5/review', '/event/5/schedule', '/players', '/players/7', '/stats', '/venues', '/profile/skills']) {
+  it('hides it on the deeper task screens', () => {
+    for (const path of ['/event/5/game', '/event/5/review', '/profile/skills']) {
       expect(hasDock(path), path).toBe(false);
     }
   });

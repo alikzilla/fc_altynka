@@ -122,6 +122,7 @@
 @media (max-width: 374px) { .game-score-buttons output { font-size: 32px; } }
 .match-games .game-current .match-action { position: static; inset: auto; width: auto; padding: 0; margin-top: 18px; background: none; pointer-events: auto; }
 .match-screen:has(.game-current .match-action) { padding-bottom: calc(40px + var(--safe-bottom)); }
+body:has(.nav-shell) .match-screen:has(.game-current .match-action) { padding-bottom: calc(110px + var(--safe-bottom)); }
 .game-goal-repeat { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 8px 14px; border: 1px dashed var(--field-border); border-radius: 22px; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 500; }
 
 /* Current game: a fixture with kit discs, points so far and the resting / kickoff chip. */

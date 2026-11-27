@@ -256,6 +256,12 @@ test('finish confirms the actual roster with main preselected and reserve option
   expect(api.send).toHaveBeenCalledWith('POST', '/api/events/8/finish', { participantSignupIds: [1, 2] });
 });
 
+test('a linked player profile keeps the profile tab active', async () => {
+  (api.get as Mock).mockResolvedValue({ tasks: [] });
+  renderWithApp(<NotificationsProvider><Nav /></NotificationsProvider>, { me: player, path: '/players/12' });
+  expect(screen.getByRole('link', { name: 'Профиль' })).toHaveAttribute('aria-current', 'page');
+});
+
 test('a profile sheet keeps the profile tab active', async () => {
   (api.get as Mock).mockResolvedValue({ tasks: [] });
   renderWithApp(<NotificationsProvider><Nav /></NotificationsProvider>, { me: player, path: '/profile/club' });
