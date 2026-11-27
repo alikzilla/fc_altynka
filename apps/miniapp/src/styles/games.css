@@ -9,6 +9,21 @@
 .game-pair { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 14px 0 12px; font-size: 21px; font-weight: 550; letter-spacing: -.025em; }
 .game-pair-separator { font-weight: 400; color: var(--hint); }
 .game-completed { padding: 4px 0; }
+/* A finished match: a podium in the teams' colours (games tab, components/MatchPodium.tsx). */
+.match-podium { display: grid; gap: 16px; padding: 18px 18px 16px; }
+.match-podium-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.match-podium-head h2 { margin: 0; }
+.match-podium-head .muted { font-size: 13px; }
+.podium { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); align-items: end; gap: 8px; margin: 0; padding: 0; list-style: none; text-align: center; }
+.podium-step { display: grid; justify-items: center; gap: 6px; min-width: 0; }
+.podium-step .game-kit { width: 38px; height: 38px; box-shadow: inset 0 1px 2px #fff8, inset 0 -4px 8px #0005, 0 4px 10px #0005; }
+.podium-step.first .game-kit { width: 52px; height: 52px; }
+.podium-name { max-width: 100%; color: var(--blue-ink); font-size: 12.5px; overflow-wrap: anywhere; }
+.podium-block { display: grid; place-items: center; width: 100%; border-radius: 12px 12px 4px 4px; background: #ffffff14; color: var(--text); font-size: 17px; font-weight: 650; font-variant-numeric: tabular-nums; }
+.podium-step.first .podium-block { background: linear-gradient(#f1d27a45, #f1d27a14); color: #f4dc93; }
+.podium-me { display: flex; align-items: center; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 16px; background: #060b2266; color: var(--text); font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.podium-me .team-dot { margin: 0; }
+@media (prefers-contrast: more) { .podium-block { border: 1px solid currentColor; } }
 .game-completed h2 { margin-bottom: 6px; }
 .game-standings-section { padding: 18px 16px; }
 .game-table-scroll { overflow-x: auto; overscroll-behavior-inline: contain; border-radius: 4px; }
@@ -22,15 +37,23 @@
 .game-rank { color: var(--hint); font-size: 12px; font-weight: 400; margin-right: 8px; font-variant-numeric: tabular-nums; }
 .game-standings .game-team-name { gap: 5px; }
 .game-standings .game-team-name .team-dot { width: 6px; height: 6px; flex-basis: 6px; }
-.game-standings small { display: block; color: var(--hint); font-size: 12px; line-height: 1.35; }
+/* Goals and their difference on one line («3:1 +2»): a two-line cell made every row taller than the rest of the table. */
+.game-standings small { margin-left: 4px; color: var(--hint); font-size: 11.5px; }
 .game-standings .game-points { font-size: 16px; font-weight: 600; }
-.game-table-note { margin: 10px 0 0; font-size: 12px; }
+.game-standings-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.game-standings-head h2 { margin: 0; }
+/* The 3/1/0 rule sits behind an «i» in the card's corner, level with the heading. */
+.points-hint { position: relative; display: inline-flex; }
+.points-hint-button { display: grid; place-items: center; width: 44px; height: 44px; margin: -10px -10px -10px 0; padding: 0; border: 0; background: none; color: var(--hint); font: 600 12px/1 var(--font, inherit); cursor: pointer; }
+.points-hint-button::before { content: ''; position: absolute; width: 20px; height: 20px; border: 1.5px solid currentColor; border-radius: 50%; }
+.points-hint-button[aria-expanded='true'] { color: var(--text); }
+.points-hint-bubble { position: absolute; top: calc(100% + 4px); right: -6px; z-index: 3; width: max-content; max-width: 220px; padding: 9px 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 14%, var(--card)); color: var(--text); font-size: 13px; line-height: 1.4; box-shadow: 0 8px 22px #0008; }
 .game-results, .game-scorers-list { list-style: none; padding: 0; margin: 0; }
-.game-result { padding: 14px 0 18px; border-top: 1px solid var(--line); }
+.game-result { padding: 12px 0 14px; border-top: 1px solid var(--line); }
 .game-result:first-child { padding-top: 0; border-top: 0; }
 .game-result > .row { min-height: 32px; font-size: 12px; }
 .game-result .btn-text { font-size: 13px; }
-.game-result-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; padding: 6px 0 10px; font-size: 14px; }
+.game-result-pair { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; align-items: center; padding: 2px 0 6px; font-size: 14px; }
 .game-result-pair > :last-child { justify-self: end; }
 .game-result-pair strong { font-weight: 550; font-size: 23px; font-variant-numeric: tabular-nums; }
 .game-goals { font-size: 13px; line-height: 1.5; margin: 3px 0; overflow-wrap: anywhere; }
@@ -51,7 +74,9 @@
 .tabs.game-leaders-switch button { min-height: 40px; padding: 8px 16px; font-size: 13px; }
 @media (max-width: 374px) { .tabs.game-leaders-switch button { padding-inline: 11px; } }
 .game-history-intro { margin: 0 0 18px; color: var(--hint); font-size: 13px; }
-.game-result-sheet { height: min(92dvh, 860px); max-height: 92dvh; }
+/* Its own cap goes through --sheet-max so the never-shrink minimum is clamped by it too (app.css comes later: two classes);
+   both add the keyboard padding, which the box reaches under the keys by. */
+.create-sheet.game-result-sheet { height: calc(min(92dvh, 860px) + var(--sheet-pad)); --sheet-max: min(calc(92dvh + var(--sheet-pad)), var(--sheet-fit)); }
 .game-result-sheet .sheet-content { flex: 1; }
 .game-score-fields, .game-scorer-fields, .game-sulifa { border: 0; padding: 0; margin: 0; min-width: 0; }
 .game-score-fields { display: grid; grid-template-columns: minmax(0,1fr) 8px minmax(0,1fr); align-items: center; gap: 40px; /* Bleeds a little into the sheet padding via margins: a relative offset or transform would make the sheet scroll sideways. */ margin: 4px max(-8px, calc((100% - 368px) / 2)) 24px; }
@@ -70,7 +95,9 @@
 .game-scorer-fields > legend > :first-child { flex-shrink: 0; }
 .game-goals-total { min-width: 0; overflow-wrap: anywhere; text-align: right; color: var(--hint); font-size: 12px; font-weight: 400; }
 .game-goal-help { color: var(--hint); font-size: 13px; line-height: 1.5; margin: 0 0 18px; }
-.game-empty-goals { padding: 28px 16px; text-align: center; background: var(--field-bg, var(--card)); border-radius: 16px; color: var(--hint); font-size: 14px; line-height: 1.6; margin: 0; }
+/* Until a team scores, its first goal row is an outline of the same size. */
+.game-goal-placeholder { margin-top: 8px; border-radius: 12px; }
+.game-goal-placeholder .game-goal-slot { margin-top: 0; }
 .game-goal-slot { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: transparent; color: var(--text); min-height: 60px; margin-top: 8px; }
 .game-goal-slot.active { border-color: var(--accent-ink); background: var(--accent-soft); }
 .game-goal-slot.has-pass { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
@@ -104,9 +131,13 @@
 .match-screen .tabs:has(#tab-games) { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .match-screen .tabs:has(#tab-games) button { padding-inline: 4px; font-size: 13px; }
 @media (max-width: 359px) {
+  /* Columns follow the label lengths, so «Участники» gets the room it needs and «Игры» gives some back. */
+  .match-screen .tabs:has(#tab-games) { grid-template-columns: 1.3fr 1.1fr .8fr 1fr; }
   .match-screen .tabs:has(#tab-games) button { padding-inline: 2px; font-size: 12px; }
   .game-pair { font-size: 18px; gap: 6px; margin-block: 6px; }
   .match-games .game-current { padding: 12px 18px; }
+  .match-games .game-current-compact { padding: 12px 14px 14px; }
+  .game-current-compact .game-side b { font-size: 15px; }
   .game-standings { font-size: 12px; }
   .game-rank { margin-right: 5px; }
   .game-standings th, .game-standings td { padding-inline: 2px; }
@@ -117,7 +148,8 @@
 @media (min-width: 360px) and (max-width: 374px) { .game-score-fields { gap: 32px; } }
 @media (max-width: 374px) { .game-score-buttons output { font-size: 32px; } }
 .match-games .game-current .match-action { position: static; inset: auto; width: auto; padding: 0; margin-top: 18px; background: none; pointer-events: auto; }
-.match-screen:has(.game-current .match-action) { padding-bottom: calc(110px + var(--safe-bottom)); }
+.match-screen:has(.game-current .match-action) { padding-bottom: calc(40px + var(--safe-bottom)); }
+body:has(.nav-shell) .match-screen:has(.game-current .match-action) { padding-bottom: calc(110px + var(--safe-bottom)); }
 .game-goal-repeat { display: inline-flex; align-items: center; min-height: 44px; margin-top: 6px; padding: 8px 14px; border: 1px dashed var(--field-border); border-radius: 22px; background: transparent; color: var(--accent-ink); font-size: 14px; font-weight: 500; }
 
 /* Current game: a fixture with kit discs, points so far and the resting / kickoff chip. */
@@ -129,6 +161,29 @@
 .game-vs { color: var(--blue-ink); font-size: 13px; font-weight: 600; letter-spacing: .08em; }
 .game-current .game-rest { display: flex; align-items: center; justify-self: center; align-self: center; gap: 0; margin: 0 auto 4px; padding: 8px 12px; border-radius: 14px; background: #060b2266; color: var(--blue-ink); font-size: 13px; }
 .game-current .match-action-pair { margin-top: 10px; }
+/* The current pair is short on both the games tab and the game screen (components/CurrentPair.tsx): number, live
+   mark and rest chip on one line (the game screen shows only the chip), the pair on the next, then the way in. */
+.match-games .game-current-compact { padding: 14px 16px 16px; }
+.game-current-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.game-current-compact .game-current-meta { display: inline-flex; align-items: center; gap: 8px; margin: 0; }
+.game-current-compact .game-rest { margin: 0; padding: 4px 10px; font-size: 12.5px; }
+.game-current-compact .game-rest .team-dot { margin-right: 6px; }
+.game-current-compact .game-versus { margin: 12px 0 2px; gap: 10px; }
+.game-current-compact .game-side { flex-direction: row; align-items: center; gap: 9px; text-align: left; }
+.game-current-compact .game-side:last-child { flex-direction: row-reverse; text-align: right; }
+.game-current-compact .game-side-name { display: grid; min-width: 0; line-height: 1.25; }
+.game-current-compact .game-side b { font-size: 16px; }
+.game-current-compact .game-side small { margin-top: 1px; }
+.game-current-compact .game-kit { flex: none; width: 26px; height: 26px; box-shadow: inset 0 1px 2px #fff8, inset 0 -3px 6px #0005; }
+.game-current-compact .game-vs { font-size: 12px; }
+.game-current-compact .match-action-pair, .game-current-compact > .btn { margin-top: 14px; }
+.match-games .game-current-compact .match-action { margin-top: 0; }
+/* Live: a soft green beat while the game clock runs; steady under reduced motion. */
+.game-live { position: relative; width: 8px; height: 8px; border-radius: 50%; background: #9ee6b4; }
+.game-live::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; background: #9ee6b4; opacity: 0; animation: game-live 1.6s ease-out infinite; }
+@keyframes game-live { 0% { transform: scale(.5); opacity: .55; } 100% { transform: scale(1.6); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .game-live::after { animation: none; opacity: .25; transform: none; } }
+@media (forced-colors: active) { .game-live { background: CanvasText; } }
 .match-games .game-current { display: flex; flex-direction: column; }
 /* Graphite sections. */
 .match-games .material-graphite { padding: 18px 16px; gap: 0; }
@@ -139,9 +194,15 @@
 .game-score-pill { background: #ffffff10; border-radius: 12px; padding: 3px 10px; }
 .game-winner { font-weight: 600; }
 .game-loser { color: var(--hint); }
-.game-goal-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; font-size: 13px; line-height: 1.5; }
+.game-goal-columns { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: start; gap: 10px; font-size: 13px; line-height: 1.5; }
+.game-result-number { order: 1; color: var(--hint); font-size: 12px; white-space: nowrap; opacity: .75; }
+/* An editable game is one tap target: a transparent button spans the row. */
+.game-result.editable { position: relative; }
+.game-result-open { position: absolute; inset: 0; z-index: 1; padding: 0; border: 0; border-radius: 14px; background: none; cursor: pointer; }
+.game-result-open:active { background: #ffffff08; }
+.game-result-open:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .game-goal-columns ul { list-style: none; margin: 0; padding: 0; min-width: 0; overflow-wrap: anywhere; }
-.game-goal-columns ul:last-child { text-align: right; }
+.game-goal-columns ul:nth-of-type(2) { text-align: right; }
 .game-goal-columns small { color: var(--hint); font-size: 12px; }
 .game-goal-none { color: var(--hint); }
 .game-medal { display: grid; place-items: center; width: 28px; height: 28px; flex-shrink: 0; border-radius: 50%; background: #ffffff12; color: var(--hint); font-size: 12px; font-weight: 600; }

@@ -1,5 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from './fixtures';
+import { expectStableSheet, sheetHeight } from './sheet-height';
 
 const day = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
 const dates = Array.from({ length: 7 }, (_, i) => day(i));
@@ -126,4 +127,40 @@ test('Home reminds to mark the week once and opens the calendar sheet over the p
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
   await expect(prompt).toHaveCount(0);
+});
+
+for (const width of [320, 390]) test(`availability sheet keeps its height across marks and days, ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await mock(page, 'player');
+  await page.goto('/profile/availability');
+  const sheet = page.getByRole('dialog', { name: 'Когда могу играть' });
+  const grid = sheet.getByRole('group', { name: 'Эта неделя' });
+  await expect(grid.getByRole('button')).toHaveCount(7);
+  const editor = sheet.getByRole('region');
+  await expect(editor.getByText('Выбери «Могу» — здесь появится выбор времени')).toBeVisible();
+  if (width === 390) await page.screenshot({ path: 'artifacts/ui/availability-placeholder.png' });
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click(), { uncapped: true });
+  await expect(editor.getByRole('group', { name: 'Время' })).toBeVisible();
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не могу', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Могу', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => editor.getByRole('button', { name: 'Не указано', exact: true }).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(4).click(), { uncapped: true });
+  await expectStableSheet(page, sheet, () => grid.getByRole('button').nth(3).click(), { uncapped: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+for (const width of [320, 390]) test(`availability loading skeleton is as tall as the loaded sheet, ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 844 });
+  await mock(page, 'player');
+  let release = () => {};
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  await page.route('**/api/availability', async route => { await gate; await route.fallback(); });
+  await page.goto('/profile/availability');
+  const sheet = page.getByRole('dialog', { name: 'Когда могу играть' });
+  await expect(sheet.getByRole('status', { name: 'Загрузка…' })).toBeVisible();
+  const skeleton = await sheetHeight(page, sheet);
+  release();
+  await expect(sheet.getByRole('group', { name: 'Эта неделя' })).toBeVisible();
+  const loaded = await sheetHeight(page, sheet);
+  expect(Math.abs(skeleton - loaded), `скелет ${skeleton}, загруженная шторка ${loaded}`).toBeLessThanOrEqual(1);
 });

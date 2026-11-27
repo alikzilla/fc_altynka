@@ -20,6 +20,7 @@ const Venues = lazy(() => import('./screens/Venues').then(m => ({ default: m.Ven
 const SkillAssessment = lazy(() => import('./screens/SkillAssessment').then(m => ({ default: m.SkillAssessment })));
 const MatchReview = lazy(() => import('./screens/MatchReview').then(m => ({ default: m.MatchReview })));
 const Schedule = lazy(() => import('./screens/Schedule').then(m => ({ default: m.Schedule })));
+const GameScreen = lazy(() => import('./screens/GameScreen').then(m => ({ default: m.GameScreen })));
 import { contextForStartParam } from './lib/startParam';
 import { api } from './lib/api';
 import { queryClient } from './lib/queryClient';
@@ -32,6 +33,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
+import { hasDock } from './lib/pageTransition';
 
 export function App() {
   const [, navigate] = useLocation();
@@ -85,7 +87,7 @@ function TeamApp() {
           <ToastProvider>
             <NotificationsProvider>
               <ScreenSearchContext.Provider value={screenSearch}>
-                {/* A crashed screen keeps the dock: moving to another screen clears the error. */}
+                {/* Moving to another screen clears a crash; a crashed deeper screen offers the way home itself. */}
                 <ErrorBoundary resetKey={screenPath}>
                 <Suspense fallback={<RouteSkeleton path={screenPath} search={screenSearch} />}>
                 <Switch location={screenPath}>
@@ -94,6 +96,7 @@ function TeamApp() {
                   <Route path="/notifications" component={Notifications} />
                   <Route path="/event/:id/schedule"><Schedule /></Route>
                   <Route path="/event/:id/review"><MatchReview /></Route>
+                  <Route path="/event/:id/game"><GameScreen /></Route>
                   <Route path="/event/:id" component={Event} />
                   <Route path="/players/:userId">{params => <Players selectedUserId={Number(params.userId)} />}</Route>
                   <Route path="/players"><Players /></Route>
@@ -109,7 +112,8 @@ function TeamApp() {
                 </Suspense>
                 </ErrorBoundary>
               </ScreenSearchContext.Provider>
-              <Nav />
+              {/* The dock stays on the tabs and one step from them; deeper task screens hide it until Back. */}
+              {hasDock(screenPath) && <Nav />}
               <SkillsPrompt />
               <AvailabilityPrompt />
               <Suspense fallback={null}>

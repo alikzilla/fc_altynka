@@ -123,7 +123,16 @@ test('closed bill with outstanding due is read-only', () => {
   renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Перевести в Kaspi' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Я перевёл' })).not.toBeInTheDocument();
-  expect(screen.getByText('Расчёт закрыт')).toBeVisible();
+  expect(screen.getByText('Оплата не отмечена')).toBeVisible();
+  expect(screen.getAllByText('Счёт закрыт')).toHaveLength(1);
+  expect(screen.getByRole('region', { name: 'Твоя оплата' })).not.toHaveClass('material-coral');
+});
+
+test('a closed bill tells a payer who marked payment that it is settled', () => {
+  const closed = { ...bill, status: 'closed' as const, lines: bill.lines.map(l => l.userId === player.userId ? { ...l, state: 'paid' as const, paidAmount: l.amount, due: 0 } : l) };
+  renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
+  expect(screen.getByText('✓ Ты оплатил')).toBeVisible();
+  expect(screen.getAllByText('Счёт закрыт')).toHaveLength(1);
 });
 
 test('live share preview rounds up to 50', async () => {
@@ -195,12 +204,19 @@ test('receiver toggles a line and reminds debtors', async () => {
   (api.send as Mock).mockResolvedValue({ kind: 'ok' });
   renderWithApp(<Bill ev={evWith(2, bill)} reload={() => {}} />, { me: organizer });
   expect(screen.getByText('Кто-то перевёл, но не отметил? Поставь галочку сам.')).toBeInTheDocument();
-  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
-  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
   const remind = screen.getByRole('button', { name: 'Напомнить должникам' });
   await userEvent.click(remind);
   await userEvent.click(remind);
   expect(api.send).toHaveBeenCalledWith('POST', '/api/bills/3/remind');
+  await userEvent.click(screen.getByRole('checkbox', { name: 'Игрок перевёл' }));
+  expect(api.send).toHaveBeenCalledWith('POST', '/api/bill-lines/31', { paid: true });
+});
+
+test('once everyone marked payment the organizer is offered to close the bill, not to remind', () => {
+  const paid: BillDto = { ...bill, lines: bill.lines.map(l => ({ ...l, paidAmount: l.amount, state: 'paid', due: 0 })) };
+  renderWithApp(<Bill ev={evWith(2, paid)} reload={() => {}} />, { me: organizer });
+  expect(screen.queryByRole('button', { name: 'Напомнить должникам' })).not.toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Закрыть счёт' })).toHaveClass('primary');
 });
 
 test('closed bill keeps the checkboxes: unticking a mistaken mark reopens it', async () => {
@@ -337,4 +353,66 @@ test('player mark switches the card at once and returns the button when the serv
   expect(within(card).getByText('К оплате')).toBeInTheDocument();
   expect(within(card).getByRole('button', { name: 'Я перевёл' })).toBeEnabled();
   expect(within(card).getByRole('alert')).toHaveTextContent('Не получилось отметить оплату');
+});
+
+test('the share and the first extra keep outlines until they appear, then fade in there', async () => {
+  const shareHint = 'Укажи аренду — здесь появится сумма с человека';
+  const extraHint = 'Добавь расход — появится строка';
+  renderWithApp(<Bill ev={evWith(10)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  expect(within(dialog).getByText(shareHint)).toBeVisible();
+  expect(within(dialog).getByText(extraHint)).toBeVisible();
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '20000');
+  expect(within(dialog).queryByText(shareHint)).toBeNull();
+  expect(within(dialog).getByText(/По 2 000 ₸/).closest('.preview')).toHaveClass('reveal');
+  await userEvent.click(within(dialog).getByRole('button', { name: '+ Расход' }));
+  expect(within(dialog).queryByText(extraHint)).toBeNull();
+  expect(within(dialog).getByLabelText('Расход 1').closest('.extra')).toHaveClass('reveal');
+  // An empty extra hides the share, but the rent is there: its outline stays, without the rent hint.
+  expect(dialog.querySelector('.preview-placeholder')).not.toBeNull();
+  expect([...dialog.querySelectorAll('.preview')].every(p => p.closest('.sheet-placeholder-ghost'))).toBe(true);
+  expect(within(dialog).queryByText(shareHint)).toBeNull();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Убрать расход 1' }));
+  expect(within(dialog).getByText(extraHint)).toBeVisible();
+});
+
+test('a Kaspi number error is announced and described on the field', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(400, 'no_kaspi'));
+  renderWithApp(<Bill ev={evWith(2)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  const field = within(dialog).getByLabelText(/Номер Kaspi получателя/);
+  expect(field).not.toHaveAttribute('aria-describedby');
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  const alert = await within(dialog).findByRole('alert');
+  expect(alert).toHaveTextContent('Нужен номер Kaspi получателя');
+  expect(field).toHaveAttribute('aria-describedby', alert.id);
+  expect(field).toHaveAccessibleDescription('Нужен номер Kaspi получателя');
+});
+
+test('the Kaspi number keeps a line for its error and one cell for both field variants', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(400, 'no_kaspi'));
+  const ev = evWith(2);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  const typed = within(dialog).getByLabelText(/Номер Kaspi получателя/);
+  expect(typed).not.toHaveAttribute('readonly');
+  const label = typed.closest('.bill-phone-field')!;
+  const slot = label.querySelector('.field-error-slot')!;
+  expect(slot).not.toBeNull();
+  expect(slot).toHaveTextContent('');
+  const saved = label.querySelector('input[readonly]')!;
+  expect(saved.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+  expect(typed.closest('.sheet-stack')).toBe(saved.closest('.sheet-stack'));
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect(await within(slot as HTMLElement).findByText('Нужен номер Kaspi получателя')).toBeInTheDocument();
+  await userEvent.selectOptions(within(dialog).getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  expect(within(dialog).getByLabelText(/Номер Kaspi получателя/)).toHaveAttribute('readonly');
+  expect(typed.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+  expect(saved.closest('[inert]')).toBeNull();
 });

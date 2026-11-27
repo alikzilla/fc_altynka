@@ -1,0 +1,69 @@
+/* Game screen: the current pair, the shared timer and a compact table. Built on the game-tab cards (games.css). */
+/* «Воскресенье, 8 ноября»: only the first letter is capital (the match page capitalises every word of its weekday). */
+.match-screen.game-screen .subtitle { text-transform: none; }
+.game-screen-body { padding-bottom: 4px; }
+
+/* Timer: one graphite card with a horseshoe dial around big tabular digits. The arc empties clockwise behind a knob;
+   dots mark the signals (start, «1:00», «0:15», the final whistle) and light up once passed. The phase changes
+   colour only: accent while playing, warm on the last minute, danger on the last attack and in added time. */
+.game-dial-frame { position: relative; width: 100%; max-width: 320px; margin: -6px auto 0; }
+.game-dial { display: block; width: 100%; height: auto; overflow: visible; }
+/* The ring's centre sits 56% down the drawing (viewBox 18…254, centre at 150). */
+.game-dial-center { position: absolute; inset: 12% 0 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.game-dial-track, .game-dial-left { fill: none; stroke-width: 14; stroke-linecap: round; }
+.game-dial-track { stroke: color-mix(in srgb, var(--text) 11%, transparent); }
+.game-dial-left, .game-dial-knob { --dial: var(--accent); }
+.game-timer-last_minute .game-dial-left, .game-timer-last_minute .game-dial-knob { --dial: var(--warn); }
+.game-timer-last_attack .game-dial-left, .game-timer-last_attack .game-dial-knob, .game-timer-over .game-dial-knob { --dial: var(--danger); }
+.game-timer-paused .game-dial-left, .game-timer-paused .game-dial-knob { --dial: var(--hint); }
+.game-dial-left { stroke: var(--dial); }
+.game-dial-knob { fill: var(--dial); stroke: var(--card); stroke-width: 4; }
+.game-dial-cue circle { fill: color-mix(in srgb, var(--text) 45%, transparent); }
+.game-dial-cue text { fill: var(--hint); font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.game-dial-cue.passed circle { fill: var(--accent); }
+.game-dial-cue-last_minute.passed circle { fill: var(--warn); }
+.game-dial-cue-last_attack.passed circle, .game-dial-cue-end.passed circle { fill: var(--danger); }
+.game-dial-cue.fresh text { fill: var(--text); }
+.game-timer .game-timer-digits { font-size: 58px; }
+/* The organizer's start/pause is a round 68 px button sitting in the horseshoe's gap, half below the drawing:
+   pearl ▶ before the start and in a pause, graphite ❚❚ while running. It shows the press on pointer-down. */
+.game-dial-center { z-index: 1; pointer-events: none; }
+.game-timer-control .game-dial-frame { margin-bottom: 36px; }
+.game-dial-play { position: absolute; left: 50%; bottom: 0; z-index: 2; display: grid; place-items: center; width: 68px; height: 68px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, 50%); background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: var(--on-accent); box-shadow: inset 0 1px 1px #fff9, inset 0 -1px 2px #8985ad66, 0 8px 20px #0007; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform 90ms var(--ease-out); }
+.game-dial-play svg { width: 26px; height: 26px; }
+.game-dial-play[data-pressed], .game-dial-play:active { transform: translate(-50%, 50%) scale(.92); }
+.game-timer-playing .game-dial-play, .game-timer-last_minute .game-dial-play, .game-timer-last_attack .game-dial-play, .game-timer-over .game-dial-play { background: linear-gradient(155deg, #454259, #23233d); color: var(--text); box-shadow: var(--rim), 0 8px 20px #0007; }
+@media (prefers-reduced-motion: reduce) { .game-dial-play { transition: none; } }
+.match-games .game-timer { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 22px 18px 18px; text-align: center; }
+.game-timer-digits { margin: 0; font-size: 80px; font-weight: 600; line-height: 1; letter-spacing: -.045em; font-variant-numeric: lining-nums tabular-nums; }
+.game-timer-phase { min-height: 24px; margin: 8px 0 0; font-size: 16px; font-weight: 550; line-height: 24px; color: var(--text); }
+.game-timer-waiting .game-timer-phase, .game-timer-paused .game-timer-phase { color: var(--hint); }
+.game-timer-paused .game-timer-digits { color: var(--hint); }
+.game-timer-last_minute .game-timer-phase { color: var(--warn); }
+.game-timer-last_attack .game-timer-phase, .game-timer-over .game-timer-phase { color: var(--danger); }
+.game-timer-duration { display: grid; grid-template-columns: 44px minmax(4.5em, auto) 44px; align-items: center; gap: 12px; margin-top: 16px; }
+.game-timer-duration button { width: 44px; height: 44px; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: var(--field-bg, var(--card)); color: var(--text); font-size: 24px; font-weight: 400; line-height: 1; }
+.game-timer-duration button:disabled { opacity: .3; }
+.game-timer-duration button:active:not(:disabled) { transform: scale(.94); }
+.game-timer-duration output { font-size: 17px; font-weight: 550; white-space: nowrap; }
+.game-timer-controls { display: grid; gap: 10px; width: 100%; max-width: 400px; margin-top: 18px; }
+.game-timer-controls:empty { display: none; }
+.game-timer-controls > .btn { min-height: 54px; font-size: 16px; }
+.game-timer-controls > .btn:disabled { opacity: .55; }
+.game-timer-note { margin: 12px 0 0; font-size: 13px; line-height: 1.5; }
+.game-screen-hint { margin: -4px 4px 0; font-size: 13px; line-height: 1.5; }
+
+/* Place, team, games and points fit at 320 px without a scroll container. */
+.game-screen-standings th:not(:first-child), .game-screen-standings td { width: 3.5em; }
+
+@media (max-width: 359px) {
+  .game-timer .game-timer-digits { font-size: 50px; }
+  .game-dial-play { width: 60px; height: 60px; }
+  .game-timer-control .game-dial-frame { margin-bottom: 32px; }
+  .match-games .game-timer { padding: 18px 16px 16px; }
+}
+@media (prefers-contrast: more) {
+  .game-dial-play { border: 1px solid currentColor; box-shadow: none; }
+  .game-timer-duration button { border-color: currentColor; }
+  .game-dial-track { stroke: var(--line); }
+}

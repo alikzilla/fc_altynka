@@ -2,7 +2,10 @@
 .match-screen { gap: 16px; }
 .match-screen .screen-heading { min-height: 50px; }
 .match-screen .subtitle { margin-top: 3px; text-transform: capitalize; }
-.match-screen:has(.match-action), .screen:has(form .match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
+/* Without a dock (deeper task screens) the fixed action sits where the dock would; with one it stands 12 px above it.
+   Either way content keeps 110 px clear above the action. */
+.match-screen:has(.match-action), .screen:has(form .match-action) { padding-bottom: calc(126px + var(--safe-bottom)); }
+body:has(.nav-shell) .match-screen:has(.match-action), body:has(.nav-shell) .screen:has(form .match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
 .match-screen .event-summary { padding: 16px 18px; border-radius: 26px; display: block; }
 .match-summary-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; }
 .match-summary-top .group-tag { align-self: auto; min-width: 0; }
@@ -23,31 +26,57 @@
 .match-heading-actions { display: flex; flex-shrink: 0; margin-right: -10px; }
 .match-menu-button, .player-menu-button { display: grid; place-items: center; min-width: 44px; height: 44px; padding: 0; border: 0; background: none; color: var(--text); border-radius: 50%; }
 .player-menu-button { color: var(--hint); margin-right: -8px; }
+/* A row its manager can act on is one button: the name stays the visible label and the tap area spans the row. */
+.person:has(.player-row-button) { position: relative; }
+/* The player's team once teams are published: a colour dot at the row's end, no label. */
+.row-team { display: grid; place-items: center; width: 24px; height: 24px; margin-left: auto; flex: none; }
+.row-team .team-dot { width: 10px; height: 10px; margin: 0; }
+.player-row-button { padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; }
+.player-row-button::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.player-row-button:focus-visible { outline: none; }
+.player-row-button:focus-visible::after { outline: 2px solid var(--accent); outline-offset: -2px; }
+.person:has(.player-row-button:active) { background: #ffffff08; }
 .match-list-heading { min-height: 28px; }
 .match-list-heading > :is(a, button) { margin-block: -8px; }
 .match-count { font-size: 15px; font-weight: 400; color: var(--hint); margin-left: 5px; }
-.match-comment { font-size: 13px; color: var(--hint); line-height: 1.5; margin-bottom: 12px; overflow-wrap: anywhere; }
+.match-detail-note { margin-top: 6px; overflow-wrap: anywhere; }
 .match-guest { display: block; font-size: 12px; }
 .match-empty-row { padding-block: 16px; }
 .match-screen .person .name { font-size: 15px; }
-.match-action { position: fixed; z-index: 6; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(110px + var(--safe-bottom)); display: flex; justify-content: center; pointer-events: none; }
+.match-action { position: fixed; z-index: 6; left: calc(20px + var(--safe-left)); right: calc(20px + var(--safe-right)); bottom: calc(16px + var(--safe-bottom)); display: flex; justify-content: center; pointer-events: none; }
+body:has(.nav-shell) .match-action { bottom: calc(110px + var(--safe-bottom)); }
 .match-action > .btn { width: 100%; max-width: 400px; min-height: 54px; font-size: 16px; pointer-events: auto; box-shadow: var(--rim), 0 4px 18px #0005; }
 .sheet-action { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 54px; padding: 12px 0; background: none; border: 0; border-bottom: 1px solid var(--line); font-size: 15px; text-align: left; }
 .sheet-action:last-child { border-bottom: 0; }
 .action-sheet .sheet-heading { align-items: center; }
 .action-sheet .sheet-content > .muted { margin-bottom: 12px; }
-.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
+.sheet-footer { flex-shrink: 0; padding: 12px calc(20px + var(--safe-right)) calc(20px + var(--sheet-safe-bottom, var(--safe-bottom))) calc(20px + var(--safe-left)); border-top: 1px solid var(--line); }
 .action-sheet:has(.sheet-footer) .sheet-content { padding-bottom: 20px; }
 .bill-form { gap: 18px; }
+/* The receiver's number lays out like the other labelled fields; its two variants share one cell (.sheet-stack). */
+.bill-phone-field, .bill-phone-variant { display: flex; flex-direction: column; gap: 8px; min-width: 0; max-width: 100%; }
+.bill-phone-field { font-size: 14px; font-weight: 500; }
+.preview-placeholder { border-radius: 20px; }
+.extra-placeholder { border-radius: 12px; }
 .action-sheet .sheet-heading h2 { font-size: 22px; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .sheet-action[aria-disabled='true'] { opacity: .45; pointer-events: none; }
 .match-cancelled { background: #24212a; }
 .match-cancelled :is(.match-detail-time, .match-detail-place) { color: #c5bacc; }
+.match-cancelled .match-detail-time { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.match-cancelled-banner { display: grid; justify-items: start; gap: 8px; padding: 18px; background: linear-gradient(160deg, color-mix(in srgb, var(--danger) 20%, var(--card)), var(--card)); box-shadow: var(--rim); }
+.match-cancelled-banner h2 { margin: 0; color: var(--danger); font-size: 19px; }
+.match-cancelled-banner p { margin: 0 0 6px; color: var(--text); font-size: 14px; }
+.match-screen:has(.match-cancelled-banner) :is(.event-summary, .tabs, .tab-panel) { opacity: .6; }
 .team-own { font-size: 14px; font-weight: 500; }
 .team-self { font-weight: 600; }
 .match-screen .team { padding: 18px; }
 .match-screen .team .list { padding: 0; }
 .pay { display: block; padding: 20px; }
+.pay-closed { --coral-ink: var(--hint); }
+.bill-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.bill-heading h2 { margin: 0; }
+.bill-state { flex: none; padding: 3px 10px; border-radius: 12px; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--hint); font-size: 12.5px; }
+.pay-closed .payment-person-label { color: var(--hint); }
 .payment-label { color: var(--coral-ink); font-size: 14px; line-height: 21px; min-height: 21px; }
 .payment-amount { display: inline-flex; align-items: center; gap: 12px; min-height: 44px; background: none; border: 0; padding: 0; margin-top: 4px; color: inherit; text-align: left; font-size: 36px; line-height: 1.2; font-weight: 550; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
 .payment-amount svg { width: 17px; height: 17px; color: var(--coral-ink); }
@@ -62,7 +91,7 @@
 .sheet-note { font-size: 14px; line-height: 1.45; color: var(--text); text-wrap: pretty; }
 .inline-failure { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }
 .inline-failure .btn-text { min-height: 44px; padding-inline: 4px; }
-.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; margin-bottom: 10px; font-variant-numeric: tabular-nums; }
+.review-recap { font-size: 13px; line-height: 1.4; color: var(--hint); text-align: center; font-variant-numeric: tabular-nums; }
 .btn-text.armed, .sheet-action.armed { font-weight: 650; }
 .btn.armed { background: var(--danger-soft); color: var(--danger); }
 .bill-summary h2 { font-size: 17px; font-weight: 550; }
@@ -106,8 +135,8 @@
    control, so the dock steps aside while a contextual action is shown. */
 @media (max-height: 640px) {
   body:has(.match-action) .nav-shell { display: none; }
-  .match-action { bottom: calc(14px + var(--safe-bottom)); }
-  .screen:has(.match-action) { padding-bottom: calc(96px + var(--safe-bottom)); }
+  body:has(.nav-shell) .match-action { bottom: calc(14px + var(--safe-bottom)); }
+  body:has(.nav-shell) .match-screen:has(.match-action), body:has(.nav-shell) .screen:has(form .match-action) { padding-bottom: calc(96px + var(--safe-bottom)); }
 }
 /* The protocol's secondary actions ride beside the primary one, inside the thumb zone. */
 .match-action-pair { display: flex; gap: 10px; width: 100%; max-width: 400px; pointer-events: auto; }
@@ -116,3 +145,5 @@
 .match-action-more { flex: 0 0 54px; width: 54px; padding: 0; border-radius: 50%; }
 .match-action-more svg { width: 22px; height: 22px; }
 .bill-mark-hint { margin: -4px 0 12px; font-size: 13px; }
+/* «Точно удалить? Пост исчезнет у всех» may wrap at 320 px: the button keeps room for two lines from the start (2 × 15px × the inherited 1.5 line height + padding; no `lh` unit, old WebViews lack it). */
+.sheet-action.feed-delete { min-height: calc(2 * 1.5 * 15px + 24px); }

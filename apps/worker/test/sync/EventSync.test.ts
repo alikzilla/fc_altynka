@@ -29,8 +29,10 @@ afterEach(() => __setTgClientForTests(null));
 
 test('first sync sends and pins, next edits', async () => {
   await stub().request(ev, { parts: ['event'] });
-  expect(await runDurableObjectAlarm(stub())).toBe(true);
-  expect(tg.sent).toHaveLength(1);
+  // The sync alarm is due 300 ms after the request; on a slow runner it may fire on its own before this call,
+  // which then returns false. Either way the first send lands: wait for it rather than for the manual run.
+  await runDurableObjectAlarm(stub());
+  await vi.waitFor(() => expect(tg.sent).toHaveLength(1));
   expect(tg.sent[0]).toMatchObject({ chatId: -100500 });
   expect(tg.sent[0].html).toContain(new Intl.DateTimeFormat('ru-RU',{timeZone:'UTC',weekday:'long',day:'numeric',month:'long'}).format(new Date(FUTURE_START)));
   expect(tg.pinned).toEqual([{ chatId: -100500, messageId: tg.sent[0].messageId }]);

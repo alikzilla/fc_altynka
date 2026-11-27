@@ -1,5 +1,6 @@
 import { eq } from 'drizzle-orm';
-import { apiRequest, db } from '../helpers';
+import { apiRequest, db, seedUser } from '../helpers';
+import { bindCommunity } from '../../src/domain/members';
 import { setupApiWorld, teardownApiWorld, type ApiWorld } from './setup';
 import { events } from '../../src/db/schema';
 import { createEvent, joinEvent } from '../../src/domain/events';
@@ -52,4 +53,31 @@ test('new sessions finish through the game protocol and support an empty no-play
   const response=await apiRequest(`/api/events/${eventId}/games/finish`,{as:w.org,method:'POST',body});
   expect(response.status).toBe(200);
   expect(await response.json()).toMatchObject({protocol:{state:'completed',canRecord:false}});
+});
+
+test('only organizers set the shared game timer; players see it', async () => {
+  await apiRequest(`/api/events/${eventId}/games/start`,{as:w.org,method:'POST',body:{requestId:'start',expectedRevision:0}});
+  const path=`/api/events/${eventId}/games/timer`;
+  const timer={gameSequence:1,durationSec:360,startedAt:w.clock.now,pausedAt:null,pausedMs:0,updatedAt:w.clock.now};
+  expect((await apiRequest(path,{as:w.player,method:'PUT',body:timer})).status).toBe(403);
+  expect((await apiRequest(`/api/events/999999/games/timer`,{as:w.org,method:'PUT',body:timer})).status).toBe(404);
+  expect((await apiRequest(path,{as:w.org,method:'PUT',body:{...timer,extra:1}})).status).toBe(400);
+  const ok=await apiRequest(path,{as:w.org,method:'PUT',body:timer});
+  expect(ok.status).toBe(200); expect(await ok.json()).toEqual({timer});
+  expect((await apiRequest(path,{as:w.org,method:'PUT',body:{...timer,gameSequence:2}})).status).toBe(409);
+  const dto=await (await apiRequest(`/api/events/${eventId}/games`,{as:w.player})).json() as {timer:unknown};
+  expect(dto.timer).toEqual(timer);
+});
+
+test('an organizer of another group cannot see or set this match timer: it answers 404 as if it did not exist', async () => {
+  await apiRequest(`/api/events/${eventId}/games/start`,{as:w.org,method:'POST',body:{requestId:'start',expectedRevision:0}});
+  const other=(await bindCommunity(db(),-100600,'Альфа')).id;
+  const orgB={id:3001,first_name:'Орг Б'};
+  await seedUser('Орг Б',{communityId:other,tgId:orgB.id,role:'organizer'});
+  w.tg.chatMembers.set(-100600,new Set([orgB.id])); w.tg.chatAdmins.set(-100600,new Set());
+  const timer={gameSequence:1,durationSec:360,startedAt:w.clock.now,pausedAt:null,pausedMs:0,updatedAt:w.clock.now};
+  expect((await apiRequest(`/api/events/${eventId}/games/timer`,{as:orgB,method:'PUT',body:timer})).status).toBe(404);
+  expect((await apiRequest(`/api/events/${eventId}`,{as:orgB})).status).toBe(404);
+  const dto=await (await apiRequest(`/api/events/${eventId}/games`,{as:w.player})).json() as {timer:unknown};
+  expect(dto.timer).toBeNull();
 });

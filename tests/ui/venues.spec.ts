@@ -1,5 +1,6 @@
 import { animationsSettled, expect, test, type Page } from './fixtures';
 import AxeBuilder from '@axe-core/playwright';
+import { expectStableSheet } from './sheet-height';
 
 const saturday = { id: 1, title: 'Футбол по субботам' };
 const work = { id: 2, title: 'Друзья с работы' };
@@ -20,6 +21,7 @@ async function mockApi(page: Page, role: 'organizer' | 'player', theme = 'dark')
       sent.push({ method: request.method(), path: url.pathname, body: request.postDataJSON() });
       if (request.method() === 'PATCH') { first = first.map(v => v.id === 2 ? { ...v, ...request.postDataJSON() } : v); return r.fulfill({ json: { venue: first[1], venues: first } }); }
       if (request.method() === 'DELETE') { first = first.filter(v => v.id !== 1); return r.fulfill({ json: { venues: first } }); }
+      if (request.method() === 'POST') return r.fulfill({ status: 409, json: { error: 'duplicate' } });
     }
     return r.fulfill({ json: {} });
   });
@@ -74,4 +76,20 @@ test('a player only views courts', async ({ page }) => {
   await expect(page.getByText('Цена уточняется')).toBeVisible();
   await expect(page.getByRole('button', { name: /площадку/ })).toHaveCount(0);
   await axe(page);
+});
+
+for (const width of [320, 390]) test(`a duplicate court name takes its reserved line without growing the sheet at ${width}px`, async ({ page }) => {
+  await page.setViewportSize({ width, height: 780 });
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await mockApi(page, 'organizer');
+  await page.goto('/venues');
+  const group = page.getByRole('region', { name: saturday.title });
+  await group.getByRole('button', { name: `Добавить площадку: ${saturday.title}` }).click();
+  const sheet = page.getByRole('dialog', { name: 'Новая площадка' });
+  await sheet.getByLabel('Название').fill(school.name);
+  await expectStableSheet(page, sheet, async () => {
+    await sheet.getByRole('button', { name: 'Добавить площадку' }).click();
+    await expect(sheet.getByRole('alert')).toHaveText('Площадка с таким названием уже есть');
+  }, { uncapped: true });
+  await fits(page);
 });

@@ -18,12 +18,14 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
   let finishIds:number[]|null=null;
   let billClosed=false;
   let nextId=1;
+  let timer:any=null;
   const receipts=new Map<string,{fingerprint:string;revision:number}>();
   const requests:{path:string;body:any}[]=[];
   const world={
     dropNextResult:false,dropNextFinish:false,failNextPublish:false,requests,
     get colors(){return colors;},
     get games(){return games;},get pair(){return pair;},get revision(){return revision;},
+    get timer(){return timer;},setTimer(value:unknown){timer=value;},
     closePayment(){billClosed=true;},
     renameGuest(name:string){people[5].name=name;},
     makeGuest(index:number,name:string,inviter:string){people[index].name=name;people[index].userId=null;people[index].guestOfName=inviter;people[index].invitedByUserId=inviter==='Али'?1:2;},
@@ -33,7 +35,7 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
       games.push({id:`game-${nextId++}`,sequence:games.length+1,pair,score:input.score,scorers:input.scorers,firstRestTeamIndex,recordedAt:now,recordedBy:1,updatedAt:now,updatedBy:1});
       pair=nextGamePair(count,games);revision++;
     },
-    protocol(manage=true){return {state:completedAt!==null?'completed':startedAt!==null?'playing':'not_started',revision,startedAt,completedAt,teamCount:startedAt===null?null:count,roster,currentPair:startedAt!==null&&completedAt===null?pair:null,restingTeamIndex:count===3&&startedAt!==null&&completedAt===null?[0,1,2].find(t=>!pair.includes(t)):null,kickoffTeamIndex:count===2&&startedAt!==null?1:null,games,standings:startedAt===null?[]:calculateStandings(count,games),scorers:calculateScorers(roster,games),canStart:manage&&startedAt===null&&publishedAt!==null,canRecord:manage&&startedAt!==null&&completedAt===null,canEdit:manage&&startedAt!==null,canUndo:manage&&completedAt===null&&games.length>0,canFinish:manage&&startedAt!==null&&completedAt===null};},
+    protocol(manage=true){return {state:completedAt!==null?'completed':startedAt!==null?'playing':'not_started',revision,startedAt,completedAt,teamCount:startedAt===null?null:count,roster,currentPair:startedAt!==null&&completedAt===null?pair:null,restingTeamIndex:count===3&&startedAt!==null&&completedAt===null?[0,1,2].find(t=>!pair.includes(t)):null,kickoffTeamIndex:count===2&&startedAt!==null?1:null,games,standings:startedAt===null?[]:calculateStandings(count,games),scorers:calculateScorers(roster,games),canStart:manage&&startedAt===null&&publishedAt!==null,canRecord:manage&&startedAt!==null&&completedAt===null,canEdit:manage&&startedAt!==null,canUndo:manage&&completedAt===null&&games.length>0,canFinish:manage&&startedAt!==null&&completedAt===null,timer:timer&&!timer.reset&&timer.gameSequence===games.length+1?timer:null};},
     detail(manage=true){return {id:7,community:{id:1,title:'FC Altynka'},viewerRole:manage?'organizer':'player',date:'2026-11-08',serverNow:now,protocolVersion:1,startedAt,completedAt,status:completedAt!==null?'closed':startedAt!==null?'playing':'scheduled',startTime:'20:00',durationHours:2,place:'Arena Football · Абая, 150',comment:null,limit:15,mainCount:people.length,reserveCount:0,my:'main',main:people,reserve:[],teams:{teamCount:count,teams,colors:teamColorsFor(count,colors),colorsRevision,publishedAt,stale:false},gameProtocol:world.protocol(manage),
       review:completedAt!==null&&finishIds?.length?{state:'open',canFinish:false,completedAt,closesAt:now+72*3600000,gameScore:null}:{state:completedAt!==null?'ineligible':'pending',canFinish:false,completedAt,closesAt:null,gameScore:null},
       bill:billClosed?{id:1,receiver:{userId:1,name:'Али',kaspiPhone:'+77071234567'},fieldAmount:12000,extras:[],total:12000,share:2000,status:'closed',participantSignupIds:people.map(p=>p.id),lines:people.filter(p=>p.userId!==null).map(p=>({id:p.id,userId:p.userId,name:p.name,units:p.id===1?2:1,amount:p.id===1?4000:2000,paidAmount:p.id===1?4000:2000,state:'paid',due:0}))}:null};},
@@ -53,6 +55,7 @@ export function gameStatisticsWorld(options: { count?: 2|3; started?: boolean; t
         if(method==='GET')return reply({error:'not_found'},404);
         requests.push({path,body});
         if(!manage)return reply({error:'forbidden'},403);
+        if(path==='/api/events/7/games/timer'&&method==='PUT'){timer=body;return reply({timer});}
         if(path==='/api/events/7/teams'&&method==='PUT'){count=body.teamCount;teams=body.teams;publishedAt=null;return reply({kind:'ok'});}
         if(path==='/api/events/7/teams/colors'&&method==='PATCH'){
           if(completedAt!==null || body.expectedRevision!==colorsRevision)return reply({error:'stale'},409);

@@ -20,6 +20,10 @@ export function useResource<T>(path: string | null, { alwaysRefresh = false }: {
   const reload = useCallback(() => {
     void refetch();
   }, [refetch]);
+  // A repeated refresh (polling) joins a slow one still in flight instead of cancelling it.
+  const poll = useCallback(() => {
+    void refetch({ cancelRefetch: false });
+  }, [refetch]);
   // A saved response supersedes any refresh still in flight, so cancel it before writing.
   const replace = useCallback(
     (data: T | ((current: T) => T)) => {
@@ -45,6 +49,7 @@ export function useResource<T>(path: string | null, { alwaysRefresh = false }: {
     // Offline, a request waits for the connection instead of failing: the screen keeps its skeleton meanwhile.
     loading: !!path && (query.isFetching || query.isPaused),
     reload,
+    poll,
     replace,
   };
 }

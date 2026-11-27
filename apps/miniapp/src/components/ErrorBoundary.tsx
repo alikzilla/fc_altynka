@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { Link } from 'wouter';
 import { isStaleChunk, reportClientError } from '../lib/errorReport';
 import { ErrorNote } from './ui';
 
@@ -18,7 +19,7 @@ function reloadOnce(): boolean {
 
 interface Props {
   children: ReactNode;
-  /** Смена ключа (например, маршрута) снимает экран ошибки: можно уйти на другой экран через нижнюю панель. */
+  /** Смена ключа (например, маршрута) снимает экран ошибки: можно уйти на главную или через нижнюю панель на вкладках. */
   resetKey?: string;
 }
 
@@ -51,6 +52,8 @@ export class ErrorBoundary extends Component<Props, State> {
       <main className="screen">
         <h1 className="title">Что-то сломалось</h1>
         <ErrorNote text="Этот экран не открылся из-за ошибки. Обнови приложение или вернись на главную." retry={() => location.reload()} />
+        {/* На вложенных экранах нижней панели нет: путь на главную всегда на самом экране. */}
+        <Link href="/" className="btn wide">На главную</Link>
       </main>
     );
   }

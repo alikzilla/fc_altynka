@@ -43,7 +43,7 @@ export function ReminderDelivery({ billId }: { billId: number }) {
         {report.failed > 0 && <p>Пока не отправлено: {report.failed}.</p>}
       </>}
       {!data && loading && <p>Проверяем доставку напоминаний…</p>}
-      <p>Напоминания — в личный чат. Если ЛС недоступны, предусмотрено общее напоминание в группе. Не чаще одного раза за 24 часа.</p>
+      <p>Придут в личный чат, а кому не дойдут — в группу. Не чаще раза в сутки.</p>
       {error && <p>Не удалось обновить доставку. Проверь соединение и попробуй ещё раз.</p>}
       {stopped && pending && <p>Доставка ещё не завершена. Обнови статус позже.</p>}
       {(error || stopped && pending) && <button className="btn-text" disabled={loading} onClick={refresh}>Обновить доставку</button>}

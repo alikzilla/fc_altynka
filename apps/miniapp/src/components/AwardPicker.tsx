@@ -10,13 +10,15 @@ type Props = {
   value: number | undefined;
   disabled: boolean;
   onChange: (userId: number) => void;
+  /** Radio group name; an invisible copy of the picker (review rater) takes its own, so it never joins the live group. */
+  name?: string;
 };
 
 /** One prize, one choice: native radios keep arrow-key selection and a single tab stop. */
-export function AwardPicker({ label, players, scores, value, disabled, onChange }: Props) {
+export function AwardPicker({ label, players, scores, value, disabled, onChange, name = 'award-pick' }: Props) {
   return <fieldset className="award-picker" role="radiogroup" aria-label={label} disabled={disabled}>
     {players.map(person => <label key={person.userId} className="award-option" data-on={value === person.userId || undefined}>
-      <input type="radio" name="award-pick" checked={value === person.userId} onChange={() => onChange(person.userId)} />
+      <input type="radio" name={name} checked={value === person.userId} onChange={() => onChange(person.userId)} />
       <Avatar name={person.name} photoUrl={person.photoUrl} />
       <span className="award-option-name">{person.name}{person.stats && <small className="award-option-stats">{reviewStatsLine(person.stats)}</small>}</span>
       <span className="award-option-score">{scores[person.userId] === undefined ? '—' : `твоя оценка ${scores[person.userId]}`}</span>

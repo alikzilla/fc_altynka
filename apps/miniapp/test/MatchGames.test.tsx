@@ -34,13 +34,16 @@ test('player sees pair, rest, table and empty history without organizer actions'
   expect(screen.getByRole('table',{name:'Таблица команд'})).toBeVisible();
   expect(screen.getByText(/Отдыхают/)).toHaveTextContent('Жёлтые');
   expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull();
+  expect(screen.getByRole('link',{name:'Открыть игру'})).toHaveAttribute('href','/event/7/game');
   expect(screen.getByRole('heading',{name:'Бомбардиры'})).toBeVisible();
 });
 test('organizer can record, and completed meetings keep edits but no new result',()=>{
   const result=renderWithApp(<MatchGames ev={{...ev,viewerRole:'organizer',gameProtocol:makeProtocol()}} reload={()=>{}}/>,{me:organizer});
-  expect(screen.getByRole('button',{name:'Внести результат'})).toBeVisible(); result.unmount();
+  expect(screen.getByRole('link',{name:'Открыть игру'})).toHaveAttribute('href','/event/7/game');
+  expect(screen.getAllByRole('link',{name:'Открыть игру'})).toHaveLength(1);
+  expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull(); result.unmount();
   renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({state:'completed',currentPair:null,completedAt:2,canRecord:false,canFinish:false})}} reload={()=>{}}/>,{me:organizer});
-  expect(screen.queryByRole('button',{name:'Внести результат'})).toBeNull();
+  expect(screen.queryByRole('link',{name:'Открыть игру'})).toBeNull();
   expect(screen.getByText('Результаты не записывались')).toBeVisible();
 });
 test('legacy has no invented zero statistics',()=>{
@@ -110,3 +113,71 @@ test('assistants explain when no pass is marked yet',async()=>{
   await userEvent.click(screen.getByRole('button',{name:'Пасы'}));
   expect(screen.getByText('Пасы пока не указаны.')).toBeVisible();
 });
+
+describe('live mark on the current game',()=>{
+  const timer={gameSequence:1,durationSec:360,startedAt:1000,pausedAt:null as number|null,pausedMs:0,updatedAt:1000};
+  test('pulses while the game clock runs, without showing the time',()=>{
+    renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer})}} reload={()=>{}}/>,{me:player});
+    const current=screen.getByRole('region',{name:'Текущая игра'});
+    expect(within(current).getByRole('img',{name:'Игра идёт'})).toBeInTheDocument();
+    expect(current).not.toHaveTextContent(/\d:\d\d/);
+  });
+  test('is absent before the start and during a pause',()=>{
+    const first=renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer:null})}} reload={()=>{}}/>,{me:player});
+    expect(screen.queryByRole('img',{name:'Игра идёт'})).toBeNull();
+    first.unmount();
+    renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer:{...timer,pausedAt:2000}})}} reload={()=>{}}/>,{me:player});
+    expect(screen.queryByRole('img',{name:'Игра идёт'})).toBeNull();
+  });
+});
+
+test('goals without an author read as a count, and the goal difference sits on the goals line', () => {
+  const unknown={id:'g1',sequence:1,pair:[0,1] as [number,number],score:[2,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1};
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games:[unknown]})}} reload={()=>{}}/>,{me:player});
+  expect(screen.getByText('2 гола без автора')).toBeInTheDocument();
+  expect(screen.queryByText(/автор не указан/)).toBeNull();
+  expect(screen.getByRole('table',{name:'Таблица команд'})).toHaveTextContent('2:0+2');
+});
+
+test('a finished match stands the teams on a podium and adds the viewer\'s own line',()=>{
+  const roster=[{signupId:1,userId:player.userId,name:'Я',teamIndex:2},{signupId:2,userId:3,name:'Бека',teamIndex:0},{signupId:3,userId:4,name:'Ерпа',teamIndex:1}];
+  const g=(id:string,sequence:number,pair:[number,number],score:[number,number],scorers:{signupId:number;goals:number}[]=[])=>({id,sequence,pair,score,scorers,firstRestTeamIndex:null,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1});
+  const games=[g('g1',1,[0,2],[2,1],[{signupId:1,goals:1}]),g('g2',2,[0,1],[1,0]),g('g3',3,[1,2],[0,0])];
+  const standings=[{teamIndex:0,rank:1,played:2,wins:2,draws:0,losses:0,goalsFor:3,goalsAgainst:1,goalDifference:2,points:6},{teamIndex:1,rank:2,played:2,wins:0,draws:1,losses:1,goalsFor:0,goalsAgainst:1,goalDifference:-1,points:1},{teamIndex:2,rank:2,played:2,wins:0,draws:1,losses:1,goalsFor:1,goalsAgainst:2,goalDifference:-1,points:1}];
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({state:'completed',roster,games,standings,currentPair:null,restingTeamIndex:null})}} reload={()=>{}}/>,{me:player});
+  const podium=screen.getByRole('region',{name:'Итоги матча'});
+  expect(within(podium).getByText('3 игры')).toBeInTheDocument();
+  expect(within(podium).getAllByRole('listitem').map(li=>li.getAttribute('aria-label'))).toEqual(['2 место: Жёлтые, 1 очко','1 место: Красные, 6 очков','3 место: Синие, 1 очко']);
+  expect(podium).toHaveTextContent('Ты за Жёлтых · 0–1–1 · 1 гол');
+});
+
+
+test('the 3/1/0 rule opens from the «i» in the table card corner and closes on a tap elsewhere',async()=>{
+  renderWithApp(<MatchGames ev={ev} reload={()=>{}}/>,{me:player});
+  const table=screen.getByRole('region',{name:'Таблица'});
+  expect(within(table).queryByText(/Победа — 3 очка/)).toBeNull();
+  const info=within(table).getByRole('button',{name:'Как считаются очки'});
+  await userEvent.click(info);
+  expect(info).toHaveAttribute('aria-expanded','true');
+  expect(within(table).getByRole('status')).toHaveTextContent('Победа — 3 очка, ничья — 1');
+  await userEvent.click(document.body);
+  expect(within(table).queryByRole('status')).toBeNull();
+});
+
+test('a game in the history reads score, then scorers at the edges with «Игра N» between; an editor taps the game to edit',async()=>{
+  const games=[{id:'g1',sequence:1,pair:[0,1] as [number,number],score:[0,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}];
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games,canEdit:true})}} reload={()=>{}}/>,{me:organizer});
+  const history=screen.getByRole('region',{name:'Последние игры'});
+  const item=within(history).getAllByRole('listitem').find(li=>li.classList.contains('game-result'))!;
+  expect(item).toHaveTextContent('0:0');
+  expect(item).toHaveTextContent('Игра 1');
+  expect(item).not.toHaveTextContent('—');
+  expect(within(item).getByRole('button',{name:'Изменить результат игры 1'})).toBeEmptyDOMElement();
+});
+
+test('with three games or fewer the card already shows them all, so there is no «Все» link',()=>{
+  const games=Array.from({length:3},(_,i)=>({id:`game-${i+1}`,sequence:i+1,pair:[0,1] as [number,number],score:[1,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}));
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games})}} reload={()=>{}}/>,{me:player});
+  expect(screen.queryByRole('button',{name:/Все игры/})).toBeNull();
+});
+

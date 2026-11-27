@@ -14,7 +14,9 @@ let attempts: unknown[];
 let fail: boolean;
 let release: (() => void) | undefined;
 let delay: boolean;
+let venuesHold: Promise<void> | null;
 beforeEach(() => {
+  venuesHold = null;
   venues = [{ id: 1, name: 'Школа Аксай', address: null, mapUrl: 'https://go.2gis.com/G47G5', hourlyRate: null }]; venueCalls = [];
   attempts = []; fail = false; delay = false; release = undefined;
   event = { id: 7, community: { id: 1, title: 'FC Altynka' }, viewerRole: 'organizer', date: '2026-11-08', status: 'collecting', startTime: null, durationHours: null, place: null, limit: 10, mainCount: 0, reserveCount: 0, my: null, main: [], reserve: [], teams: null, bill: null, comment: null };
@@ -31,7 +33,7 @@ beforeEach(() => {
     }
     if (path === '/api/events/7') return Response.json(event);
     if (path === '/api/venues?communityId=1') {
-      if (init?.method !== 'POST') return Response.json({ venues });
+      if (init?.method !== 'POST') { await venuesHold; return Response.json({ venues }); }
       const body = JSON.parse(String(init.body)); venueCalls.push({ method: 'POST', body });
       if (venues.some(v => v.name === body.name)) return Response.json({ error: 'duplicate' }, { status: 409 });
       const venue = { id: venues.length + 1, ...body }; venues = [...venues, venue];
@@ -198,4 +200,97 @@ test('the organizer adds an indoor venue, it becomes the selection, and removes 
   await waitFor(() => expect(within(picker).queryByRole('button', { name: /^Школа Аксай/ })).not.toBeInTheDocument());
   await userEvent.click(within(picker).getByRole('button', { name: 'Выбрать площадку' }));
   await waitFor(() => expect(within(sheet).getByRole('button', { name: /Место проведения/ })).toHaveTextContent('Манеж Арена'));
+});
+
+test('the venue summary keeps an outline until a venue is chosen, then fades in there', async () => {
+  const hint = 'Выбери площадку — карта и цена';
+  open(); const sheet = await appointment();
+  expect(within(sheet).getByText(hint)).toBeVisible();
+  expect(within(sheet).queryByRole('link', { name: 'Открыть в 2ГИС' })).toBeNull();
+  await chooseSchool(sheet);
+  expect(within(sheet).queryByText(hint)).toBeNull();
+  expect(within(sheet).getByRole('link', { name: 'Открыть в 2ГИС' }).closest('.venue-summary')).toHaveClass('reveal');
+});
+
+test('the schedule skeleton holds the venue summary outline as well', async () => {
+  let releaseEvent!: () => void;
+  const hold = new Promise<void>(resolve => { releaseEvent = resolve; });
+  const fetch = vi.mocked(globalThis.fetch);
+  const real = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (path, init) => { if (path === '/api/events/7') await hold; return real(path, init); });
+  open();
+  const dialog = await screen.findByRole('dialog', { name: 'Назначить матч' });
+  expect(within(dialog).getByRole('status', { name: 'Загрузка…' })).toBeInTheDocument();
+  expect(dialog.querySelector('.venue-summary-placeholder')).not.toBeNull();
+  // Loading is not the «choose a court» state: the place is reserved, empty and without a frame.
+  expect(dialog.querySelector('.sheet-placeholder-hint')).toBeNull();
+  await act(async () => releaseEvent());
+  await appointment();
+});
+
+test('a match that already has a court never flashes the venue hint while the sheet loads', async () => {
+  event.place = 'Школа Аксай';
+  let releaseEvent!: () => void;
+  const hold = new Promise<void>(resolve => { releaseEvent = resolve; });
+  const fetch = vi.mocked(globalThis.fetch);
+  const real = fetch.getMockImplementation()!;
+  fetch.mockImplementation(async (path, init) => { if (path === '/api/events/7') await hold; return real(path, init); });
+  open();
+  const dialog = await screen.findByRole('dialog', { name: 'Назначить матч' });
+  expect(within(dialog).getByRole('status', { name: 'Загрузка…' })).toBeInTheDocument();
+  expect(dialog.querySelector('.sheet-placeholder-hint')).toBeNull();
+  await act(async () => releaseEvent());
+  const sheet = await appointment();
+  expect(await within(sheet).findByRole('link', { name: 'Открыть в 2ГИС' })).toBeInTheDocument();
+  expect(sheet.querySelector('.sheet-placeholder-hint')).toBeNull();
+});
+
+test('the venue picker draws outlines while loading and always shows its footer', async () => {
+  let releaseVenues!: () => void;
+  venuesHold = new Promise<void>(resolve => { releaseVenues = resolve; });
+  open(); const sheet = await appointment();
+  await userEvent.click(within(sheet).getByRole('button', { name: /Место проведения/ }));
+  const picker = await screen.findByRole('dialog', { name: 'Место проведения' });
+  expect(within(picker).getByRole('status', { name: 'Загрузка…' })).toBeInTheDocument();
+  expect(picker.querySelectorAll('.venue-option')).toHaveLength(2);
+  expect(within(picker).getByRole('button', { name: 'Выбрать площадку' })).toBeDisabled();
+  await act(async () => releaseVenues());
+  expect(await within(picker).findByRole('button', { name: /^Школа Аксай/, pressed: true })).toBeInTheDocument();
+  expect(within(picker).getByRole('button', { name: 'Выбрать площадку' })).toBeEnabled();
+  expect(within(picker).getByText('Выбрано · Школа Аксай')).toBeInTheDocument();
+});
+
+test('deleting a venue asks in place of its card, in the same cell', async () => {
+  open(); const sheet = await appointment();
+  await userEvent.click(within(sheet).getByRole('button', { name: /Место проведения/ }));
+  const picker = await screen.findByRole('dialog', { name: 'Место проведения' });
+  const select = await within(picker).findByRole('button', { name: /^Школа Аксай/ });
+  expect(select.closest('[inert]')).toBeNull();
+  await userEvent.click(within(picker).getByRole('button', { name: 'Удалить площадку Школа Аксай' }));
+  const confirm = within(picker).getByRole('group', { name: 'Удалить площадку Школа Аксай?' });
+  expect(confirm.closest('[inert]')).toBeNull();
+  expect(confirm.parentElement).toHaveClass('sheet-stack');
+  expect(select.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Отмена' }));
+  expect(select.closest('[inert]')).toBeNull();
+  expect(confirm.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+});
+
+test('a place that is not a saved court keeps the summary space without the hint', async () => {
+  event.place = 'Arena · старое поле';
+  open(); const sheet = await appointment();
+  expect(within(sheet).queryByText('Выбери площадку — карта и цена')).toBeNull();
+  expect(sheet.querySelector('.venue-summary-placeholder')).not.toBeNull();
+});
+
+test('asking to delete a court moves focus to «Отмена», and «Отмена» brings it back', async () => {
+  open(); const sheet = await appointment();
+  await userEvent.click(within(sheet).getByRole('button', { name: /Место проведения/ }));
+  const picker = await screen.findByRole('dialog', { name: 'Место проведения' });
+  const toggle = await within(picker).findByRole('button', { name: 'Удалить площадку Школа Аксай' });
+  await userEvent.click(toggle);
+  const confirm = within(picker).getByRole('group', { name: 'Удалить площадку Школа Аксай?' });
+  expect(within(confirm).getByRole('button', { name: 'Отмена' })).toHaveFocus();
+  await userEvent.click(within(confirm).getByRole('button', { name: 'Отмена' }));
+  expect(toggle).toHaveFocus();
 });

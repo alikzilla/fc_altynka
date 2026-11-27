@@ -1,4 +1,5 @@
 import type { TeamCount } from './teams';
+import type { GameTimer } from './gameTimer';
 
 export type GamePair = readonly [number, number];
 export type GameScore = readonly [number, number];
@@ -34,6 +35,7 @@ export interface GameProtocolDto {
   kickoffTeamIndex: number | null;
   games: GameResult[]; standings: TeamStanding[]; scorers: ScorerTotal[];
   canStart: boolean; canRecord: boolean; canEdit: boolean; canUndo: boolean; canFinish: boolean;
+  timer?: GameTimer | null;
 }
 
 export function chooseFirstPair(count: TeamCount, rng: () => number = Math.random): GamePair {

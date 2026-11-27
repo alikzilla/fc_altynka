@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
+import { watchViewport } from '../lib/tg';
 
 type Drag = {
   kind: 'touch' | 'pointer'; id: number; x: number; y: number;
@@ -99,10 +100,52 @@ export function useBottomSheet(dialog: RefObject<HTMLDialogElement | null>, onDi
     };
     const pointerEnd = (event: PointerEvent) => { if (drag.current?.kind === 'pointer' && drag.current.id === event.pointerId) end(); };
     const pointerCancel = (event: PointerEvent) => { if (drag.current?.kind === 'pointer' && drag.current.id === event.pointerId) reset(); };
-    const viewport = () => {
+    // The keyboard. The sheet stays on the screen's bottom and goes on under the keys; its content and footer get a
+    // bottom padding as tall as the keyboard (--sheet-keyboard, animated in CSS), so they sit just above it and no
+    // strip of the page shows between the sheet and the keys. Keyboard height = what the visual viewport leaves
+    // under itself. iOS 26 may keep offsetTop after the keyboard closes, so it is measured again on every resize,
+    // scroll and focusout and never trusted to go back to 0 (the result is clamped instead).
+    let frame = 0;
+    let applied = '';
+    const measureViewport = () => {
+      frame = 0;
       const visual = window.visualViewport;
-      node.style.setProperty('--sheet-viewport', `${visual?.height ?? window.innerHeight}px`);
-      node.style.setProperty('--sheet-bottom', `${visual ? Math.max(0, window.innerHeight - visual.height - visual.offsetTop) : 0}px`);
+      const height = visual?.height ?? window.innerHeight;
+      const keyboard = visual ? Math.max(0, window.innerHeight - visual.height - visual.offsetTop) : 0;
+      const next = `${height}/${keyboard}`;
+      if (next === applied) return;
+      applied = next;
+      node.style.setProperty('--sheet-viewport', `${height}px`);
+      node.style.setProperty('--sheet-keyboard', `${keyboard}px`);
+      // Without a transition (reduced motion) the padding is already in place in the next frame.
+      requestAnimationFrame(reveal);
+    };
+    const viewport = () => { if (!frame) frame = requestAnimationFrame(measureViewport); };
+    // The focused field is brought into the visible part of the sheet's own scroll area, never by scrolling the
+    // page (iOS pans the visual viewport by itself; that is already in the maths above). The scrollIntoView
+    // ({ block: 'nearest' }) rule, limited to .sheet-content, with a little air around the field: a field that fits
+    // is moved by its nearest edge; a field taller than the view (a long textarea) is left alone while any part of
+    // it is on screen, so the caret the person is typing at is never scrolled away.
+    const reveal = () => {
+      const area = content();
+      const field = document.activeElement;
+      if (!area || !(field instanceof HTMLElement) || field === area || !area.contains(field)) return;
+      const view = area.getBoundingClientRect();
+      const rect = field.getBoundingClientRect();
+      const air = 12;
+      const top = view.top + air;
+      const bottom = view.bottom - air;
+      if (rect.height > bottom - top) {
+        if (rect.bottom <= view.top) area.scrollTop -= bottom - rect.bottom; // above: its bottom edge in view
+        else if (rect.top >= view.bottom) area.scrollTop += rect.top - top; // below: its top edge in view
+        return;
+      }
+      if (rect.top < top) area.scrollTop -= top - rect.top;
+      else if (rect.bottom > bottom) area.scrollTop += rect.bottom - bottom;
+    };
+    const focusIn = () => requestAnimationFrame(reveal);
+    const settled = (event: TransitionEvent) => {
+      if (event.target === node && (event.propertyName === '--sheet-pad' || event.propertyName === '--sheet-visible')) reveal();
     };
     node.addEventListener('touchstart', touchStart, { passive: true });
     node.addEventListener('touchmove', touchMove, { passive: false });
@@ -117,9 +160,18 @@ export function useBottomSheet(dialog: RefObject<HTMLDialogElement | null>, onDi
     window.visualViewport?.addEventListener('resize', viewport);
     window.visualViewport?.addEventListener('scroll', viewport);
     window.addEventListener('resize', viewport);
-    viewport();
+    node.addEventListener('focusin', focusIn);
+    node.addEventListener('focusout', viewport);
+    node.addEventListener('transitionend', settled);
+    const unwatch = watchViewport(viewport);
+    measureViewport();
     return () => {
       clearTimeout(timer.current);
+      cancelAnimationFrame(frame);
+      unwatch?.(); // Tests automock lib/tg; same guard as useHomeScreen.
+      node.removeEventListener('focusin', focusIn);
+      node.removeEventListener('focusout', viewport);
+      node.removeEventListener('transitionend', settled);
       release();
       node.removeEventListener('touchstart', touchStart);
       node.removeEventListener('touchmove', touchMove);

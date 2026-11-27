@@ -190,9 +190,11 @@ for (const width of [320, 390]) {
         await pending;
         await route.fallback();
       });
+      const account = page.waitForResponse(r => new URL(r.url()).pathname === '/api/me');
       await page.goto(path);
-      // The dock appears with the account: measure the screen's own skeleton, not the pre-account frame.
-      await expect(page.locator('.nav')).toBeVisible();
+      // Measure the screen's own skeleton, not the pre-account frame (deeper screens have no dock to wait for).
+      await account;
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       const loading = page.locator('main .loading').first();
       await expect(loading).toBeVisible();
       const sizes = await loading.evaluate(el => {

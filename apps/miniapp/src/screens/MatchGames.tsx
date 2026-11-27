@@ -1,15 +1,17 @@
 import { calculateAssists, plural, teamAppearance, type EventDetailDto, type GameProtocolDto, type GameResult } from '@altynka/core';
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
+import { CurrentPair } from '../components/CurrentPair';
+import { MatchPodium } from '../components/MatchPodium';
+import { PointsHint } from '../components/PointsHint';
 import { GameTeamName } from '../components/GameTeamName';
 import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, EmptyState } from '../components/ui';
 import { Icon } from '../components/Icon';
-import { api, ApiError } from '../lib/api';
 import { GameResultSheet } from './GameResultSheet';
 import { gamePlayerName } from '../lib/gamePlayerName';
-import { clearGameFinish, readGameFinish, writeGameFinish, type GameFinishDraft } from '../lib/gameDraft';
+import { FinishMatchSheet, useGameProtocolActions } from './gameProtocolActions';
 import { useMe } from '../state/me';
 
 /** One line per run of goals with the same author and pass: «Али ×2 (Дамир)». */
@@ -33,7 +35,7 @@ function goalLines(protocol: GameProtocolDto, game: GameResult, team: number, ev
     if(left) lines.push({author:`${scorer}${times(left)}`,pass:null});
   }
   const missing=game.score[game.pair.indexOf(team)]-known;
-  if(missing>0) lines.push({author:`автор не указан: ${missing}`,pass:null});
+  if(missing>0) lines.push({author:`${missing} ${plural(missing,'гол','гола','голов')} без автора`,pass:null});
   return lines;
 }
 
@@ -41,10 +43,17 @@ function GameResults({games,protocol,ev,onEdit}:{games:readonly GameResult[];pro
   return <ol className="game-results">{games.map(game=>{
     const [a,b]=game.score;
     const tone=(side:0|1)=>a===b?'':(side===0?a>b:b>a)?'game-winner':'game-loser';
-    return <li key={game.id} className="game-result">
-      <div className="game-result-meta"><span>Игра {game.sequence}</span>{protocol.canEdit && <button className="btn-text" aria-label={`Изменить результат игры ${game.sequence}`} onClick={event=>{event.currentTarget.focus();onEdit(game);}}>Изменить</button>}</div>
+    const goals=game.pair.map(team=>goalLines(protocol,game,team,ev));
+    const scoreless=!goals[0].length && !goals[1].length;
+    // Score first; under it one line with each side's scorers at the edges and «Игра N» between them. Whoever may
+    // edit taps the game itself: a transparent button over the row carries the edit command.
+    return <li key={game.id} className={`game-result${protocol.canEdit?' editable':''}`}>
+      {protocol.canEdit && <button className="game-result-open" aria-label={`Изменить результат игры ${game.sequence}`} onClick={event=>{event.currentTarget.focus();onEdit(game);}}/>}
       <div className="game-result-pair"><span className={tone(0)}><GameTeamName colors={ev.teams?.colors} index={game.pair[0]}/></span><strong className="game-score-pill">{a}:{b}</strong><span className={tone(1)}><GameTeamName colors={ev.teams?.colors} index={game.pair[1]}/></span></div>
-      <div className="game-goal-columns">{game.pair.map(team=>{const lines=goalLines(protocol,game,team,ev);return <ul key={team} aria-label={`Голы: ${teamAppearance(team, ev.teams?.colors).name}`}>{lines.length?lines.map((line,i)=><li key={i}>{line.author}{line.pass && <small> ({line.pass})</small>}</li>):<li className="game-goal-none">—</li>}</ul>;})}</div>
+      <div className="game-goal-columns">
+        {game.pair.map((team,side)=><ul key={team} aria-label={`Голы: ${teamAppearance(team, ev.teams?.colors).name}`} style={{order:side*2}}>{goals[side].length?goals[side].map((line,k)=><li key={k}>{line.author}{line.pass && <small> ({line.pass})</small>}</li>):!scoreless && <li className="game-goal-none">—</li>}</ul>)}
+        <span className="game-result-number">Игра {game.sequence}</span>
+      </div>
     </li>;
   })}</ol>;
 }
@@ -64,70 +73,34 @@ function GameLeaders({protocol,ev}:{protocol:GameProtocolDto;ev:EventDetailDto})
 }
 
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
-  const me=useMe();
   const protocol=ev.gameProtocol;
+  const me=useMe();
   const [result,setResult]=useState<GameResult|null|undefined>(undefined);
   const [menu,setMenu]=useState(false);
   const [history,setHistory]=useState(false);
-  const [finishing,setFinishing]=useState(false);
-  const [selected,setSelected]=useState<number[]>([]);
-  const [busy,setBusy]=useState(false);
-  const [error,setError]=useState<string|null>(null);
-  const locked=useRef(false);
-  const [pendingFinish,setPendingFinish]=useState<GameFinishDraft|null>(()=>readGameFinish(ev.id,me.userId));
-  const finishRequest=useRef<GameFinishDraft|null>(pendingFinish);
-  const undoRequest=useRef<{requestId:string;expectedRevision:number}|null>(null);
-  useEffect(()=>{
-    if(protocol?.state==='completed'){
-      clearGameFinish(ev.id,me.userId);finishRequest.current=null;setPendingFinish(null);setFinishing(false);setMenu(false);setError(null);
-    }
-  },[protocol?.state,ev.id,me.userId]);
-  if(!protocol || protocol.state==='legacy') return <EmptyState title="Протокол не велся" text="В этом матче результаты коротких игр не записывались."/>;
-  if(protocol.state==='not_started') return <EmptyState title="Матч ещё не начался" text="После подтверждения составов организатор начнёт матч. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
+  const actions=useGameProtocolActions(ev,reload,()=>setMenu(false));
+  const {busy,error,pendingFinish}=actions;
+  if(!protocol || protocol.state==='legacy') return <EmptyState icon="ball" title="Протокол не велся" text="В этом матче результаты коротких игр не записывались."/>;
+  if(protocol.state==='not_started') return <EmptyState icon="ball" title="Матч ещё не начался" text="После подтверждения составов организатор начнёт матч. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
   const active=protocol.state==='playing';
-  const pointsOf=(team:number)=>protocol.standings.find(t=>t.teamIndex===team)?.points ?? 0;
-  const kickoff=protocol.teamCount===2 && !protocol.games.length ? protocol.kickoffTeamIndex ?? null : null;
-  async function finish() {
-    if(locked.current) return;
-    locked.current=true; setBusy(true); setError(null);
-    finishRequest.current ??= {version:1,requestId:crypto.randomUUID(),expectedRevision:protocol!.revision,participantSignupIds:[...selected]};
-    const command=finishRequest.current;setPendingFinish(command);writeGameFinish(ev.id,me.userId,command);
-    try {
-      const {version:_version,...body}=command;
-      await api.send('POST',`/api/events/${ev.id}/games/finish`,body);
-      finishRequest.current=null;setPendingFinish(null);clearGameFinish(ev.id,me.userId);setFinishing(false);reload();
-    } catch(failure) {
-      setError(failure instanceof ApiError && failure.status===409?'Данные матча изменились. Проверь участников и повтори завершение.':'Не удалось подтвердить завершение. Повтори отправку с теми же участниками.');
-      if(failure instanceof ApiError && failure.status>=400 && failure.status<500){finishRequest.current=null;setPendingFinish(null);clearGameFinish(ev.id,me.userId);reload();}
-    } finally {locked.current=false;setBusy(false);}
-  }
-  async function undo() {
-    if(locked.current) return;
-    locked.current=true;setBusy(true);setError(null);
-    undoRequest.current ??= {requestId:crypto.randomUUID(),expectedRevision:protocol!.revision};
-    try {await api.send('POST',`/api/events/${ev.id}/games/undo`,undoRequest.current);undoRequest.current=null;setMenu(false);reload();}
-    catch(failure){setError('Не получилось отменить запись. Повтори отправку.');if(failure instanceof ApiError && failure.status<500){undoRequest.current=null;reload();}}
-    finally{locked.current=false;setBusy(false);}
-  }
-  function openFinish(){
-    setError(null);setMenu(false);
-    const appeared=new Set(protocol!.games.flatMap(g=>[...g.pair]));
-    setSelected(finishRequest.current?.participantSignupIds ?? protocol!.roster.filter(p=>!protocol!.games.length || appeared.has(p.teamIndex)).map(p=>p.signupId));setFinishing(true);
-  }
+  // The time itself lives on the game screen; here a blinking mark only says the clock is running right now.
+  const live=!!protocol.timer && protocol.timer.pausedAt===null;
+  const openMenu=()=>{actions.clearError();setMenu(true);};
   return <div className="match-games">
-    {active && protocol.currentPair ? <section className="card material-blue game-current" aria-label="Текущая игра">
-      <div className="row between"><p className="game-current-meta">Игра {protocol.games.length+1}</p>{protocol.canFinish && !protocol.canRecord && <button className="btn-text" onClick={()=>{setError(null);setMenu(true);}}>Действия</button>}</div>
-      <div className="game-versus">{protocol.currentPair.map((team,i)=><Fragment key={team}>{i===1 && <span className="game-vs" aria-hidden="true">VS</span>}<div className={`game-side team-${teamAppearance(team, ev.teams?.colors).key}`}><span className="game-kit" aria-hidden="true"/><b>{teamAppearance(team, ev.teams?.colors).name}</b><small>{pointsOf(team)} {plural(pointsOf(team),'очко','очка','очков')}</small></div></Fragment>)}</div>
-      {protocol.restingTeamIndex!==null ? <p className={`game-rest team-${teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>Отдыхают {teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).name}</p>
-        : kickoff!==null && <p className={`game-rest team-${teamAppearance(kickoff, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>С мячом начинают {teamAppearance(kickoff, ev.teams?.colors).name}</p>}
-      {protocol.canRecord && <MatchAction><div className="match-action-pair"><button className="btn primary wide" onClick={event=>{event.currentTarget.focus();setResult(null);}}>Внести результат</button>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={()=>{setError(null);setMenu(true);}}><Icon name="more" /></button>}</div></MatchAction>}
-    </section> : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">{protocol.games.length?`Сыграно игр: ${protocol.games.length}`:'Результаты не записывались'}</p></div>}
-    <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
+    {active && protocol.currentPair ? <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра">
+      <CurrentPair protocol={protocol} colors={ev.teams?.colors} lead={<p className="game-current-meta">Игра {protocol.games.length+1}{live && <span className="game-live" role="img" aria-label="Игра идёт"/>}</p>}/>
+      {!protocol.canRecord && (protocol.canFinish
+        ? <div className="match-action-pair"><Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link><button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button></div>
+        : <Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>)}
+      {protocol.canRecord && <MatchAction><div className="match-action-pair"><Link className="btn primary wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button>}</div></MatchAction>}
+    </section> : protocol.games.length ? <MatchPodium protocol={protocol} colors={ev.teams?.colors} userId={me.userId}/>
+      : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">Результаты не записывались</p></div>}
+    <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><div className="game-standings-head"><h2 id="game-table-heading">Таблица</h2><PointsHint/></div><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
       <thead><tr><th scope="col">Команда</th><th scope="col"><abbr title="Игры">И</abbr></th><th scope="col"><abbr title="Победы, ничьи, поражения">В–Н–П</abbr></th><th scope="col"><abbr title="Забито, пропущено и разница голов">Мячи</abbr></th><th scope="col">Очки</th></tr></thead>
-      <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small> ({t.goalDifference>0?'+':''}{t.goalDifference})</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
-    </table></div><p className="muted game-table-note">Победа — 3 очка, ничья — 1.</p></section>
+      <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small>{t.goalDifference>0?'+':''}{t.goalDifference}</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
+    </table></div></section>
 
-    <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{protocol.games.length>0 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>
+    <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{/* The card already shows the latest three: «Все» only when there is more to see. */}{protocol.games.length>3 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>
       {protocol.games.length?<GameResults games={protocol.games.slice(-3).reverse()} protocol={protocol} ev={ev} onEdit={setResult}/>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
     </section>
 
@@ -136,15 +109,10 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
     {history && <ActionSheet title="Все игры" onClose={()=>setHistory(false)} className="game-history-sheet"><p className="game-history-intro">Сыграно {protocol.games.length} · сначала последние</p><GameResults games={[...protocol.games].reverse()} protocol={protocol} ev={ev} onEdit={setResult}/></ActionSheet>}
     {result!==undefined && <GameResultSheet ev={ev} protocol={protocol} game={result} onClose={()=>setResult(undefined)} onSaved={()=>{setResult(undefined);reload();}} reload={reload}/>}
     {menu && <ActionSheet title="Протокол матча" onClose={()=>setMenu(false)} busy={busy}>
-      {protocol.canFinish && <button className="sheet-action" onClick={openFinish}>{pendingFinish?'Проверить завершение':'Завершить матч'}</button>}
-      {protocol.canUndo && !pendingFinish && <ConfirmButton className="sheet-action danger-text" label="Отменить последнюю запись" confirmLabel={`Убрать результат игры ${protocol.games.at(-1)?.sequence}?`} disabled={busy} onConfirm={undo}/>}
+      {protocol.canFinish && <button className="sheet-action" onClick={actions.openFinish}>{pendingFinish?'Проверить завершение':'Завершить матч'}</button>}
+      {protocol.canUndo && !pendingFinish && <ConfirmButton className="sheet-action danger-text" label="Отменить последнюю запись" confirmLabel={`Убрать результат игры ${protocol.games.at(-1)?.sequence}?`} disabled={busy} onConfirm={actions.undo}/>}
       {error && <p className="field-error" role="alert">{error}</p>}
     </ActionSheet>}
-    {finishing && <ActionSheet title="Завершить матч" onClose={()=>setFinishing(false)} busy={busy} footer={<button className="btn primary wide" disabled={busy || protocol.games.length>0 && !selected.length} onClick={finish}>{busy?'Завершаем…':pendingFinish?'Повторить завершение':'Подтвердить завершение'}</button>}>
-      <p className="muted">Отметь тех, кто играл. Им откроется опрос. Составы и оплата сохранятся.</p>
-      <fieldset className="form-fields finish-roster" disabled={busy || pendingFinish!==null}>{protocol.roster.map(person=><label className="finish-person" key={person.signupId}><input type="checkbox" checked={selected.includes(person.signupId)} onChange={e=>setSelected(ids=>e.target.checked?[...ids,person.signupId]:ids.filter(id=>id!==person.signupId))}/><span>{person.name}{person.userId===null && <small className="muted"> · гость</small>}</span></label>)}</fieldset>
-      {!protocol.games.length && <p className="muted">Если никто не играл, убери все отметки — матч завершится без опроса.</p>}
-      {error && <p className="field-error" role="alert">{error}</p>}
-    </ActionSheet>}
+    {actions.finishing && <FinishMatchSheet protocol={protocol} actions={actions}/>}
   </div>;
 }

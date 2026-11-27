@@ -58,6 +58,7 @@ export const events = sqliteTable('events', {
   gameRevision: integer('game_revision').notNull().default(0),
   rosterRevision: integer('roster_revision').notNull().default(0),
   gameStateJson: text('game_state_json'),
+  gameTimerJson: text('game_timer_json'),
   reviewSyncPending: integer('review_sync_pending', { mode: 'boolean' }).notNull().default(false),
   ratingEnabled: integer('rating_enabled', { mode: 'boolean' }).notNull().default(false),
   ratingSnapshot: text('rating_snapshot'),

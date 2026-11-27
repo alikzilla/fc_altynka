@@ -2,7 +2,7 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
 /**
- * One contextual next step, above the existing navigation dock.
+ * One contextual next step: above the dock where there is one, at the bottom of a deeper screen without it.
  *
  * The action is declared wherever its logic lives (inside the summary card, a tab panel), but those
  * hosts form their own stacking contexts, so later cards and tables would paint over the fixed button.

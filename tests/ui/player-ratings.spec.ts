@@ -164,7 +164,7 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await reviewSheet.getByRole('slider').press('End');
   await reviewSheet.getByRole('slider').press('ArrowLeft');
   await reviewSheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
-  await expect(reviewSheet.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
+  await expect(reviewSheet.locator('.review-step .score-reel')).toHaveAttribute('data-settled', 'true');
   await page.screenshot({ path: 'artifacts/ratings/review-dark-390.png', fullPage: true });
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/review'));
@@ -188,7 +188,7 @@ test('closed results display aggregate scores and insufficient data without vote
   await page.screenshot({ path: 'artifacts/ratings/closed-dark-320.png', fullPage: true });
 });
 
-test('questionnaire slider follows a reversible drag and Next stays above the dock', async ({ page }) => {
+test('questionnaire slider follows a reversible drag and Next stays at the bottom without a dock', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await mockApp(page, { fresh: true });
   await page.goto('/profile/skills');
@@ -208,8 +208,9 @@ test('questionnaire slider follows a reversible drag and Next stays above the do
   await expect(slider).toHaveValue('7');
   await expect(page.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
   const action = (await next.boundingBox())!;
-  const dock = (await page.getByRole('navigation', { name: 'Основная навигация' }).boundingBox())!;
-  expect(action.y + action.height).toBeLessThan(dock.y);
+  // The questionnaire is two steps from Профиль: no dock, Next takes its place at the bottom.
+  await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
+  expect(action.y + action.height).toBeLessThanOrEqual(740 - 16 + 1);
   await expect(next).toBeEnabled();
   await page.screenshot({ path: 'artifacts/ratings/slider-drag-dark-320.png' });
   await next.click();
@@ -273,7 +274,7 @@ test('cancelled rating drag does not advance, and reduced motion keeps the same 
   await slider.dispatchEvent('pointercancel', { pointerId, pointerType: 'mouse', isPrimary: true });
   await page.mouse.up();
   await expect(sheet.getByRole('heading', { name: 'Арман', exact: true })).toBeVisible();
-  await expect(sheet.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
+  await expect(sheet.locator('.review-step .score-reel')).toHaveAttribute('data-settled', 'true');
   expect(await sheet.locator('.review-step').evaluate(el => getComputedStyle(el).animationName)).toBe('none');
   await sheet.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(sheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();

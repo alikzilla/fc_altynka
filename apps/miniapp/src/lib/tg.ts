@@ -12,8 +12,8 @@ interface TgWebApp {
   setHeaderColor?(color: string): void;
   setBackgroundColor?(color: string): void;
   setBottomBarColor?(color: string): void;
-  onEvent?(event: string, callback: () => void): void;
-  offEvent?(event: string, callback: () => void): void;
+  onEvent?(event: string, callback: (event?: { isStateStable?: boolean }) => void): void;
+  offEvent?(event: string, callback: (event?: { isStateStable?: boolean }) => void): void;
   platform?: string;
   isFullscreen?: boolean;
   requestFullscreen?(): void;
@@ -110,6 +110,20 @@ export function watchHomeScreen(report: (status: HomeScreenStatus) => void): () 
     // The client advertises the version but not the method.
   }
   return () => app.offEvent?.('homeScreenAdded', added);
+}
+
+/**
+ * Telegram's own report that the mini app's viewport changed (the client resized the web view, e.g. for the
+ * keyboard on Android, or the panel moved). Calls back only once the size has settled (`isStateStable`; clients
+ * that send no flag count as settled), so a sheet takes the final value rather than every step of the motion.
+ * Returns the unsubscribe; outside Telegram nothing is reported.
+ */
+export function watchViewport(settled: () => void): () => void {
+  const app = wa();
+  if (!app?.onEvent) return () => {};
+  const changed = (event?: { isStateStable?: boolean }) => { if (event?.isStateStable !== false) settled(); };
+  app.onEvent('viewportChanged', changed);
+  return () => app.offEvent?.('viewportChanged', changed);
 }
 
 export function addToHomeScreen(): void {

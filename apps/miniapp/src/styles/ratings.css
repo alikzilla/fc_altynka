@@ -38,6 +38,11 @@
 .player-directory > li { display: block; }
 .player-management-toggle { padding-left: 0; }
 .player-profile-link { text-align: left; font-weight: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+/* In the roster the whole row opens the profile and the name is plain text, as in Telegram's own lists. */
+.person .player-profile-link { text-decoration: none; }
+.person:has(.player-profile-link) { position: relative; }
+.person .player-profile-link::after { content: ''; position: absolute; inset: 0; }
+.person:has(.player-profile-link:active) { background: #ffffff08; }
 .finish-roster { gap: 2px; }
 .finish-person { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; }
 .finish-person input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--accent); }
@@ -51,7 +56,7 @@
 .player-profile-identity { flex-direction: column; align-items: stretch; }
 .player-profile-person { display: flex; align-items: center; gap: 16px; }
 .player-profile-person > div { min-width: 0; }
-.skills-screen:has(.match-action) { padding-bottom: calc(220px + var(--safe-bottom)); }
+.skills-screen:has(.match-action) { padding-bottom: calc(126px + var(--safe-bottom)); }
 .skill-question { gap: 14px; }
 .rating-slider { min-width: 0; width: 100%; }
 .score-display { position: relative; display: flex; align-items: baseline; justify-content: center; gap: 7px; margin-top: 8px; }
@@ -97,6 +102,12 @@
 .review-progress { margin-bottom: 16px; }
 .review-step-window { overflow: hidden; margin-inline: -4px; padding-inline: 4px; }
 .review-step { min-height: 466px; gap: 12px; opacity: 1; transform: translateX(0); animation: review-step-in 240ms cubic-bezier(.22, 1, .36, 1) both; transition: transform 180ms cubic-bezier(.22, 1, .36, 1), opacity 180ms ease-out; }
+.review-step-ghost { min-height: 466px; gap: 12px; }
+/* The invisible copies only lift the sheet to its cap: clipped to the stack's room in a capped sheet (ReviewRater). */
+.review-ghost { max-height: var(--review-fit, none); overflow: hidden; }
+/* The final card's recap and its rare note sit at the bottom of the card; the footer holds only the buttons. */
+.review-final-summary { margin-top: auto; display: grid; gap: 6px; }
+.review-step .review-recap { margin: 0; color: var(--blue-ink); }
 .review-step.is-leaving { animation: none; transform: translateX(calc(var(--step-direction) * 36px)); opacity: 0; }
 .review-person { display: flex; align-items: center; gap: 12px; min-height: 62px; }
 .review-person > div { min-width: 0; }

@@ -89,3 +89,38 @@ test('joining blocks repeated requests and recovers after a failure', async () =
   fail(new Error('offline'));
   expect(await screen.findByRole('button', { name: 'Иду' })).toBeEnabled();
 });
+
+test('EventList: an organizer taps the row itself; its sheet opens the profile too, and rows carry no «⋯»', async () => {
+  renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: organizer });
+  expect(document.querySelector('.player-menu-button')).toBeNull();
+  const row = screen.getByRole('button', { name: 'Действия: Азамат' });
+  expect(row).toHaveTextContent('Азамат');
+  await userEvent.click(row);
+  expect(screen.getByRole('button', { name: 'Профиль игрока' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Действия: Ержан' }));
+});
+
+
+test('EventList: once teams are published each row ends with a colour dot of its team, named only for screen readers', () => {
+  const withTeams = { ...ev, teams: { teamCount: 2 as const, teams: [[1], [2]], colors: ['red', 'blue'] as never, publishedAt: 1, stale: false } };
+  const { container } = renderWithApp(<MatchList ev={withTeams} reload={() => {}} />, { me: player });
+  const marks = [...container.querySelectorAll('.row-team')];
+  expect(marks.map(m => m.className)).toEqual(['row-team team-red', 'row-team team-blue']);
+  expect(marks.map(m => m.querySelector('.sr-only')!.textContent)).toEqual(['Красные', 'Синие']);
+  expect(screen.queryByText('Красные', { selector: ':not(.sr-only)' })).toBeNull();
+});
+
+test('EventList: no team dots before teams are published', () => {
+  const { container } = renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: player });
+  expect(container.querySelector('.row-team')).toBeNull();
+});
+
+test('EventList: only someone waiting in the reserve reads how the queue moves', () => {
+  const withReserve = { ...ev, reserve: [s(9, 'Олжас')] };
+  const first = renderWithApp(<MatchList ev={{ ...withReserve, my: null }} reload={() => {}} />, { me: player });
+  expect(screen.queryByText(/займёт первый в резерве/)).toBeNull();
+  first.unmount();
+  renderWithApp(<MatchList ev={{ ...withReserve, my: 'reserve' }} reload={() => {}} />, { me: player });
+  expect(screen.getByText('Освободится место в основе — его займёт первый в резерве.')).toBeInTheDocument();
+});
+

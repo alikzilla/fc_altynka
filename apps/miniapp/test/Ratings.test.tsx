@@ -108,7 +108,12 @@ test('an unrated candidate shows a dash, and awards alone cannot be submitted', 
   await userEvent.click(within(dialog).getByRole('button', { name: 'Далее' }));
   await skipAwards(dialog, 1);
   expect(await within(dialog).findByRole('button', { name: 'Отправить оценки' })).toBeDisabled();
-  expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).toBeInTheDocument();
+  expect(within(dialog).getByText('Чтобы отправить, оцени хотя бы одного игрока или матч').closest('.review-step')).not.toBeNull();
+});
+
+test('the «nothing rated» line is not reserved: it appears only on the final step that needs it', async () => {
+  const dialog = await openRater(openReview);
+  expect(within(dialog).queryByText('Чтобы отправить, оцени хотя бы одного игрока или матч')).toBeNull();
 });
 
 test('reopening the sheet resumes at the first unanswered step, or at the match rating when all is answered', async () => {
@@ -254,6 +259,12 @@ test('finish confirms the actual roster with main preselected and reserve option
 test('a linked player profile keeps the profile tab active', async () => {
   (api.get as Mock).mockResolvedValue({ tasks: [] });
   renderWithApp(<NotificationsProvider><Nav /></NotificationsProvider>, { me: player, path: '/players/12' });
+  expect(screen.getByRole('link', { name: 'Профиль' })).toHaveAttribute('aria-current', 'page');
+});
+
+test('a profile sheet keeps the profile tab active', async () => {
+  (api.get as Mock).mockResolvedValue({ tasks: [] });
+  renderWithApp(<NotificationsProvider><Nav /></NotificationsProvider>, { me: player, path: '/profile/club' });
   expect(screen.getByRole('link', { name: 'Профиль' })).toHaveAttribute('aria-current', 'page');
 });
 
