@@ -10,6 +10,7 @@ import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, ErrorNote, Screen } from '../components/ui';
 import { GameScreenSkeleton } from '../components/skeletons';
 import { useGameTimer } from '../hooks/useGameTimer';
+import { useHeroMaterial } from '../lib/heroMaterial';
 import { useResource } from '../hooks/useResource';
 import { GameResultSheet } from './GameResultSheet';
 import { FinishMatchSheet, useGameProtocolActions } from './gameProtocolActions';
@@ -49,6 +50,7 @@ export function GameScreen() {
 
 function GameView({ ev, protocol, reload, back }: { ev: EventDetailDto; protocol: GameProtocolDto; reload: () => void; back: string }) {
   const timer = useGameTimer(ev);
+  const hero = useHeroMaterial('material-blue');
   const [result, setResult] = useState(false);
   const [menu, setMenu] = useState(false);
   const actions = useGameProtocolActions(ev, reload, () => setMenu(false));
@@ -64,7 +66,7 @@ function GameView({ ev, protocol, reload, back }: { ev: EventDetailDto; protocol
   const subtitle = day.charAt(0).toUpperCase() + day.slice(1);
   return <Screen title={`Игра ${sequence}`} subtitle={subtitle} back={back} className="match-screen game-screen">
     <div className="match-games game-screen-body">
-      {protocol.currentPair && <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра"><CurrentPair protocol={protocol} colors={colors} /></section>}
+      {protocol.currentPair && <section className={`card ${hero.className} game-current game-current-compact`} style={hero.style} aria-label="Текущая игра"><CurrentPair protocol={protocol} colors={colors} /></section>}
       <GameTimer view={timer} />
       {hint && <p className="muted game-screen-hint">Экран не погаснет сам. Можно заблокировать телефон — сигналы прозвучат.</p>}
       <section className="card material-graphite game-standings-section" aria-labelledby="game-screen-table-heading"><h2 id="game-screen-table-heading">Таблица</h2>

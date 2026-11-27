@@ -1,3 +1,4 @@
+import { useHeroMaterial } from '../lib/heroMaterial';
 import { plural, summarizePlayerProtocol, teamAppearance, type GameProtocolDto, type GameState } from '@altynka/core';
 
 type Colors = Parameters<typeof teamAppearance>[1];
@@ -19,7 +20,8 @@ export function MatchPodium({ protocol, colors, userId }: { protocol: GameProtoc
   // The summary reads only the roster and the games, which the protocol carries.
   const mine = me ? summarizePlayerProtocol({ roster: protocol.roster, games: protocol.games } as unknown as GameState, userId) : null;
   const games = protocol.games.length;
-  return <section className="card material-blue match-podium" aria-labelledby="match-podium-heading">
+  const hero = useHeroMaterial('material-blue');
+  return <section className={`card ${hero.className} match-podium`} style={hero.style} aria-labelledby="match-podium-heading">
     <div className="match-podium-head"><h2 id="match-podium-heading">Итоги матча</h2><p className="muted">{games} {plural(games, 'игра', 'игры', 'игр')}</p></div>
     <ol className="podium" aria-label="Места команд">{order.map(row => {
       const team = teamAppearance(row.teamIndex, colors);

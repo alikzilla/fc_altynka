@@ -13,6 +13,7 @@ import { GameResultSheet } from './GameResultSheet';
 import { gamePlayerName } from '../lib/gamePlayerName';
 import { FinishMatchSheet, useGameProtocolActions } from './gameProtocolActions';
 import { useMe } from '../state/me';
+import { useHeroMaterial } from '../lib/heroMaterial';
 
 /** One line per run of goals with the same author and pass: «Али ×2 (Дамир)». */
 type GoalLine = { author: string; pass: string | null };
@@ -75,6 +76,7 @@ function GameLeaders({protocol,ev}:{protocol:GameProtocolDto;ev:EventDetailDto})
 export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => void }) {
   const protocol=ev.gameProtocol;
   const me=useMe();
+  const hero=useHeroMaterial('material-blue');
   const [result,setResult]=useState<GameResult|null|undefined>(undefined);
   const [menu,setMenu]=useState(false);
   const [history,setHistory]=useState(false);
@@ -87,7 +89,7 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
   const live=!!protocol.timer && protocol.timer.pausedAt===null;
   const openMenu=()=>{actions.clearError();setMenu(true);};
   return <div className="match-games">
-    {active && protocol.currentPair ? <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра">
+    {active && protocol.currentPair ? <section className={`card ${hero.className} game-current game-current-compact`} style={hero.style} aria-label="Текущая игра">
       <CurrentPair protocol={protocol} colors={ev.teams?.colors} lead={<p className="game-current-meta">Игра {protocol.games.length+1}{live && <span className="game-live" role="img" aria-label="Игра идёт"/>}</p>}/>
       {!protocol.canRecord && (protocol.canFinish
         ? <div className="match-action-pair"><Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link><button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button></div>

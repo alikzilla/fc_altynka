@@ -2,6 +2,7 @@ import { formatDateRu, formatTenge, plural, type EventSummaryDto, type MyMatchRe
 import { Fragment } from 'react';
 import { Link } from 'wouter';
 import { Icon } from './Icon';
+import { useHeroMaterial } from '../lib/heroMaterial';
 
 const PLACE = ['первое', 'второе', 'третье'];
 
@@ -14,7 +15,8 @@ export function ResultCard({ event, result, tasks }: { event: EventSummaryDto; r
     `${result.draws} ${plural(result.draws, 'ничья', 'ничьи', 'ничьих')}`,
     `${result.losses} ${plural(result.losses, 'поражение', 'поражения', 'поражений')}`,
   ];
-  return <article className="card material-plum result-card" aria-label={`Итог матча: ${PLACE[result.teamRank - 1] ?? PLACE[2]} место`}>
+  const hero = useHeroMaterial('material-plum');
+  return <article className={`card ${hero.className} result-card`} style={hero.style} aria-label={`Итог матча: ${PLACE[result.teamRank - 1] ?? PLACE[2]} место`}>
     <p className="match-day result-card-date">{formatDateRu(event.date)}</p>
     <h2 className="match-headline">{result.teamRank} место</h2>
     <p className="match-when">{record.map((part, i) => <Fragment key={part}>{i ? ' · ' : ''}<span className="nowrap">{part}</span></Fragment>)}</p>

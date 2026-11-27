@@ -55,6 +55,22 @@
 .club-material .rank-track { stroke: color-mix(in srgb, var(--club-ink) 14%, transparent); }
 .club-material .rating-caption { color: var(--club-ink-soft); }
 
+/* Главные карточки экрана в цвете клуба (lib/heroMaterial.ts): ближайший матч, итог, карточка матча, текущая пара,
+   пьедестал. Всё, что внутри было светлым на сливовом и синем, берёт чернила клуба, поэтому читается и на тёмном
+   материале (Барселона), и на светлом (Реал). Оплата и задачи остаются коралловыми и синими. */
+.club-hero :is(.match-when, .match-detail-time, .match-detail-place, .result-card-link, .match-headline, .game-side b, .podium-me, .podium-block, .match-podium h2) { color: var(--club-ink); }
+.club-hero :is(.match-day, .game-current-meta, .game-vs, .game-side small, .podium-name, .match-podium-head .muted, .match-status, .muted) { color: var(--club-ink-soft); }
+.club-hero :is(.match-tag:not(.on, .reserve), .game-rest, .podium-me, .group-tag) { background: color-mix(in srgb, var(--club-ink) 12%, transparent); color: var(--club-ink); box-shadow: none; }
+.club-hero .podium-block { background: color-mix(in srgb, var(--club-ink) 10%, transparent); }
+.club-hero .match-personal { border-top-color: color-mix(in srgb, var(--club-ink) 16%, transparent); }
+.club-hero :is(.match-personal-status, .match-personal-status svg, .match-personal > .btn-text) { color: var(--club-ink); }
+.club-hero .match-personal-detail { color: var(--club-ink-soft); }
+.club-hero .podium-step.first .podium-block { background: color-mix(in srgb, var(--club-ink) 22%, transparent); color: var(--club-ink); }
+:root[data-club] .club-hero .btn.primary { background: var(--club-ink); color: var(--club-base); box-shadow: 0 4px 14px #0004; }
+:root[data-club] .club-hero .btn:not(.primary) { background: color-mix(in srgb, var(--club-ink) 14%, transparent); color: var(--club-ink); box-shadow: none; }
+.club-hero .match-action-more { background: color-mix(in srgb, var(--club-ink) 14%, transparent); color: var(--club-ink); }
+@media (prefers-contrast: more) { .club-hero :is(.match-tag:not(.on, .reserve), .game-rest, .podium-me) { box-shadow: inset 0 0 0 1px currentColor; } }
+
 /* Шторка «Любимый клуб». */
 .create-sheet.club-picker-sheet { height: calc(var(--sheet-viewport, 100dvh) - 12px - var(--safe-top) - var(--tg-content-safe-area-inset-top, 0px)); }
 /* The sheet is full height; only the list scrolls, everything above it stays put. */

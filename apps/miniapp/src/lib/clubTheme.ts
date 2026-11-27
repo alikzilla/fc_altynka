@@ -97,6 +97,7 @@ export function materialVariables(club: Club): Record<string, string> {
     '--accent-ink': m.ink,
     '--accent-soft': mix(m.ink, m.mid, 0.14),
     '--plum-ink': soft,
+    '--blue-ink': soft,
     '--plum-ink-strong': m.ink,
   };
 }

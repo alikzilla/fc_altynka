@@ -9,6 +9,7 @@ import { Link } from 'wouter';
 import { CurrentPairSkeleton } from './CurrentPair';
 import { Icon } from './Icon';
 import { materialVariables } from '../lib/clubTheme';
+import { heroMaterialNow } from '../lib/heroMaterial';
 import { VenueSummaryPlaceholder, VenueTriggerText } from './VenueField';
 import { matchOrigin } from '../lib/navHistory';
 import { getClubId } from '../lib/theme';
@@ -32,7 +33,7 @@ function SkFrame({ title, back, subtitle, className, children }: { title: string
 export function HomeMatchSkeleton() {
   return <Skeleton>
     <div className="match-carousel single">
-      <div className="card match-card material-plum">
+      <div className={`card match-card ${heroMaterialNow('material-plum').className}`} style={heroMaterialNow('material-plum').style}>
         <p className="match-day"><Sk w="38%" /></p>
         <p className="match-headline"><Sk w="56%" /></p>
         <p className="match-when"><Sk w="74%" /></p>
@@ -217,7 +218,8 @@ export function ProfileStatisticsSkeleton() {
 /* ——— Матч ——— */
 
 function EventSummarySkeleton() {
-  return <section className="card material-plum event-summary">
+  const hero = heroMaterialNow('material-plum');
+  return <section className={`card ${hero.className} event-summary`} style={hero.style}>
     <div className="match-summary-top"><SkGroupTag show /><p className="match-detail-time"><Sk w="5.6em" /></p></div>
     <p className="match-detail-place"><Icon name="pin" /><span><Sk w="9em" /></span></p>
     <div className="match-personal"><span className="match-personal-status"><Sk w="8em" /></span><span className="btn-text"><Sk w="4.5em" /></span></div>
@@ -253,7 +255,7 @@ function BillSkeleton() {
 
 function GamesSkeleton() {
   return <div className="match-games">
-    <section className="card material-blue game-current game-current-compact">
+    <section className={`card ${heroMaterialNow('material-blue').className} game-current game-current-compact`} style={heroMaterialNow('material-blue').style}>
       <CurrentPairSkeleton lead />
       <span className="btn primary wide sk-fill" />
     </section>
@@ -265,7 +267,7 @@ function GamesSkeleton() {
 /** Экран игры: пара, таймер и компактная таблица. */
 export function GameScreenSkeleton() {
   return <Skeleton><div className="match-games game-screen-body">
-    <section className="card material-blue game-current game-current-compact"><CurrentPairSkeleton /></section>
+    <section className={`card ${heroMaterialNow('material-blue').className} game-current game-current-compact`} style={heroMaterialNow('material-blue').style}><CurrentPairSkeleton /></section>
     <section className="card material-graphite game-timer"><p className="game-timer-digits"><Sk w="2.4em" /></p><p className="game-timer-phase"><Sk w="6em" /></p></section>
     <section className="card material-graphite game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
   </div></Skeleton>;

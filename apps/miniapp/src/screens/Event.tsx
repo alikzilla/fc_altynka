@@ -11,6 +11,7 @@ import { is2gis } from '../lib/venues';
 import { slideTab } from '../lib/pageTransition';
 import { preloadable } from '../lib/preloadable';
 import { matchOrigin } from '../lib/navHistory';
+import { useHeroMaterial } from '../lib/heroMaterial';
 import { Icon } from '../components/Icon';
 import { GroupTag } from '../components/GroupTag';
 import { ActionSheet } from '../components/ActionSheet';
@@ -38,6 +39,7 @@ export const tabViews: Partial<Record<Tab, (p: { ev: EventDetailDto; reload: () 
 export function Event() {
   const { id } = useParams<{ id: string }>();
   const toast = useToast();
+  const hero = useHeroMaterial('material-plum');
   const search = useScreenSearch();
   const [, navigate] = useLocation();
   const requestedTab = new URLSearchParams(search).get('tab');
@@ -101,7 +103,7 @@ export function Event() {
         <p>Запись закрыта, оплачивать ничего не нужно.</p>
         <Link className="btn primary" href="/matches">К матчам</Link>
       </section>}
-      <section className={`card material-plum event-summary ${reveal} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Матч и твоё участие">
+      <section style={hero.style} className={`card ${hero.className} event-summary ${reveal} ${ev.status === 'cancelled' ? 'match-cancelled' : ''}`} aria-label="Матч и твоё участие">
         <div className="match-summary-top"><GroupTag community={ev.community} always /><p className={`match-detail-time ${!ev.startTime ? 'unknown' : ''}`}>{ev.startTime && ev.durationHours ? timeRange(ev.startTime, ev.durationHours) : 'Время уточняется'}</p></div>
         {ev.place && ev.placeMapUrl
           ? <button type="button" className="match-detail-place match-place-copy" aria-label={`${ev.place}, скопировать ссылку ${is2gis(ev.placeMapUrl) ? 'на 2ГИС' : 'на карту'}`} onClick={() => copyPlace(ev.placeMapUrl!)}><Icon name="pin" /><span>{ev.place}</span><Icon name="copy" className="match-place-copy-icon" /></button>

@@ -4,6 +4,7 @@ import { GroupTag } from "./GroupTag";
 import { Icon } from "./Icon";
 import { useMatchPhase } from "../hooks/useMatchPhase";
 import { STATUS_LABEL, timeRange, whenLine } from "../lib/labels";
+import { useHeroMaterial } from "../lib/heroMaterial";
 
 export function datePart(date: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat("ru", {
@@ -32,9 +33,11 @@ export function MatchCard({
   // Формат выбирают при назначении матча; до этого размер основы — значение по умолчанию.
   const format = e.status === "collecting" ? undefined : matchFormat(e.limit);
   const roster = `${format ? `${format.label} · ` : ""}${e.mainCount} / ${e.limit}${e.reserveCount ? ` · резерв ${e.reserveCount}` : ""}`;
+  const hero = useHeroMaterial(index % 2 ? "material-blue" : "material-plum");
   return (
     <article
-      className={`card match-card ${index % 2 ? "material-blue" : "material-plum"}`}
+      className={`card match-card ${hero.className}`}
+      style={hero.style}
       aria-label={`Матч ${formatDateRu(e.date)}`}
     >
       <h2 className="match-day">{formatDateRu(e.date)}</h2>
