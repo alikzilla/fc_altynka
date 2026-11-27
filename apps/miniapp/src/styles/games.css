@@ -136,8 +136,8 @@ body:has(.nav-shell) .match-screen:has(.game-current .match-action) { padding-bo
 .game-vs { color: var(--blue-ink); font-size: 13px; font-weight: 600; letter-spacing: .08em; }
 .game-current .game-rest { display: flex; align-items: center; justify-self: center; align-self: center; gap: 0; margin: 0 auto 4px; padding: 8px 12px; border-radius: 14px; background: #060b2266; color: var(--blue-ink); font-size: 13px; }
 .game-current .match-action-pair { margin-top: 10px; }
-/* The games tab keeps the current pair short: number, live mark and rest chip on one line, the pair on the next,
-   then the way into the game. The game screen keeps the large pair above its timer. */
+/* The current pair is short on both the games tab and the game screen (components/CurrentPair.tsx): number, live
+   mark and rest chip on one line (the game screen shows only the chip), the pair on the next, then the way in. */
 .match-games .game-current-compact { padding: 14px 16px 16px; }
 .game-current-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
 .game-current-compact .game-current-meta { display: inline-flex; align-items: center; gap: 8px; margin: 0; }

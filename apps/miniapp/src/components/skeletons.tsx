@@ -6,6 +6,7 @@ import { MATCH_FORMATS } from '@altynka/core';
 import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
+import { CurrentPairSkeleton } from './CurrentPair';
 import { Icon } from './Icon';
 import { VenueSummaryPlaceholder, VenueTriggerText } from './VenueField';
 import { matchOrigin } from '../lib/navHistory';
@@ -248,9 +249,8 @@ function BillSkeleton() {
 
 function GamesSkeleton() {
   return <div className="match-games">
-    <section className="card material-blue game-current">
-      <div className="row between"><span className="game-current-meta"><Sk w="4em" /></span></div>
-      <div className="game-versus">{times(2).map(side => <Fragment key={side}>{side === 1 && <span className="game-vs">VS</span>}<div className="game-side"><span className="game-kit sk-fill" /><b><Sk w="5em" /></b><small><Sk w="3.5em" /></small></div></Fragment>)}</div>
+    <section className="card material-blue game-current game-current-compact">
+      <CurrentPairSkeleton lead />
       <span className="btn primary wide sk-fill" />
     </section>
     <section className="card material-graphite game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
@@ -261,9 +261,7 @@ function GamesSkeleton() {
 /** Экран игры: пара, таймер и компактная таблица. */
 export function GameScreenSkeleton() {
   return <Skeleton><div className="match-games game-screen-body">
-    <section className="card material-blue game-current">
-      <div className="game-versus">{times(2).map(side => <Fragment key={side}>{side === 1 && <span className="game-vs">VS</span>}<div className="game-side"><span className="game-kit sk-fill" /><b><Sk w="5em" /></b><small><Sk w="3.5em" /></small></div></Fragment>)}</div>
-    </section>
+    <section className="card material-blue game-current game-current-compact"><CurrentPairSkeleton /></section>
     <section className="card material-graphite game-timer"><p className="game-timer-digits"><Sk w="2.4em" /></p><p className="game-timer-phase"><Sk w="6em" /></p></section>
     <section className="card material-graphite game-standings-section"><h2>Таблица</h2>{times(3).map(index => <p className="sk-table-row" key={index}><Sk w="100%" /></p>)}</section>
   </div></Skeleton>;

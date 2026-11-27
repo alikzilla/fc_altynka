@@ -2,7 +2,6 @@
 /* «Воскресенье, 8 ноября»: only the first letter is capital (the match page capitalises every word of its weekday). */
 .match-screen.game-screen .subtitle { text-transform: none; }
 .game-screen-body { padding-bottom: 4px; }
-.game-screen .game-versus { margin-bottom: 12px; }
 
 /* Timer: one graphite card with a horseshoe dial around big tabular digits. The arc empties clockwise behind a knob;
    dots mark the signals (start, «1:00», «0:15», the final whistle) and light up once passed. The phase changes
