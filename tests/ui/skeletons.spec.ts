@@ -61,11 +61,13 @@ for (const [theme, width] of [['dark', 390], ['dark', 320], ['light', 390]] as c
         if (resource !== '/api/me') await gate;
         await route.fulfill({ json: body(resource, theme) });
       });
+      const account = page.waitForResponse(r => new URL(r.url()).pathname === '/api/me');
       await page.goto(path);
       const status = scope === 'dialog' ? page.getByRole('dialog').getByRole('status', { name: 'Загрузка…' }) : page.locator('main').getByRole('status', { name: 'Загрузка…' }).first();
       await expect(status).toBeVisible();
-      // The dock appears with the account; then wait for every placeholder of the screen itself.
-      await expect(page.locator('.nav')).toBeVisible();
+      // Wait for the account (deeper screens have no dock to signal it), then for every placeholder of the screen itself.
+      await account;
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
       await expect.poll(async () => (await boxes(page, scope, selectors, true)).every(box => box.y >= 0)).toBe(true);
       // Wait for the sheet to finish sliding in before measuring it.
       if (scope === 'dialog') await expect.poll(async () => Math.round((await page.locator('dialog[open]').boundingBox())!.y + (await page.locator('dialog[open]').boundingBox())!.height)).toBe(844);
