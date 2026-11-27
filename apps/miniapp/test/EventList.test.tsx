@@ -89,3 +89,14 @@ test('joining blocks repeated requests and recovers after a failure', async () =
   fail(new Error('offline'));
   expect(await screen.findByRole('button', { name: 'Иду' })).toBeEnabled();
 });
+
+test('EventList: an organizer taps the row itself; its sheet opens the profile too, and rows carry no «⋯»', async () => {
+  renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: organizer });
+  expect(document.querySelector('.player-menu-button')).toBeNull();
+  const row = screen.getByRole('button', { name: 'Действия: Азамат' });
+  expect(row).toHaveTextContent('Азамат');
+  await userEvent.click(row);
+  expect(screen.getByRole('button', { name: 'Профиль игрока' })).toBeInTheDocument();
+  await userEvent.click(screen.getByRole('button', { name: 'Действия: Ержан' }));
+});
+

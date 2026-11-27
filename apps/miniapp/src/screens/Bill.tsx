@@ -214,8 +214,9 @@ function MyPayment({ bill, reload, mark }: { bill: BillDto; reload: () => void; 
   if (!line || bill.receiver.userId === me.userId) return null;
   const closed = bill.status === 'closed';
   const amount = line.state === 'underpaid' ? line.due : line.amount;
-  return <section className="card material-coral pay" aria-label="Твоя оплата">
-    <p className="payment-label">{closed ? 'Расчёт закрыт' : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
+  // A closed bill asks nothing more: the card turns graphite and says plainly whether this person's payment was marked.
+  return <section className={`card pay ${closed ? 'material-graphite pay-closed' : 'material-coral'}`} aria-label="Твоя оплата">
+    <p className="payment-label">{closed ? (line.state === 'paid' ? '✓ Ты оплатил · расчёт закрыт' : 'Расчёт закрыт · оплата не отмечена') : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
     <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} onTransfer={kaspi.onTransfer} />
     {!closed && <PaymentMark billId={bill.id} returnedFromKaspi={kaspi.returned} canUndo onChanged={reload} optimistic={paid => mark(line.id, paid)} marked={line.state === 'paid'} />}
   </section>;
@@ -277,6 +278,7 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
   const isReceiver = bill.receiver.userId === me.userId;
   // И на закрытом счёте: снятая галочка открывает его снова, так исправляют ошибочную последнюю отметку.
   const canMark = manage || isReceiver;
+  const allPaid = bill.lines.length > 0 && bill.lines.every(line => line.state === 'paid');
   const post = async (path: string, ok: string) => {
     try {
       await api.send('POST', path);
@@ -302,13 +304,16 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
         <Lines bill={bill} editable={canMark} reload={reload} mark={mark} /></section>
       {manage && bill.status === 'open' && (
         <>
-          <ConfirmButton className="btn wide" label="Напомнить должникам" confirmLabel="Отправить личные напоминания?" onConfirm={() => post(`/api/bills/${bill.id}/remind`, 'Напоминания поставлены в очередь')} />
-          <ReminderDelivery key={bill.id} billId={bill.id} />
+          {/* Nobody to remind once everyone has marked payment: then closing the bill is the next step and leads. */}
+          {!allPaid && <>
+            <ConfirmButton className="btn wide" label="Напомнить должникам" confirmLabel="Отправить личные напоминания?" onConfirm={() => post(`/api/bills/${bill.id}/remind`, 'Напоминания поставлены в очередь')} />
+            <ReminderDelivery key={bill.id} billId={bill.id} />
+          </>}
           <div className="actions">
             <button className="btn wide" onClick={() => setEditing(true)}>
               Изменить
             </button>
-            <ConfirmButton className="btn wide" label="Закрыть счёт" confirmLabel="Точно закрыть?" onConfirm={() => post(`/api/bills/${bill.id}/close`, 'Счёт закрыт')} />
+            <ConfirmButton className={`btn wide${allPaid ? ' primary' : ''}`} label="Закрыть счёт" confirmLabel="Точно закрыть?" onConfirm={() => post(`/api/bills/${bill.id}/close`, 'Счёт закрыт')} />
           </div>
         </>
       )}
