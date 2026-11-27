@@ -49,6 +49,20 @@ test('a match opens forward, Back returns to the same place in the list', async 
   expect(await kinds(page)).toEqual(['forward', 'back']);
 });
 
+test('the dock belongs to the tabs: it sinks away into a match and comes back on Back', async ({ page }) => {
+  const dock = page.getByRole('navigation', { name: 'Основная навигация' });
+  await page.goto('/matches');
+  await expect(dock).toBeVisible();
+  await page.locator('a[href^="/event/3"]').first().click();
+  await expect(page).toHaveURL(/\/event\/3/);
+  await settled(page);
+  await expect(dock).toHaveCount(0);
+  await page.getByRole('link', { name: 'Назад' }).click();
+  await expect(page).toHaveURL(/\/matches/);
+  await settled(page);
+  await expect(dock).toBeVisible();
+});
+
 test('dock tabs cross-fade and start at the top', async ({ page }) => {
   await page.goto('/matches');
   await expect(page.locator('a[href^="/event/20"]').first()).toBeVisible();

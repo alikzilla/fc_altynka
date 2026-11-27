@@ -25,14 +25,11 @@ for (const width of [320, 390]) for (const theme of ['dark', 'light']) {
     const button = action.getByRole('button', { name: 'Иду', exact: true });
     await expect(button).toBeVisible();
     const initial = (await button.boundingBox())!;
-    // On a short phone (≤ 640 px) the dock steps aside while the contextual action is shown.
-    if (width === 320) {
-      await expect(page.locator('.nav-shell')).toBeHidden();
-      expect(initial.y + initial.height).toBeLessThanOrEqual(568 - 10);
-    } else {
-      const dock = (await page.getByRole('navigation').boundingBox())!;
-      expect(initial.y + initial.height).toBeLessThanOrEqual(dock.y - 11);
-    }
+    // The match page is a deeper screen: no dock at any height, the action sits at the bottom where the dock would.
+    await expect(page.locator('.nav-shell')).toHaveCount(0);
+    const height = width === 320 ? 568 : 844;
+    expect(initial.y + initial.height).toBeLessThanOrEqual(height - 16 + 1);
+    expect(initial.y + initial.height).toBeGreaterThanOrEqual(height - 16 - 1);
     await page.evaluate(() => scrollTo(0, document.documentElement.scrollHeight));
     const scrolled = (await button.boundingBox())!;
     expect(Math.abs(scrolled.y - initial.y)).toBeLessThan(1);
@@ -99,7 +96,7 @@ test('organizer gets one scheduling action with safe areas and a confirmed cance
   await expect(page.getByRole('link', { name: 'Назначить матч' })).toHaveCount(1);
   await page.evaluate(() => { document.documentElement.style.setProperty('--tg-safe-area-inset-bottom', '34px'); document.documentElement.style.setProperty('--tg-safe-area-inset-top', '24px'); document.documentElement.style.setProperty('--tg-content-safe-area-inset-top', '36px'); });
   const action = (await page.locator('.match-action .btn').boundingBox())!;
-  await expect(page.locator('.nav-shell')).toBeHidden();
+  await expect(page.locator('.nav-shell')).toHaveCount(0);
   expect(action.y + action.height).toBeLessThanOrEqual(568 - 34 - 10);
   await page.getByRole('button', { name: 'Действия матча' }).click();
   const dialog = page.getByRole('dialog', { name: 'Действия матча' });
