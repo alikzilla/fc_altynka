@@ -291,7 +291,7 @@ test('the dial is full and unlit while waiting and empty in added time', async (
 });
 
 
-test('the organizer starts and pauses from the dial itself; a participant has no such button', async () => {
+test('the organizer starts from the round button in the dial, a quick repeat tap is ignored, and a participant has no such button', async () => {
   const timer = view();
   (useGameTimer as Mock).mockReturnValue(timer);
   const first = open(organizerEvent);
@@ -300,10 +300,12 @@ test('the organizer starts and pauses from the dial itself; a participant has no
   expect(start.closest('.game-dial-frame')).not.toBeNull();
   expect(screen.getAllByRole('button').filter(b => /Старт|Пауза|Продолжить$/.test(b.getAttribute('aria-label') ?? b.textContent ?? ''))).toHaveLength(1);
   await userEvent.click(start);
-  expect(timer.start).toHaveBeenCalled();
+  // A second tap right after the start is a repeat, not a pause.
+  await userEvent.click(start);
+  expect(timer.start).toHaveBeenCalledTimes(1);
   first.unmount();
   (useGameTimer as Mock).mockReturnValue(view({ status: 'running', remainingSec: 200, canControl: false }));
   const { container } = open(playerEvent, player);
   await settle();
-  expect(container.querySelector('.game-dial-button')).toBeNull();
+  expect(container.querySelector('.game-dial-play')).toBeNull();
 });

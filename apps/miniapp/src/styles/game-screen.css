@@ -25,16 +25,15 @@
 .game-dial-cue-last_attack.passed circle, .game-dial-cue-end.passed circle { fill: var(--danger); }
 .game-dial-cue.fresh text { fill: var(--text); }
 .game-timer .game-timer-digits { font-size: 58px; }
-/* The organizer's start/pause is the whole inner disc (option «центр-кнопка»): a pearl ▶ before the start and in
-   a pause, a graphite ❚❚ while running, sitting above the digits. The digits stay in front and let taps through. */
+/* The organizer's start/pause is a round 68 px button sitting in the horseshoe's gap, half below the drawing:
+   pearl ▶ before the start and in a pause, graphite ❚❚ while running. It shows the press on pointer-down. */
 .game-dial-center { z-index: 1; pointer-events: none; }
-.game-timer-control .game-dial-center { padding-top: 18px; }
-.game-dial-button { position: absolute; left: 50%; top: 56%; width: 64%; aspect-ratio: 1; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; padding: 7% 0 0; border: 0; border-radius: 50%; background: radial-gradient(circle at 50% 28%, color-mix(in srgb, var(--text) 9%, var(--card)), var(--card) 72%); box-shadow: inset 0 1px 1px #ffffff1a, inset 0 -8px 20px #0005; color: var(--text); cursor: pointer; -webkit-tap-highlight-color: transparent; transition: transform 120ms var(--ease-out); }
-.game-dial-button:active { transform: translate(-50%, -50%) scale(.97); }
-.game-dial-icon { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: var(--on-accent); box-shadow: inset 0 1px 1px #fff9, 0 3px 8px #0005; }
-.game-dial-icon svg { width: 16px; height: 16px; }
-.game-timer-playing .game-dial-icon, .game-timer-last_minute .game-dial-icon, .game-timer-last_attack .game-dial-icon, .game-timer-over .game-dial-icon { background: linear-gradient(155deg, #454259, #23233d); color: var(--text); box-shadow: var(--rim); }
-@media (prefers-reduced-motion: reduce) { .game-dial-button { transition: none; } }
+.game-timer-control .game-dial-frame { margin-bottom: 36px; }
+.game-dial-play { position: absolute; left: 50%; bottom: 0; z-index: 2; display: grid; place-items: center; width: 68px; height: 68px; padding: 0; border: 0; border-radius: 50%; transform: translate(-50%, 50%); background: linear-gradient(165deg, #f0eaf5, #ccc9e2); color: var(--on-accent); box-shadow: inset 0 1px 1px #fff9, inset 0 -1px 2px #8985ad66, 0 8px 20px #0007; cursor: pointer; -webkit-tap-highlight-color: transparent; touch-action: manipulation; transition: transform 90ms var(--ease-out); }
+.game-dial-play svg { width: 26px; height: 26px; }
+.game-dial-play[data-pressed], .game-dial-play:active { transform: translate(-50%, 50%) scale(.92); }
+.game-timer-playing .game-dial-play, .game-timer-last_minute .game-dial-play, .game-timer-last_attack .game-dial-play, .game-timer-over .game-dial-play { background: linear-gradient(155deg, #454259, #23233d); color: var(--text); box-shadow: var(--rim), 0 8px 20px #0007; }
+@media (prefers-reduced-motion: reduce) { .game-dial-play { transition: none; } }
 .match-games .game-timer { display: flex; flex-direction: column; align-items: center; gap: 0; padding: 22px 18px 18px; text-align: center; }
 .game-timer-digits { margin: 0; font-size: 80px; font-weight: 600; line-height: 1; letter-spacing: -.045em; font-variant-numeric: lining-nums tabular-nums; }
 .game-timer-phase { min-height: 24px; margin: 8px 0 0; font-size: 16px; font-weight: 550; line-height: 24px; color: var(--text); }
@@ -59,13 +58,12 @@
 
 @media (max-width: 359px) {
   .game-timer .game-timer-digits { font-size: 50px; }
-  .game-timer-control .game-dial-center { padding-top: 14px; }
-  .game-dial-icon { width: 28px; height: 28px; }
-  .game-dial-icon svg { width: 14px; height: 14px; }
+  .game-dial-play { width: 60px; height: 60px; }
+  .game-timer-control .game-dial-frame { margin-bottom: 32px; }
   .match-games .game-timer { padding: 18px 16px 16px; }
 }
 @media (prefers-contrast: more) {
-  .game-dial-button { border: 1px solid var(--line); box-shadow: none; }
+  .game-dial-play { border: 1px solid currentColor; box-shadow: none; }
   .game-timer-duration button { border-color: currentColor; }
   .game-dial-track { stroke: var(--line); }
 }
