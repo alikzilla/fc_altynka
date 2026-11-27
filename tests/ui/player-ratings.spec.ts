@@ -164,7 +164,7 @@ test('organizer confirms actual players, then submits an anonymous optional revi
   await reviewSheet.getByRole('slider').press('End');
   await reviewSheet.getByRole('slider').press('ArrowLeft');
   await reviewSheet.locator('.review-step').evaluate(async el => { await Promise.all(el.getAnimations().map(a => a.finished.catch(() => {}))); });
-  await expect(reviewSheet.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
+  await expect(reviewSheet.locator('.review-step .score-reel')).toHaveAttribute('data-settled', 'true');
   await page.screenshot({ path: 'artifacts/ratings/review-dark-390.png', fullPage: true });
   expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
   const sent = page.waitForRequest(r => r.method() === 'POST' && r.url().endsWith('/review'));
@@ -273,7 +273,7 @@ test('cancelled rating drag does not advance, and reduced motion keeps the same 
   await slider.dispatchEvent('pointercancel', { pointerId, pointerType: 'mouse', isPrimary: true });
   await page.mouse.up();
   await expect(sheet.getByRole('heading', { name: 'Арман', exact: true })).toBeVisible();
-  await expect(sheet.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
+  await expect(sheet.locator('.review-step .score-reel')).toHaveAttribute('data-settled', 'true');
   expect(await sheet.locator('.review-step').evaluate(el => getComputedStyle(el).animationName)).toBe('none');
   await sheet.getByRole('button', { name: 'Далее', exact: true }).click();
   await expect(sheet.getByRole('heading', { name: 'Руслан', exact: true })).toBeVisible();

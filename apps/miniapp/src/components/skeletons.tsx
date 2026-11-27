@@ -7,6 +7,7 @@ import { Fragment } from 'react';
 import type { ReactNode } from 'react';
 import { Link } from 'wouter';
 import { Icon } from './Icon';
+import { VenueSummaryPlaceholder, VenueTriggerText } from './VenueField';
 import { matchOrigin } from '../lib/navHistory';
 import { Screen, Sk, Skeleton } from './ui';
 
@@ -295,7 +296,8 @@ export function ScheduleSkeleton() {
           {MATCH_FORMATS.map(f => <span className="chip-btn sk-chip" key={f.limit}><b>{f.label}</b><small>{f.limit} игроков в основе</small></span>)}
         </div></fieldset>
         <div><span className="schedule-field-label">Место проведения <span>· необязательно</span></span>
-          <span className="venue-trigger"><Icon name="pin" /><span><Sk w="9em" /></span><Icon name="back" className="venue-chevron" /></span>
+          <span className="venue-trigger"><Icon name="pin" /><VenueTriggerText><Sk w="9em" /></VenueTriggerText><Icon name="back" className="venue-chevron" /></span>
+          <VenueSummaryPlaceholder hinted={false} />
         </div>
         <p className="muted">Участники получат время и место матча в уведомлении.</p>
       </fieldset>

@@ -338,3 +338,65 @@ test('player mark switches the card at once and returns the button when the serv
   expect(within(card).getByRole('button', { name: 'Я перевёл' })).toBeEnabled();
   expect(within(card).getByRole('alert')).toHaveTextContent('Не получилось отметить оплату');
 });
+
+test('the share and the first extra keep outlines until they appear, then fade in there', async () => {
+  const shareHint = 'Укажи аренду — здесь появится сумма с человека';
+  const extraHint = 'Добавь расход — появится строка';
+  renderWithApp(<Bill ev={evWith(10)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  expect(within(dialog).getByText(shareHint)).toBeVisible();
+  expect(within(dialog).getByText(extraHint)).toBeVisible();
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '20000');
+  expect(within(dialog).queryByText(shareHint)).toBeNull();
+  expect(within(dialog).getByText(/По 2 000 ₸/).closest('.preview')).toHaveClass('reveal');
+  await userEvent.click(within(dialog).getByRole('button', { name: '+ Расход' }));
+  expect(within(dialog).queryByText(extraHint)).toBeNull();
+  expect(within(dialog).getByLabelText('Расход 1').closest('.extra')).toHaveClass('reveal');
+  // An empty extra hides the share, but the rent is there: its outline stays, without the rent hint.
+  expect(dialog.querySelector('.preview-placeholder')).not.toBeNull();
+  expect([...dialog.querySelectorAll('.preview')].every(p => p.closest('.sheet-placeholder-ghost'))).toBe(true);
+  expect(within(dialog).queryByText(shareHint)).toBeNull();
+  await userEvent.click(within(dialog).getByRole('button', { name: 'Убрать расход 1' }));
+  expect(within(dialog).getByText(extraHint)).toBeVisible();
+});
+
+test('a Kaspi number error is announced and described on the field', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(400, 'no_kaspi'));
+  renderWithApp(<Bill ev={evWith(2)} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  const field = within(dialog).getByLabelText(/Номер Kaspi получателя/);
+  expect(field).not.toHaveAttribute('aria-describedby');
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  const alert = await within(dialog).findByRole('alert');
+  expect(alert).toHaveTextContent('Нужен номер Kaspi получателя');
+  expect(field).toHaveAttribute('aria-describedby', alert.id);
+  expect(field).toHaveAccessibleDescription('Нужен номер Kaspi получателя');
+});
+
+test('the Kaspi number keeps a line for its error and one cell for both field variants', async () => {
+  (api.send as Mock).mockRejectedValue(new ApiError(400, 'no_kaspi'));
+  const ev = evWith(2);
+  ev.main[1] = { ...ev.main[1], kaspiPhone: '+77011111111' };
+  renderWithApp(<Bill ev={ev} reload={() => {}} />, { me: organizer });
+  await userEvent.click(billAction());
+  const dialog = screen.getByRole('dialog', { name: 'Выставить счёт' });
+  const typed = within(dialog).getByLabelText(/Номер Kaspi получателя/);
+  expect(typed).not.toHaveAttribute('readonly');
+  const label = typed.closest('.bill-phone-field')!;
+  const slot = label.querySelector('.field-error-slot')!;
+  expect(slot).not.toBeNull();
+  expect(slot).toHaveTextContent('');
+  const saved = label.querySelector('input[readonly]')!;
+  expect(saved.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+  expect(typed.closest('.sheet-stack')).toBe(saved.closest('.sheet-stack'));
+  await userEvent.type(within(dialog).getByLabelText('Аренда поля, ₸'), '4000');
+  await userEvent.click(billAction());
+  expect(await within(slot as HTMLElement).findByText('Нужен номер Kaspi получателя')).toBeInTheDocument();
+  await userEvent.selectOptions(within(dialog).getByLabelText('Кто заплатил за поле'), String(ev.main[1].userId));
+  expect(within(dialog).getByLabelText(/Номер Kaspi получателя/)).toHaveAttribute('readonly');
+  expect(typed.closest('[inert]')).toHaveClass('sheet-stack-hidden');
+  expect(saved.closest('[inert]')).toBeNull();
+});

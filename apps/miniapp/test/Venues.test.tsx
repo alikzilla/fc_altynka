@@ -2,7 +2,7 @@ import type { VenueDto } from '@altynka/core';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { Mock } from 'vitest';
-import { api } from '../src/lib/api';
+import { api, ApiError } from '../src/lib/api';
 import { Venues } from '../src/screens/Venues';
 import { noGroups, organizer, player, renderWithApp } from './render';
 
@@ -88,4 +88,20 @@ test('a removed venue leaves at once and returns to its place when the server re
   await act(async () => reject(new Error('offline')));
   expect(await screen.findByText('Не получилось удалить площадку Манеж Арена. Попробуй ещё раз.')).toBeInTheDocument();
   expect(screen.getAllByRole('heading', { level: 3 }).map(h => h.textContent)).toEqual(['Манеж Арена', 'Школа Аксай']);
+});
+
+test('the venue form keeps a line for the duplicate name error', async () => {
+  renderWithApp(<Venues />, { me: organizer });
+  await screen.findByRole('heading', { name: 'Манеж Арена' });
+  (api.send as Mock).mockRejectedValueOnce(new ApiError(409, 'duplicate'));
+  await userEvent.click(screen.getByRole('button', { name: 'Добавить площадку' }));
+  const sheet = screen.getByRole('dialog', { name: 'Новая площадка' });
+  const line = sheet.querySelector('.field-error-slot')!;
+  expect(line).not.toBeNull();
+  expect(within(sheet).queryByRole('alert')).toBeNull();
+  await userEvent.type(within(sheet).getByLabelText('Название'), 'Манеж Арена');
+  await userEvent.click(within(sheet).getByRole('button', { name: 'Добавить площадку' }));
+  const alert = await within(sheet).findByRole('alert');
+  expect(alert).toHaveTextContent('Площадка с таким названием уже есть');
+  expect(line).toContainElement(alert);
 });

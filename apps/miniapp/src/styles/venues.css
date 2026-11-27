@@ -10,6 +10,8 @@
 .venue-trigger.has-place { border-color: var(--accent); background: var(--accent-soft); }
 .venue-trigger.has-place > span { color: var(--text); }
 .venue-trigger small { display: block; margin-top: 3px; color: var(--hint); font-size: 12px; }
+/* The field is as tall as a name with its address; a short label sits in the middle. */
+.venue-trigger-text > :first-child { align-self: center; }
 .venue-trigger > svg { width: 20px; height: 20px; color: var(--hint); }
 .venue-trigger > .venue-chevron { width: 16px; height: 16px; transform: rotate(180deg); }
 .venue-summary, .venue-meta { display: flex; justify-content: space-between; align-items: center; gap: 10px; min-width: 0; }
@@ -32,11 +34,16 @@
 .venue-selection-caption { margin-bottom: 10px; color: var(--hint); font-size: 12px; }
 :root[data-theme='light'] .venue-trigger.has-place { background: var(--accent-soft); border-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) { .schedule-sheet.sheet-covered { transform: none; } }
-.venue-meta > span:first-child:empty { min-height: 44px; }
+:is(.venue-meta, .venue-summary) > span:first-child:empty { min-height: 44px; }
 .venue-remove-toggle { display: block; margin: -8px 12px 6px; color: var(--hint); font-size: 12px; }
 .venue-remove { padding: 0 20px 10px; }
 .venue-remove > p { font-size: 13px; }
 .venue-remove > div { display: flex; gap: 8px; margin-left: -8px; }
+/* In the picker the confirmation takes the card's place in the same cell (the card stays as an invisible sizer). */
+.venue-option-stack > .venue-remove { padding-top: 20px; }
+/* The summary's outline sits where the summary will: its margin moves from the summary to the outline. */
+.venue-summary-placeholder { margin-top: 8px; }
+.venue-summary-placeholder .venue-summary { margin: 0 2px; }
 .venue-add { margin-top: 14px; }
 .venue-add svg { width: 18px; height: 18px; }
 /* Страница «Площадки» */

@@ -51,7 +51,9 @@
 .tabs.game-leaders-switch button { min-height: 40px; padding: 8px 16px; font-size: 13px; }
 @media (max-width: 374px) { .tabs.game-leaders-switch button { padding-inline: 11px; } }
 .game-history-intro { margin: 0 0 18px; color: var(--hint); font-size: 13px; }
-.game-result-sheet { height: min(92dvh, 860px); max-height: 92dvh; }
+/* Its own cap goes through --sheet-max so the never-shrink minimum is clamped by it too (app.css comes later: two classes);
+   both add the keyboard padding, which the box reaches under the keys by. */
+.create-sheet.game-result-sheet { height: calc(min(92dvh, 860px) + var(--sheet-pad)); --sheet-max: min(calc(92dvh + var(--sheet-pad)), var(--sheet-fit)); }
 .game-result-sheet .sheet-content { flex: 1; }
 .game-score-fields, .game-scorer-fields, .game-sulifa { border: 0; padding: 0; margin: 0; min-width: 0; }
 .game-score-fields { display: grid; grid-template-columns: minmax(0,1fr) 8px minmax(0,1fr); align-items: center; gap: 40px; /* Bleeds a little into the sheet padding via margins: a relative offset or transform would make the sheet scroll sideways. */ margin: 4px max(-8px, calc((100% - 368px) / 2)) 24px; }
@@ -70,7 +72,9 @@
 .game-scorer-fields > legend > :first-child { flex-shrink: 0; }
 .game-goals-total { min-width: 0; overflow-wrap: anywhere; text-align: right; color: var(--hint); font-size: 12px; font-weight: 400; }
 .game-goal-help { color: var(--hint); font-size: 13px; line-height: 1.5; margin: 0 0 18px; }
-.game-empty-goals { padding: 28px 16px; text-align: center; background: var(--field-bg, var(--card)); border-radius: 16px; color: var(--hint); font-size: 14px; line-height: 1.6; margin: 0; }
+/* Until a team scores, its first goal row is an outline of the same size. */
+.game-goal-placeholder { margin-top: 8px; border-radius: 12px; }
+.game-goal-placeholder .game-goal-slot { margin-top: 0; }
 .game-goal-slot { width: 100%; display: flex; gap: 12px; align-items: center; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: transparent; color: var(--text); min-height: 60px; margin-top: 8px; }
 .game-goal-slot.active { border-color: var(--accent-ink); background: var(--accent-soft); }
 .game-goal-slot.has-pass { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
