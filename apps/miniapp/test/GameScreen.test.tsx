@@ -265,3 +265,28 @@ test('arriving from the coin toss with a stale cached match waits for the refres
   expect(screen.getByRole('heading', { level: 1, name: 'Игра 1' })).toBeVisible();
   expect(history.at(-1)).toBe('/event/7/game');
 });
+
+test('the dial marks every signal and lights the ones already passed', async () => {
+  (useGameTimer as Mock).mockReturnValue(view({ status: 'running', remainingSec: 40, phase: 'last_minute', canControl: false }));
+  const { container } = open(playerEvent, player);
+  await settle();
+  const dial = container.querySelector('.game-dial')!;
+  expect(dial).toHaveAttribute('aria-hidden', 'true');
+  expect([...dial.querySelectorAll('text')].map(t => t.textContent)).toEqual(['1:00', '0:15']);
+  const passed = [...dial.querySelectorAll('.game-dial-cue.passed')].map(g => [...g.classList].find(c => c.startsWith('game-dial-cue-')));
+  expect(passed).toEqual(['game-dial-cue-start', 'game-dial-cue-last_minute']);
+  expect(dial.querySelector('.game-dial-left')).not.toBeNull();
+});
+
+test('the dial is full and unlit while waiting and empty in added time', async () => {
+  const first = open(playerEvent, player);
+  await settle();
+  expect(first.container.querySelectorAll('.game-dial-cue.passed')).toHaveLength(0);
+  first.unmount();
+  (useGameTimer as Mock).mockReturnValue(view({ status: 'running', remainingSec: -5, phase: 'over', canControl: false }));
+  const { container } = open(playerEvent, player);
+  await settle();
+  expect(container.querySelector('.game-dial-left')).toBeNull();
+  expect(container.querySelectorAll('.game-dial-cue.passed')).toHaveLength(4);
+});
+

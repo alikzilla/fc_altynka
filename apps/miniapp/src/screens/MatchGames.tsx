@@ -73,14 +73,22 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
   const active=protocol.state==='playing';
   const pointsOf=(team:number)=>protocol.standings.find(t=>t.teamIndex===team)?.points ?? 0;
   const kickoff=protocol.teamCount===2 && !protocol.games.length ? protocol.kickoffTeamIndex ?? null : null;
+  // The time itself lives on the game screen; here a blinking mark only says the clock is running right now.
+  const live=!!protocol.timer && protocol.timer.pausedAt===null;
+  const openMenu=()=>{actions.clearError();setMenu(true);};
   return <div className="match-games">
-    {active && protocol.currentPair ? <section className="card material-blue game-current" aria-label="Текущая игра">
-      <div className="row between"><p className="game-current-meta">Игра {protocol.games.length+1}</p>{protocol.canFinish && !protocol.canRecord && <button className="btn-text" onClick={()=>{actions.clearError();setMenu(true);}}>Действия</button>}</div>
-      <div className="game-versus">{protocol.currentPair.map((team,i)=><Fragment key={team}>{i===1 && <span className="game-vs" aria-hidden="true">VS</span>}<div className={`game-side team-${teamAppearance(team, ev.teams?.colors).key}`}><span className="game-kit" aria-hidden="true"/><b>{teamAppearance(team, ev.teams?.colors).name}</b><small>{pointsOf(team)} {plural(pointsOf(team),'очко','очка','очков')}</small></div></Fragment>)}</div>
-      {protocol.restingTeamIndex!==null ? <p className={`game-rest team-${teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>Отдыхают {teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).name}</p>
-        : kickoff!==null && <p className={`game-rest team-${teamAppearance(kickoff, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>С мячом начинают {teamAppearance(kickoff, ev.teams?.colors).name}</p>}
-      {!protocol.canRecord && <Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>}
-      {protocol.canRecord && <MatchAction><div className="match-action-pair"><Link className="btn primary wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={()=>{actions.clearError();setMenu(true);}}><Icon name="more" /></button>}</div></MatchAction>}
+    {active && protocol.currentPair ? <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра">
+      <div className="game-current-top">
+        <p className="game-current-meta">Игра {protocol.games.length+1}{live && <span className="game-live" role="img" aria-label="Игра идёт"/>}</p>
+        {protocol.restingTeamIndex!==null ? <p className={`game-rest team-${teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>Отдыхают {teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).name}</p>
+          : kickoff!==null && <p className={`game-rest team-${teamAppearance(kickoff, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>С мячом начинают {teamAppearance(kickoff, ev.teams?.colors).name}</p>}
+      </div>
+      {/* One line: small kit, name and points on each side, VS between them. */}
+      <div className="game-versus">{protocol.currentPair.map((team,i)=><Fragment key={team}>{i===1 && <span className="game-vs" aria-hidden="true">VS</span>}<div className={`game-side team-${teamAppearance(team, ev.teams?.colors).key}`}><span className="game-kit" aria-hidden="true"/><span className="game-side-name"><b>{teamAppearance(team, ev.teams?.colors).name}</b><small>{pointsOf(team)} {plural(pointsOf(team),'очко','очка','очков')}</small></span></div></Fragment>)}</div>
+      {!protocol.canRecord && (protocol.canFinish
+        ? <div className="match-action-pair"><Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link><button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button></div>
+        : <Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>)}
+      {protocol.canRecord && <MatchAction><div className="match-action-pair"><Link className="btn primary wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button>}</div></MatchAction>}
     </section> : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">{protocol.games.length?`Сыграно игр: ${protocol.games.length}`:'Результаты не записывались'}</p></div>}
     <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
       <thead><tr><th scope="col">Команда</th><th scope="col"><abbr title="Игры">И</abbr></th><th scope="col"><abbr title="Победы, ничьи, поражения">В–Н–П</abbr></th><th scope="col"><abbr title="Забито, пропущено и разница голов">Мячи</abbr></th><th scope="col">Очки</th></tr></thead>
