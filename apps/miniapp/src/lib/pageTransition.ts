@@ -5,6 +5,14 @@ import type { AroundNavHandler } from 'wouter';
 export const SHEET_PATH = /^\/(?:new|event\/\d+\/schedule|profile\/settings\/[^/]+|profile\/availability|players\/\d+)$/;
 
 const ROOT_TABS = new Set(['/', '/matches', '/notifications', '/profile']);
+/** Sheets over the Profile tab: the tab stays underneath, so its dock stays too. */
+const ROOT_SHEET = /^\/profile\/(?:settings\/[^/]+|availability|club)$/;
+
+/**
+ * The dock belongs to the four tabs only. A deeper screen (a match, its game, the review, a menu section,
+ * a player) hides it until Back returns to a tab: the screen's own Back is the way out.
+ */
+export const hasDock = (path: string) => ROOT_TABS.has(path) || ROOT_SHEET.test(path);
 export type NavKind = 'forward' | 'back' | 'fade';
 
 /** Dock tabs are level 0; every other screen is as deep as its path. */

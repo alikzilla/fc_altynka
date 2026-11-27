@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { aroundNav, consumeScrollTarget, navKind } from '../src/lib/pageTransition';
+import { aroundNav, consumeScrollTarget, hasDock, navKind } from '../src/lib/pageTransition';
 
 describe('navKind', () => {
   it('moves forward into deeper screens and back out of them', () => {
@@ -22,6 +22,20 @@ describe('navKind', () => {
     expect(navKind('/profile', '/profile/settings/name')).toBeNull();
     expect(navKind('/profile', '/profile/availability')).toBeNull();
     expect(navKind('/event/5', '/event/5')).toBeNull();
+  });
+});
+
+describe('hasDock', () => {
+  it('keeps the dock on the four tabs and the sheets over Profile', () => {
+    for (const path of ['/', '/matches', '/notifications', '/profile', '/profile/club', '/profile/availability', '/profile/settings/name']) {
+      expect(hasDock(path), path).toBe(true);
+    }
+  });
+
+  it('hides it on every deeper screen', () => {
+    for (const path of ['/event/5', '/event/5/game', '/event/5/review', '/event/5/schedule', '/players', '/players/7', '/stats', '/venues', '/profile/skills']) {
+      expect(hasDock(path), path).toBe(false);
+    }
   });
 });
 

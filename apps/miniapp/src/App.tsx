@@ -33,6 +33,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useResource } from './hooks/useResource';
 import { applyTheme } from './lib/theme';
 import { rememberOrigin } from './lib/navHistory';
+import { hasDock } from './lib/pageTransition';
 
 export function App() {
   const [, navigate] = useLocation();
@@ -86,7 +87,7 @@ function TeamApp() {
           <ToastProvider>
             <NotificationsProvider>
               <ScreenSearchContext.Provider value={screenSearch}>
-                {/* A crashed screen keeps the dock: moving to another screen clears the error. */}
+                {/* Moving to another screen clears a crash; a crashed deeper screen offers the way home itself. */}
                 <ErrorBoundary resetKey={screenPath}>
                 <Suspense fallback={<RouteSkeleton path={screenPath} search={screenSearch} />}>
                 <Switch location={screenPath}>
@@ -111,7 +112,8 @@ function TeamApp() {
                 </Suspense>
                 </ErrorBoundary>
               </ScreenSearchContext.Provider>
-              <Nav />
+              {/* Only the tabs carry the dock; a deeper screen hides it until Back. */}
+              {hasDock(screenPath) && <Nav />}
               <SkillsPrompt />
               <AvailabilityPrompt />
               <Suspense fallback={null}>
