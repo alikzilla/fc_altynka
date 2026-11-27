@@ -1,5 +1,7 @@
 import { GAME_TIMER_MAX_SEC, GAME_TIMER_MIN_SEC, timerCues, type TimerCue } from '@altynka/core';
+import { useRef, type PointerEvent } from 'react';
 import type { GameTimerView } from '../hooks/useGameTimer';
+import { haptic } from '../lib/tg';
 import { Icon } from './Icon';
 
 /** «M:SS» of whole seconds. */
@@ -53,6 +55,11 @@ function GameDial({ view }: { view: GameTimerView }) {
   </svg>;
 }
 
+/** A second tap this soon after start, pause or resume is a repeat, not a new command. */
+const REPEAT_GUARD_MS = 700;
+/** Marks the press on pointer-down, before the click handler and its sound work run. */
+const pressed = (on: boolean) => (event: PointerEvent<HTMLButtonElement>) => { event.currentTarget.toggleAttribute('data-pressed', on); };
+
 /** Phase words for everything but added time, which also shows how much has been played over. */
 function phaseText(view: GameTimerView): string {
   if (view.status === 'waiting') return 'Ждём старта';
@@ -64,7 +71,7 @@ function phaseText(view: GameTimerView): string {
 
 /**
  * The shared game time: a horseshoe dial with the signal marks, big digits and the phase for everyone;
- * for the organizer the dial's inner disc starts, pauses and resumes, and a stepper sets the duration.
+ * for the organizer a round button in the dial's gap starts, pauses and resumes, and a stepper sets the duration.
  * Start and resume never wait for the signals: without a ready track the time runs silently and
  * «Продолжить сигналы» becomes available once the track is built. Only the sound buttons wait for it.
  */
@@ -83,16 +90,25 @@ export function GameTimer({ view }: { view: GameTimerView }) {
       ? <button type="button" className="btn wide" onClick={view.mute}>Выключить сигналы</button>
       : <button type="button" className="btn wide" disabled={!view.trackReady} onClick={() => void view.listen()}>Слышать сигналы</button>;
   };
-  // The organizer starts, pauses and resumes by tapping inside the horseshoe: the whole inner disc is the button.
+  // The organizer starts, pauses and resumes with the round button in the horseshoe's gap.
+  const lastToggle = useRef(-Infinity);
   const toggle = view.status === 'waiting' ? { label: 'Старт игры', icon: 'play' as const, run: () => void view.start() }
     : view.status === 'running' ? { label: 'Пауза', icon: 'pause' as const, run: view.pause }
     : { label: 'Продолжить', icon: 'play' as const, run: () => void view.resume() };
   return <section className={`card material-graphite game-timer game-timer-${tone}${view.canControl ? ' game-timer-control' : ''}`} aria-label="Таймер игры">
     <div className="game-dial-frame">
       <GameDial view={view} />
-      {view.canControl && <button type="button" className="game-dial-button" aria-label={toggle.label} onClick={toggle.run}>
-        <span className="game-dial-icon"><Icon name={toggle.icon} /></span>
-      </button>}
+      {view.canControl && <button type="button" className="game-dial-play" aria-label={toggle.label}
+        onPointerDown={pressed(true)} onPointerUp={pressed(false)} onPointerCancel={pressed(false)} onPointerLeave={pressed(false)}
+        onClick={() => {
+          // Starting has to begin the sound inside the tap, which can hold the screen for a moment on a phone:
+          // the press shows at once, and a second tap within REPEAT_GUARD_MS is not taken for a pause.
+          const now = performance.now();
+          if (now - lastToggle.current < REPEAT_GUARD_MS) return;
+          lastToggle.current = now;
+          haptic('light');
+          toggle.run();
+        }}><Icon name={toggle.icon} /></button>}
       <div className="game-dial-center">
         <p className="game-timer-digits" role="timer">{leftText(view.remainingSec)}</p>
         {/* Announced once per phase; the added time ticks visibly but is not read out every second. */}
