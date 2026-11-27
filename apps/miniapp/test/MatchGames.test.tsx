@@ -113,3 +113,21 @@ test('assistants explain when no pass is marked yet',async()=>{
   await userEvent.click(screen.getByRole('button',{name:'Пасы'}));
   expect(screen.getByText('Пасы пока не указаны.')).toBeVisible();
 });
+
+describe('live mark on the current game',()=>{
+  const timer={gameSequence:1,durationSec:360,startedAt:1000,pausedAt:null as number|null,pausedMs:0,updatedAt:1000};
+  test('pulses while the game clock runs, without showing the time',()=>{
+    renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer})}} reload={()=>{}}/>,{me:player});
+    const current=screen.getByRole('region',{name:'Текущая игра'});
+    expect(within(current).getByRole('img',{name:'Игра идёт'})).toBeInTheDocument();
+    expect(current).not.toHaveTextContent(/\d:\d\d/);
+  });
+  test('is absent before the start and during a pause',()=>{
+    const first=renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer:null})}} reload={()=>{}}/>,{me:player});
+    expect(screen.queryByRole('img',{name:'Игра идёт'})).toBeNull();
+    first.unmount();
+    renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({timer:{...timer,pausedAt:2000}})}} reload={()=>{}}/>,{me:player});
+    expect(screen.queryByRole('img',{name:'Игра идёт'})).toBeNull();
+  });
+});
+
