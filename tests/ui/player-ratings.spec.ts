@@ -188,7 +188,7 @@ test('closed results display aggregate scores and insufficient data without vote
   await page.screenshot({ path: 'artifacts/ratings/closed-dark-320.png', fullPage: true });
 });
 
-test('questionnaire slider follows a reversible drag and Next stays above the dock', async ({ page }) => {
+test('questionnaire slider follows a reversible drag and Next stays at the bottom without a dock', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 740 });
   await mockApp(page, { fresh: true });
   await page.goto('/profile/skills');
@@ -208,8 +208,9 @@ test('questionnaire slider follows a reversible drag and Next stays above the do
   await expect(slider).toHaveValue('7');
   await expect(page.locator('.score-reel')).toHaveAttribute('data-settled', 'true');
   const action = (await next.boundingBox())!;
-  const dock = (await page.getByRole('navigation', { name: 'Основная навигация' }).boundingBox())!;
-  expect(action.y + action.height).toBeLessThan(dock.y);
+  // The questionnaire is a deeper screen: no dock, Next takes its place at the bottom.
+  await expect(page.getByRole('navigation', { name: 'Основная навигация' })).toHaveCount(0);
+  expect(action.y + action.height).toBeLessThanOrEqual(740 - 16 + 1);
   await expect(next).toBeEnabled();
   await page.screenshot({ path: 'artifacts/ratings/slider-drag-dark-320.png' });
   await next.click();
