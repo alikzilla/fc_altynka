@@ -151,3 +151,26 @@ test('a finished match stands the teams on a podium and adds the viewer\'s own l
   expect(podium).toHaveTextContent('Ты за Жёлтых · 0–1–1 · 1 гол');
 });
 
+
+test('the 3/1/0 rule opens from the «i» in the table card corner and closes on a tap elsewhere',async()=>{
+  renderWithApp(<MatchGames ev={ev} reload={()=>{}}/>,{me:player});
+  const table=screen.getByRole('region',{name:'Таблица'});
+  expect(within(table).queryByText(/Победа — 3 очка/)).toBeNull();
+  const info=within(table).getByRole('button',{name:'Как считаются очки'});
+  await userEvent.click(info);
+  expect(info).toHaveAttribute('aria-expanded','true');
+  expect(within(table).getByRole('status')).toHaveTextContent('Победа — 3 очка, ничья — 1');
+  await userEvent.click(document.body);
+  expect(within(table).queryByRole('status')).toBeNull();
+});
+
+test('a game in the history reads score, then scorers at the edges with «Игра N» between; an editor taps the game to edit',async()=>{
+  const games=[{id:'g1',sequence:1,pair:[0,1] as [number,number],score:[0,0] as [number,number],scorers:[],firstRestTeamIndex:1,recordedAt:1,recordedBy:1,updatedAt:1,updatedBy:1}];
+  renderWithApp(<MatchGames ev={{...ev,gameProtocol:makeProtocol({games,canEdit:true})}} reload={()=>{}}/>,{me:organizer});
+  const history=screen.getByRole('region',{name:'Последние игры'});
+  const item=within(history).getAllByRole('listitem').find(li=>li.classList.contains('game-result'))!;
+  expect(item).toHaveTextContent('0:0');
+  expect(item).toHaveTextContent('Игра 1');
+  expect(item).not.toHaveTextContent('—');
+  expect(within(item).getByRole('button',{name:'Изменить результат игры 1'})).toBeEmptyDOMElement();
+});

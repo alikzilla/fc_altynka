@@ -38,6 +38,11 @@
 .player-directory > li { display: block; }
 .player-management-toggle { padding-left: 0; }
 .player-profile-link { text-align: left; font-weight: inherit; text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 4px; }
+/* In the roster the whole row opens the profile and the name is plain text, as in Telegram's own lists. */
+.person .player-profile-link { text-decoration: none; }
+.person:has(.player-profile-link) { position: relative; }
+.person .player-profile-link::after { content: ''; position: absolute; inset: 0; }
+.person:has(.player-profile-link:active) { background: #ffffff08; }
 .finish-roster { gap: 2px; }
 .finish-person { display: flex; align-items: center; gap: 12px; min-height: 52px; padding: 8px 0; }
 .finish-person input { width: 22px; height: 22px; flex-shrink: 0; accent-color: var(--accent); }
