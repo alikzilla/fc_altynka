@@ -114,3 +114,13 @@ test('EventList: no team dots before teams are published', () => {
   const { container } = renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: player });
   expect(container.querySelector('.row-team')).toBeNull();
 });
+
+test('EventList: only someone waiting in the reserve reads how the queue moves', () => {
+  const withReserve = { ...ev, reserve: [s(9, 'Олжас')] };
+  const first = renderWithApp(<MatchList ev={{ ...withReserve, my: null }} reload={() => {}} />, { me: player });
+  expect(screen.queryByText(/займёт первый в резерве/)).toBeNull();
+  first.unmount();
+  renderWithApp(<MatchList ev={{ ...withReserve, my: 'reserve' }} reload={() => {}} />, { me: player });
+  expect(screen.getByText('Освободится место в основе — его займёт первый в резерве.')).toBeInTheDocument();
+});
+
