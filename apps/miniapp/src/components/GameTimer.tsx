@@ -83,7 +83,7 @@ export function GameTimer({ view }: { view: GameTimerView }) {
     if (view.phase === 'over' || view.status === 'waiting') return null;
     if (view.canControl) {
       return view.sound === 'resumable'
-        ? <button type="button" className="btn wide" disabled={!view.trackReady} onClick={() => void view.listen()}>Продолжить сигналы (осталось {leftText(view.remainingSec)})</button>
+        ? <button type="button" className="btn wide" disabled={!view.trackReady} onClick={() => void view.listen()}>Продолжить сигналы</button>
         : null;
     }
     return view.sound === 'on'
