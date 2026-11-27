@@ -2,6 +2,7 @@ import { plural, teamAppearance, type EventDetailDto, type GameProtocolDto } fro
 import { Fragment, useEffect, useState } from 'react';
 import { useLocation, useParams } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
+import { CurrentPair } from '../components/CurrentPair';
 import { GameTeamName } from '../components/GameTeamName';
 import { GameTimer } from '../components/GameTimer';
 import { Icon } from '../components/Icon';
@@ -54,9 +55,6 @@ function GameView({ ev, protocol, reload, back }: { ev: EventDetailDto; protocol
   const { busy, error, pendingFinish } = actions;
   const sequence = protocol.games.length + 1;
   const colors = ev.teams?.colors;
-  const pointsOf = (team: number) => protocol.standings.find(t => t.teamIndex === team)?.points ?? 0;
-  const kickoff = protocol.teamCount === 2 && !protocol.games.length ? protocol.kickoffTeamIndex ?? null : null;
-  const chip = protocol.restingTeamIndex !== null ? { team: protocol.restingTeamIndex, text: 'Отдыхают' } : kickoff !== null ? { team: kickoff, text: 'С мячом начинают' } : null;
   // The wake-lock hint is for phones that play the signals: shown on the first visit that does, then never again.
   const [seen] = useState(hintSeen);
   const hint = !seen && (timer.canControl || timer.sound === 'on');
@@ -66,10 +64,7 @@ function GameView({ ev, protocol, reload, back }: { ev: EventDetailDto; protocol
   const subtitle = day.charAt(0).toUpperCase() + day.slice(1);
   return <Screen title={`Игра ${sequence}`} subtitle={subtitle} back={back} className="match-screen game-screen">
     <div className="match-games game-screen-body">
-      {protocol.currentPair && <section className="card material-blue game-current" aria-label="Текущая игра">
-        <div className="game-versus">{protocol.currentPair.map((team, i) => <Fragment key={team}>{i === 1 && <span className="game-vs" aria-hidden="true">VS</span>}<div className={`game-side team-${teamAppearance(team, colors).key}`}><span className="game-kit" aria-hidden="true" /><b>{teamAppearance(team, colors).name}</b><small>{pointsOf(team)} {plural(pointsOf(team), 'очко', 'очка', 'очков')}</small></div></Fragment>)}</div>
-        {chip && <p className={`game-rest team-${teamAppearance(chip.team, colors).key}`}><span className="team-dot" aria-hidden="true" />{chip.text} {teamAppearance(chip.team, colors).name}</p>}
-      </section>}
+      {protocol.currentPair && <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра"><CurrentPair protocol={protocol} colors={colors} /></section>}
       <GameTimer view={timer} />
       {hint && <p className="muted game-screen-hint">Экран не погаснет сам. Можно заблокировать телефон — сигналы прозвучат.</p>}
       <section className="card material-graphite game-standings-section" aria-labelledby="game-screen-table-heading"><h2 id="game-screen-table-heading">Таблица</h2>

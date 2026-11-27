@@ -2,6 +2,7 @@ import { calculateAssists, plural, teamAppearance, type EventDetailDto, type Gam
 import { Fragment, useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
+import { CurrentPair } from '../components/CurrentPair';
 import { GameTeamName } from '../components/GameTeamName';
 import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, EmptyState } from '../components/ui';
@@ -71,20 +72,12 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
   if(!protocol || protocol.state==='legacy') return <EmptyState title="Протокол не велся" text="В этом матче результаты коротких игр не записывались."/>;
   if(protocol.state==='not_started') return <EmptyState title="Матч ещё не начался" text="После подтверждения составов организатор начнёт матч. Здесь появятся пары, результаты и таблица." action={<Link className="btn" href={`/event/${ev.id}?tab=teams`}>К составам</Link>}/>;
   const active=protocol.state==='playing';
-  const pointsOf=(team:number)=>protocol.standings.find(t=>t.teamIndex===team)?.points ?? 0;
-  const kickoff=protocol.teamCount===2 && !protocol.games.length ? protocol.kickoffTeamIndex ?? null : null;
   // The time itself lives on the game screen; here a blinking mark only says the clock is running right now.
   const live=!!protocol.timer && protocol.timer.pausedAt===null;
   const openMenu=()=>{actions.clearError();setMenu(true);};
   return <div className="match-games">
     {active && protocol.currentPair ? <section className="card material-blue game-current game-current-compact" aria-label="Текущая игра">
-      <div className="game-current-top">
-        <p className="game-current-meta">Игра {protocol.games.length+1}{live && <span className="game-live" role="img" aria-label="Игра идёт"/>}</p>
-        {protocol.restingTeamIndex!==null ? <p className={`game-rest team-${teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>Отдыхают {teamAppearance(protocol.restingTeamIndex, ev.teams?.colors).name}</p>
-          : kickoff!==null && <p className={`game-rest team-${teamAppearance(kickoff, ev.teams?.colors).key}`}><span className="team-dot" aria-hidden="true"/>С мячом начинают {teamAppearance(kickoff, ev.teams?.colors).name}</p>}
-      </div>
-      {/* One line: small kit, name and points on each side, VS between them. */}
-      <div className="game-versus">{protocol.currentPair.map((team,i)=><Fragment key={team}>{i===1 && <span className="game-vs" aria-hidden="true">VS</span>}<div className={`game-side team-${teamAppearance(team, ev.teams?.colors).key}`}><span className="game-kit" aria-hidden="true"/><span className="game-side-name"><b>{teamAppearance(team, ev.teams?.colors).name}</b><small>{pointsOf(team)} {plural(pointsOf(team),'очко','очка','очков')}</small></span></div></Fragment>)}</div>
+      <CurrentPair protocol={protocol} colors={ev.teams?.colors} lead={<p className="game-current-meta">Игра {protocol.games.length+1}{live && <span className="game-live" role="img" aria-label="Игра идёт"/>}</p>}/>
       {!protocol.canRecord && (protocol.canFinish
         ? <div className="match-action-pair"><Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link><button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button></div>
         : <Link className="btn wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>)}
