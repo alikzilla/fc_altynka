@@ -216,7 +216,7 @@ function MyPayment({ bill, reload, mark }: { bill: BillDto; reload: () => void; 
   const amount = line.state === 'underpaid' ? line.due : line.amount;
   // A closed bill asks nothing more: the card turns graphite and says plainly whether this person's payment was marked.
   return <section className={`card pay ${closed ? 'material-graphite pay-closed' : 'material-coral'}`} aria-label="Твоя оплата">
-    <p className="payment-label">{closed ? (line.state === 'paid' ? '✓ Ты оплатил · расчёт закрыт' : 'Расчёт закрыт · оплата не отмечена') : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
+    <p className="payment-label">{closed ? (line.state === 'paid' ? '✓ Ты оплатил' : 'Оплата не отмечена') : line.state === 'paid' ? 'Ты отметил оплату' : line.state === 'underpaid' ? 'Доплатить' : 'К оплате'}</p>
     <KaspiPay amount={amount} receiverName={bill.receiver.name} kaspiPhone={bill.receiver.kaspiPhone} payable={!closed && line.state !== 'paid'} onTransfer={kaspi.onTransfer} />
     {!closed && <PaymentMark billId={bill.id} returnedFromKaspi={kaspi.returned} canUndo onChanged={reload} optimistic={paid => mark(line.id, paid)} marked={line.state === 'paid'} />}
   </section>;
@@ -292,12 +292,12 @@ export function Bill({ ev, reload, actionBlocked }: Props) {
     <>
       <MyPayment bill={bill} reload={reload} mark={mark} />
       <section className="card material-graphite bill-summary">
-        <h2>Общие расходы</h2>
+        {/* The bill's own state is said once, here, for everyone; the payer's card speaks only about the payer. */}
+        <div className="bill-heading"><h2>Общие расходы</h2>{bill.status === 'closed' && <span className="bill-state">Счёт закрыт</span>}</div>
         <dl><div><dt>Аренда поля</dt><dd>{formatTenge(bill.fieldAmount)}</dd></div>{bill.extras.map((extra, i) => <div key={i}><dt>{extra.label}</dt><dd>{formatTenge(extra.amount)}</dd></div>)}<div className="bill-total"><dt>Итого</dt><dd>{formatTenge(bill.total)}</dd></div></dl>
         <p className="muted">По {formatTenge(bill.share)} за игрока</p>
         <p className="muted">Оплату отметили {bill.lines.filter(line => line.state === 'paid').length} из {bill.lines.length}</p>
         {isReceiver && <p className="muted">Получатель — ты · Kaspi {formatKzPhone(bill.receiver.kaspiPhone)}</p>}
-        {bill.status === 'closed' && <p className="muted">Счёт закрыт</p>}
       </section>
       <section><div className="section-heading"><h2>Участники расчёта</h2></div>
         {canMark && <p className="muted bill-mark-hint">{bill.status === 'closed' ? 'Отметил по ошибке? Сними галочку — счёт откроется снова.' : 'Кто-то перевёл, но не отметил? Поставь галочку сам.'}</p>}

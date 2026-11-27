@@ -123,14 +123,16 @@ test('closed bill with outstanding due is read-only', () => {
   renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
   expect(screen.queryByRole('button', { name: 'Перевести в Kaspi' })).not.toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Я перевёл' })).not.toBeInTheDocument();
-  expect(screen.getByText('Расчёт закрыт · оплата не отмечена')).toBeVisible();
+  expect(screen.getByText('Оплата не отмечена')).toBeVisible();
+  expect(screen.getAllByText('Счёт закрыт')).toHaveLength(1);
   expect(screen.getByRole('region', { name: 'Твоя оплата' })).not.toHaveClass('material-coral');
 });
 
 test('a closed bill tells a payer who marked payment that it is settled', () => {
   const closed = { ...bill, status: 'closed' as const, lines: bill.lines.map(l => l.userId === player.userId ? { ...l, state: 'paid' as const, paidAmount: l.amount, due: 0 } : l) };
   renderWithApp(<Bill ev={evWith(2, closed)} reload={() => {}} />, { me: player });
-  expect(screen.getByText('✓ Ты оплатил · расчёт закрыт')).toBeVisible();
+  expect(screen.getByText('✓ Ты оплатил')).toBeVisible();
+  expect(screen.getAllByText('Счёт закрыт')).toHaveLength(1);
 });
 
 test('live share preview rounds up to 50', async () => {

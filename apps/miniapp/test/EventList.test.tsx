@@ -100,3 +100,17 @@ test('EventList: an organizer taps the row itself; its sheet opens the profile t
   await userEvent.click(screen.getByRole('button', { name: 'Действия: Ержан' }));
 });
 
+
+test('EventList: once teams are published each row ends with a colour dot of its team, named only for screen readers', () => {
+  const withTeams = { ...ev, teams: { teamCount: 2 as const, teams: [[1], [2]], colors: ['red', 'blue'] as never, publishedAt: 1, stale: false } };
+  const { container } = renderWithApp(<MatchList ev={withTeams} reload={() => {}} />, { me: player });
+  const marks = [...container.querySelectorAll('.row-team')];
+  expect(marks.map(m => m.className)).toEqual(['row-team team-red', 'row-team team-blue']);
+  expect(marks.map(m => m.querySelector('.sr-only')!.textContent)).toEqual(['Красные', 'Синие']);
+  expect(screen.queryByText('Красные', { selector: ':not(.sr-only)' })).toBeNull();
+});
+
+test('EventList: no team dots before teams are published', () => {
+  const { container } = renderWithApp(<MatchList ev={ev} reload={() => {}} />, { me: player });
+  expect(container.querySelector('.row-team')).toBeNull();
+});

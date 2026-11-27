@@ -1,4 +1,4 @@
-import type { EventDetailDto, SignupDto } from '@altynka/core';
+import { teamAppearance, type EventDetailDto, type SignupDto } from '@altynka/core';
 import { useRef, useState } from 'react';
 import { Avatar, Icon } from '../components/Icon';
 import { ActionSheet } from '../components/ActionSheet';
@@ -20,6 +20,14 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
   const [profileId, setProfileId] = useState<number | null>(null);
   const [selected, setSelected] = useState<SignupDto | null>(null);
   const [addingGuest, setAddingGuest] = useState(false);
+  // Once teams are published every row ends with its team's colour: a dot only, the name is for screen readers.
+  const teamOf = new Map(ev.teams?.publishedAt ? ev.teams.teams.flatMap((ids, team) => ids.map(id => [id, team] as const)) : []);
+  const teamMark = (signupId: number) => {
+    const index = teamOf.get(signupId);
+    if (index === undefined) return null;
+    const team = teamAppearance(index, ev.teams?.colors);
+    return <span className={`row-team team-${team.key}`}><span className="team-dot" aria-hidden="true" /><span className="sr-only">{team.name}</span></span>;
+  };
   const canRemove = (s: SignupDto) => open && (canManageEvent(ev) || s.userId === null && s.invitedByUserId === me.userId);
   async function remove(s: SignupDto) {
     if (locked.current || !canRemove(s)) return;
@@ -37,6 +45,7 @@ export function EventList({ ev, reload }: { ev: EventDetailDto; reload: () => vo
       // Whoever may remove this row taps the row itself: one sheet holds the profile and the removal, no «⋯» on every line.
       ? <button className="btn-plain player-row-button" aria-label={`Действия: ${s.name}`} aria-haspopup="dialog" onClick={() => setSelected(s)} disabled={busy}>{s.name}</button>
       : s.userId !== null ? <button className="btn-plain player-profile-link" onClick={() => setProfileId(s.userId)}>{s.name}</button> : s.name}{s.userId === me.userId && <span className="you">ты</span>}{s.guestOfName && <small className="match-guest muted">(друг: {s.guestOfName})</small>}</span>
+    {teamMark(s.id)}
   </li>;
   return <>
     <section>
