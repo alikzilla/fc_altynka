@@ -372,7 +372,10 @@ for (const width of [320, 390]) {
       const empty = page.locator('.empty-state');
       await expect(empty).toBeVisible();
       await expect(empty.locator('.empty-icon')).toHaveCount(0);
-      expect(await empty.evaluate(el => getComputedStyle(el).textAlign)).toBe('left');
+      // Match tabs use the quiet centred form with the tab's glyph; other screens stay left-aligned without one.
+      const matchTab = path.startsWith('/event/');
+      await expect(empty.locator('.empty-state-icon')).toHaveCount(matchTab ? 1 : 0);
+      expect(await empty.evaluate(el => getComputedStyle(el).textAlign)).toBe(matchTab ? 'center' : 'left');
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       expect((await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze()).violations).toEqual([]);
       await page.screenshot({ path: `artifacts/ui/empty-${width}-${path.replace(/[^a-z0-9]+/gi, '-')}.png`, fullPage: true });
