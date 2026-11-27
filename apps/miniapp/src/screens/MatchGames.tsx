@@ -4,6 +4,7 @@ import { Link } from 'wouter';
 import { ActionSheet } from '../components/ActionSheet';
 import { CurrentPair } from '../components/CurrentPair';
 import { MatchPodium } from '../components/MatchPodium';
+import { PointsHint } from '../components/PointsHint';
 import { GameTeamName } from '../components/GameTeamName';
 import { MatchAction } from '../components/MatchAction';
 import { ConfirmButton, EmptyState } from '../components/ui';
@@ -42,10 +43,17 @@ function GameResults({games,protocol,ev,onEdit}:{games:readonly GameResult[];pro
   return <ol className="game-results">{games.map(game=>{
     const [a,b]=game.score;
     const tone=(side:0|1)=>a===b?'':(side===0?a>b:b>a)?'game-winner':'game-loser';
-    return <li key={game.id} className="game-result">
-      <div className="game-result-meta"><span>Игра {game.sequence}</span>{protocol.canEdit && <button className="btn-text" aria-label={`Изменить результат игры ${game.sequence}`} onClick={event=>{event.currentTarget.focus();onEdit(game);}}>Изменить</button>}</div>
+    const goals=game.pair.map(team=>goalLines(protocol,game,team,ev));
+    const scoreless=!goals[0].length && !goals[1].length;
+    // Score first; under it one line with each side's scorers at the edges and «Игра N» between them. Whoever may
+    // edit taps the game itself: a transparent button over the row carries the edit command.
+    return <li key={game.id} className={`game-result${protocol.canEdit?' editable':''}`}>
+      {protocol.canEdit && <button className="game-result-open" aria-label={`Изменить результат игры ${game.sequence}`} onClick={event=>{event.currentTarget.focus();onEdit(game);}}/>}
       <div className="game-result-pair"><span className={tone(0)}><GameTeamName colors={ev.teams?.colors} index={game.pair[0]}/></span><strong className="game-score-pill">{a}:{b}</strong><span className={tone(1)}><GameTeamName colors={ev.teams?.colors} index={game.pair[1]}/></span></div>
-      <div className="game-goal-columns">{game.pair.map(team=>{const lines=goalLines(protocol,game,team,ev);return <ul key={team} aria-label={`Голы: ${teamAppearance(team, ev.teams?.colors).name}`}>{lines.length?lines.map((line,i)=><li key={i}>{line.author}{line.pass && <small> ({line.pass})</small>}</li>):<li className="game-goal-none">—</li>}</ul>;})}</div>
+      <div className="game-goal-columns">
+        {game.pair.map((team,side)=><ul key={team} aria-label={`Голы: ${teamAppearance(team, ev.teams?.colors).name}`} style={{order:side*2}}>{goals[side].length?goals[side].map((line,k)=><li key={k}>{line.author}{line.pass && <small> ({line.pass})</small>}</li>):!scoreless && <li className="game-goal-none">—</li>}</ul>)}
+        <span className="game-result-number">Игра {game.sequence}</span>
+      </div>
     </li>;
   })}</ol>;
 }
@@ -87,10 +95,10 @@ export function MatchGames({ ev, reload }: { ev: EventDetailDto; reload: () => v
       {protocol.canRecord && <MatchAction><div className="match-action-pair"><Link className="btn primary wide" href={`/event/${ev.id}/game`}>Открыть игру</Link>{protocol.canFinish && <button className="btn match-action-more" aria-label="Действия" onClick={openMenu}><Icon name="more" /></button>}</div></MatchAction>}
     </section> : protocol.games.length ? <MatchPodium protocol={protocol} colors={ev.teams?.colors} userId={me.userId}/>
       : <div className="game-completed"><h2>Итоги матча</h2><p className="muted">Результаты не записывались</p></div>}
-    <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><h2 id="game-table-heading">Таблица</h2><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
+    <section className="card material-graphite game-standings-section" aria-labelledby="game-table-heading"><div className="game-standings-head"><h2 id="game-table-heading">Таблица</h2><PointsHint/></div><div className="game-table-scroll" role="region" aria-label="Статистика команд" tabIndex={0}><table className="game-standings" aria-label="Таблица команд">
       <thead><tr><th scope="col">Команда</th><th scope="col"><abbr title="Игры">И</abbr></th><th scope="col"><abbr title="Победы, ничьи, поражения">В–Н–П</abbr></th><th scope="col"><abbr title="Забито, пропущено и разница голов">Мячи</abbr></th><th scope="col">Очки</th></tr></thead>
       <tbody>{protocol.standings.map(t=><tr key={t.teamIndex}><th scope="row"><span className="game-rank">{t.rank}</span><GameTeamName colors={ev.teams?.colors} index={t.teamIndex}/></th><td>{t.played}</td><td>{t.wins}–{t.draws}–{t.losses}</td><td>{t.goalsFor}:{t.goalsAgainst}<small>{t.goalDifference>0?'+':''}{t.goalDifference}</small></td><td className="game-points">{t.points}</td></tr>)}</tbody>
-    </table></div><p className="muted game-table-note">Победа — 3 очка, ничья — 1.</p></section>
+    </table></div></section>
 
     <section className="card material-graphite game-history" aria-labelledby="game-history-heading"><div className="game-history-heading"><h2 id="game-history-heading">Последние игры</h2>{protocol.games.length>0 && <button className="btn-text" aria-label={`Все игры (${protocol.games.length})`} onClick={event=>{event.currentTarget.focus();setHistory(true);}}>Все {protocol.games.length} <span aria-hidden="true">→</span></button>}</div>
       {protocol.games.length?<GameResults games={protocol.games.slice(-3).reverse()} protocol={protocol} ev={ev} onEdit={setResult}/>:<p className="muted">После первой игры здесь появятся результат и забившие.</p>}
